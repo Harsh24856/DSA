@@ -6,6 +6,7 @@ import { ProgressProvider, useProgress, useSaveStatus } from "./progress";
 import Roadmap from "./Roadmap";
 import Settings from "./Settings";
 import ThemePicker from "./ThemePicker";
+import { ThemeProvider, ThemeSection } from "./theme";
 import { ProgressPanel, Revisit, TodayPanel, Upcoming, WeekStrip } from "./Today";
 
 const VIEWS = [["today", "Today"], ["problems", "All problems"], ["roadmap", "Roadmap"]] as const;
@@ -63,6 +64,7 @@ function Views({ view, toast }: { view: View; toast: (m: string) => void }) {
           <WeekStrip />
           <ProgressPanel plan={plan} />
           <Upcoming plan={plan} />
+          <ThemeSection />
           <Settings toast={toast} />
         </div>
       )}
@@ -77,6 +79,7 @@ export default function DsaDaily() {
   const view = useHashView();
   const { msg, toast } = useToast();
   return (
+    <ThemeProvider>
     <div className="wrap">
       <Header />
       <nav className="tabs" aria-label="Sections">
@@ -88,5 +91,6 @@ export default function DsaDaily() {
       {msg && <div className="toast" role="status">{msg}</div>}
       <noscript><p style={{ textAlign: "center" }}>This tracker needs JavaScript turned on.</p></noscript>
     </div>
+    </ThemeProvider>
   );
 }
