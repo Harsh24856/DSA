@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DSA Daily · Placement practice tracker</title>
+<meta name="description" content="Daily LeetCode, SQL and Codeforces practice for placements, with an auto-shifting schedule and spaced revisits.">
+<script>try{var p=localStorage.getItem("dsa-daily-palette"),m=localStorage.getItem("dsa-daily-theme");if(p&&p!=="midnight")document.documentElement.dataset.palette=p;if(m==="light"||m==="dark")document.documentElement.dataset.theme=m;}catch(e){}</script>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/assets/style.css">
+<script defer src="/assets/problems.js"></script>
+<script defer src="/assets/app.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>DSA Daily</h1>
+      <div class="date" id="date"></div>
+    </div>
+    <div class="count"><b class="num" id="daysLeft">–</b><span>days to placements</span></div>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Choose theme" aria-expanded="false" aria-controls="picker"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg></button>
+    <div class="picker" id="picker" hidden>
+      <div class="k">Theme</div>
+      <div class="swatches" id="swatches"></div>
+      <div class="k">Mode</div>
+      <div class="modes" id="modes"></div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Sections">
+    <a href="#today" data-view="today">Today</a>
+    <a href="#problems" data-view="problems">All problems</a>
+    <a href="#roadmap" data-view="roadmap">Roadmap</a>
+  </nav>
+
+  <div class="view" id="view-today">
+  <section class="stats" id="stats" aria-label="Progress"></section>
+
+  <section class="panel" aria-labelledby="todayH">
+    <div class="ph"><h2 id="todayH">Do these today</h2><span class="sub" id="todaySub"></span></div>
+    <div class="list" id="today"></div>
+    <div id="todayDone"></div>
+    <div class="more">
+      <button class="btn primary" id="moreBtn" type="button">Got time? Do one more</button>
+    </div>
+    <div class="list" id="extra" style="margin-top:6px"></div>
+  </section>
+
+  <section class="panel" id="revPanel" aria-labelledby="revH" hidden>
+    <div class="ph"><h2 id="revH">Revisit</h2><span class="sub">You needed help on these. Re-solve without looking.</span></div>
+    <div class="list" id="revisit"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="weekH">
+    <div class="ph"><h2 id="weekH">This week</h2><span class="sub" id="streak"></span></div>
+    <div class="days" id="days"></div>
+  </section>
+
+  <details class="panel" id="upPanel">
+    <summary><h2>Coming up</h2><span class="sub">Next 7 days. Solving extra pulls these earlier.</span></summary>
+    <div id="upcoming"></div>
+  </details>
+
+  <details class="panel">
+    <summary><h2>Settings &amp; rules</h2><span class="sub">Daily minimum and how to practise</span></summary>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="set">
+        <label for="qL">LeetCode per day</label><input id="qL" type="number" min="0" max="10">
+        <label for="qS">SQL per day</label><input id="qS" type="number" min="0" max="5">
+        <label for="qC">Codeforces per week (weekend)</label><input id="qC" type="number" min="0" max="10">
+      </div>
+      <ol class="rules">
+        <li>Write down the constraints before you think of an approach.</li>
+        <li>Think for 25 minutes before any hint: brute force, why it is slow, what to optimise.</li>
+        <li>After solving, write the one-line key insight. That line is what you revise.</li>
+        <li>Pick “Hint” or “Editorial” honestly. Those problems come back after 3, 7 and 21 days.</li>
+      </ol>
+      <div class="backup">
+        <div class="k">Backup</div>
+        <p>Your progress is saved in this browser. Download a backup now and then, and restore it on a new laptop or phone.</p>
+        <div class="more" style="margin-top:0">
+          <button class="btn" id="exportBtn" type="button">Download backup</button>
+          <label class="btn" for="importFile">Restore backup</label>
+          <input id="importFile" type="file" accept="application/json,.json" hidden>
+        </div>
+      </div>
+      <div class="sub" id="phaseInfo" style="color:var(--muted);font-size:13px"></div>
+    </div>
+  </details>
+
+  </div>
+
+  <div class="view" id="view-problems" hidden>
+    <section class="panel" aria-labelledby="allH">
+      <div class="ph"><h2 id="allH">All problems</h2><span class="sub" id="allCount"></span></div>
+      <div class="filters">
+        <input id="fq" type="search" placeholder="Search by name" aria-label="Search problems by name">
+        <select id="ft" aria-label="Track"><option value="">All tracks</option><option value="L">LeetCode</option><option value="S">SQL</option><option value="C">Codeforces</option></select>
+        <select id="fs" aria-label="Status"><option value="">Any status</option><option value="todo">Not solved</option><option value="done">Solved</option><option value="help">Needed help</option></select>
+        <select id="fl" aria-label="Difficulty"><option value="">Any level</option><option>Easy</option><option>Medium</option><option>Hard</option></select>
+      </div>
+      <div class="list" id="allList" style="margin-top:8px"></div>
+      <div class="more"><button class="btn" id="allMore" type="button">Show more</button></div>
+    </section>
+  </div>
+
+  <div class="view" id="view-roadmap" hidden>
+    <section class="panel" aria-labelledby="rmH">
+      <div class="ph"><h2 id="rmH">Roadmap to May 2027</h2><span class="sub">Four phases, about 2 hours a day</span></div>
+      <div id="phases"></div>
+    </section>
+  </div>
+
+  <div class="save" id="saveState">Loading…</div>
+</div>
+<noscript><p style="text-align:center">This tracker needs JavaScript turned on.</p></noscript>
+</body>
+</html>
