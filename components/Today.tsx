@@ -5,7 +5,9 @@ import {
   carriedFrom, currentPhase, displayTitle, GROUP, isWeekend, markSeen, parse, PHASES, problemUrl, queue,
   revisitsDue, streak, todayPlan, TRACK, upcoming, weekDays, type Plan,
 } from "@/lib/schedule.ts";
+import { pace } from "@/lib/stats.ts";
 import ProblemRow from "./ProblemRow";
+import { paceLabel } from "./Stats";
 import { useProgress } from "./progress";
 
 const shortDay = (d: Date) => d.toLocaleDateString(undefined, { weekday: "short" });
@@ -34,7 +36,7 @@ export function TodayPanel({ plan }: { plan: Plan }) {
           <p className="sub">{(isWeekend(now) ? "Weekend: " : "Weekday: ") + parts.join(" + ")}</p>
         </div>
         <div className="tally" aria-live="polite">
-          <b className="num">{doneCount}</b><span>of <span className="num">{plan.main.length}</span> done</span>
+          <b>{doneCount}</b><span>of {plan.main.length} done</span>
         </div>
       </div>
       <div className="meter" aria-hidden="true">
@@ -116,7 +118,8 @@ export function WeekStrip() {
 }
 
 export function ProgressPanel({ plan }: { plan: Plan }) {
-  const { state } = useProgress();
+  const { state, now } = useProgress();
+  const p = pace(state, now);
   const totals = useMemo(() => { const c = { L: 0, S: 0, C: 0 }; for (const p of P) c[p[0]]++; return c; }, []);
   return (
     <section className="panel" aria-labelledby="progH">
@@ -133,6 +136,10 @@ export function ProgressPanel({ plan }: { plan: Plan }) {
             </div>
           );
         })}
+      </div>
+      <div className="pace-note">
+        <span><b>{paceLabel(p)}</b> <span className="sub">({p.actual} solved, plan {p.plan})</span></span>
+        <a href="#stats">See stats</a>
       </div>
     </section>
   );

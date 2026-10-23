@@ -5,11 +5,12 @@ import AllProblems from "./AllProblems";
 import { ProgressProvider, useProgress, useSaveStatus } from "./progress";
 import Roadmap from "./Roadmap";
 import Settings from "./Settings";
+import Stats from "./Stats";
 import ThemePicker from "./ThemePicker";
 import { ThemeProvider, ThemeSection } from "./theme";
 import { ProgressPanel, Revisit, TodayPanel, Upcoming, WeekStrip } from "./Today";
 
-const VIEWS = [["today", "Today"], ["problems", "All problems"], ["roadmap", "Roadmap"]] as const;
+const VIEWS = [["today", "Today"], ["stats", "Stats"], ["problems", "Problems"], ["roadmap", "Roadmap"]] as const;
 type View = (typeof VIEWS)[number][0];
 
 function useHashView(): View {
@@ -38,7 +39,7 @@ function Header() {
         <h1>DSA Daily</h1>
         <div className="date">{now ? now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }) : " "}</div>
       </div>
-      <div className="count"><b className="num">{now ? Math.max(0, diffDays(PLACEMENT, now)) : "–"}</b><span>days to placements</span></div>
+      <div className="count"><b>{now ? Math.max(0, diffDays(PLACEMENT, now)) : "–"}</b><span>days to placements</span></div>
       <ThemePicker />
     </header>
   );
@@ -68,6 +69,7 @@ function Views({ view, toast }: { view: View; toast: (m: string) => void }) {
           <Settings toast={toast} />
         </div>
       )}
+      {view === "stats" && <div className="view"><Stats /></div>}
       {view === "problems" && <div className="view"><AllProblems /></div>}
       {view === "roadmap" && <div className="view"><Roadmap plan={plan} /></div>}
       <div className="save">{save}</div>
