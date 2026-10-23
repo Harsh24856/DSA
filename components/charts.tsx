@@ -61,9 +61,9 @@ export function Heatmap({ days, now }: { days: Map<string, number>; now: Date })
   return (
     <div>
       <div className="overflow-x-auto pb-1" onMouseLeave={() => setHover(null)}>
-        <div className="flex min-w-[420px] gap-[3px]" role="img" aria-label={`Activity over the last 26 weeks: ${active} active days.`}>
+        <div className="flex min-w-[300px] gap-[2px] sm:gap-[3px]" role="img" aria-label={`Activity over the last 26 weeks: ${active} active days.`}>
           {weeks.map((col, c) => (
-            <div key={c} className="flex min-w-0 flex-1 flex-col gap-[3px]">
+            <div key={c} className="flex min-w-0 flex-1 flex-col gap-[2px] sm:gap-[3px]">
               {col.map((cell, r) => (
                 <motion.div key={cell.key} onMouseEnter={() => setHover(cell)}
                   initial={reduce ? false : { opacity: 0, scale: 0.4 }} animate={{ opacity: cell.future ? 0.25 : 1, scale: 1 }}

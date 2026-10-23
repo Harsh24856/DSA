@@ -39,7 +39,7 @@ export default function Analytics() {
         <Insight icon={<Gauge size={18} aria-hidden />} label="Needed per day" value={need.toFixed(1)} note={`to finish all ${P.length} by 1 May`} />
         <Insight icon={<TrendUp size={18} aria-hidden />} label="Your 30-day average" value={avg.toFixed(1)} note={avg >= need ? "On pace" : `${(need - avg).toFixed(1)} a day short of pace`} />
         <Insight icon={<Lightning size={18} weight="fill" aria-hidden />} label="Best streak" count={bestStreak(state)} note="Longest run of active days" />
-        <Insight icon={<CalendarCheck size={18} aria-hidden />} label="Most active on" value={bestDow} note={`${days.size} active days so far`} />
+        <Insight icon={<CalendarCheck size={18} aria-hidden />} label="Most active on" value={bestDow} note={`${days.size} active ${days.size === 1 ? "day" : "days"} so far`} />
       </section>
 
       <Card title="Activity" sub="Problems solved per day, last 26 weeks">
@@ -76,7 +76,7 @@ function Insight({ icon, label, value, count, note }: { icon: React.ReactNode; l
     <div className="card flex min-w-0 flex-col gap-2 p-4">
       <div className="flex items-center gap-2 text-[13px] font-medium text-muted"><span className="grid size-7 place-items-center rounded-[8px] bg-accent-soft text-accent">{icon}</span>{label}</div>
       {count != null ? <Count value={count} className="text-[26px] font-semibold leading-none" /> : <span className="num truncate text-[26px] font-semibold leading-none">{value}</span>}
-      <p className="truncate text-[12px] text-muted">{note}</p>
+      <p className="line-clamp-2 text-[12px] text-muted">{note}</p>
     </div>
   );
 }

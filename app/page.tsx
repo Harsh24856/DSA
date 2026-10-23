@@ -149,7 +149,7 @@ function Kpi({ icon, label, value, suffix, note }: { icon: React.ReactNode; labe
     <motion.div className="card flex min-w-0 flex-col gap-2 p-4" initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}>
       <div className="flex items-center gap-2 text-[13px] font-medium text-muted"><span className="grid size-7 place-items-center rounded-[8px] bg-accent-soft text-accent">{icon}</span>{label}</div>
       <div className="flex items-baseline gap-1.5"><Count value={value} className="text-[28px] font-semibold leading-none" />{suffix && <span className="text-[13px] text-muted">{suffix}</span>}</div>
-      <p className="truncate text-[12px] text-muted">{note}</p>
+      <p className="line-clamp-2 text-[12px] text-muted">{note}</p>
     </motion.div>
   );
 }
