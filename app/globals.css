@@ -321,4 +321,17 @@ label.btn{cursor:pointer;display:inline-block}
 .pace-note a{color:var(--muted);font-weight:600;font-size:13px}
 .pace-note a:hover{color:var(--ink)}
 
+/* account */
+.acct-form label{font-size:13px;font-weight:600;color:var(--muted)}
+.acct-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.acct-row input{flex:1 1 220px;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:8px 12px;font-size:15px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.55;cursor:default}
+.acct-err{color:var(--hard);font-size:14px;margin-top:8px}
+.acct-sent p{max-width:60ch}
+.acct-sent .linkish{margin-top:6px}
+.acct-status{display:flex;align-items:center;gap:8px;font-size:14px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dot.s-synced{background:var(--easy)} .dot.s-syncing{background:var(--accent)} .dot.s-offline{background:var(--medium)} .dot.s-error{background:var(--hard)}
+
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}

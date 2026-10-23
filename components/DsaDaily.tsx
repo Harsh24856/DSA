@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { diffDays, PLACEMENT, todayPlan } from "@/lib/schedule.ts";
+import Account from "./Account";
 import AllProblems from "./AllProblems";
 import { ProgressProvider, useProgress, useSaveStatus } from "./progress";
 import Roadmap from "./Roadmap";
@@ -65,6 +66,7 @@ function Views({ view, toast }: { view: View; toast: (m: string) => void }) {
           <WeekStrip />
           <ProgressPanel plan={plan} />
           <Upcoming plan={plan} />
+          <Account />
           <ThemeSection />
           <Settings toast={toast} />
         </div>
