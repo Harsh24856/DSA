@@ -261,9 +261,8 @@ async function sync(){
 function setSyncKey(k){
   syncKey = k; base = null;
   try { if (k) localStorage.setItem(SYNC_KEY, k); else localStorage.removeItem(SYNC_KEY); localStorage.removeItem(BASE_KEY); } catch(e){}
-  document.getElementById("syncOff").hidden = !k;
+  document.getElementById("syncPanel").hidden = !!k;
   document.getElementById("syncKey").value = "";
-  document.getElementById("syncKey").placeholder = k ? "Connected. Enter a key to switch" : "Sync key (8+ characters)";
   if (!k) setSave("Cloud sync off. Progress saves in this browser.");
 }
 document.getElementById("syncForm").addEventListener("submit", e=>{
@@ -271,7 +270,6 @@ document.getElementById("syncForm").addEventListener("submit", e=>{
   if (k.length < 8) return toast("Use at least 8 characters for the sync key.");
   setSyncKey(k); setSave("Syncing…"); sync();
 });
-document.getElementById("syncOff").addEventListener("click", ()=> setSyncKey(null));
 document.addEventListener("visibilitychange", ()=>{ if (!document.hidden) sync(); });
 window.addEventListener("online", sync);
 setInterval(()=>{ if (!document.hidden) sync(); }, 60000);
@@ -367,6 +365,7 @@ function renderRoadmap(){
 try { const s = JSON.parse(localStorage.getItem(LS_KEY)||"null"); if (s && s.done) state = {quota:{L:2,S:1,C:2}, ...s}; } catch(e){}
 route();
 setSave(Object.keys(state.done).length ? "Saved in this browser" : "Tick a problem to start. Progress saves in this browser.");
-if (syncKey) { document.getElementById("syncOff").hidden = false; document.getElementById("syncKey").placeholder = "Connected. Enter a key to switch"; setSave("Syncing…"); sync(); }
+document.getElementById("syncPanel").hidden = !!syncKey;
+if (syncKey) { setSave("Syncing…"); sync(); }
 document.body.dataset.day = ymd(today());
 setInterval(()=>{ if (ymd(today()) !== document.body.dataset.day) { document.body.dataset.day = ymd(today()); render(); } }, 60000);
