@@ -4,12 +4,12 @@ import { P, type Track } from "./problems";
 export type How = "s" | "h" | "e";
 export type Tick = { d: string; h?: How; r?: number; n?: string; t?: number };
 /** Daily quota per track: L/S/C on weekdays, wL/wS/wC on Sat and Sun. */
-export type Quota = { L: number; S: number; C: number; wL: number; wS: number; wC: number };
+export type Quota = { L: number; S: number; C: number; wL: number; wS: number; wC: number; v?: number };
 export type State = { done: Record<string, Tick>; quota: Quota };
 
-export const DEFAULT_QUOTA: Quota = { L: 3, S: 1, C: 0, wL: 3, wS: 2, wC: 2 };
-/** Older saves had one quota {L,S,C} with C per week; anything without weekend fields gets the new defaults. */
-export const normQuota = (q?: Partial<Quota> | null): Quota => (q && "wL" in q ? { ...DEFAULT_QUOTA, ...q } : DEFAULT_QUOTA);
+export const DEFAULT_QUOTA: Quota = { L: 3, S: 1, C: 0, wL: 3, wS: 2, wC: 2, v: 2 };
+/** v2 = weekday/weekend quotas. Anything older (incl. a half-migrated {L:2,S:1,C:2,wL..}) resets to the defaults, then syncs back. */
+export const normQuota = (q?: Partial<Quota> | null): Quota => (q && q.v === 2 ? { ...DEFAULT_QUOTA, ...q } : DEFAULT_QUOTA);
 export const quotaFor = (q: Quota, d: Date): Record<Track, number> => (isWeekend(d) ? { L: q.wL, S: q.wS, C: q.wC } : { L: q.L, S: q.S, C: q.C });
 export const PLACEMENT = new Date(2027, 4, 1);
 export const START = new Date(2026, 9, 24); // plan starts Sat 24 Oct 2026
