@@ -1,32 +1,34 @@
 # DSA Daily
 
-Daily placement practice tracker: 2 LeetCode + 1 SQL a day, Codeforces on weekends, 624 problems scheduled up to May 2027.
+Daily placement practice tracker, 624 problems scheduled up to May 2027:
+- Weekdays: 2 DSA (LeetCode) + 1 SQL. Weekends: 3 DSA + 2 SQL, plus a weekly Codeforces goal.
+- Anything you don't finish comes back the next day, marked with the day it was first scheduled.
+- Solving extra pulls later problems forward, but the next day's minimum stays the same.
+
 Three views (Today, All problems, Roadmap) and 7 colour themes, each with light and dark mode.
-Plain HTML, CSS and JavaScript. No build step, no backend.
-
-## Deploy on Vercel
-
-**Option A: drag and drop (no Git)**
-2. Go to https://vercel.com/new and choose to deploy without Git, or install the CLI: `npm i -g vercel`.
-3. With the CLI, run `vercel` inside this folder, accept the defaults, then `vercel --prod`.
-
-**Option B: from GitHub**
-1. On https://vercel.com/new, import the repository.
-2. Framework preset: **Other**. Leave the build command empty and the output directory as the root. Click Deploy.
+Built with Next.js (App Router) and TypeScript. No backend: progress lives in the browser.
 
 ## Run locally
-Run `npx serve -l 4000 .` and open http://localhost:4000.
+```
+npm install
+npm run dev      # http://localhost:4000
+npm test         # scheduling rules (node --test)
+npm run lint     # type check
+npm run build    # production build
+```
+
+## Deploy on Vercel
+Import the repository on https://vercel.com/new. `vercel.json` sets the framework to Next.js, so the defaults work.
+If the project was created earlier with the "Other" preset, change it to **Next.js** in Project Settings → Build and Deployment.
 
 ## Where progress is saved
 Ticks, notes and settings are saved in your browser's local storage, so they stay on that device and browser.
-Use **Settings & rules → Download backup** now and then, and **Restore backup** on a new device.
-
-## Also in this repo
-- `trackers/`: the Excel tracker and the single-file Claude artifact version.
-- `tools/`: scripts that generated everything (see CLAUDE.md).
+Use **Settings and rules → Download backup** now and then, and **Restore backup** on a new device.
 
 ## Files
-- `index.html`: page layout
-- `assets/style.css`: themes (Midnight, Galaxy, Ocean, Forest, Sunset, Rose, Mono). Pick one with the round button top-right
-- `assets/app.js`: scheduling, ticking, revisits, backup
-- `assets/problems.js`: the problem list. Edit it to add or reorder problems (ticks are stored by row position, so add new ones at the end of a track).
+- `app/`: layout, page and `globals.css` (themes: Midnight, Galaxy, Ocean, Forest, Sunset, Rose, Mono).
+- `components/`: the UI. `progress.tsx` holds the saved state, `Today.tsx` the daily view.
+- `lib/schedule.ts`: the scheduling rules (daily list, rollover, revisits, week goals), tested in `lib/schedule.test.ts`.
+- `lib/problems.ts`: the problem list. Ticks are stored by row position, so add new problems at the end; never reorder or delete.
+- `trackers/`: the Excel tracker and the single-file Claude artifact version.
+- `tools/`: scripts that generated everything (see CLAUDE.md).
