@@ -15,6 +15,7 @@ Placement practice tracker for harsh (placements May 2027; ~2 hrs/day, mostly Me
 - Hint/Editorial problems resurface in "Revisit" at +3, +7, +21 days.
 - Themes: `data-palette` (midnight default, galaxy, ocean, forest, sunset, rose, mono) and `data-theme` (light/dark, absent = follow system) on `<html>`; tokens are CSS variables in style.css. Theme choice is stored in `dsa-daily-palette` / `dsa-daily-theme`.
 - Backup/restore downloads/reads a JSON file of the progress state.
+- Cloud sync: Supabase project `dsa-daily` (ref `dmiiflynxamcooowyhps`, schema in `supabase/schema.sql`). No auth; the browser sends a sync key (localStorage `dsa-daily-sync-key`) to RPC `dsa_sync`, which stores only its hash, and the first key ever used claims the single row. The client diffs local state against `dsa-daily-base` (last server-confirmed state) and sends only the changes, so offline edits sync later. It syncs after each change, when the tab is focused, and every 60s.
 
 ## Regenerating (optional)
 `tools/build_sheet.py midnight` rebuilds the xlsx and needs two datasets in its working dir (not committed, 38 MB):

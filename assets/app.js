@@ -185,7 +185,7 @@ function toggle(i, on){
   else delete state.done[i];
   changed();
 }
-function changed(){ render(); persistLocal(); }
+function changed(){ render(); persistLocal(); clearTimeout(syncTimer); syncTimer = setTimeout(sync, 300); }
 function persistLocal(){
   try { localStorage.setItem(LS_KEY, JSON.stringify(state)); setSave("Saved in this browser"); }
   catch(e){ setSave("Couldn’t save in this browser. Private mode or blocked storage can cause this."); }
@@ -215,6 +215,66 @@ document.getElementById("importFile").addEventListener("change", async e=>{
     toast("Backup restored: " + Object.keys(state.done).length + " solved problems");
   } catch(err){ toast("That file isn’t a DSA Daily backup. Pick the .json file you downloaded."); }
 });
+
+/* ---------- cloud sync (Supabase, see supabase/schema.sql) ---------- */
+const SB_URL = "https://dmiiflynxamcooowyhps.supabase.co", SB_KEY = "sb_publishable_wMRDwIm-ju-tXe8XvOoxJg_AnHYcIyd";
+const SYNC_KEY = "dsa-daily-sync-key", BASE_KEY = "dsa-daily-base";
+// base = last state the server confirmed; local edits are diffed against it, so offline changes survive reloads
+let syncKey = null, base = null, syncing = false, syncAgain = false, syncTimer = 0;
+try { syncKey = localStorage.getItem(SYNC_KEY); base = JSON.parse(localStorage.getItem(BASE_KEY)||"null"); } catch(e){}
+const J = JSON.stringify;
+function diff(from, to){ // changes that turn `from` into `to`
+  const set = {}, del = [];
+  for (const [k,v] of Object.entries(to.done)) if (J(v) !== J(from.done[k])) set[k] = v;
+  for (const k of Object.keys(from.done)) if (!(k in to.done)) del.push(k);
+  return {set, del, quota: J(to.quota) !== J(from.quota) ? to.quota : null};
+}
+function applyDiff(s, d){ const done = {...s.done, ...d.set}; d.del.forEach(k=>delete done[k]); return {done, quota: d.quota || s.quota}; }
+async function sync(){
+  if (!syncKey) return;
+  if (syncing) { syncAgain = true; return; }
+  syncing = true;
+  const sent = structuredClone({done: state.done, quota: state.quota});
+  // first connect on this device: add local ticks to the cloud, never delete cloud ones
+  const d = base ? diff(base, sent) : {set: sent.done, del: [], quota: null};
+  try {
+    const r = await fetch(SB_URL+"/rest/v1/rpc/dsa_sync", {method:"POST", headers:{apikey:SB_KEY, "Content-Type":"application/json"},
+      body: J({p_key: syncKey, p_set: d.set, p_del: d.del, p_quota: d.quota})});
+    const res = await r.json();
+    if (!r.ok) throw new Error(res.message || String(r.status));
+    base = {done: res.done, quota: res.quota};
+    const next = applyDiff(base, diff(sent, {done: state.done, quota: state.quota})); // keep edits made during the request
+    const moved = J(next) !== J({done: state.done, quota: state.quota});
+    state = {...state, ...next};
+    if (moved) render();
+    try { localStorage.setItem(LS_KEY, J(state)); localStorage.setItem(BASE_KEY, J(base)); } catch(e){}
+    if (J(next) !== J(base)) syncAgain = true;
+    setSave("Synced to cloud · " + new Date().toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}));
+  } catch(e) {
+    if (/sync key/.test(e.message)) { setSyncKey(null); toast(e.message === "wrong sync key" ? "Wrong sync key. Enter the key you used on your first device." : e.message); }
+    else setSave("Offline. Changes are saved in this browser and sync when you are back online.");
+  } finally {
+    syncing = false;
+    if (syncAgain) { syncAgain = false; sync(); }
+  }
+}
+function setSyncKey(k){
+  syncKey = k; base = null;
+  try { if (k) localStorage.setItem(SYNC_KEY, k); else localStorage.removeItem(SYNC_KEY); localStorage.removeItem(BASE_KEY); } catch(e){}
+  document.getElementById("syncOff").hidden = !k;
+  document.getElementById("syncKey").value = "";
+  document.getElementById("syncKey").placeholder = k ? "Connected. Enter a key to switch" : "Sync key (8+ characters)";
+  if (!k) setSave("Cloud sync off. Progress saves in this browser.");
+}
+document.getElementById("syncForm").addEventListener("submit", e=>{
+  e.preventDefault(); const k = document.getElementById("syncKey").value.trim();
+  if (k.length < 8) return toast("Use at least 8 characters for the sync key.");
+  setSyncKey(k); setSave("Syncing…"); sync();
+});
+document.getElementById("syncOff").addEventListener("click", ()=> setSyncKey(null));
+document.addEventListener("visibilitychange", ()=>{ if (!document.hidden) sync(); });
+window.addEventListener("online", sync);
+setInterval(()=>{ if (!document.hidden) sync(); }, 60000);
 
 /* ---------- theme ---------- */
 const PALETTES = {midnight:["Midnight","#1D4ED8","#5B9BFF"],galaxy:["Galaxy","#4A4E8F","#A3A7F2"],ocean:["Ocean","#0F766E","#4FD1C5"],forest:["Forest","#3F6B3A","#8CC77F"],sunset:["Sunset","#C2410C","#FB923C"],rose:["Rose","#BE185D","#F472B6"],mono:["Mono","#111111","#F2F2F2"]};
@@ -307,5 +367,6 @@ function renderRoadmap(){
 try { const s = JSON.parse(localStorage.getItem(LS_KEY)||"null"); if (s && s.done) state = {quota:{L:2,S:1,C:2}, ...s}; } catch(e){}
 route();
 setSave(Object.keys(state.done).length ? "Saved in this browser" : "Tick a problem to start. Progress saves in this browser.");
+if (syncKey) { document.getElementById("syncOff").hidden = false; document.getElementById("syncKey").placeholder = "Connected. Enter a key to switch"; setSave("Syncing…"); sync(); }
 document.body.dataset.day = ymd(today());
 setInterval(()=>{ if (ymd(today()) !== document.body.dataset.day) { document.body.dataset.day = ymd(today()); render(); } }, 60000);

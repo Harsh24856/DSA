@@ -81,8 +81,17 @@
         <li>Pick “Hint” or “Editorial” honestly. Those problems come back after 3, 7 and 21 days.</li>
       </ol>
       <div class="backup">
+        <div class="k">Cloud sync</div>
+        <p id="syncInfo">Enter your sync key on each device to keep ticks the same everywhere. The first key you ever enter becomes yours, so pick a long one and keep it private.</p>
+        <form class="more" id="syncForm" style="margin-top:0">
+          <input class="note" id="syncKey" type="password" minlength="8" autocomplete="current-password" placeholder="Sync key (8+ characters)" aria-label="Sync key">
+          <button class="btn" type="submit">Connect</button>
+          <button class="btn" id="syncOff" type="button" hidden>Disconnect</button>
+        </form>
+      </div>
+      <div class="backup">
         <div class="k">Backup</div>
-        <p>Your progress is saved in this browser. Download a backup now and then, and restore it on a new laptop or phone.</p>
+        <p>Your progress is also saved in this browser. Download a backup now and then, and restore it on a new laptop or phone.</p>
         <div class="more" style="margin-top:0">
           <button class="btn" id="exportBtn" type="button">Download backup</button>
           <label class="btn" for="importFile">Restore backup</label>
