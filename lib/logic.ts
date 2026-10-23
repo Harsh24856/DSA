@@ -1,5 +1,5 @@
 // Scheduling and stats. Pure functions over the progress state, ported from the original app.js.
-import { P, type Track } from "./problems";
+import { P, type Track } from "./problems.ts";
 
 export type How = "s" | "h" | "e";
 export type Tick = { d: string; h?: How; r?: number; n?: string; t?: number };
@@ -55,6 +55,22 @@ export function todayPlan(s: State, now: Date) {
   const main = TRACKS.flatMap((tr) => byTrack[tr]);
   const extraDone = Object.keys(s.done).map(Number).filter((i) => s.done[i].d === t && !main.includes(i));
   return { main, byTrack, extraDone, quota: q };
+}
+
+/**
+ * Where each track's window sits today. `from`/`to` are 1-based positions in that track's list.
+ * `behind` = planned since START up to yesterday minus solved before today; those problems are
+ * the ones still sitting at the front of the window, so `carried` (capped at today's quota) rolled over.
+ */
+export function windowInfo(s: State, now: Date, tr: Track, ids: number[]) {
+  const pos = (i: number) => P.slice(0, i + 1).filter((p) => p[0] === tr).length;
+  const total = P.filter((p) => p[0] === tr).length;
+  const t = ymd(now);
+  let planned = 0;
+  for (let d = new Date(START); ymd(d) < t; d = addDays(d, 1)) planned += quotaFor(s.quota, d)[tr];
+  const solvedBefore = Object.keys(s.done).filter((i) => P[+i]?.[0] === tr && s.done[i].d < t).length;
+  const behind = Math.max(0, planned - solvedBefore);
+  return { from: ids.length ? pos(Math.min(...ids)) : 0, to: ids.length ? pos(Math.max(...ids)) : 0, total, behind, carried: Math.min(behind, ids.length) };
 }
 
 export function revisitsDue(s: State, now: Date) {

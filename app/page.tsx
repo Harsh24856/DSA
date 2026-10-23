@@ -3,7 +3,7 @@ import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowClockwise, CheckCircle, CloudSlash, Code, Database, Fire, Lightning, Plus, Target, Trophy, type Icon } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
-import { addDays, isWeekend, level, perDay, queue, revisitsDue, streak, title, todayPlan, TRACK, TRACKS, trackTotals, upcoming, url, weekStart, ymd } from "@/lib/logic";
+import { addDays, isWeekend, level, perDay, queue, revisitsDue, streak, title, todayPlan, TRACK, TRACKS, trackTotals, upcoming, url, weekStart, windowInfo, ymd } from "@/lib/logic";
 import type { Track } from "@/lib/problems";
 import { P } from "@/lib/problems";
 
@@ -55,11 +55,20 @@ export default function Today() {
               {TRACKS.map((tr) => {
                 const I = TRACK_ICON[tr], ids = plan.byTrack[tr], extras = extraIds.filter((i) => P[i][0] === tr);
                 const dn = ids.filter((i) => state.done[i]).length;
+                const w = windowInfo(state, now, tr, ids);
                 return (
                   <section key={tr} aria-labelledby={"tr-" + tr} className="rounded-[14px] border border-line bg-surface-2/40 px-4 pb-1 pt-3.5">
                     <div className="flex items-center gap-3">
                       <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-accent-soft text-accent"><I size={17} weight="bold" aria-hidden /></span>
-                      <h3 id={"tr-" + tr} className="flex-1 text-[15px] font-semibold">{TRACK[tr]}</h3>
+                      <div className="min-w-0 flex-1">
+                        <h3 id={"tr-" + tr} className="text-[15px] font-semibold">{TRACK[tr]}</h3>
+                        {ids.length > 0 && (
+                          <p className="num text-[12px] text-muted">
+                            {w.from === w.to ? `#${w.from}` : `#${w.from} to ${w.to}`} of {w.total}
+                            {w.carried > 0 && <span className="ml-2 rounded-full bg-medium/15 px-2 py-0.5 font-sans font-semibold text-medium">{w.carried} carried over</span>}
+                          </p>
+                        )}
+                      </div>
                       {ids.length > 0 && <span className="num text-[13px] text-muted"><span className="font-semibold text-ink">{dn}</span> / {ids.length}</span>}
                     </div>
                     {ids.length > 0 && <Bar value={dn} max={ids.length} className="mt-3" />}
