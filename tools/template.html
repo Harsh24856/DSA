@@ -1,0 +1,398 @@
+<title>DSA Daily</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one calm column. Today's list is the hero, everything else folds away below it. */
+:root{
+  --bg:#F4F6FB; --surface:#FFFFFF; --ink:#0B1630; --muted:#56637F; --line:#DCE2EE;
+  --accent:#1D4ED8; --accent-ink:#FFFFFF; --soft:#E6ECFB; --good:#1D4ED8; --good-soft:#E6ECFB;
+  --medium:#A86A12; --hard:#B4475A; --easy:#1F7A5C;
+  --display:"Sora",ui-sans-serif,system-ui,sans-serif;
+  --body:"Manrope",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#04060B; --surface:#0B1530; --ink:#F5F7FF; --muted:#8F9CBC; --line:#1B2950;
+  --accent:#5B9BFF; --accent-ink:#04060B; --soft:#13224A; --good:#5B9BFF; --good-soft:#12234D;
+  --medium:#E3AE5A; --hard:#EE8496; --easy:#5CC79E; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#04060B; --surface:#0B1530; --ink:#F5F7FF; --muted:#8F9CBC; --line:#1B2950;
+  --accent:#5B9BFF; --accent-ink:#04060B; --soft:#13224A; --good:#5B9BFF; --good-soft:#12234D;
+  --medium:#E3AE5A; --hard:#EE8496; --easy:#5CC79E; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.num{font-variant-numeric:tabular-nums}
+
+/* header */
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.top h1{font-size:26px;font-weight:700;letter-spacing:-.01em}
+.date{color:var(--muted);font-weight:500}
+.count{text-align:right;margin-left:auto}
+.count b{font-family:var(--display);font-size:30px;font-weight:700;color:var(--accent);line-height:1}
+.count span{display:block;color:var(--muted);font-size:13px}
+
+/* stat strip */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
+.stat .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.stat .v{font-family:var(--display);font-size:20px;font-weight:600}
+.stat .v small{font-family:var(--body);font-size:13px;color:var(--muted);font-weight:500}
+.bar{height:4px;background:var(--soft);border-radius:4px;margin-top:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+@media (max-width:520px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* panels */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px}
+.ph{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:10px;flex-wrap:wrap}
+.ph h2{font-size:18px;font-weight:600}
+.ph .sub{color:var(--muted);font-size:13px}
+.done-msg{background:var(--good-soft);color:var(--good);border-radius:10px;padding:10px 12px;font-weight:600;margin-top:6px}
+
+/* problem rows */
+.list{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:12px;align-items:start;padding:12px 2px;border-top:1px solid var(--line)}
+.list .row:first-child{border-top:0}
+.tick{appearance:none;width:24px;height:24px;margin:1px 0 0;border:2px solid var(--muted);border-radius:7px;cursor:pointer;display:grid;place-content:center;background:transparent;transition:background .15s,border-color .15s}
+.tick:checked{background:var(--good);border-color:var(--good)}
+.tick:checked::after{content:"";width:6px;height:11px;border:solid var(--surface);border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.main{min-width:0}
+.title{font-weight:600;font-size:16px;text-decoration:none;border-bottom:1px solid transparent;overflow-wrap:anywhere}
+.title:hover{border-bottom-color:currentColor}
+.title .arrow{color:var(--muted);font-size:13px;margin-left:4px}
+.row.is-done .title{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--line)}
+.meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px;font-size:13px;color:var(--muted)}
+.pill{font-size:12px;font-weight:600;padding:1px 8px;border-radius:99px;border:1px solid currentColor;line-height:18px}
+.lv-Easy{color:var(--easy)} .lv-Medium{color:var(--medium)} .lv-Hard{color:var(--hard)} .lv-CF{color:var(--accent)}
+.track{font-weight:600;color:var(--ink);opacity:.75}
+.spoil{background:none;border:0;padding:0;color:var(--muted);text-decoration:underline dotted;font-size:13px}
+.side{font-size:12px;color:var(--muted);white-space:nowrap;padding-top:3px}
+
+/* after-solve controls */
+.after{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.chip{border:1px solid var(--line);background:transparent;border-radius:99px;padding:3px 11px;font-size:13px;font-weight:600;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.note{flex:1 1 220px;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:6px 10px;font:inherit;font-size:14px}
+
+/* buttons */
+.more{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.btn{border:1px solid var(--line);background:var(--soft);border-radius:10px;padding:8px 14px;font-weight:600}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:hover{filter:brightness(1.04)}
+
+/* week strip */
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.day{border:1px solid var(--line);border-radius:10px;padding:8px 6px;text-align:center;min-width:0}
+.day .dn{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.day .dc{font-family:var(--display);font-size:18px;font-weight:600}
+.day.today{border-color:var(--accent);background:var(--soft)}
+.day.zero .dc{color:var(--muted);opacity:.6}
+
+details.panel>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+details.panel>summary::-webkit-details-marker{display:none}
+details.panel>summary h2{font-size:18px;font-weight:600}
+details.panel>summary h2::before{content:"▸ ";color:var(--muted);font-size:14px}
+details.panel[open]>summary h2::before{content:"▾ "}
+details.panel[open]>summary{margin-bottom:10px}
+.up-day{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-top:12px}
+.up{display:flex;gap:8px;padding:4px 0;font-size:14px;min-width:0}
+.up a{text-decoration:none;overflow-wrap:anywhere}
+.up a:hover{text-decoration:underline}
+.set{display:grid;grid-template-columns:minmax(0,1fr) 90px;gap:10px 14px;align-items:center;max-width:420px}
+.set input{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:6px 8px;font:inherit;width:100%}
+.save{font-size:12px;color:var(--muted);text-align:center}
+.rules{margin:0;padding-left:20px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Today’s practice</h1>
+      <div class="date" id="date"></div>
+    </div>
+    <div class="count"><b class="num" id="daysLeft">–</b><span>days to placements</span></div>
+  </header>
+
+  <section class="stats" id="stats" aria-label="Progress"></section>
+
+  <section class="panel" aria-labelledby="todayH">
+    <div class="ph"><h2 id="todayH">Do these today</h2><span class="sub" id="todaySub"></span></div>
+    <div class="list" id="today"></div>
+    <div id="todayDone"></div>
+    <div class="more">
+      <button class="btn primary" id="moreBtn" type="button">Got time? Do one more</button>
+    </div>
+    <div class="list" id="extra" style="margin-top:6px"></div>
+  </section>
+
+  <section class="panel" id="revPanel" aria-labelledby="revH" hidden>
+    <div class="ph"><h2 id="revH">Revisit</h2><span class="sub">You needed help on these. Re-solve without looking.</span></div>
+    <div class="list" id="revisit"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="weekH">
+    <div class="ph"><h2 id="weekH">This week</h2><span class="sub" id="streak"></span></div>
+    <div class="days" id="days"></div>
+  </section>
+
+  <details class="panel" id="upPanel">
+    <summary><h2>Coming up</h2><span class="sub">Next 7 days. Solving extra pulls these earlier.</span></summary>
+    <div id="upcoming"></div>
+  </details>
+
+  <details class="panel">
+    <summary><h2>Settings &amp; rules</h2><span class="sub">Daily minimum and how to practise</span></summary>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="set">
+        <label for="qL">LeetCode per day</label><input id="qL" type="number" min="0" max="10">
+        <label for="qS">SQL per day</label><input id="qS" type="number" min="0" max="5">
+        <label for="qC">Codeforces per week (weekend)</label><input id="qC" type="number" min="0" max="10">
+      </div>
+      <ol class="rules">
+        <li>Write down the constraints before you think of an approach.</li>
+        <li>Think for 25 minutes before any hint: brute force, why it is slow, what to optimise.</li>
+        <li>After solving, write the one-line key insight. That line is what you revise.</li>
+        <li>Pick “Hint” or “Editorial” honestly. Those problems come back after 3, 7 and 21 days.</li>
+      </ol>
+      <div class="sub" id="phaseInfo" style="color:var(--muted);font-size:13px"></div>
+    </div>
+  </details>
+
+  <div class="save" id="saveState">Loading…</div>
+</div>
+
+<script>
+const P = __DATA__; // [track L/S/C, title, slug-or-url, level, phase, topic]
+const PLACEMENT = new Date(2027, 4, 1);
+const PHASES = {1:"Phase 1 · Unseen Mediums (to Dec 27)",2:"Phase 2 · Medium–Hard (to Feb 28)",3:"Phase 3 · OA simulation (to Apr 15)",4:"Phase 4 · Revision (to May 1)"};
+const TRACK = {L:"LeetCode",S:"SQL",C:"Codeforces"};
+const REV = [3,7,21];
+const LS_KEY = "dsa-daily-v1";
+
+let state = {done:{}, quota:{L:2,S:1,C:2}};
+let showExtra = 0;
+let db = null, docRef = null, dirty = false, saveTimer = null;
+const revealed = new Set();
+
+const pad = n => String(n).padStart(2,"0");
+const ymd = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y,m-1,d); };
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const diffDays = (a,b) => Math.round((parse(ymd(a)) - parse(ymd(b))) / 864e5);
+const today = () => new Date();
+const weekStart = d => addDays(parse(ymd(d)), -((d.getDay()+6)%7)); // Monday
+const url = i => P[i][0]==="C" ? P[i][2] : "https://leetcode.com/problems/"+P[i][2]+"/";
+const isWeekend = d => d.getDay()===0 || d.getDay()===6;
+const el = (t, cls, txt) => { const e = document.createElement(t); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+
+function displayTitle(i){
+  const p = P[i];
+  if (p[0]==="C") return "Top unsolved problem · rating " + p[3].replace("CF ","");
+  return p[1];
+}
+function queue(track){ const q=[]; P.forEach((p,i)=>{ if(p[0]===track && !state.done[i]) q.push(i); }); return q; }
+function doneOn(track, from, to){ // ids done in [from,to] (ymd strings)
+  return Object.keys(state.done).map(Number).filter(i => P[i] && P[i][0]===track && state.done[i].d>=from && state.done[i].d<=to)
+    .sort((a,b)=> (state.done[a].t||0)-(state.done[b].t||0) || a-b);
+}
+
+function todayPlan(){
+  const t = ymd(today()), q = state.quota, out = [];
+  for (const tr of ["L","S"]) {
+    // today's slots = lowest-index problems among (done today + still undone), so extras never push a planned one out
+    out.push(...[...doneOn(tr,t,t), ...queue(tr).slice(0, q[tr]||0)].sort((a,b)=>a-b).slice(0, q[tr]||0));
+  }
+  const ws = weekStart(today()), we = addDays(ws,6);
+  const cfDone = doneOn("C", ymd(ws), ymd(we));
+  const cfNeed = Math.max(0,(q.C||0)-cfDone.length);
+  const cfToday = isWeekend(today()) ? [...cfDone.filter(i=>state.done[i].d===t), ...queue("C").slice(0,cfNeed)] : [];
+  out.push(...cfToday);
+  const extraToday = Object.keys(state.done).map(Number).filter(i => state.done[i].d===t && !out.includes(i));
+  return {main: out, extraDone: extraToday, cfNeed, cfDone: cfDone.length};
+}
+
+function revisitsDue(){
+  const t = today(), out = [];
+  for (const [k,v] of Object.entries(state.done)) {
+    if (!v.h || v.h==="s") continue;
+    const r = v.r||0; if (r >= REV.length) continue;
+    const due = addDays(parse(v.d), REV[r]);
+    if (diffDays(t,due) >= 0) out.push({i:+k, r, due});
+  }
+  return out.sort((a,b)=>a.due-b.due);
+}
+
+/* ---------- rendering ---------- */
+function problemRow(i, opts={}){
+  const p = P[i], d = state.done[i], row = el("div","row"+(d?" is-done":""));
+  const cb = el("input","tick"); cb.type="checkbox"; cb.checked=!!d; cb.id="p"+i;
+  cb.setAttribute("aria-label", (d?"Untick ":"Tick ")+displayTitle(i));
+  cb.addEventListener("change", ()=> toggle(i, cb.checked));
+  const main = el("div","main");
+  const a = el("a","title"); a.href=url(i); a.target="_blank"; a.rel="noopener"; a.textContent=displayTitle(i);
+  a.appendChild(el("span","arrow","↗"));
+  main.appendChild(a);
+  const meta = el("div","meta");
+  meta.appendChild(el("span","track",TRACK[p[0]]));
+  const lv = p[0]==="C" ? "CF" : p[3];
+  meta.appendChild(el("span","pill lv-"+lv, p[0]==="C" ? p[3] : p[3]));
+  if (revealed.has(i)) meta.appendChild(el("span","",p[5]));
+  else { const s = el("button","spoil","show topic"); s.type="button"; s.addEventListener("click",()=>{revealed.add(i);render();}); meta.appendChild(s); }
+  main.appendChild(meta);
+  if (d && !opts.compact) {
+    const after = el("div","after");
+    [["s","Solo"],["h","Hint"],["e","Editorial"]].forEach(([k,label])=>{
+      const c = el("button","chip",label); c.type="button"; c.setAttribute("aria-pressed", String((d.h||"s")===k));
+      c.addEventListener("click",()=>{ state.done[i] = {...state.done[i], h:k, r:0}; changed(); });
+      after.appendChild(c);
+    });
+    const note = el("input","note"); note.id="n"+i; note.placeholder="Key insight in one line"; note.value=d.n||"";
+    note.setAttribute("aria-label","Key insight for "+displayTitle(i));
+    note.addEventListener("change",()=>{ state.done[i] = {...state.done[i], n:note.value.slice(0,200)}; changed(); });
+    after.appendChild(note);
+    main.appendChild(after);
+  }
+  row.append(cb, main, el("div","side", opts.side || ""));
+  return row;
+}
+
+function render(){
+  const now = today(), t = ymd(now);
+  document.getElementById("date").textContent = now.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  document.getElementById("daysLeft").textContent = Math.max(0, diffDays(PLACEMENT, now));
+
+  // stats
+  const stats = document.getElementById("stats"); stats.replaceChildren();
+  const solvedToday = Object.values(state.done).filter(v=>v.d===t).length;
+  for (const tr of ["L","S","C"]) {
+    const tot = P.filter(p=>p[0]===tr).length, dn = Object.keys(state.done).filter(i=>P[i]&&P[i][0]===tr).length;
+    const s = el("div","stat"); s.append(el("div","k",TRACK[tr]));
+    const v = el("div","v num"); v.textContent = dn; v.appendChild(el("small",""," / "+tot)); s.append(v);
+    const b = el("div","bar"), f = el("i"); f.style.width = (100*dn/tot).toFixed(1)+"%"; b.append(f); s.append(b);
+    stats.append(s);
+  }
+  const s4 = el("div","stat"); s4.append(el("div","k","Solved today"), el("div","v num", String(solvedToday))); stats.append(s4);
+
+  // today
+  const plan = todayPlan();
+  const list = document.getElementById("today"); list.replaceChildren();
+  plan.main.forEach(i => list.append(problemRow(i)));
+  const remaining = plan.main.filter(i=>!state.done[i]).length;
+  const q = state.quota;
+  document.getElementById("todaySub").textContent =
+    `${q.L} LeetCode + ${q.S} SQL` + (isWeekend(now) ? ` + Codeforces (${plan.cfDone}/${q.C} this week)` : ` · Codeforces on the weekend`);
+  const dm = document.getElementById("todayDone"); dm.replaceChildren();
+  if (plan.main.length && remaining===0) dm.append(el("div","done-msg","Daily minimum done. Anything extra moves tomorrow’s problems up."));
+
+  // extra
+  const ex = document.getElementById("extra"); ex.replaceChildren();
+  const nextUp = queue("L").filter(i=>!plan.main.includes(i)).slice(0, showExtra);
+  const extraIds = [...plan.extraDone, ...nextUp.filter(i=>!plan.extraDone.includes(i))];
+  extraIds.forEach(i => ex.append(problemRow(i,{side: state.done[i] ? "extra" : "from tomorrow"})));
+  document.getElementById("moreBtn").textContent = extraIds.length ? "Show another" : "Got time? Do one more";
+
+  // revisit
+  const rv = revisitsDue(), rl = document.getElementById("revisit"); rl.replaceChildren();
+  document.getElementById("revPanel").hidden = rv.length===0;
+  rv.forEach(({i,r})=>{
+    const row = problemRow(i,{compact:true, side:"revisit "+(r+1)+" of 3"});
+    const cb = row.querySelector(".tick"); cb.checked=false; cb.setAttribute("aria-label","Mark revisit done: "+displayTitle(i));
+    row.classList.remove("is-done");
+    const fresh = cb.cloneNode(true); cb.replaceWith(fresh);
+    fresh.addEventListener("change",()=>{ state.done[i] = {...state.done[i], r:(state.done[i].r||0)+1}; changed(); });
+    if (state.done[i].n) row.querySelector(".main").append(el("div","meta","Your insight: "+state.done[i].n));
+    rl.append(row);
+  });
+
+  // week strip
+  const days = document.getElementById("days"); days.replaceChildren();
+  const ws = weekStart(now);
+  for (let k=0;k<7;k++){
+    const d = addDays(ws,k), key = ymd(d), c = Object.values(state.done).filter(v=>v.d===key).length;
+    const box = el("div","day"+(key===t?" today":"")+(c?"":" zero"));
+    box.append(el("div","dn", d.toLocaleDateString(undefined,{weekday:"short"})), el("div","dc num", String(c)));
+    days.append(box);
+  }
+  let streak = 0; for (let d = new Date(now); ; d = addDays(d,-1)) {
+    const key = ymd(d), c = Object.values(state.done).some(v=>v.d===key);
+    if (c) streak++; else if (key!==t) break; if (streak>400) break;
+  }
+  document.getElementById("streak").textContent = streak ? `${streak}-day streak` : "Start your streak today";
+
+  // upcoming (simulate)
+  const up = document.getElementById("upcoming"); up.replaceChildren();
+  const qL = queue("L").filter(i=>!plan.main.includes(i)), qS = queue("S").filter(i=>!plan.main.includes(i));
+  let qC = queue("C").filter(i=>!plan.main.includes(i));
+  let cfLeftThisWeek = isWeekend(now) ? 0 : plan.cfNeed;
+  for (let k=1;k<=7;k++){
+    const d = addDays(now,k);
+    const items = [...qL.splice(0,q.L), ...qS.splice(0,q.S)];
+    if (d.getDay()===6) { const n = diffDays(weekStart(d), weekStart(now))===0 ? cfLeftThisWeek : q.C; items.push(...qC.splice(0,n)); }
+    up.append(el("div","up-day", d.toLocaleDateString(undefined,{weekday:"long",day:"numeric",month:"short"})));
+    items.forEach(i=>{ const r = el("div","up"); const a = el("a","",displayTitle(i)); a.href=url(i); a.target="_blank"; a.rel="noopener";
+      r.append(el("span","pill lv-"+(P[i][0]==="C"?"CF":P[i][3]), P[i][0]==="C"?"CF":P[i][3]), a); up.append(r); });
+  }
+
+  // settings
+  for (const k of ["L","S","C"]) { const inp = document.getElementById("q"+k); if (document.activeElement!==inp) inp.value = q[k]; }
+  const cur = plan.main.length ? P[plan.main[0]][4] : 4;
+  document.getElementById("phaseInfo").textContent = "You are in " + PHASES[cur] + ".";
+}
+
+/* ---------- state changes ---------- */
+function toggle(i, on){
+  if (on) state.done[i] = {d: ymd(today()), h:"s", r:0, t: Date.now()};
+  else delete state.done[i];
+  changed();
+}
+function changed(){ dirty = true; render(); persistLocal(); scheduleSave(); }
+function persistLocal(){ try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e){} }
+function setSave(msg){ document.getElementById("saveState").textContent = msg; }
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  if (!docRef) { setSave("Saved on this device"); return; }
+  setSave("Saving…");
+  saveTimer = setTimeout(async ()=>{
+    const snapshot = JSON.parse(JSON.stringify(state));
+    try { await docRef.set(snapshot); dirty = false; setSave("All changes saved"); }
+    catch(e){ setSave("Couldn’t save to your account right now. Your ticks are kept on this device."); }
+  }, 500);
+}
+
+document.getElementById("moreBtn").addEventListener("click", ()=>{ showExtra++; render(); });
+for (const k of ["L","S","C"]) document.getElementById("q"+k).addEventListener("change", e=>{
+  const v = Math.max(0, Math.min(10, parseInt(e.target.value,10)||0)); state.quota = {...state.quota, [k]: v}; changed();
+});
+
+/* ---------- boot ---------- */
+try { const s = JSON.parse(localStorage.getItem(LS_KEY)||"null"); if (s && s.done) state = {quota:{L:2,S:1,C:2}, ...s}; } catch(e){}
+render();
+setSave("Saved on this device");
+setInterval(()=>{ if (ymd(today()) !== document.body.dataset.day) { document.body.dataset.day = ymd(today()); render(); } }, 60000);
+document.body.dataset.day = ymd(today());
+
+(async ()=>{
+  try { db = window.claude && await window.claude.use("db"); } catch(e){ db = null; }
+  if (!db) return;
+  docRef = db.doc("tracker/state");
+  setSave("Syncing…");
+  docRef.onSnapshot(snap=>{
+    if (snap.metadata && snap.metadata.hasPendingWrites) return;
+    if (snap.exists) {
+      if (dirty) return;
+      const d = snap.data();
+      state = {quota:{L:2,S:1,C:2}, ...JSON.parse(JSON.stringify(d))};
+      if (!state.done) state.done = {};
+      persistLocal(); render(); setSave("All changes saved");
+    } else if (Object.keys(state.done).length) { scheduleSave(); }
+    else setSave("Ready. Tick a problem to start.");
+  }, ()=> setSave("Sync stopped. Your ticks are kept on this device."));
+})();
+</script>

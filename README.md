@@ -15,11 +15,15 @@ Plain HTML, CSS and JavaScript. No build step, no backend.
 2. Framework preset: **Other**. Leave the build command empty and the output directory as the root. Click Deploy.
 
 ## Run locally
-Open `index.html` through any static server, for example `npx serve .`, then visit the URL it prints.
+Run `npx serve -l 4000 .` and open http://localhost:4000.
 
 ## Where progress is saved
 Ticks, notes and settings are saved in your browser's local storage, so they stay on that device and browser.
 Use **Settings & rules → Download backup** now and then, and **Restore backup** on a new device.
+
+## Also in this repo
+- `trackers/`: the Excel tracker and the single-file Claude artifact version.
+- `tools/`: scripts that generated everything (see CLAUDE.md).
 
 ## Files
 - `index.html`: page layout
