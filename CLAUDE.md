@@ -13,8 +13,8 @@ Placement practice tracker for harsh (placements May 2027; plan starts 24 Oct 20
 
 ## How it works
 - `P` rows in `lib/problems.ts`: `[track L/S/C, title, slug-or-url, level, phase 1-4, topic]`. LeetCode slugs become `https://leetcode.com/problems/<slug>/`.
-- Progress lives in localStorage key `dsa-daily-v1`: `{done:{<row index>:{d:"YYYY-MM-DD", h:"s|h|e", r:revisits, n:note, t:ms}}, quota:{L,S,C}}`. Ticks are keyed by row index, so never reorder or delete rows in problems.ts; only append.
-- Today's list per track = lowest-index problems among (done today + undone) up to the daily quota, so extras pull later problems forward and misses roll over. Codeforces appears on Sat/Sun with a weekly quota.
+- Progress lives in localStorage key `dsa-daily-v1`: `{done:{<row index>:{d:"YYYY-MM-DD", h:"s|h|e", r:revisits, n:note, t:ms}}, quota:{L,S,C,wL,wS,wC,v:2}}`. Ticks are keyed by row index, so never reorder or delete rows in problems.ts; only append.
+- Today's list per track = lowest-index problems among (done today + undone) up to the daily quota, so extras pull later problems forward and misses roll over. Quotas are per weekday (3 LeetCode + 1 SQL) and per weekend day (3 + 2 + 2 Codeforces), stored with `v: 2`; each track has an add-a-problem button that pulls its next problems forward.
 - Hint/Editorial problems resurface in Revisit at +3, +7, +21 days.
 - Themes: `data-palette` (midnight default, galaxy, ocean, forest, sunset, rose, mono) and `data-theme` (light/dark, absent = follow system) on `<html>`. Stored in `dsa-daily-palette` / `dsa-daily-theme`.
 - Cloud sync: Supabase project `dsa-daily` (ref `dmiiflynxamcooowyhps`, schema in `supabase/schema.sql`). No auth; the browser sends a sync key (localStorage `dsa-daily-sync-key`) to RPC `dsa_sync`, which stores only its hash, and the first key ever used claims the single row. The client diffs local state against `dsa-daily-base` (last server-confirmed state) and sends only the changes, so offline edits sync later. It syncs after each change, when the tab is focused, and every 60s.
