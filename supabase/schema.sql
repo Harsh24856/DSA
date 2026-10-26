@@ -51,3 +51,36 @@ $$;
 
 revoke all on function public.dsa_sync(text, jsonb, text[], jsonb) from public;
 grant execute on function public.dsa_sync(text, jsonb, text[], jsonb) to anon;
+
+-- Pattern practice ticks, kept apart from the daily plan. Same row, same sync key.
+alter table public.dsa_state add column if not exists patterns jsonb not null default '{}'::jsonb;
+
+create or replace function public.dsa_patterns_sync(
+  p_key text, p_set jsonb default '{}'::jsonb, p_del text[] default '{}'
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  h text;
+  r public.dsa_state;
+begin
+  if p_key is null or length(p_key) < 8 then
+    raise exception 'sync key must be at least 8 characters';
+  end if;
+  h := encode(sha256(convert_to(p_key, 'UTF8')), 'hex');
+  update public.dsa_state
+     set patterns = (patterns - coalesce(p_del, '{}')) || coalesce(p_set, '{}'::jsonb),
+         updated_at = case when p_set <> '{}'::jsonb or cardinality(p_del) > 0 then now() else updated_at end
+   where key_hash = h
+  returning * into r;
+  if not found then
+    raise exception 'wrong sync key';
+  end if;
+  return r.patterns;
+end;
+$$;
+
+revoke all on function public.dsa_patterns_sync(text, jsonb, text[]) from public;
+revoke execute on function public.dsa_patterns_sync(text, jsonb, text[]) from authenticated;
+grant execute on function public.dsa_patterns_sync(text, jsonb, text[]) to anon;
+revoke execute on function public.dsa_sync(text, jsonb, text[], jsonb) from authenticated;

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { StoreProvider } from "@/lib/store";
+import { PatternProvider } from "@/lib/patternStore";
 import { Shell } from "@/components/Shell";
 import "./globals.css";
 
@@ -24,7 +25,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
       <body>
         <StoreProvider>
-          <Shell>{children}</Shell>
+          <PatternProvider>
+            <Shell>{children}</Shell>
+          </PatternProvider>
         </StoreProvider>
       </body>
     </html>

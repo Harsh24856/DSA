@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ChartLineUp, CloudCheck, CloudSlash, CodeBlock, GearSix, ListChecks, MapTrifold, SunHorizon, type Icon } from "@phosphor-icons/react";
+import { ChartLineUp, CloudCheck, CloudSlash, CodeBlock, GearSix, ListChecks, MapTrifold, SunHorizon, TreeStructure, type Icon } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import { diffDays, PLACEMENT, START } from "@/lib/logic";
 import { Settings } from "./Settings";
@@ -11,6 +11,7 @@ import { Settings } from "./Settings";
 const NAV: { href: string; label: string; icon: Icon }[] = [
   { href: "/", label: "Today", icon: SunHorizon },
   { href: "/analytics", label: "Analytics", icon: ChartLineUp },
+  { href: "/patterns", label: "Patterns", icon: TreeStructure },
   { href: "/problems", label: "Problems", icon: ListChecks },
   { href: "/roadmap", label: "Roadmap", icon: MapTrifold },
 ];
@@ -22,7 +23,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const reduce = useReducedMotion();
   const left = Math.max(0, diffDays(PLACEMENT, now));
   const used = Math.min(1, Math.max(0, diffDays(now, START) / diffDays(PLACEMENT, START)));
-  const page = NAV.find((n) => n.href === path) ?? NAV[0];
+  const page = NAV.find((n) => n.href === path) ?? NAV.find((n) => n.href !== "/" && path.startsWith(n.href)) ?? NAV[0];
+  const isOn = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
   return (
     <div className="mx-auto grid min-h-[100dvh] max-w-[1400px] lg:grid-cols-[240px_minmax(0,1fr)]">
@@ -34,7 +36,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex flex-col gap-1" aria-label="Sections">
           {NAV.map(({ href, label, icon: I }) => {
-            const on = path === href;
+            const on = isOn(href);
             return (
               <Link key={href} href={href} aria-current={on ? "page" : undefined}
                 className={`relative flex h-10 items-center gap-3 rounded-[10px] px-3 text-[14px] font-medium transition-colors ${on ? "text-ink" : "text-muted hover:bg-surface-2 hover:text-ink"}`}>
@@ -84,7 +86,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <AnimatePresence mode="wait">
-          <motion.div key={path} initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -6 }}
+          <motion.div key={path.split("/").slice(0, 3).join("/")} initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -6 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}>
             {children}
           </motion.div>
@@ -92,9 +94,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* bottom tab bar (mobile) */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden" aria-label="Sections">
+      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden" aria-label="Sections">
         {NAV.map(({ href, label, icon: I }) => {
-          const on = path === href;
+          const on = isOn(href);
           return (
             <Link key={href} href={href} aria-current={on ? "page" : undefined} className={`flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium ${on ? "text-accent" : "text-muted"}`}>
               <I size={22} weight={on ? "fill" : "regular"} aria-hidden />{label}

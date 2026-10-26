@@ -33,3 +33,16 @@ export async function pushDiff(key: string, d: Diff): Promise<State> {
   if (!r.ok) throw new Error(res.message || String(r.status));
   return { done: res.done, quota: res.quota };
 }
+
+/** Pattern-practice ticks live in their own column; same sync key, separate from the daily plan. */
+export async function pushPatterns(key: string, set: Record<string, unknown>, del: string[]): Promise<Record<string, PTick>> {
+  const r = await fetch(SB_URL + "/rest/v1/rpc/dsa_patterns_sync", {
+    method: "POST",
+    headers: { apikey: SB_KEY, "Content-Type": "application/json" },
+    body: J({ p_key: key, p_set: set, p_del: del }),
+  });
+  const res = await r.json();
+  if (!r.ok) throw new Error(res.message || String(r.status));
+  return res;
+}
+export type PTick = { d: string };

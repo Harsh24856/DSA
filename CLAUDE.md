@@ -4,9 +4,10 @@ Placement practice tracker for harsh (placements May 2027; plan starts 24 Oct 20
 
 ## Layout
 - Next.js 16 (App Router) + TypeScript + Tailwind v4. Deployed on Vercel (`vercel.json` sets framework `nextjs`).
-- `app/`: routes `/` (Today), `/analytics`, `/problems`, `/roadmap`; `layout.tsx` (fonts, theme script, store, shell); `globals.css` (all design tokens).
+- `app/`: routes `/` (Today), `/analytics`, `/patterns` + `/patterns/[topic]`, `/problems`, `/roadmap`; `layout.tsx` (fonts, theme script, store, shell); `globals.css` (all design tokens).
 - `components/`: `Shell` (sidebar, mobile tab bar, toast), `Settings` (sheet dialog), `ProblemRow`, `charts.tsx` (Recharts + custom heatmap/topic bars), `ui.tsx` (Card, Count, Bar, Seg, Skeleton).
 - `lib/`: `problems.ts` (data), `logic.ts` (scheduling + analytics, pure functions), `sync.ts` (Supabase RPC), `store.tsx` (client context: state, actions, sync, theme).
+- Patterns section: `lib/patterns/*.ts` (14 topics, 85 patterns: theory, steps, Python template, best/average/worst complexity, traps, visualiser), `lib/patterns/problems.ts` (generated practice lists keyed by LeetCode number), `lib/sim.ts` (simulators that record real algorithm steps as frames), `lib/diagram.ts` (frame types), `components/Visualizer.tsx` (player + 7 renderers), `components/TopicView.tsx`. Pattern problems are separate from the daily plan: ticks live in localStorage `dsa-patterns-v1` and the Supabase `patterns` column via RPC `dsa_patterns_sync` (same sync key), and never touch `lib/problems.ts`, Today or Analytics. The written content is original; the cheatsheets only supplied the pattern list and problem numbers.
 - `public/`: favicon and manifest.
 - `trackers/`: the Excel/Google Sheets tracker and the single-file Claude artifact version. `tools/`: generators that produced the original site and xlsx (reference only; `.vercelignore` keeps both off Vercel).
 
@@ -22,6 +23,7 @@ Placement practice tracker for harsh (placements May 2027; plan starts 24 Oct 20
 - `npm run dev`: local dev server on http://localhost:4000
 - `npm run build`: production build (must pass before shipping)
 - `npm run typecheck`: `tsc --noEmit` (must pass before shipping)
+- `npm run check`: rolling-window schedule checks (`lib/logic.check.ts`)
 
 ## Design system
 Source of truth: tokens in `app/globals.css`, mapped to Tailwind colors in `@theme inline` (`bg-surface`, `bg-surface-2`, `text-ink`, `text-muted`, `border-line`, `border-line-strong`, `bg-accent`, `text-accent-ink`, `bg-accent-soft`, `text-easy|medium|hard`, `--heat-0..4` for chart intensity).
