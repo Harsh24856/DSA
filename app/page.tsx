@@ -14,7 +14,7 @@ import { Bar, Card, Count, Skeleton } from "@/components/ui";
 
 export default function Today() {
   const { ready, state, now, connected } = useStore();
-  const [extra, setExtra] = useState(0);
+  const [extra, setExtra] = useState<Record<Track, number>>({ L: 0, S: 0, C: 0 });
   if (!ready) return <TodaySkeleton />;
 
   const t = ymd(now);
@@ -25,7 +25,12 @@ export default function Today() {
   const solvedToday = days.get(t) || 0;
   const total = Object.keys(state.done).length;
   const st = streak(state, now);
-  const nextUp = queue(state, "L").filter((i) => !plan.main.includes(i)).slice(0, extra);
+  // "Add a problem" pulls the next unsolved ones of that track forward, the same way solving extra does
+  // (extras already solved today count toward what was added, so ticking one does not pull in another)
+  const nextUp = TRACKS.flatMap((tr) => {
+    const solved = plan.extraDone.filter((i) => P[i][0] === tr).length;
+    return queue(state, tr).filter((i) => !plan.main.includes(i)).slice(0, Math.max(0, extra[tr] - solved));
+  });
   const extraIds = [...plan.extraDone, ...nextUp.filter((i) => !plan.extraDone.includes(i))];
   const q = plan.quota;
   const summary = TRACKS.filter((tr) => q[tr] > 0).map((tr) => `${q[tr]} ${TRACK[tr]}`).join(" + ");
@@ -80,9 +85,11 @@ export default function Today() {
                         {extras.map((i) => <ProblemRow key={i} i={i} side={state.done[i] ? "extra" : "from tomorrow"} />)}
                       </div>
                     )}
-                    {tr === "L" && (
+                    {queue(state, tr).some((i) => !plan.main.includes(i)) && (
                       <div className="flex justify-center border-t border-line py-3">
-                        <button className="btn h-9" type="button" onClick={() => setExtra((n) => n + 1)}><Plus size={16} aria-hidden />{nextUp.length ? "Show another" : "Got time? Do one more"}</button>
+                        <button className="btn h-9" type="button" onClick={() => setExtra((e) => ({ ...e, [tr]: e[tr] + 1 }))}>
+                          <Plus size={16} aria-hidden />{extra[tr] ? `Add another ${TRACK[tr]}` : `Add a ${TRACK[tr]} problem`}
+                        </button>
                       </div>
                     )}
                   </section>
