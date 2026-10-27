@@ -1,5 +1,5 @@
-// Hand-written solutions (trees, linked lists, stacks, grids) for the first two weeks of the daily plan.
-import type { Diagram, ListFrame, StackFrame, TableFrame, Tone, TreeFrame } from "../diagram";
+// Hand-written solutions (trees, linked lists, stacks, grids) for the first four weeks of the daily plan.
+import type { Diagram, GraphFrame, ListFrame, StackFrame, TableFrame, Tone, TreeFrame } from "../diagram";
 import { levelTree, type TNode } from "../sim.ts";
 import type { Solution } from "./types";
 
@@ -506,6 +506,599 @@ def nearestExit(maze, entrance):
       const s = "(ed(et(oc))el)", st: string[] = [""], frames: StackFrame[] = [];
       for (const ch of s) { if (ch === "(") { st.push(""); frames.push({ note: "'(' → start a new buffer", items: st.map((x) => x || "∅"), incoming: ch }); } else if (ch === ")") { const top = st.pop()!; const rev = [...top].reverse().join(""); st[st.length - 1] += rev; frames.push({ note: `')' → reverse "${top}" to "${rev}" and append it below`, items: st.map((x) => x || "∅"), incoming: ch, popped: [top] }); } else { st[st.length - 1] += ch; frames.push({ note: `'${ch}' → append to the top buffer`, items: st.map((x) => x || "∅"), incoming: ch }); } }
       return { kind: "stack", title: `"${s}" → "${st[0]}"`, input: s.split(""), frames };
+    },
+  },
+
+  "flatten-a-multilevel-doubly-linked-list": {
+    approach: "Iterative DFS with a stack: pop a node, link it after the previous one, then push its next and (on top) its child.",
+    idea: ["The flattened order is a preorder walk: a node, then its whole child list, then its own next.", "Pushing next first and child second makes the child come out first.", "Fix both pointers (prev.next and node.prev) as you go and clear every child pointer."],
+    code: `def flatten(head):
+    if not head:
+        return head
+    st, prev = [head], None
+    while st:
+        node = st.pop()
+        if prev:
+            prev.next, node.prev = node, prev
+        if node.next:
+            st.append(node.next)
+        if node.child:
+            st.append(node.child)
+            node.child = None
+        prev = node
+    return head`,
+    lang: "python", time: "O(n)", space: "O(depth + n)",
+    viz: () => {
+      const next: Record<number, number> = { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 7: 8, 8: 9, 9: 10, 11: 12 }, child: Record<number, number> = { 3: 7, 8: 11 };
+      const st = [1], out: number[] = [], frames: StackFrame[] = [];
+      while (st.length) { const n = st.pop()!; out.push(n); const pushed: number[] = []; if (next[n]) { st.push(next[n]); pushed.push(next[n]); } if (child[n]) { st.push(child[n]); pushed.push(child[n]); } frames.push({ note: `pop ${n}, link it after ${out.length > 1 ? out[out.length - 2] : "nothing (head)"}${pushed.length ? `; push ${pushed.join(" then ")}${child[n] ? " (child on top)" : ""}` : ""}`, items: [...st], popped: [n], side: out.join(" → ") }); }
+      return { kind: "stack", title: "Flatten 1-6 with children 3 → 7-10 and 8 → 11-12", frames };
+    },
+  },
+
+  "restore-the-array-from-adjacent-pairs": {
+    approach: "Build the adjacency list; an end of the array has only one neighbour, so start there and keep walking to the neighbour you did not come from.",
+    idea: ["The array is a path: inner values have two neighbours, the two ends have one.", "Start at an end and repeatedly step to the neighbour that is not the previous value."],
+    code: `from collections import defaultdict
+def restoreArray(adjacentPairs):
+    g = defaultdict(list)
+    for a, b in adjacentPairs:
+        g[a].append(b); g[b].append(a)
+    start = next(x for x in g if len(g[x]) == 1)
+    out, prev = [start], None
+    while len(out) < len(g):
+        cur = out[-1]
+        nxt = g[cur][0] if g[cur][0] != prev else g[cur][-1]
+        prev = cur
+        out.append(nxt)
+    return out`,
+    lang: "python", time: "O(n)", space: "O(n)",
+    viz: () => {
+      const pairs = [[4, -2], [1, 4], [-3, 1]], vals = [4, -2, 1, -3], id = (v: number) => vals.indexOf(v);
+      const nodes = [{ id: 0, label: "4", x: 45, y: 20 }, { id: 1, label: "-2", x: 12, y: 55 }, { id: 2, label: "1", x: 75, y: 55 }, { id: 3, label: "-3", x: 45, y: 88 }];
+      const g = new Map<number, number[]>(); pairs.forEach(([a, b]) => { g.set(a, [...(g.get(a) || []), b]); g.set(b, [...(g.get(b) || []), a]); });
+      const deg = Object.fromEntries(vals.map((v) => [id(v), `deg ${g.get(v)!.length}`])); const frames: GraphFrame[] = [{ note: "Neighbour counts: the two ends have exactly one", badges: deg }];
+      const start = vals.find((v) => g.get(v)!.length === 1)!, out = [start], tones: Record<number, Tone> = { [id(start)]: "found" }, edgeTones: Record<string, Tone> = {}; let prev: number | null = null;
+      frames.push({ note: `start at ${start}: out = [${out.join(", ")}]`, badges: deg, tones: { ...tones } });
+      while (out.length < vals.length) { const cur = out[out.length - 1], nb = g.get(cur)!, nxt = nb[0] !== prev ? nb[0] : nb[nb.length - 1]; prev = cur; out.push(nxt); tones[id(nxt)] = "found"; edgeTones[`${Math.min(id(cur), id(nxt))}-${Math.max(id(cur), id(nxt))}`] = "found"; frames.push({ note: `from ${cur} step to ${nxt} (not where we came from): out = [${out.join(", ")}]`, badges: deg, tones: { ...tones, [id(nxt)]: "active" }, edgeTones: { ...edgeTones } }); }
+      return { kind: "graph", title: `Restored: [${out.join(", ")}]`, nodes, edges: pairs.map(([a, b]) => ({ a: id(a), b: id(b) })), frames };
+    },
+  },
+
+  "combination-sum-iii": {
+    approach: "Backtrack over digits 1..9 in increasing order, stopping a branch when the digit is bigger than what is left.",
+    idea: ["Choosing digits in increasing order makes every combination appear once.", "Track the remaining sum; once a digit exceeds it, larger digits do too, so break.", "Record the path when it has k digits and the remainder is 0."],
+    code: `def combinationSum3(k, n):
+    out = []
+    def go(start, path, rem):
+        if len(path) == k:
+            if rem == 0:
+                out.append(path[:])
+            return
+        for d in range(start, 10):
+            if d > rem:
+                break
+            path.append(d)
+            go(d + 1, path, rem - d)
+            path.pop()
+    go(1, [], n)
+    return out`,
+    lang: "python", time: "O(C(9, k) · k)", space: "O(k)",
+    viz: () => {
+      const k = 3, n = 8, out: number[][] = [], path: number[] = [], frames: StackFrame[] = [];
+      const go = (start: number, rem: number) => { if (path.length === k) { if (rem === 0) out.push([...path]); frames.push({ note: rem === 0 ? `[${path.join(", ")}] sums to ${n}: record it` : `${k} digits but ${rem} still left: dead end`, items: [...path], side: `found: ${out.map((p) => `[${p.join(",")}]`).join(" ") || "none"}` }); return; } for (let d = start; d < 10; d++) { if (d > rem) { frames.push({ note: `${d} > remaining ${rem}: stop this branch`, items: [...path], side: `found: ${out.map((p) => `[${p.join(",")}]`).join(" ") || "none"}` }); break; } path.push(d); frames.push({ note: `try ${d}, remaining ${rem - d}`, items: [...path], incoming: d, side: `found: ${out.map((p) => `[${p.join(",")}]`).join(" ") || "none"}` }); go(d + 1, rem - d); path.pop(); } };
+      go(1, n);
+      return { kind: "stack", title: `k = ${k}, n = ${n}: ${out.map((p) => `[${p.join(", ")}]`).join(", ")}`, frames };
+    },
+  },
+
+  "recover-binary-search-tree": {
+    approach: "Inorder of a BST is sorted; the two swapped nodes show up as drops (prev > cur). Take the first drop's prev and the last drop's cur, then swap their values.",
+    idea: ["Swapping two values in a sorted list creates one drop (if adjacent) or two drops.", "first = prev at the first drop, second = cur at the last drop.", "An iterative inorder walk with a stack keeps it O(h) extra space."],
+    code: `def recoverTree(root):
+    first = second = prev = None
+    stack, node = [], root
+    while stack or node:
+        while node:
+            stack.append(node); node = node.left
+        node = stack.pop()
+        if prev and prev.val > node.val:
+            if not first:
+                first = prev
+            second = node
+        prev = node
+        node = node.right
+    first.val, second.val = second.val, first.val`,
+    lang: "python", time: "O(n)", space: "O(h)",
+    viz: () => {
+      const vals: V = [3, 1, 4, null, null, 2], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], st: number[] = []; let node: number | null = 0, prev: number | null = null, first: number | null = null, second: number | null = null;
+      while (st.length || node != null) { while (node != null) { st.push(node); node = kids[node][0]; } const cur = st.pop()!; const drop = prev != null && val(prev) > val(cur); if (drop) { if (first == null) first = prev; second = cur; } frames.push({ note: `inorder visits ${val(cur)}${prev == null ? "" : drop ? `: ${val(prev!)} > ${val(cur)} is a drop → first = ${val(first!)}, second = ${val(cur)}` : `: ${val(prev)} < ${val(cur)}, in order`}`, tones: { [cur]: drop ? "bad" : "active", ...(first != null ? { [first]: "bad" } : {}) } }); prev = cur; node = kids[cur][1]; }
+      frames.push({ note: `Swap the values of ${val(first!)} and ${val(second!)}`, tones: { [first!]: "found", [second!]: "found" }, labels: { [first!]: String(val(second!)), [second!]: String(val(first!)) } });
+      return tree("Recover a BST with two swapped values", nodes, trail(frames));
+    },
+  },
+
+  "most-stones-removed-with-same-row-or-column": {
+    approach: "Stones sharing a row or column form groups; each group can be removed down to one stone, so the answer is stones - groups (Union-Find on rows and columns).",
+    idea: ["Inside a connected group you can always remove stones leaf-first until one is left.", "Union each stone's row with its column (columns stored as ~c so they never clash with rows).", "Answer = number of stones - number of groups."],
+    code: `def removeStones(stones):
+    parent = {}
+    def find(x):
+        parent.setdefault(x, x)
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+    for r, c in stones:
+        parent[find(r)] = find(~c)
+    groups = {find(x) for x in parent}
+    return len(stones) - len(groups)`,
+    lang: "python", time: "O(n α(n))", space: "O(n)",
+    viz: () => {
+      const stones = [[0, 0], [0, 1], [1, 0], [1, 2], [2, 1], [2, 2]], nodes = stones.map(([r, c], id) => ({ id, label: `${r},${c}`, x: 15 + c * 35, y: 15 + r * 32 }));
+      const edges: { a: number; b: number }[] = []; stones.forEach((s, i) => stones.forEach((t2, j) => { if (j > i && (s[0] === t2[0] || s[1] === t2[1])) edges.push({ a: i, b: j }); }));
+      const parent = stones.map((_, i) => i), find = (x: number): number => (parent[x] === x ? x : (parent[x] = find(parent[x]))); let groups = stones.length; const edgeTones: Record<string, Tone> = {}, frames: GraphFrame[] = [{ note: `${stones.length} stones, each its own group` }];
+      for (const { a, b } of edges) { const ra = find(a), rb = find(b), same = stones[a][0] === stones[b][0] ? `row ${stones[a][0]}` : `column ${stones[a][1]}`; if (ra !== rb) { parent[ra] = rb; groups--; edgeTones[`${a}-${b}`] = "found"; } frames.push({ note: `(${stones[a].join(",")}) and (${stones[b].join(",")}) share ${same}${ra !== rb ? `: merge → ${groups} group${groups === 1 ? "" : "s"}` : ": already together"}`, tones: { [a]: "active", [b]: "active" }, edgeTones: { ...edgeTones } }); }
+      frames.push({ note: `${stones.length} stones - ${groups} group${groups === 1 ? "" : "s"} = ${stones.length - groups} removable`, edgeTones: { ...edgeTones }, tones: Object.fromEntries(stones.map((_, i) => [i, "found"])) as Record<number, Tone> });
+      return { kind: "graph", title: `Stones removed: ${stones.length - groups}`, nodes, edges, frames };
+    },
+  },
+
+  "design-a-stack-with-increment-operation": {
+    approach: "Lazy increments: store the pending add at index k - 1 only, and pass it down to the element below when popping.",
+    idea: ["increment(k, val) affects the bottom k elements. Instead of touching all of them, add val to inc[k - 1].", "When popping index i, its real value is st[i] + inc[i]; then inc[i] moves to inc[i - 1] because it applies to everything below too.", "Every operation is O(1)."],
+    code: `class CustomStack:
+    def __init__(self, maxSize):
+        self.n, self.st, self.inc = maxSize, [], []
+
+    def push(self, x):
+        if len(self.st) < self.n:
+            self.st.append(x); self.inc.append(0)
+
+    def pop(self):
+        if not self.st:
+            return -1
+        add = self.inc.pop()
+        if self.inc:
+            self.inc[-1] += add
+        return self.st.pop() + add
+
+    def increment(self, k, val):
+        if self.st:
+            self.inc[min(k, len(self.st)) - 1] += val`,
+    lang: "python", time: "O(1) per operation", space: "O(maxSize)",
+    viz: () => {
+      const max = 3, st: number[] = [], inc: number[] = [], frames: StackFrame[] = [], show = () => st.map((v, i) => (inc[i] ? `${v} +${inc[i]}` : v));
+      const ops: [string, number?, number?][] = [["push", 1], ["push", 2], ["pop"], ["push", 2], ["push", 3], ["push", 4], ["increment", 5, 100], ["increment", 2, 100], ["pop"], ["pop"], ["pop"], ["pop"]];
+      for (const [op, a, b] of ops) {
+        if (op === "push") { const ok = st.length < max; if (ok) { st.push(a!); inc.push(0); } frames.push({ note: ok ? `push(${a})` : `push(${a}) ignored: stack is full (${max})`, items: show(), incoming: a, side: `inc = [${inc.join(", ")}]` }); }
+        else if (op === "pop") { if (!st.length) { frames.push({ note: "pop() on an empty stack returns -1", items: [], side: "inc = []" }); continue; } const add = inc.pop()!; if (inc.length) inc[inc.length - 1] += add; const v = st.pop()! + add; frames.push({ note: `pop() returns ${v - add} + ${add} = ${v}${add && inc.length ? `; pass +${add} down` : ""}`, items: show(), popped: [v], side: `inc = [${inc.join(", ")}]` }); }
+        else { const i = Math.min(a!, st.length) - 1; inc[i] += b!; frames.push({ note: `increment(${a}, ${b}): only inc[${i}] changes`, items: show(), side: `inc = [${inc.join(", ")}]` }); }
+      }
+      return { kind: "stack", title: "CustomStack(3) with lazy increments", frames };
+    },
+  },
+
+  "maximum-binary-tree": {
+    approach: "The maximum is the root; the part to its left builds the left subtree and the part to its right builds the right subtree.",
+    idea: ["Follow the definition recursively: O(n²) in the worst case (sorted input).", "A decreasing monotonic stack builds the same tree in O(n): each new value adopts the last popped smaller node as its left child and becomes the right child of the stack top."],
+    code: `def constructMaximumBinaryTree(nums):
+    if not nums:
+        return None
+    i = nums.index(max(nums))
+    return TreeNode(nums[i],
+                    constructMaximumBinaryTree(nums[:i]),
+                    constructMaximumBinaryTree(nums[i + 1:]))`,
+    lang: "python", time: "O(n²) worst", space: "O(n)",
+    viz: () => {
+      const a = [3, 2, 1, 6, 0, 5]; const steps: { label: string; parent: number | null; side?: "L" | "R"; note: string }[] = [];
+      const build = (lo: number, hi: number, parent: number | null, side?: "L" | "R") => { if (lo > hi) return; let m = lo; for (let i = lo; i <= hi; i++) if (a[i] > a[m]) m = i; const id = steps.length; steps.push({ label: String(a[m]), parent, side, note: `[${a.slice(lo, hi + 1).join(", ")}] → max ${a[m]} is the ${parent == null ? "root" : `${side === "L" ? "left" : "right"} child`}` }); build(lo, m - 1, id, "L"); build(m + 1, hi, id, "R"); };
+      build(0, a.length - 1, null);
+      const g = grow(steps); return tree("Maximum binary tree of [3, 2, 1, 6, 0, 5]", g.nodes, g.frames);
+    },
+  },
+
+  "construct-smallest-number-from-di-string": {
+    approach: "Push 1, 2, 3, … onto a stack; at every 'I' (and at the end) pop everything to the output, which reverses each run of 'D's.",
+    idea: ["Writing digits in increasing order satisfies every 'I'.", "A run of 'D's needs those digits reversed; a stack reverses them.", "Flushing at each 'I' keeps the number as small as possible."],
+    code: `def smallestNumber(pattern):
+    out, st = [], []
+    for i in range(len(pattern) + 1):
+        st.append(str(i + 1))
+        if i == len(pattern) or pattern[i] == "I":
+            while st:
+                out.append(st.pop())
+    return "".join(out)`,
+    lang: "python", time: "O(n)", space: "O(n)",
+    viz: () => {
+      const p = "IIIDIDDD", st: number[] = [], frames: StackFrame[] = []; let out = "";
+      for (let i = 0; i <= p.length; i++) { st.push(i + 1); const flush = i === p.length || p[i] === "I"; const popped: number[] = []; if (flush) while (st.length) { const d = st.pop()!; popped.push(d); out += d; } frames.push({ note: `push ${i + 1}; ${i === p.length ? "end of pattern" : `pattern[${i}] = '${p[i]}'`}${flush ? ` → flush ${popped.join("")}` : " → hold it"}`, items: [...st], incoming: i + 1, popped, side: `out = "${out}"` }); }
+      return { kind: "stack", title: `"${p}" → "${out}"`, input: [...p], frames };
+    },
+  },
+
+  "minimum-remove-to-make-valid-parentheses": {
+    approach: "Stack of indices of '(': a ')' with an empty stack is deleted; any '(' left on the stack at the end is deleted too.",
+    idea: ["Scan left to right. A ')' must match the latest unmatched '('.", "If there is none, that ')' can never be matched: remove it.", "Unmatched '(' are exactly the indices left on the stack."],
+    code: `def minRemoveToMakeValid(s):
+    s = list(s)
+    st = []
+    for i, ch in enumerate(s):
+        if ch == "(":
+            st.append(i)
+        elif ch == ")":
+            if st:
+                st.pop()
+            else:
+                s[i] = ""
+    for i in st:
+        s[i] = ""
+    return "".join(s)`,
+    lang: "python", time: "O(n)", space: "O(n)",
+    viz: () => {
+      const s = "a)b(c)d(", chars = [...s], st: number[] = [], frames: StackFrame[] = [];
+      chars.forEach((ch, i) => { if (ch === "(") { st.push(i); frames.push({ note: `'(' at ${i}: remember it`, items: st.map((j) => `(@${j}`), incoming: ch }); } else if (ch === ")") { if (st.length) { const j = st.pop()!; frames.push({ note: `')' at ${i} matches '(' at ${j}`, items: st.map((x) => `(@${x}`), incoming: ch, popped: [`(@${j}`] }); } else { chars[i] = ""; frames.push({ note: `')' at ${i} has nothing to match: delete it`, items: [], incoming: ch, side: `delete ${i}` }); } } else frames.push({ note: `'${ch}' is a letter: keep`, items: st.map((j) => `(@${j}`), incoming: ch }); });
+      st.forEach((j) => { chars[j] = ""; }); frames.push({ note: `left over: ${st.map((j) => `'(' at ${j}`).join(", ") || "nothing"} → delete. Result "${chars.join("")}"`, items: [], popped: st.map((j) => `(@${j}`), side: `"${chars.join("")}"` });
+      return { kind: "stack", title: `"${s}" → "${chars.join("")}"`, input: [...s], frames };
+    },
+  },
+
+  "deepest-leaves-sum": {
+    approach: "BFS level by level; when the next level is empty, the current level is the deepest, so return its sum.",
+    idea: ["Level-order traversal processes one depth at a time.", "Keep only the current level; the last non-empty level holds exactly the deepest leaves."],
+    code: `def deepestLeavesSum(root):
+    level = [root]
+    while True:
+        nxt = [c for n in level for c in (n.left, n.right) if c]
+        if not nxt:
+            return sum(n.val for n in level)
+        level = nxt`,
+    lang: "python", time: "O(n)", space: "O(width)",
+    viz: () => {
+      const vals: V = [1, 2, 3, 4, 5, null, 6, 7, null, null, null, null, null, null, 8], { nodes, kids, val } = T(vals), frames: TreeFrame[] = []; let level = [0], depth = 0;
+      while (true) { const nxt = level.flatMap((i) => kids[i].filter((c): c is number => c != null)), sum = level.reduce((x, i) => x + val(i), 0); frames.push({ note: nxt.length ? `depth ${depth}: [${level.map(val).join(", ")}], next level has ${nxt.length} node${nxt.length === 1 ? "" : "s"}` : `depth ${depth} is the last level: ${level.map(val).join(" + ")} = ${sum}`, tones: Object.fromEntries(level.map((i) => [i, nxt.length ? "active" : "found"])) as Record<number, Tone> }); if (!nxt.length) break; level = nxt; depth++; }
+      return tree("Deepest leaves sum", nodes, trail(frames));
+    },
+  },
+
+  "snapshot-array": {
+    approach: "Each index keeps a list of (snap_id, value) changes; get binary-searches for the last change at or before the requested snap.",
+    idea: ["Copying the whole array on every snap is too slow. Store only changes.", "Several sets between two snaps overwrite the same entry.", "get(index, snap) = value of the last entry with snap_id ≤ snap: bisect."],
+    code: `from bisect import bisect_right
+class SnapshotArray:
+    def __init__(self, length):
+        self.h = [[(-1, 0)] for _ in range(length)]
+        self.snap_id = 0
+
+    def set(self, index, val):
+        h = self.h[index]
+        if h[-1][0] == self.snap_id:
+            h[-1] = (self.snap_id, val)
+        else:
+            h.append((self.snap_id, val))
+
+    def snap(self):
+        self.snap_id += 1
+        return self.snap_id - 1
+
+    def get(self, index, snap_id):
+        h = self.h[index]
+        return h[bisect_right(h, (snap_id, float("inf"))) - 1][1]`,
+    lang: "python", time: "O(1) set and snap, O(log k) get", space: "O(changes)",
+    viz: () => {
+      const h: [number, number][][] = [[[-1, 0]], [[-1, 0]], [[-1, 0]]], frames: TableFrame[] = []; let snap = 0;
+      const cellsOf = () => h.map((row) => [row.map(([s, v]) => `${s < 0 ? "init" : `s${s}`}:${v}`).join("  ")]);
+      const ops: [string, number?, number?][] = [["set", 0, 5], ["snap"], ["set", 0, 6], ["set", 1, 2], ["set", 1, 3], ["snap"], ["get", 0, 0], ["get", 0, 1], ["get", 1, 0]];
+      for (const [op, a, b] of ops) {
+        if (op === "set") { const row = h[a!], over = row[row.length - 1][0] === snap; if (over) row[row.length - 1] = [snap, b!]; else row.push([snap, b!]); frames.push({ note: `set(${a}, ${b}) during snap ${snap}${over ? ": overwrite this snap's entry" : ": add an entry"}`, cells: cellsOf(), active: [a!, 0] }); }
+        else if (op === "snap") { snap++; frames.push({ note: `snap() returns ${snap - 1}; nothing is copied`, cells: cellsOf() }); }
+        else { const row = h[a!]; let k = 0; row.forEach(([s], j) => { if (s <= b!) k = j; }); frames.push({ note: `get(${a}, ${b}): last entry with snap ≤ ${b} is ${row[k][0] < 0 ? "init" : `s${row[k][0]}`} → ${row[k][1]}`, cells: cellsOf(), active: [a!, 0] }); }
+      }
+      return { kind: "table", title: "SnapshotArray(3): store changes only", rowHead: ["index 0", "index 1", "index 2"], colHead: ["history (snap:value)"], frames };
+    },
+  },
+
+  "find-the-minimum-and-maximum-number-of-nodes-between-critical-points": {
+    approach: "Walk the list with prev and cur; record the first and last critical index and the smallest gap between consecutive critical points.",
+    idea: ["A node is critical if it is a strict local max or min compared with both neighbours.", "The max distance is last - first; the min distance must be between two consecutive critical points.", "Fewer than two critical points → [-1, -1]."],
+    code: `def nodesBetweenCriticalPoints(head):
+    first = last = -1
+    best = float("inf")
+    prev, cur, i = head, head.next, 1
+    while cur.next:
+        nxt = cur.next.val
+        if prev.val < cur.val > nxt or prev.val > cur.val < nxt:
+            if first == -1:
+                first = i
+            else:
+                best = min(best, i - last)
+            last = i
+        prev, cur, i = cur, cur.next, i + 1
+    return [-1, -1] if first == last else [best, last - first]`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const v = [5, 3, 1, 2, 5, 1, 2], next = v.map((_, i) => (i + 1 < v.length ? i + 1 : -1)), frames: ListFrame[] = [], tones: Record<number, Tone> = {}; let first = -1, last = -1, best = Number.MAX_SAFE_INTEGER;
+      for (let i = 1; i < v.length - 1; i++) { const crit = (v[i - 1] < v[i] && v[i] > v[i + 1]) || (v[i - 1] > v[i] && v[i] < v[i + 1]); let note = `${v[i - 1]}, ${v[i]}, ${v[i + 1]}: `; if (crit) { if (first === -1) { first = i; note += `local ${v[i] > v[i + 1] ? "max" : "min"}, first critical point at ${i}`; } else { best = Math.min(best, i - last); note += `local ${v[i] > v[i + 1] ? "max" : "min"} at ${i}, gap ${i - last} (min gap ${best})`; } last = i; tones[i] = "found"; } else note += "not critical"; frames.push({ note, next, ptrs: [{ i: i - 1, label: "prev" }, { i, label: "cur" }], tones: { ...tones, [i]: crit ? "found" : "active" } }); }
+      frames.push({ note: `min gap ${best}, max gap ${last} - ${first} = ${last - first} → [${best}, ${last - first}]`, next, ptrs: [{ i: first, label: "first" }, { i: last, label: "last" }], tones: { ...tones } });
+      return { kind: "list", title: `[${v.join(", ")}] → [${best}, ${last - first}]`, values: v, frames };
+    },
+  },
+
+  "complete-binary-tree-inserter": {
+    approach: "Keep every node in a level-order array; the new node at index i hangs under the node at index (i - 1) // 2.",
+    idea: ["A complete tree in level order has no gaps, exactly like a heap array.", "So the parent of the next position is (len - 1) // 2: left child if it has none, else right child.", "Insert is O(1) after one BFS in the constructor."],
+    code: `class CBTInserter:
+    def __init__(self, root):
+        self.a, i = [root], 0
+        while i < len(self.a):
+            n = self.a[i]; i += 1
+            if n.left: self.a.append(n.left)
+            if n.right: self.a.append(n.right)
+
+    def insert(self, val):
+        node = TreeNode(val)
+        p = self.a[(len(self.a) - 1) // 2]
+        if not p.left:
+            p.left = node
+        else:
+            p.right = node
+        self.a.append(node)
+        return p.val
+
+    def get_root(self):
+        return self.a[0]`,
+    lang: "python", time: "O(1) insert", space: "O(n)",
+    viz: () => {
+      const vals: V = [1, 2, 3, 4, 5, 6, 7], { nodes, val } = T(vals), start = 4, frames: TreeFrame[] = [];
+      const muted = (from: number) => Object.fromEntries(vals.map((_, i) => [i, "muted"]).filter(([i]) => (i as number) >= from)) as Record<number, Tone>;
+      frames.push({ note: `Start with [${vals.slice(0, start).join(", ")}] stored in level order (faded nodes come later)`, tones: muted(start), badges: Object.fromEntries(vals.slice(0, start).map((_, i) => [i, `#${i}`])) });
+      for (let i = start; i < vals.length; i++) { const p = (i - 1) >> 1; frames.push({ note: `insert(${val(i)}) goes to slot ${i}; parent slot (${i} - 1) // 2 = ${p} holds ${val(p)} → ${i % 2 ? "left" : "right"} child, return ${val(p)}`, tones: { ...muted(i + 1), [i]: "found", [p]: "active" }, badges: Object.fromEntries(vals.slice(0, i + 1).map((_, j) => [j, `#${j}`])) }); }
+      return tree("Complete binary tree inserter", nodes, frames);
+    },
+  },
+
+  "add-one-row-to-tree": {
+    approach: "Walk to depth - 1; for each node there, put a new node between it and each child (old left goes under the new left, old right under the new right).",
+    idea: ["depth == 1 is special: the new node becomes the root with the old tree as its left child.", "Otherwise collect the nodes at depth - 1 with BFS.", "For each, left = new(val, left = old left) and right = new(val, right = old right)."],
+    code: `def addOneRow(root, val, depth):
+    if depth == 1:
+        return TreeNode(val, root)
+    level = [root]
+    for _ in range(depth - 2):
+        level = [c for n in level for c in (n.left, n.right) if c]
+    for n in level:
+        n.left = TreeNode(val, n.left)
+        n.right = TreeNode(val, None, n.right)
+    return root`,
+    lang: "python", time: "O(n)", space: "O(width)",
+    viz: () => {
+      const vals: V = [4, 2, 6, 1, 1, 1, 1, 3, null, null, 1, 5], { nodes } = T(vals), added = [3, 4, 5, 6];
+      const frames: TreeFrame[] = [{ note: "Tree [4, 2, 6, 3, 1, 5], add a row of 1s at depth 3. Faded nodes are the new row", tones: Object.fromEntries(added.map((i) => [i, "muted"])) as Record<number, Tone> }];
+      frames.push({ note: "Depth 2 holds 2 and 6: walk there with BFS", tones: { 1: "active", 2: "active", 3: "muted", 4: "muted", 5: "muted", 6: "muted" } });
+      frames.push({ note: "Under 2: new left 1 keeps the old left 3, new right 1 keeps the old right 1", tones: { 1: "active", 3: "found", 4: "found", 5: "muted", 6: "muted" } });
+      frames.push({ note: "Under 6: new left 1 keeps the old left 5, new right 1 gets the old right (none)", tones: { 2: "active", 3: "found", 4: "found", 5: "found", 6: "found" } });
+      return tree("Add one row of 1s at depth 3", nodes, frames);
+    },
+  },
+
+  "binary-search-tree-to-greater-sum-tree": {
+    approach: "Reverse inorder (right, node, left) visits values from largest to smallest; keep a running total and write it into each node.",
+    idea: ["Each node's new value is the sum of all values ≥ it.", "Visiting from largest to smallest, that is exactly the running total including the node itself."],
+    code: `def bstToGst(root):
+    total = 0
+    def go(n):
+        nonlocal total
+        if not n:
+            return
+        go(n.right)
+        total += n.val
+        n.val = total
+        go(n.left)
+    go(root)
+    return root`,
+    lang: "python", time: "O(n)", space: "O(h)",
+    viz: () => {
+      const vals: V = [4, 1, 6, 0, 2, 5, 7, null, null, null, 3, null, null, null, 8], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], labels: Record<number, string> = {}; let total = 0;
+      const go = (i: number | null) => { if (i == null) return; go(kids[i][1]); total += val(i); labels[i] = String(total); frames.push({ note: `${val(i)}: running total ${total - val(i)} + ${val(i)} = ${total}`, tones: { [i]: "active" }, labels: { ...labels } }); go(kids[i][0]); };
+      go(0);
+      return tree("BST to greater sum tree", nodes, trail(frames));
+    },
+  },
+
+  "possible-bipartition": {
+    approach: "Two-colour the dislike graph with BFS; a dislike between two people of the same colour makes it impossible.",
+    idea: ["Two groups where every dislike crosses between them is exactly a bipartite graph.", "Colour an uncoloured person 1, their dislikes -1, theirs 1, and so on.", "Run it from every uncoloured person, since the graph can be split into parts."],
+    code: `from collections import deque
+def possibleBipartition(n, dislikes):
+    g = [[] for _ in range(n + 1)]
+    for a, b in dislikes:
+        g[a].append(b); g[b].append(a)
+    color = [0] * (n + 1)
+    for s in range(1, n + 1):
+        if color[s]:
+            continue
+        color[s] = 1
+        q = deque([s])
+        while q:
+            u = q.popleft()
+            for v in g[u]:
+                if color[v] == color[u]:
+                    return False
+                if not color[v]:
+                    color[v] = -color[u]
+                    q.append(v)
+    return True`,
+    lang: "python", time: "O(n + e)", space: "O(n + e)",
+    viz: () => {
+      const n = 5, dis = [[1, 2], [1, 3], [2, 4], [3, 5], [4, 5]], nodes = [{ id: 0, label: "1", x: 50, y: 12 }, { id: 1, label: "2", x: 20, y: 45 }, { id: 2, label: "3", x: 80, y: 45 }, { id: 3, label: "4", x: 25, y: 88 }, { id: 4, label: "5", x: 75, y: 88 }];
+      const g: number[][] = Array.from({ length: n + 1 }, () => []); dis.forEach(([a, b]) => { g[a].push(b); g[b].push(a); });
+      const color = Array(n + 1).fill(0), frames: GraphFrame[] = [], view = () => ({ tones: Object.fromEntries(color.slice(1).map((c, i) => [i, c === 1 ? "found" : c === -1 ? "active" : "muted"])) as Record<number, Tone>, badges: Object.fromEntries(color.slice(1).map((c, i) => [i, c === 1 ? "A" : c === -1 ? "B" : ""]).filter(([, b]) => b)) });
+      let ok = true; color[1] = 1; const q = [1]; frames.push({ note: "Put person 1 in group A", ...view() });
+      outer: while (q.length) { const u = q.shift()!; for (const v of g[u]) { if (color[v] === color[u]) { ok = false; frames.push({ note: `${u} and ${v} dislike each other but are both in group ${color[u] === 1 ? "A" : "B"}: impossible`, ...view(), edgeTones: { [`${Math.min(u, v) - 1}-${Math.max(u, v) - 1}`]: "bad" } }); break outer; } if (!color[v]) { color[v] = -color[u]; q.push(v); frames.push({ note: `${u} dislikes ${v} → ${v} goes to group ${color[v] === 1 ? "A" : "B"}`, ...view(), edgeTones: { [`${Math.min(u, v) - 1}-${Math.max(u, v) - 1}`]: "found" } }); } } }
+      return { kind: "graph", title: `5 people, a 5-cycle of dislikes: ${ok}`, nodes, edges: dis.map(([a, b]) => ({ a: a - 1, b: b - 1 })), frames };
+    },
+  },
+
+  "minimize-hamming-distance-after-swap-operations": {
+    approach: "Swaps chain together, so indices in one connected component can be rearranged freely; per component, match target values against a counter of source values.",
+    idea: ["If a-b and b-c can swap, any order of a, b, c is reachable: Union-Find the allowed swaps.", "For each component, count the source values it holds.", "Each target value that the component's counter can supply is a match; the rest count toward the distance."],
+    code: `from collections import Counter, defaultdict
+def minimumHammingDistance(source, target, allowedSwaps):
+    parent = list(range(len(source)))
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]; x = parent[x]
+        return x
+    for a, b in allowedSwaps:
+        parent[find(a)] = find(b)
+    have = defaultdict(Counter)
+    for i, x in enumerate(source):
+        have[find(i)][x] += 1
+    ans = 0
+    for i, y in enumerate(target):
+        c = have[find(i)]
+        if c[y] > 0:
+            c[y] -= 1
+        else:
+            ans += 1
+    return ans`,
+    lang: "python", time: "O((n + s) α(n))", space: "O(n)",
+    viz: () => {
+      const src = [1, 2, 3, 4], tgt = [2, 1, 4, 5], swaps = [[0, 1], [2, 3]], nodes = src.map((v, i) => ({ id: i, label: String(v), x: 15 + i * 25, y: 50 }));
+      const parent = src.map((_, i) => i), find = (x: number): number => (parent[x] === x ? x : (parent[x] = find(parent[x]))), frames: GraphFrame[] = [], edgeTones: Record<string, Tone> = {}, badges = Object.fromEntries(tgt.map((t2, i) => [i, `want ${t2}`]));
+      swaps.forEach(([a, b]) => { parent[find(a)] = find(b); edgeTones[`${a}-${b}`] = "found"; frames.push({ note: `swap ${a}-${b} allowed: indices ${a} and ${b} can hold each other's values`, edgeTones: { ...edgeTones }, badges }); });
+      const have = new Map<number, Map<number, number>>(); src.forEach((x, i) => { const r = find(i), c = have.get(r) || new Map(); c.set(x, (c.get(x) || 0) + 1); have.set(r, c); });
+      let ans = 0; const tones: Record<number, Tone> = {};
+      tgt.forEach((y, i) => { const c = have.get(find(i))!, ok = (c.get(y) || 0) > 0; if (ok) c.set(y, c.get(y)! - 1); else ans++; tones[i] = ok ? "found" : "bad"; frames.push({ note: `index ${i} wants ${y}: ${ok ? "its group has one, match" : "its group has none, mismatch"} (distance ${ans})`, tones: { ...tones }, edgeTones: { ...edgeTones }, badges }); });
+      return { kind: "graph", title: `source [${src.join(", ")}] → target [${tgt.join(", ")}]: ${ans}`, nodes, edges: swaps.map(([a, b]) => ({ a, b })), frames };
+    },
+  },
+
+  "serialize-and-deserialize-bst": {
+    approach: "Serialize as preorder values only; a BST's preorder alone rebuilds it, because the value bounds tell where each value belongs.",
+    idea: ["No null markers are needed: in preorder a value goes left if it is below the parent, right otherwise.", "Deserialize with (low, high) bounds and a shared index, like building a BST from preorder.", "Both directions are O(n)."],
+    code: `class Codec:
+    def serialize(self, root):
+        out = []
+        def pre(n):
+            if n:
+                out.append(str(n.val)); pre(n.left); pre(n.right)
+        pre(root)
+        return ",".join(out)
+
+    def deserialize(self, data):
+        vals = [int(x) for x in data.split(",")] if data else []
+        i = 0
+        def build(lo, hi):
+            nonlocal i
+            if i == len(vals) or not lo < vals[i] < hi:
+                return None
+            v = vals[i]; i += 1
+            return TreeNode(v, build(lo, v), build(v, hi))
+        return build(float("-inf"), float("inf"))`,
+    lang: "python", time: "O(n)", space: "O(n)",
+    viz: () => {
+      const pre = [5, 3, 2, 4, 7, 8]; let i = 0; const steps: { label: string; parent: number | null; side?: "L" | "R"; note: string }[] = [];
+      const fmt = (x: number) => (Number.isFinite(x) ? String(x) : x > 0 ? "+∞" : "-∞");
+      const build = (lo: number, hi: number, parent: number | null, side?: "L" | "R") => { if (i === pre.length || !(lo < pre[i] && pre[i] < hi)) return; const v = pre[i++], id = steps.length; steps.push({ label: String(v), parent, side, note: `${parent == null ? `serialize gives "${pre.join(",")}". ` : ""}${v} fits in (${fmt(lo)}, ${fmt(hi)}) → ${parent == null ? "root" : `${side === "L" ? "left" : "right"} child of ${steps[parent].label}`}` }); build(lo, v, id, "L"); build(v, hi, id, "R"); };
+      build(-Infinity, Infinity, null);
+      const g = grow(steps); return tree(`Deserialize "${pre.join(",")}"`, g.nodes, g.frames);
+    },
+  },
+
+  "find-the-safest-path-in-a-grid": {
+    approach: "Multi-source BFS from every thief gives each cell's safeness; then a max-heap search finds the path whose smallest safeness is largest.",
+    idea: ["Safeness of a cell = Manhattan distance to the nearest thief: BFS from all thieves at once.", "A path's safeness is its minimum cell. Like Dijkstra, always expand the cell with the best path value so far (max-heap of min-so-far).", "The first time the bottom-right cell is popped, its value is the answer."],
+    code: `from collections import deque
+import heapq
+def maximumSafenessFactor(grid):
+    n = len(grid)
+    dist = [[-1] * n for _ in range(n)]
+    q = deque((r, c) for r in range(n) for c in range(n) if grid[r][c])
+    for r, c in q:
+        dist[r][c] = 0
+    while q:
+        r, c = q.popleft()
+        for nr, nc in ((r+1,c),(r-1,c),(r,c+1),(r,c-1)):
+            if 0 <= nr < n and 0 <= nc < n and dist[nr][nc] == -1:
+                dist[nr][nc] = dist[r][c] + 1
+                q.append((nr, nc))
+    heap, seen = [(-dist[0][0], 0, 0)], {(0, 0)}
+    while heap:
+        s, r, c = heapq.heappop(heap)
+        if (r, c) == (n - 1, n - 1):
+            return -s
+        for nr, nc in ((r+1,c),(r-1,c),(r,c+1),(r,c-1)):
+            if 0 <= nr < n and 0 <= nc < n and (nr, nc) not in seen:
+                seen.add((nr, nc))
+                heapq.heappush(heap, (max(s, -dist[nr][nc]), nr, nc))`,
+    lang: "python", time: "O(n² log n)", space: "O(n²)",
+    viz: () => {
+      const g = [[0, 0, 0, 1], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 0]], n = 4, dist: number[][] = g.map((row) => row.map((x) => (x ? 0 : -1))), frames: TableFrame[] = [], D = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      const show = () => dist.map((row) => row.map((x) => (x < 0 ? null : x)));
+      let layer = g.flatMap((row, r) => row.map((x, c) => [r, c, x]).filter((t2) => t2[2]).map(([r2, c2]) => [r2, c2])); frames.push({ note: "Thieves are at distance 0", cells: show(), tones: Object.fromEntries(layer.map(([r, c]) => [`${r}:${c}`, "bad"])) as Record<string, Tone> }); let d = 0;
+      while (layer.length) { const nxt: number[][] = []; for (const [r, c] of layer) for (const [dr, dc] of D) { const nr = r + dr, nc = c + dc; if (nr >= 0 && nr < n && nc >= 0 && nc < n && dist[nr][nc] === -1) { dist[nr][nc] = d + 1; nxt.push([nr, nc]); } } if (!nxt.length) break; d++; frames.push({ note: `BFS ring ${d}: cells ${d} step${d === 1 ? "" : "s"} from the nearest thief`, cells: show(), tones: Object.fromEntries(nxt.map(([r, c]) => [`${r}:${c}`, "window"])) as Record<string, Tone> }); layer = nxt; }
+      const heap: [number, number, number][] = [[dist[0][0], 0, 0]], seen = new Set(["0,0"]), from = new Map<string, string>(); let ans = 0;
+      while (heap.length) { heap.sort((a, b) => b[0] - a[0] || a[1] - b[1] || a[2] - b[2]); const [s, r, c] = heap.shift()!; if (r === n - 1 && c === n - 1) { ans = s; const path: string[] = []; let k: string | undefined = `${r},${c}`; while (k) { path.push(k); k = from.get(k); } frames.push({ note: `reached the corner with safeness ${s}`, cells: show(), tones: Object.fromEntries(path.map((p) => [p.replace(",", ":"), "found"])) as Record<string, Tone>, active: [r, c] }); break; } frames.push({ note: `pop (${r},${c}) with best path safeness ${s}`, cells: show(), active: [r, c] }); for (const [dr, dc] of D) { const nr = r + dr, nc = c + dc; if (nr >= 0 && nr < n && nc >= 0 && nc < n && !seen.has(`${nr},${nc}`)) { seen.add(`${nr},${nc}`); from.set(`${nr},${nc}`, `${r},${c}`); heap.push([Math.min(s, dist[nr][nc]), nr, nc]); } } }
+      return { kind: "table", title: `Safest path: ${ans}`, rowHead: ["0", "1", "2", "3"], colHead: ["0", "1", "2", "3"], frames };
+    },
+  },
+
+  "find-all-possible-recipes-from-given-supplies": {
+    approach: "Topological sort (Kahn): start from the supplies, and each time an ingredient becomes available, lower the missing count of every recipe that uses it.",
+    idea: ["Each recipe waits for len(ingredients) items. Edges go ingredient → recipe.", "Process available items from a queue; when a recipe's missing count hits 0, it is makeable and becomes an available item itself.", "Recipes in a cycle never reach 0, so they are correctly left out."],
+    code: `from collections import defaultdict, deque
+def findAllRecipes(recipes, ingredients, supplies):
+    need = {r: len(ing) for r, ing in zip(recipes, ingredients)}
+    users = defaultdict(list)
+    for r, ing in zip(recipes, ingredients):
+        for x in ing:
+            users[x].append(r)
+    q, out = deque(supplies), []
+    while q:
+        x = q.popleft()
+        for r in users[x]:
+            need[r] -= 1
+            if need[r] == 0:
+                out.append(r)
+                q.append(r)
+    return out`,
+    lang: "python", time: "O(total ingredients + supplies)", space: "O(same)",
+    viz: () => {
+      const names = ["yeast", "flour", "meat", "bread", "sandwich", "burger"], nodes = [{ id: 0, label: "yeast", x: 12, y: 15 }, { id: 1, label: "flour", x: 12, y: 50 }, { id: 2, label: "meat", x: 12, y: 85 }, { id: 3, label: "bread", x: 45, y: 30 }, { id: 4, label: "sandw", x: 70, y: 60 }, { id: 5, label: "burger", x: 92, y: 30 }];
+      const recipes: Record<string, string[]> = { bread: ["yeast", "flour"], sandwich: ["bread", "meat"], burger: ["sandwich", "meat", "bread"] }, id = (s: string) => names.indexOf(s);
+      const edges = Object.entries(recipes).flatMap(([r, ing]) => ing.map((x) => ({ a: id(x), b: id(r), directed: true })));
+      const need: Record<string, number> = Object.fromEntries(Object.entries(recipes).map(([r, ing]) => [r, ing.length])), q = ["yeast", "flour", "meat"], out: string[] = [], frames: GraphFrame[] = [], tones: Record<number, Tone> = { 0: "found", 1: "found", 2: "found" }, edgeTones: Record<string, Tone> = {};
+      const badges = () => Object.fromEntries(Object.keys(recipes).map((r) => [id(r), need[r] ? `needs ${need[r]}` : "ready"]));
+      frames.push({ note: "Supplies are available from the start", tones: { ...tones }, badges: badges() });
+      while (q.length) { const x = q.shift()!; const done: string[] = []; for (const [r, ing] of Object.entries(recipes)) if (ing.includes(x)) { need[r]--; edgeTones[`${Math.min(id(x), id(r))}-${Math.max(id(x), id(r))}`] = "found"; if (need[r] === 0) { out.push(r); q.push(r); tones[id(r)] = "found"; done.push(r); } } frames.push({ note: `${x} is available${done.length ? `: ${done.join(", ")} can now be made` : ""}`, tones: { ...tones, [id(x)]: "active" }, edgeTones: { ...edgeTones }, badges: badges() }); }
+      return { kind: "graph", title: `Makeable: ${out.join(", ")}`, nodes, edges, frames };
+    },
+  },
+
+  "all-paths-from-source-to-target": {
+    approach: "DFS from node 0 keeping the current path; the graph is acyclic, so no visited set is needed. Record the path whenever you reach n - 1.",
+    idea: ["In a DAG a path can never revisit a node, so plain DFS enumerates every path once.", "Append the neighbour, recurse, pop (backtracking).", "There can be exponentially many paths, so the output dominates the cost."],
+    code: `def allPathsSourceTarget(graph):
+    out, target = [], len(graph) - 1
+    def go(u, path):
+        if u == target:
+            out.append(path[:])
+            return
+        for v in graph[u]:
+            path.append(v)
+            go(v, path)
+            path.pop()
+    go(0, [0])
+    return out`,
+    lang: "python", time: "O(2ⁿ · n)", space: "O(n)",
+    viz: () => {
+      const graph = [[4, 3, 1], [3, 2, 4], [3], [4], []], t2 = 4, nodes = [{ id: 0, label: "0", x: 12, y: 50 }, { id: 1, label: "1", x: 40, y: 15 }, { id: 2, label: "2", x: 68, y: 15 }, { id: 3, label: "3", x: 60, y: 85 }, { id: 4, label: "4", x: 92, y: 50 }];
+      const edges = graph.flatMap((vs, u) => vs.map((v) => ({ a: u, b: v, directed: true }))), out: number[][] = [], frames: GraphFrame[] = [], path = [0];
+      const view = (tone: Tone) => ({ tones: Object.fromEntries(path.map((p) => [p, tone])) as Record<number, Tone>, edgeTones: Object.fromEntries(path.slice(1).map((p, k) => [`${Math.min(p, path[k])}-${Math.max(p, path[k])}`, tone])) as Record<string, Tone> });
+      const go = (u: number) => { if (u === t2) { out.push([...path]); frames.push({ note: `reached ${t2}: path ${out.length} = [${path.join(" → ")}]`, ...view("found") }); return; } for (const v of graph[u]) { path.push(v); frames.push({ note: `${u} → ${v}`, ...view("active") }); go(v); path.pop(); } };
+      go(0);
+      return { kind: "graph", title: `${out.length} paths from 0 to ${t2}`, nodes, edges, frames };
     },
   },
 };
