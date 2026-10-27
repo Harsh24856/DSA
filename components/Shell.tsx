@@ -97,12 +97,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
-        <AnimatePresence mode="wait">
-          <motion.div key={path.split("/").slice(0, 3).join("/")} initial={reduce ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -6 }}
-            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}>
-            {children}
-          </motion.div>
-        </AnimatePresence>
+        {/* no exit animation: the router has already swapped children, so waiting on an exit only delays the new page */}
+        <motion.div key={path.split("/").slice(0, 3).join("/")} initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }}
+          transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}>
+          {children}
+        </motion.div>
       </main>
 
       {/* bottom tab bar (mobile) */}

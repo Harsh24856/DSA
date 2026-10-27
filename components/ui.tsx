@@ -2,14 +2,15 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { animate, motion, useInView, useReducedMotion } from "motion/react";
 
-/** Card with a heading row. Fades up when it scrolls into view (feedback that new content arrived). */
+/** Card with a heading row. Fades up on mount (feedback that new content arrived). Not whileInView: a card taller than
+ *  the viewport never reaches the visibility threshold, so it stayed invisible until scrolled. */
 export function Card({ title, sub, aside, children, className = "", delay = 0 }: { title: string; sub?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string; delay?: number }) {
   const reduce = useReducedMotion();
   const id = "h-" + title.toLowerCase().replace(/\W+/g, "-");
   return (
     <motion.section aria-labelledby={id} className={`card p-5 ${className}`}
-      initial={reduce ? false : { opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.15 }}
-      transition={{ duration: 0.5, delay, ease: [0.16, 1, 0.3, 1] }}>
+      initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay, ease: [0.16, 1, 0.3, 1] }}>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 id={id} className="text-[16px] font-semibold">{title}</h2>
@@ -43,8 +44,8 @@ export function Bar({ value, max, className = "" }: { value: number; max: number
   const reduce = useReducedMotion();
   return (
     <div className={`h-1.5 overflow-hidden rounded-full bg-surface-2 ${className}`}>
-      <motion.div className="h-full origin-left rounded-full bg-accent" initial={reduce ? false : { scaleX: 0 }} whileInView={{ scaleX: max ? value / max : 0 }}
-        animate={{ scaleX: max ? value / max : 0 }} viewport={{ once: true }} transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }} />
+      <motion.div className="h-full origin-left rounded-full bg-accent" initial={reduce ? false : { scaleX: 0 }}
+        animate={{ scaleX: max ? value / max : 0 }} transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }} />
     </div>
   );
 }
