@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 // sets the saved palette/mode before first paint so there is no theme flash
-const themeScript = `try{var p=localStorage.getItem("dsa-daily-palette"),m=localStorage.getItem("dsa-daily-theme");if(p&&p!=="midnight")document.documentElement.dataset.palette=p;if(m==="light"||m==="dark")document.documentElement.dataset.theme=m;}catch(e){}`;
+const themeScript = `try{var p=localStorage.getItem("dsa-daily-palette"),m=localStorage.getItem("dsa-daily-theme");if(p&&p!=="midnight")document.documentElement.dataset.palette=p;if(m==="light"||m==="dark")document.documentElement.dataset.theme=m;var l=localStorage.getItem("dsa-daily-look");if(l&&l!=="classic"){document.documentElement.dataset.look=l;document.documentElement.dataset.kind=["paper","blueprint","terminal"].indexOf(l)<0?"photo":"drawn";}}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

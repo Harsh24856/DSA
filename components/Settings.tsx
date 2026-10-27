@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { DownloadSimple, SignOut, UploadSimple, X } from "@phosphor-icons/react";
-import { PALETTES, useStore, type Mode, type Palette } from "@/lib/store";
+import { useStore } from "@/lib/store";
+import { ThemeStudio } from "./ThemeStudio";
 import { phases, todayPlan, ymd, type Count, type State } from "@/lib/logic";
 import { P } from "@/lib/problems";
 
-const MODES: [Mode, string][] = [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]];
 const QUOTAS: [string, Count, Count][] = [["LeetCode", "L", "wL"], ["SQL", "S", "wS"], ["Codeforces", "C", "wC"]];
 
 export function Settings({ open, onClose }: { open: boolean; onClose(): void }) {
@@ -73,23 +73,7 @@ export function Settings({ open, onClose }: { open: boolean; onClose(): void }) 
           <p className="text-[13px] text-muted">You are in Phase {phase.n}, {phase.name} ({phase.short}).</p>
         </section>
 
-        <section className="flex flex-col gap-3">
-          <h3 className="text-[15px] font-semibold">Theme</h3>
-          <div className="grid grid-cols-4 gap-2">
-            {(Object.entries(PALETTES) as [Palette, readonly [string, string, string]][]).map(([k, [name, lc, dc]]) => (
-              <button key={k} type="button" aria-pressed={s.palette === k} onClick={() => s.setPalette(k)}
-                className="flex cursor-pointer flex-col items-center gap-1.5 rounded-[10px] border border-line py-2.5 text-[12px] font-medium transition hover:bg-surface-2 aria-pressed:border-accent aria-pressed:ring-2 aria-pressed:ring-accent-soft">
-                <span className="size-5 rounded-full ring-1 ring-line" style={{ background: `linear-gradient(135deg, ${lc} 50%, ${dc} 50%)` }} aria-hidden />{name}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-3 rounded-[10px] bg-surface-2 p-1" role="group" aria-label="Light or dark">
-            {MODES.map(([k, label]) => (
-              <button key={k} type="button" aria-pressed={s.mode === k} onClick={() => s.setMode(k)}
-                className="h-8 cursor-pointer rounded-[8px] text-[13px] font-medium text-muted transition aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-card">{label}</button>
-            ))}
-          </div>
-        </section>
+        <ThemeStudio />
 
         <section className="flex flex-col gap-3">
           <h3 className="text-[15px] font-semibold">Backup</h3>

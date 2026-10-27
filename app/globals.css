@@ -108,3 +108,69 @@
 
 /* modal scrim: same dim in both modes (::backdrop does not reliably inherit tokens) */
 dialog::backdrop{background:rgb(4 6 11 / .55);backdrop-filter:blur(3px)}
+
+/* ===== Theme Studio looks =====
+   A look (data-look on <html>, or data-preview on a preview card) replaces the palette tokens and adds a
+   background. :not(#_) lifts specificity above the palette/mode rules so a look always wins. */
+:is(:root[data-look="paper"]:not(#_), [data-preview="paper"]){
+  --bg:#E8DCC0; --surface:#F5EDDA; --ink:#3A2415; --muted:#78593C; --line:#D5C39E; --accent:#8C2F1F; --accent-ink:#F5EDDA;
+  --soft:#E9D9B5; --easy:#3F6B3A; --medium:#93600F; --hard:#8C2F1F; color-scheme:light;
+  --look-bg:
+    radial-gradient(120% 90% at 50% 40%, transparent 55%, color-mix(in oklab,#5A3A1E 22%,transparent) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .24 0 0 0 0 .12 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+:is(:root[data-look="blueprint"]:not(#_), [data-preview="blueprint"]){
+  --bg:#0F2B49; --surface:#13365C; --ink:#E7F2FF; --muted:#A0BCDA; --line:#2B537F; --accent:#7EC6FF; --accent-ink:#0B2340;
+  --soft:#18426E; --easy:#7FE3BA; --medium:#FFD47D; --hard:#FF9C9C; color-scheme:dark;
+  --look-bg:
+    linear-gradient(color-mix(in oklab,#7EC6FF 9%,transparent) 1px, transparent 1px) 0 0/24px 24px,
+    linear-gradient(90deg, color-mix(in oklab,#7EC6FF 9%,transparent) 1px, transparent 1px) 0 0/24px 24px,
+    linear-gradient(color-mix(in oklab,#7EC6FF 16%,transparent) 1px, transparent 1px) 0 0/120px 120px,
+    linear-gradient(90deg, color-mix(in oklab,#7EC6FF 16%,transparent) 1px, transparent 1px) 0 0/120px 120px,
+    #0F2B49;
+}
+:is(:root[data-look="terminal"]:not(#_), [data-preview="terminal"]){
+  --bg:#0A100B; --surface:#0E1810; --ink:#D2EDCC; --muted:#80A57B; --line:#1F3522; --accent:#7FE08E; --accent-ink:#08100A;
+  --soft:#14301A; --easy:#7FE08E; --medium:#E8D27A; --hard:#FF8E7A; color-scheme:dark;
+  --body:var(--font-geist-mono),ui-monospace,monospace; --display:var(--font-geist-mono),ui-monospace,monospace;
+  --look-bg:repeating-linear-gradient(180deg, color-mix(in oklab,#7FE08E 4%,transparent) 0 1px, transparent 1px 3px), radial-gradient(90% 70% at 50% 30%, #0E1A10, #070B08);
+}
+:root[data-look]:not(#_){ --surface-2:color-mix(in oklab,var(--surface),var(--ink) 6%); }
+:root[data-look] body{ background:transparent; }
+:root[data-look]{ background:var(--look-bg), var(--bg); background-attachment:fixed; }
+[data-preview]{ background:var(--look-bg), var(--bg); color:var(--ink); }
+:root[data-look="paper"] .card{ box-shadow:0 1px 0 color-mix(in oklab,#5A3A1E 14%,transparent), 0 10px 24px -16px color-mix(in oklab,#5A3A1E 45%,transparent); }
+
+/* falling petals (sakura) */
+@keyframes petal{ from{ transform:translate3d(0,-10vh,0) rotate(0deg); } to{ transform:translate3d(var(--drift,40px),110vh,0) rotate(540deg); } }
+.petal{ position:absolute; top:0; width:10px; height:8px; border-radius:80% 0 80% 0; background:color-mix(in oklab,#F29DC4 70%,#FFFFFF); opacity:.55; animation:petal linear infinite; }
+@media (prefers-reduced-motion:reduce){ .petal{ display:none; } }
+
+/* ===== Photo themes (Unsplash photos, credited in lib/looks.ts) =====
+   Dark glass panels over a darkened photo so text stays readable. */
+:is(:root[data-look="neon"]:not(#_), [data-preview="neon"]){ --bg:#0B0A14; --surface:#151327; --ink:#F4F2FF; --muted:#C2BEDA; --line:color-mix(in oklab,#FFFFFF 15%,transparent); --accent:#FF7AC6; --accent-ink:#1A0B16; --soft:#2C1F3C; --easy:#8EF0C0; --medium:#FFD37A; --hard:#FF8C9E; color-scheme:dark; }
+:is(:root[data-look="sakura"]:not(#_), [data-preview="sakura"]){ --bg:#1B1320; --surface:#241A2C; --ink:#FBF1F6; --muted:#D3BCCB; --line:color-mix(in oklab,#FFFFFF 15%,transparent); --accent:#FFA9CF; --accent-ink:#2A1220; --soft:#3A2438; --easy:#9EE3B5; --medium:#F5CE7E; --hard:#FF9AAE; color-scheme:dark; }
+:is(:root[data-look="fuji"]:not(#_), [data-preview="fuji"]){ --bg:#141018; --surface:#1E1822; --ink:#FFF5EC; --muted:#DCC6B6; --line:color-mix(in oklab,#FFFFFF 15%,transparent); --accent:#FF9F6E; --accent-ink:#2A130A; --soft:#3A2420; --easy:#A6E3A8; --medium:#FFD27A; --hard:#FF8D8D; color-scheme:dark; }
+:is(:root[data-look="torii"]:not(#_), [data-preview="torii"]){ --bg:#160D0B; --surface:#21140F; --ink:#FFF3EA; --muted:#DDBFAE; --line:color-mix(in oklab,#FFFFFF 15%,transparent); --accent:#FF8A57; --accent-ink:#2A1006; --soft:#3A2016; --easy:#A9E3A2; --medium:#FFD27A; --hard:#FF8A8A; color-scheme:dark; }
+:is(:root[data-look="stars"]:not(#_), [data-preview="stars"]){ --bg:#070B16; --surface:#0E1526; --ink:#EEF3FF; --muted:#B4C0DC; --line:color-mix(in oklab,#FFFFFF 14%,transparent); --accent:#8FB8FF; --accent-ink:#081127; --soft:#16223D; --easy:#8DE5C2; --medium:#FFD983; --hard:#FF9BA9; color-scheme:dark; }
+:is(:root[data-look="pinksky"]:not(#_), [data-preview="pinksky"]){ --bg:#FBEAF0; --surface:#FFF8FA; --ink:#2B1624; --muted:#6E4C61; --line:color-mix(in oklab,#2B1624 14%,transparent); --accent:#C2367A; --accent-ink:#FFF8FA; --soft:#F6D7E5; --easy:#2E7A52; --medium:#98620F; --hard:#B4304B; color-scheme:light; }
+
+:root[data-kind="photo"]{ background:var(--bg); }
+:root[data-kind="photo"] :is(.card, aside, dialog, .field, .btn:not(.btn-primary)){
+  background:color-mix(in oklab,var(--surface) 74%,transparent);
+  -webkit-backdrop-filter:blur(16px) saturate(1.3); backdrop-filter:blur(16px) saturate(1.3);
+  box-shadow:inset 0 1px 0 color-mix(in oklab,#FFFFFF 9%,transparent), var(--shadow);
+}
+@media (prefers-reduced-transparency:reduce){ :root[data-kind="photo"] :is(.card, aside, dialog){ backdrop-filter:none; background:var(--surface); } }
+
+/* background layer animations */
+@keyframes drift{ from{ transform:scale(1.06) translate3d(-1%,0,0); } to{ transform:scale(1.12) translate3d(1%,-1%,0); } }
+.look-photo{ animation:drift 38s ease-in-out infinite alternate; }
+@keyframes twinkle{ 0%,100%{ opacity:.15; } 50%{ opacity:.9; } }
+.star{ position:absolute; width:2px; height:2px; border-radius:9999px; background:#FFFFFF; animation:twinkle ease-in-out infinite; }
+@keyframes rain{ from{ transform:translate3d(0,-20vh,0); } to{ transform:translate3d(-6vh,110vh,0); } }
+.drop{ position:absolute; top:0; width:1px; height:60px; background:linear-gradient(transparent, color-mix(in oklab,#9FD6FF 55%,transparent)); animation:rain linear infinite; }
+@media (prefers-reduced-motion:reduce){ .look-photo, .star, .drop, .petal{ animation:none; } .drop, .petal{ display:none; } }
+/* page header text sits directly on the photo: lift it off busy backgrounds */
+:root[data-kind="photo"] main > header{ text-shadow:0 1px 14px color-mix(in oklab,var(--bg) 85%,transparent), 0 0 2px color-mix(in oklab,var(--bg) 60%,transparent); }
+:root[data-kind="photo"] main > header p{ color:var(--ink); opacity:.85; }

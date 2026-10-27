@@ -6,6 +6,7 @@ import { normQuota, validDates, ymd, type Count, type How, type State } from "./
 import { applyDiff, diff, pushDiff, same } from "./sync";
 import { supabase } from "./supabase/client";
 import { claimLocal, clearLocal } from "./owner";
+import { lookById } from "./looks";
 
 const LS_KEY = "dsa-daily-v1";
 // last server-confirmed state, per account; a fresh account/device starts by adding local ticks
@@ -24,7 +25,7 @@ type Ctx = {
   ready: boolean; state: State; now: Date; status: string; synced: boolean; connected: boolean; email: string | null; authChecked: boolean; signOut(): Promise<void>;
   toggle(i: number, on: boolean): void; setHow(i: number, h: How): void; setNote(i: number, n: string): void;
   revisitDone(i: number): void; setQuota(k: Count, v: number): void; setDate(k: "start" | "placement", v: string): void; importState(s: State): void;
-  palette: Palette; mode: Mode; setPalette(p: Palette): void; setMode(m: Mode): void; toast: string | null; say(msg: string): void;
+  palette: Palette; mode: Mode; look: string; setPalette(p: Palette): void; setMode(m: Mode): void; setLook(l: string): void; toast: string | null; say(msg: string): void;
 };
 const Store = createContext<Ctx | null>(null);
 export const useStore = () => { const c = useContext(Store); if (!c) throw new Error("useStore outside StoreProvider"); return c; };
@@ -39,6 +40,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [authChecked, setAuthChecked] = useState(false);
   const [palette, setPaletteRaw] = useState<Palette>("midnight");
   const [mode, setModeRaw] = useState<Mode>("auto");
+  const [look, setLookRaw] = useState("classic");
   const [toast, setToast] = useState<string | null>(null);
 
   const cur = useRef(state), base = useRef<State | null>(null), key = useRef<string | null>(null); // key = signed-in email
@@ -89,6 +91,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const p = localStorage.getItem("dsa-daily-palette") as Palette | null, m = localStorage.getItem("dsa-daily-theme") as Mode | null;
       if (p && p in PALETTES) setPaletteRaw(p);
       if (m === "light" || m === "dark") setModeRaw(m);
+      setLookRaw(lookById(localStorage.getItem("dsa-daily-look") ?? "classic").id);
     } catch {}
     setStatus("Syncing…");
     setReady(true);
@@ -115,13 +118,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const r = document.documentElement;
     if (palette === "midnight") r.removeAttribute("data-palette"); else r.dataset.palette = palette;
     if (mode === "auto") r.removeAttribute("data-theme"); else r.dataset.theme = mode;
-    write("dsa-daily-palette", palette); write("dsa-daily-theme", mode);
-  }, [palette, mode, ready]);
+    const L = lookById(look);
+    if (L.id === "classic") { delete r.dataset.look; delete r.dataset.kind; } else { r.dataset.look = L.id; r.dataset.kind = L.photo ? "photo" : "drawn"; }
+    write("dsa-daily-palette", palette); write("dsa-daily-theme", mode); write("dsa-daily-look", L.id);
+  }, [palette, mode, look, ready]);
 
   const value = useMemo<Ctx>(() => ({
     ready, state, now, status, synced, connected: !!email, email, authChecked, palette, mode, toast, say,
     signOut: async () => { await supabase().auth.signOut(); clearLocal(LS_KEY, "dsa-patterns-v1"); location.href = "/"; },
-    setPalette: setPaletteRaw, setMode: setModeRaw,
+    look, setPalette: setPaletteRaw, setMode: setModeRaw, setLook: setLookRaw,
     toggle: (i, on) => commit((s) => {
       const done = { ...s.done };
       if (on) done[i] = { d: ymd(new Date()), h: "s", r: 0, t: Date.now() }; else delete done[i];
@@ -133,7 +138,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setQuota: (k, v) => commit((s) => ({ ...s, quota: { ...s.quota, [k]: Math.max(0, Math.min(10, v || 0)) } })),
     setDate: (k, v) => { const q = { ...cur.current.quota, [k]: v }; if (validDates(q.start, q.placement)) commit((s) => ({ ...s, quota: q })); },
     importState: (imp) => commit(() => ({ done: imp.done, quota: normQuota(imp.quota) })),
-  }), [ready, state, now, status, synced, email, authChecked, palette, mode, toast, say, commit, sync]);
+  }), [ready, state, now, status, synced, email, authChecked, palette, mode, look, toast, say, commit, sync]);
 
   return <Store.Provider value={value}>{children}</Store.Provider>;
 }
