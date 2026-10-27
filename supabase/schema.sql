@@ -84,3 +84,67 @@ revoke all on function public.dsa_patterns_sync(text, jsonb, text[]) from public
 revoke execute on function public.dsa_patterns_sync(text, jsonb, text[]) from authenticated;
 grant execute on function public.dsa_patterns_sync(text, jsonb, text[]) to anon;
 revoke execute on function public.dsa_sync(text, jsonb, text[], jsonb) from authenticated;
+
+-- ===== Google sign-in (Supabase Auth). Replaces the sync key. =====
+-- One row per signed-in email, readable only by its owner. Only the owner's email may sync.
+-- On the owner's first sign-in the row is copied from the legacy dsa_state row above.
+create table if not exists public.dsa_progress (
+  email      text primary key,
+  done       jsonb not null default '{}'::jsonb,
+  quota      jsonb not null default '{"L":3,"S":1,"C":0,"wL":3,"wS":2,"wC":2,"v":2}'::jsonb,
+  patterns   jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.dsa_progress enable row level security;
+revoke all on public.dsa_progress from anon, authenticated;
+grant select on public.dsa_progress to authenticated;
+create policy "read own progress" on public.dsa_progress
+  for select to authenticated using (email = lower(auth.jwt() ->> 'email'));
+
+create or replace function public.dsa_progress_row() returns text
+language plpgsql security definer set search_path = ''
+as $$
+declare e text := lower(auth.jwt() ->> 'email');
+begin
+  if e is null then raise exception 'not signed in'; end if;
+  if e <> 'hsehra001@gmail.com' then raise exception 'this account is not allowed'; end if;
+  insert into public.dsa_progress (email, done, quota, patterns)
+  select e, s.done, s.quota, s.patterns from public.dsa_state s order by s.updated_at desc limit 1
+  on conflict (email) do nothing;
+  insert into public.dsa_progress (email) values (e) on conflict (email) do nothing;
+  return e;
+end;
+$$;
+
+create or replace function public.progress_sync(p_set jsonb default '{}'::jsonb, p_del text[] default '{}', p_quota jsonb default null)
+returns jsonb language plpgsql security definer set search_path = ''
+as $$
+declare e text := public.dsa_progress_row(); r public.dsa_progress;
+begin
+  update public.dsa_progress
+     set done = (done - coalesce(p_del, '{}')) || coalesce(p_set, '{}'::jsonb),
+         quota = coalesce(p_quota, quota),
+         updated_at = case when p_set <> '{}'::jsonb or cardinality(p_del) > 0 or p_quota is not null then now() else updated_at end
+   where email = e returning * into r;
+  return jsonb_build_object('done', r.done, 'quota', r.quota);
+end;
+$$;
+
+create or replace function public.progress_patterns_sync(p_set jsonb default '{}'::jsonb, p_del text[] default '{}')
+returns jsonb language plpgsql security definer set search_path = ''
+as $$
+declare e text := public.dsa_progress_row(); r public.dsa_progress;
+begin
+  update public.dsa_progress
+     set patterns = (patterns - coalesce(p_del, '{}')) || coalesce(p_set, '{}'::jsonb),
+         updated_at = case when p_set <> '{}'::jsonb or cardinality(p_del) > 0 then now() else updated_at end
+   where email = e returning * into r;
+  return r.patterns;
+end;
+$$;
+
+revoke all on function public.dsa_progress_row() from public, anon, authenticated;
+revoke all on function public.progress_sync(jsonb, text[], jsonb) from public, anon;
+revoke all on function public.progress_patterns_sync(jsonb, text[]) from public, anon;
+grant execute on function public.progress_sync(jsonb, text[], jsonb) to authenticated;
+grant execute on function public.progress_patterns_sync(jsonb, text[]) to authenticated;

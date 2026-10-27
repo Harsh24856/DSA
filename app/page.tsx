@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowClockwise, CheckCircle, CloudSlash, Code, Database, Fire, Lightning, Plus, Target, Trophy, type Icon } from "@phosphor-icons/react";
+import { ArrowClockwise, CheckCircle, Code, Database, Fire, Lightning, Plus, Target, Trophy, type Icon } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import { addDays, isWeekend, level, perDay, queue, revisitsDue, streak, title, todayPlan, TRACK, TRACKS, trackTotals, upcoming, url, weekStart, windowInfo, ymd } from "@/lib/logic";
 import type { Track } from "@/lib/problems";
@@ -13,7 +13,7 @@ import { WeekBars } from "@/components/charts";
 import { Bar, Card, Count, Skeleton } from "@/components/ui";
 
 export default function Today() {
-  const { ready, state, now, connected } = useStore();
+  const { ready, state, now } = useStore();
   const [extra, setExtra] = useState<Record<Track, number>>({ L: 0, S: 0, C: 0 });
   if (!ready) return <TodaySkeleton />;
 
@@ -43,7 +43,6 @@ export default function Today() {
 
   return (
     <div className="flex flex-col gap-5">
-      {!connected && <SyncCard />}
 
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Key numbers">
         <Kpi icon={<Target size={18} aria-hidden />} label="Today" value={plan.main.length - left} suffix={`/ ${plan.main.length}`} note={left ? `${left} left in today's plan` : "Today's plan is done"} />
@@ -172,25 +171,6 @@ function Ring({ done, total }: { done: number; total: number }) {
       </svg>
       <span className="num absolute inset-0 grid place-items-center text-[12px] font-semibold">{Math.round(f * 100)}%</span>
     </div>
-  );
-}
-
-function SyncCard() {
-  const { connect, say } = useStore();
-  const [k, setK] = useState("");
-  return (
-    <section className="card flex flex-col gap-4 border-accent/40 bg-accent-soft p-5 md:flex-row md:items-end md:justify-between" aria-labelledby="syncH">
-      <div className="max-w-[60ch]">
-        <h2 id="syncH" className="flex items-center gap-2 text-[16px] font-semibold"><CloudSlash size={18} aria-hidden />Cloud sync is off on this device</h2>
-        <p className="mt-1 text-[14px] text-muted">Enter your sync key once to save ticks to the cloud and keep every device the same. The first key you ever enter becomes yours, so pick a long one and keep it private.</p>
-      </div>
-      <form className="flex flex-col gap-2 sm:flex-row sm:items-end" onSubmit={(e) => { e.preventDefault(); if (k.trim().length < 8) return say("Use at least 8 characters for the sync key."); connect(k.trim()); setK(""); }}>
-        <label className="flex flex-col gap-1.5 text-[12px] font-medium text-muted">Sync key
-          <input className="field w-full sm:w-64" type="password" minLength={8} autoComplete="current-password" value={k} onChange={(e) => setK(e.target.value)} placeholder="8 or more characters" />
-        </label>
-        <button className="btn btn-primary" type="submit">Turn on sync</button>
-      </form>
-    </section>
   );
 }
 

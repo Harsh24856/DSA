@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { DownloadSimple, UploadSimple, X } from "@phosphor-icons/react";
+import { DownloadSimple, SignOut, UploadSimple, X } from "@phosphor-icons/react";
 import { PALETTES, useStore, type Mode, type Palette } from "@/lib/store";
 import { PHASES, todayPlan, ymd, type Quota, type State } from "@/lib/logic";
 import { P } from "@/lib/problems";
@@ -40,6 +40,17 @@ export function Settings({ open, onClose }: { open: boolean; onClose(): void }) 
       </div>
       <div className="flex flex-col gap-8 px-5 py-6">
         <section className="flex flex-col gap-3">
+          <h3 className="text-[15px] font-semibold">Account</h3>
+          <div className="flex items-center justify-between gap-3 rounded-[12px] bg-surface-2 p-3">
+            <div className="min-w-0">
+              <p className="truncate text-[14px] font-medium">{s.email ?? "Not signed in"}</p>
+              <p className="text-[12px] text-muted">Signed in with Google. This browser stays signed in.</p>
+            </div>
+            <button type="button" className="btn h-9 shrink-0 px-3 text-[13px]" onClick={() => void s.signOut()}><SignOut size={15} aria-hidden />Sign out</button>
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-3">
           <h3 className="text-[15px] font-semibold">Problems per day</h3>
           <div className="grid grid-cols-[minmax(0,1fr)_80px_80px] items-center gap-x-3 gap-y-2.5">
             <span />
@@ -78,7 +89,7 @@ export function Settings({ open, onClose }: { open: boolean; onClose(): void }) 
 
         <section className="flex flex-col gap-3">
           <h3 className="text-[15px] font-semibold">Backup</h3>
-          <p className="text-[13px] text-muted">Progress syncs to the cloud when sync is on and is always saved on this device. A backup file is a second copy.</p>
+          <p className="text-[13px] text-muted">Progress syncs to your account and is also saved on this device. A backup file is a second copy.</p>
           <div className="flex flex-wrap gap-2">
             <button className="btn" type="button" onClick={exportFile}><DownloadSimple size={16} aria-hidden />Download backup</button>
             <label className="btn" htmlFor="importFile"><UploadSimple size={16} aria-hidden />Restore backup</label>

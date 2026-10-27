@@ -18,13 +18,15 @@ const NAV: { href: string; label: string; icon: Icon }[] = [
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const { now, status, synced, connected, toast, ready } = useStore();
+  const { now, status, synced, connected, toast, ready, email } = useStore();
   const [open, setOpen] = useState(false);
   const reduce = useReducedMotion();
   const left = Math.max(0, diffDays(PLACEMENT, now));
   const used = Math.min(1, Math.max(0, diffDays(now, START) / diffDays(PLACEMENT, START)));
   const page = NAV.find((n) => n.href === path) ?? NAV.find((n) => n.href !== "/" && path.startsWith(n.href)) ?? NAV[0];
   const isOn = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+
+  if (path.startsWith("/login") || path.startsWith("/auth")) return <>{children}</>;
 
   return (
     <div className="mx-auto grid min-h-[100dvh] max-w-[1400px] lg:grid-cols-[240px_minmax(0,1fr)]">
@@ -62,7 +64,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <div className="flex items-center justify-between gap-2 px-1">
           <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted" role="status">
             {connected && synced ? <CloudCheck size={16} className="shrink-0 text-accent" aria-hidden /> : <CloudSlash size={16} className="shrink-0" aria-hidden />}
-            <span className="truncate">{status}</span>
+            <span className="min-w-0"><span className="block truncate">{status}</span>{email && <span className="block truncate text-[11px] opacity-80" title={email}>{email}</span>}</span>
           </span>
           <button type="button" onClick={() => setOpen(true)} aria-label="Settings" className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-[10px] text-muted transition hover:bg-surface-2 hover:text-ink active:scale-95">
             <GearSix size={18} aria-hidden />

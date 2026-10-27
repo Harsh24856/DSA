@@ -4,8 +4,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ymd } from "./logic";
 import { pushPatterns, type PTick } from "./sync";
+import { supabase } from "./supabase/client";
 
-const LS = "dsa-patterns-v1", BASE = "dsa-patterns-base", SYNC_KEY = "dsa-daily-sync-key";
+const LS = "dsa-patterns-v1", BASE = (email: string) => `dsa-patterns-base:${email}`;
 type Done = Record<string, PTick>;
 type Ctx = { ready: boolean; done: Done; toggle(lc: number, on: boolean): void };
 const C = createContext<Ctx | null>(null);
@@ -17,12 +18,12 @@ const write = (k: string, v: Done) => { try { localStorage.setItem(k, JSON.strin
 export function PatternProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [done, setDone] = useState<Done>({});
-  const cur = useRef<Done>({}), base = useRef<Done | null>(null), busy = useRef(false), again = useRef(false), timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const cur = useRef<Done>({}), base = useRef<Done | null>(null), baseFor = useRef<string | null>(null), busy = useRef(false), again = useRef(false), timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const sync = useCallback(async () => {
-    let key: string | null = null;
-    try { key = localStorage.getItem(SYNC_KEY); } catch {}
+    const key = (await supabase().auth.getSession()).data.session?.user.email?.toLowerCase();
     if (!key) return;
+    if (base.current === null || baseFor.current !== key) { base.current = read(BASE(key)); baseFor.current = key; }
     if (busy.current) { again.current = true; return; }
     busy.current = true;
     const sent = { ...cur.current }, b = base.current;
@@ -30,8 +31,8 @@ export function PatternProvider({ children }: { children: ReactNode }) {
     for (const [k, v] of Object.entries(sent)) if (!b || JSON.stringify(b[k]) !== JSON.stringify(v)) set[k] = v;
     if (b) for (const k of Object.keys(b)) if (!(k in sent)) del.push(k);
     try {
-      const server = await pushPatterns(key, set, del);
-      base.current = server; write(BASE, server);
+      const server = await pushPatterns(set, del);
+      base.current = server; write(BASE(key), server);
       // keep ticks made while the request was in flight
       const next = { ...server };
       for (const [k, v] of Object.entries(cur.current)) if (JSON.stringify(sent[k]) !== JSON.stringify(v)) next[k] = v;
@@ -43,11 +44,12 @@ export function PatternProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const d = read(LS) || {}; cur.current = d; setDone(d); base.current = read(BASE); setReady(true); void sync();
+    const d = read(LS) || {}; cur.current = d; setDone(d); setReady(true); void sync();
+    const { data: sub } = supabase().auth.onAuthStateChange((e) => { if (e === "SIGNED_IN") void sync(); });
     const onVis = () => { if (!document.hidden) void sync(); };
     document.addEventListener("visibilitychange", onVis);
     const t = setInterval(onVis, 60000);
-    return () => { document.removeEventListener("visibilitychange", onVis); clearInterval(t); };
+    return () => { document.removeEventListener("visibilitychange", onVis); clearInterval(t); sub.subscription.unsubscribe(); };
   }, [sync]);
 
   const value = useMemo<Ctx>(() => ({

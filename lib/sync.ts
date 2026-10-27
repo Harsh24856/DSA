@@ -1,8 +1,6 @@
-// Supabase cloud sync. See supabase/schema.sql for the dsa_sync RPC.
+// Cloud sync for the signed-in user. See supabase/schema.sql for progress_sync / progress_patterns_sync.
 import type { State } from "./logic";
-
-const SB_URL = "https://dmiiflynxamcooowyhps.supabase.co";
-const SB_KEY = "sb_publishable_wMRDwIm-ju-tXe8XvOoxJg_AnHYcIyd"; // publishable: safe in the browser, the RPC checks the sync key
+import { supabase } from "./supabase/client";
 
 export type Diff = { set: State["done"]; del: string[]; quota: State["quota"] | null };
 const J = JSON.stringify;
@@ -23,26 +21,16 @@ export function applyDiff(s: State, d: Diff): State {
 
 export const same = (a: State, b: State) => J(a.done) === J(b.done) && J(a.quota) === J(b.quota);
 
-export async function pushDiff(key: string, d: Diff): Promise<State> {
-  const r = await fetch(SB_URL + "/rest/v1/rpc/dsa_sync", {
-    method: "POST",
-    headers: { apikey: SB_KEY, "Content-Type": "application/json" },
-    body: J({ p_key: key, p_set: d.set, p_del: d.del, p_quota: d.quota }),
-  });
-  const res = await r.json();
-  if (!r.ok) throw new Error(res.message || String(r.status));
-  return { done: res.done, quota: res.quota };
+export async function pushDiff(d: Diff): Promise<State> {
+  const { data, error } = await supabase().rpc("progress_sync", { p_set: d.set, p_del: d.del, p_quota: d.quota });
+  if (error) throw new Error(error.message);
+  return { done: data.done, quota: data.quota };
 }
 
-/** Pattern-practice ticks live in their own column; same sync key, separate from the daily plan. */
-export async function pushPatterns(key: string, set: Record<string, unknown>, del: string[]): Promise<Record<string, PTick>> {
-  const r = await fetch(SB_URL + "/rest/v1/rpc/dsa_patterns_sync", {
-    method: "POST",
-    headers: { apikey: SB_KEY, "Content-Type": "application/json" },
-    body: J({ p_key: key, p_set: set, p_del: del }),
-  });
-  const res = await r.json();
-  if (!r.ok) throw new Error(res.message || String(r.status));
-  return res;
+/** Pattern-practice ticks live in their own column, separate from the daily plan. */
+export async function pushPatterns(set: Record<string, unknown>, del: string[]): Promise<Record<string, PTick>> {
+  const { data, error } = await supabase().rpc("progress_patterns_sync", { p_set: set, p_del: del });
+  if (error) throw new Error(error.message);
+  return data;
 }
 export type PTick = { d: string };
