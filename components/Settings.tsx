@@ -1,12 +1,12 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DownloadSimple, SignOut, UploadSimple, X } from "@phosphor-icons/react";
 import { PALETTES, useStore, type Mode, type Palette } from "@/lib/store";
-import { PHASES, todayPlan, ymd, type Quota, type State } from "@/lib/logic";
+import { phases, todayPlan, ymd, type Count, type State } from "@/lib/logic";
 import { P } from "@/lib/problems";
 
 const MODES: [Mode, string][] = [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]];
-const QUOTAS: [string, keyof Quota, keyof Quota][] = [["LeetCode", "L", "wL"], ["SQL", "S", "wS"], ["Codeforces", "C", "wC"]];
+const QUOTAS: [string, Count, Count][] = [["LeetCode", "L", "wL"], ["SQL", "S", "wS"], ["Codeforces", "C", "wC"]];
 
 export function Settings({ open, onClose }: { open: boolean; onClose(): void }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -14,7 +14,7 @@ export function Settings({ open, onClose }: { open: boolean; onClose(): void }) 
   useEffect(() => { const d = ref.current; if (!d) return; if (open && !d.open) d.showModal(); if (!open && d.open) d.close(); }, [open]);
 
   const plan = todayPlan(s.state, s.now);
-  const phase = PHASES[(plan.main.length ? P[plan.main[0]][4] : 4) - 1];
+  const phase = phases(s.state.quota)[(plan.main.length ? P[plan.main[0]][4] : 4) - 1];
 
   const exportFile = () => {
     const blob = new Blob([JSON.stringify({ app: "dsa-daily", v: 1, saved: new Date().toISOString(), state: s.state }, null, 1)], { type: "application/json" });
@@ -66,6 +66,10 @@ export function Settings({ open, onClose }: { open: boolean; onClose(): void }) 
               </div>
             ))}
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <DateField label="Plan starts" value={s.state.quota.start} max={s.state.quota.placement} onChange={(v) => s.setDate("start", v)} />
+            <DateField label="Placements" value={s.state.quota.placement} min={s.state.quota.start} onChange={(v) => s.setDate("placement", v)} />
+          </div>
           <p className="text-[13px] text-muted">You are in Phase {phase.n}, {phase.name} ({phase.short}).</p>
         </section>
 
@@ -108,5 +112,17 @@ export function Settings({ open, onClose }: { open: boolean; onClose(): void }) 
         </section>
       </div>
     </dialog>
+  );
+}
+
+/** Keeps what is typed (a half-typed year is briefly invalid) and saves only valid dates; on blur it shows the saved one again. */
+function DateField({ label, value, min, max, onChange }: { label: string; value: string; min?: string; max?: string; onChange(v: string): void }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  return (
+    <label className="flex flex-col gap-1.5 text-[12px] font-medium text-muted">{label}
+      <input className="field num w-full" type="date" required value={draft} min={min} max={max}
+        onChange={(e) => { setDraft(e.target.value); onChange(e.target.value); }} onBlur={() => setDraft(value)} />
+    </label>
   );
 }

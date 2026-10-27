@@ -5,7 +5,7 @@ import { useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ChartLineUp, CloudCheck, CloudSlash, CodeBlock, GearSix, ListChecks, MapTrifold, SunHorizon, TreeStructure, type Icon } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
-import { diffDays, PLACEMENT, START } from "@/lib/logic";
+import { diffDays, parse } from "@/lib/logic";
 import { Settings } from "./Settings";
 
 const NAV: { href: string; label: string; icon: Icon }[] = [
@@ -18,11 +18,12 @@ const NAV: { href: string; label: string; icon: Icon }[] = [
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const { now, status, synced, connected, toast, ready, email } = useStore();
+  const { now, status, synced, connected, toast, ready, email, state } = useStore();
   const [open, setOpen] = useState(false);
   const reduce = useReducedMotion();
-  const left = Math.max(0, diffDays(PLACEMENT, now));
-  const used = Math.min(1, Math.max(0, diffDays(now, START) / diffDays(PLACEMENT, START)));
+  const start = parse(state.quota.start), placement = parse(state.quota.placement);
+  const left = Math.max(0, diffDays(placement, now));
+  const used = Math.min(1, Math.max(0, diffDays(now, start) / Math.max(1, diffDays(placement, start))));
   const page = NAV.find((n) => n.href === path) ?? NAV.find((n) => n.href !== "/" && path.startsWith(n.href)) ?? NAV[0];
   const isOn = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
