@@ -146,6 +146,13 @@ TREE = {
  "number-of-good-leaf-nodes-pairs": [("countPairs", ([1,2,3,None,4], 3), 1, None), ("countPairs", ([1,2,3,4,5,6,7], 3), 2, None), ("countPairs", ([7,1,4,6,None,5,3,None,None,None,None,None,2], 3), 1, None)],
  "deepest-leaves-sum": [("deepestLeavesSum", ([1,2,3,4,5,None,6,7,None,None,None,None,8],), 15, None), ("deepestLeavesSum", ([6,7,8,2,7,1,3,9,None,1,4,None,None,None,5],), 19, None)],
 }
+# per-batch case files (lib/solutions/cases/*.py) so parallel batches never edit the same file
+import glob, os
+_custom = []
+for _f in sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "cases", "*.py"))):
+    _ns = {"tree": tree, "lst": lst, "arr": arr, "level": level, "inorder": inorder, "balanced": balanced, "find": find, "TreeNode": TreeNode, "ListNode": ListNode}
+    exec(open(_f).read(), _ns)
+    CASES.update(_ns.get("CASES", {})); TREE.update(_ns.get("TREE", {})); _custom += _ns.get("CUSTOM", [])
 ok = fail = 0
 def check(name, got, exp):
     global ok, fail
@@ -196,5 +203,9 @@ g = load("add-one-row-to-tree"); check("addOneRow a", level(g["addOneRow"](tree(
 g = load("binary-search-tree-to-greater-sum-tree"); check("bstToGst a", level(g["bstToGst"](tree([4,1,6,0,2,5,7,None,None,None,3,None,None,None,8]))), [30,36,21,36,35,26,15,None,None,None,33,None,None,None,8]); check("bstToGst b", level(g["bstToGst"](tree([0,None,1]))), [1,None,1])
 g = load("serialize-and-deserialize-bst"); c = g["Codec"]()
 for a in ([2,1,3], [], [5,3,7,2,4,None,8]): check("Codec", level(c.deserialize(c.serialize(tree(a)))) if a else c.deserialize(c.serialize(None)), a if a else None)
+class _H: pass
+_h = _H()
+for _k, _v in {"tree": tree, "lst": lst, "arr": arr, "level": level, "inorder": inorder, "balanced": balanced, "find": find}.items(): setattr(_h, _k, _v)
+for _c in _custom: _c(load, check, _h)
 print(f"{ok} passed, {fail} failed, {len(src)} solutions loaded")
 sys.exit(1 if fail else 0)
