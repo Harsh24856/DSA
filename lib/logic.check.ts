@@ -1,6 +1,6 @@
 // Run: npm run check. Asserts the rolling-window schedule.
 import assert from "node:assert";
-import { normQuota, todayPlan, upcoming, windowInfo, ymd, type State } from "./logic.ts";
+import { diffDays, normQuota, pace, phases, todayPlan, upcoming, windowInfo, ymd, type State } from "./logic.ts";
 
 const FRI = new Date(2026, 9, 23), SAT = new Date(2026, 9, 24), SUN = new Date(2026, 9, 25), MON = new Date(2026, 9, 26), TUE = new Date(2026, 9, 27);
 const fresh = (): State => ({ done: {}, quota: normQuota() });
@@ -57,5 +57,24 @@ assert.equal(todayPlan(s, SUN).byTrack.L[0], first);
 // 6. Codeforces only on weekends, SQL 1 on weekdays.
 s = fresh();
 assert.equal(upcoming(s, FRI, todayPlan(s, FRI).main).find((d) => d.date.getDay() === 2)!.items.length, 4);
+
+// 7. Personal dates: old v2 saves get the original plan; a later start counts "behind" from that day.
+assert.deepEqual([normQuota({ L: 3, S: 1, C: 0, wL: 3, wS: 2, wC: 2, v: 2 } as never).start, normQuota().placement], ["2026-10-24", "2027-05-01"]);
+assert.equal(normQuota({ ...normQuota(), start: "2027-06-01" }).start, "2026-10-24", "start after placement is rejected");
+assert.equal(normQuota({ ...normQuota(), placement: "" }).placement, "2027-05-01", "cleared date is rejected");
+assert.equal(normQuota({ ...normQuota(), start: "0002-10-24" }).start, "2026-10-24", "half-typed year is rejected");
+s = { done: {}, quota: normQuota({ ...normQuota(), start: "2026-10-26" }) };
+assert.equal(windowInfo(s, MON, "L", todayPlan(s, MON).byTrack.L).behind, 0, "nothing planned before a custom start");
+assert.equal(windowInfo(s, TUE, "L", todayPlan(s, TUE).byTrack.L).behind, 3, "one missed weekday = 3 behind");
+assert.equal(pace(s, MON)[0].date, "2026-10-26");
+
+// 8. Phases: the default dates reproduce the original plan, custom dates scale.
+assert.deepEqual(phases(normQuota()).map((p) => [ymd(p.from), ymd(p.to)]), [
+  ["2026-10-24", "2026-12-27"], ["2026-12-28", "2027-02-28"], ["2027-03-01", "2027-04-15"], ["2027-04-16", "2027-05-01"],
+]);
+const half = phases(normQuota({ ...normQuota(), start: "2027-01-01", placement: "2027-04-10" })); // 99 days
+assert.equal(ymd(half[0].from), "2027-01-01");
+assert.equal(ymd(half[3].to), "2027-04-10");
+assert.ok(half.every((p, k) => p.from <= p.to && (!k || diffDays(p.from, half[k - 1].to) === 1)), "phases are contiguous");
 
 console.log("logic checks pass");

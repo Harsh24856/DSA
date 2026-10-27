@@ -3,25 +3,50 @@ import { P, type Track } from "./problems.ts";
 
 export type How = "s" | "h" | "e";
 export type Tick = { d: string; h?: How; r?: number; n?: string; t?: number };
-/** Daily quota per track: L/S/C on weekdays, wL/wS/wC on Sat and Sun. */
-export type Quota = { L: number; S: number; C: number; wL: number; wS: number; wC: number; v?: number };
+/** Daily quota per track: L/S/C on weekdays, wL/wS/wC on Sat and Sun. `start`/`placement` (YYYY-MM-DD) bound the plan. */
+export type Quota = { L: number; S: number; C: number; wL: number; wS: number; wC: number; start: string; placement: string; v?: number };
 export type State = { done: Record<string, Tick>; quota: Quota };
+export type Count = Exclude<keyof Quota, "start" | "placement" | "v">;
 
-export const DEFAULT_QUOTA: Quota = { L: 3, S: 1, C: 0, wL: 3, wS: 2, wC: 2, v: 2 };
-/** v2 = weekday/weekend quotas. Anything older (incl. a half-migrated {L:2,S:1,C:2,wL..}) resets to the defaults, then syncs back. */
-export const normQuota = (q?: Partial<Quota> | null): Quota => (q && q.v === 2 ? { ...DEFAULT_QUOTA, ...q } : DEFAULT_QUOTA);
+export const DEFAULT_QUOTA: Quota = { L: 3, S: 1, C: 0, wL: 3, wS: 2, wC: 2, start: "2026-10-24", placement: "2027-05-01", v: 2 };
+const isDay = (x: unknown): x is string => typeof x === "string" && /^\d{4}-\d{2}-\d{2}$/.test(x) && !isNaN(parse(x).getTime());
+/** Placement after start and at most 5 years later, which also keeps the day-by-day loops below short. */
+export const validDates = (start: unknown, placement: unknown) =>
+  isDay(start) && isDay(placement) && start < placement && diffDays(parse(placement), parse(start)) <= 1830;
+/**
+ * v2 = weekday/weekend quotas. Anything older (incl. a half-migrated {L:2,S:1,C:2,wL..}) resets to the defaults, then syncs back.
+ * v2 saves without dates (or with bad ones) get the original 24 Oct 2026 to 1 May 2027 plan.
+ */
+export const normQuota = (q?: Partial<Quota> | null): Quota => {
+  if (!q || q.v !== 2) return DEFAULT_QUOTA;
+  const out = { ...DEFAULT_QUOTA, ...q };
+  if (!validDates(out.start, out.placement)) { out.start = DEFAULT_QUOTA.start; out.placement = DEFAULT_QUOTA.placement; }
+  return out;
+};
 export const quotaFor = (q: Quota, d: Date): Record<Track, number> => (isWeekend(d) ? { L: q.wL, S: q.wS, C: q.wC } : { L: q.L, S: q.S, C: q.C });
-export const PLACEMENT = new Date(2027, 4, 1);
-export const START = new Date(2026, 9, 24); // plan starts Sat 24 Oct 2026
 export const REV = [3, 7, 21];
 export const TRACK: Record<Track, string> = { L: "LeetCode", S: "SQL", C: "Codeforces" };
 export const HOW: Record<How, string> = { s: "Solo", h: "Hint", e: "Editorial" };
+/** `end` = last day of the phase, in days from the start of the original 189-day plan (24 Oct 2026 to 1 May 2027). */
 export const PHASES = [
-  { n: 1, name: "Unseen Mediums", short: "to Dec 27", when: "24 Oct to 27 Dec 2026", points: ["3 new Mediums a day on the most-asked OA topics: arrays, strings, hashing, two pointers, sliding window, binary search, graphs, trees, heaps.", "Hide topic tags and work out the pattern yourself.", "1 SQL problem on weekdays and 2 on weekends, from the SQL 50 list."] },
-  { n: 2, name: "Medium to Hard", short: "to Feb 28", when: "28 Dec 2026 to 28 Feb 2027", points: ["Timed Mediums plus one Hard every few days.", "Company-tagged sets and light DP (1D, knapsack, grids).", "2 Codeforces problems each weekend day at 1200 to 1500 rating."] },
-  { n: 3, name: "OA simulation", short: "to Apr 15", when: "1 Mar to 15 Apr 2027", points: ["2 to 3 problems in 90 minutes, twice a week, like a real OA.", "LeetCode weekly contests and upsolving.", "Harder SQL: window functions and joins."] },
-  { n: 4, name: "Revision", short: "to May 1", when: "16 Apr to 1 May 2027", points: ["Re-solve every problem you marked Hint or Editorial.", "Read your one-line insights daily.", "Light new practice only, to stay sharp."] },
+  { n: 1, name: "Unseen Mediums", end: 64, points: ["3 new Mediums a day on the most-asked OA topics: arrays, strings, hashing, two pointers, sliding window, binary search, graphs, trees, heaps.", "Hide topic tags and work out the pattern yourself.", "1 SQL problem on weekdays and 2 on weekends, from the SQL 50 list."] },
+  { n: 2, name: "Medium to Hard", end: 127, points: ["Timed Mediums plus one Hard every few days.", "Company-tagged sets and light DP (1D, knapsack, grids).", "2 Codeforces problems each weekend day at 1200 to 1500 rating."] },
+  { n: 3, name: "OA simulation", end: 173, points: ["2 to 3 problems in 90 minutes, twice a week, like a real OA.", "LeetCode weekly contests and upsolving.", "Harder SQL: window functions and joins."] },
+  { n: 4, name: "Revision", end: 189, points: ["Re-solve every problem you marked Hint or Editorial.", "Read your one-line insights daily.", "Light new practice only, to stay sharp."] },
 ] as const;
+
+export const fmtDay = (d: Date, year = false) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(year && { year: "numeric" }) });
+
+/** The four phases scaled proportionally between the user's start and placement dates. */
+export function phases(q: Quota) {
+  const start = parse(q.start), span = Math.max(1, diffDays(parse(q.placement), start));
+  return PHASES.map((ph, k) => {
+    const from = k ? addDays(start, Math.round((PHASES[k - 1].end * span) / 189) + 1) : start;
+    const to = addDays(start, Math.round((ph.end * span) / 189));
+    const when = `${fmtDay(from, from.getFullYear() !== to.getFullYear())} to ${fmtDay(to, true)}`;
+    return { ...ph, from, to, when, short: "to " + fmtDay(to) };
+  });
+}
 
 const pad = (n: number) => String(n).padStart(2, "0");
 export const ymd = (d: Date) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
@@ -59,7 +84,7 @@ export function todayPlan(s: State, now: Date) {
 
 /**
  * Where each track's window sits today. `from`/`to` are 1-based positions in that track's list.
- * `behind` = planned since START up to yesterday minus solved before today; those problems are
+ * `behind` = planned since the plan start up to yesterday minus solved before today; those problems are
  * the ones still sitting at the front of the window, so `carried` (capped at today's quota) rolled over.
  */
 export function windowInfo(s: State, now: Date, tr: Track, ids: number[]) {
@@ -67,7 +92,7 @@ export function windowInfo(s: State, now: Date, tr: Track, ids: number[]) {
   const total = P.filter((p) => p[0] === tr).length;
   const t = ymd(now);
   let planned = 0;
-  for (let d = new Date(START); ymd(d) < t; d = addDays(d, 1)) planned += quotaFor(s.quota, d)[tr];
+  for (let d = parse(s.quota.start); ymd(d) < t; d = addDays(d, 1)) planned += quotaFor(s.quota, d)[tr];
   const solvedBefore = Object.keys(s.done).filter((i) => P[+i]?.[0] === tr && s.done[i].d < t).length;
   const behind = Math.max(0, planned - solvedBefore);
   return { from: ids.length ? pos(Math.min(...ids)) : 0, to: ids.length ? pos(Math.max(...ids)) : 0, total, behind, carried: Math.min(behind, ids.length) };
@@ -159,17 +184,18 @@ export function topics(s: State, limit = 12) {
 export function pace(s: State, now: Date) {
   const days = perDay(s);
   const first = [...days.keys()].sort()[0];
-  const start = first && parse(first) < START ? parse(first) : START;
+  const begin = parse(s.quota.start), end = parse(s.quota.placement);
+  const start = first && parse(first) < begin ? parse(first) : begin;
   const rows: { date: string; label: string; solved: number | null; target: number }[] = [];
   let sum = 0;
-  for (let d = new Date(start); d <= PLACEMENT; d = addDays(d, 1)) {
+  for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
     const key = ymd(d);
     sum += days.get(key) || 0;
     rows.push({
       date: key,
       label: d.toLocaleDateString(undefined, { day: "numeric", month: "short" }),
       solved: d <= now ? sum : null,
-      target: Math.max(0, Math.round((P.length * diffDays(d, START)) / Math.max(1, diffDays(PLACEMENT, START)))),
+      target: Math.max(0, Math.round((P.length * diffDays(d, begin)) / Math.max(1, diffDays(end, begin)))),
     });
   }
   return rows;

@@ -1,7 +1,7 @@
 "use client";
 import { motion, useReducedMotion } from "motion/react";
 import { useStore } from "@/lib/store";
-import { PHASES, todayPlan } from "@/lib/logic";
+import { parse, phases, todayPlan } from "@/lib/logic";
 import { P } from "@/lib/problems";
 import { Bar, Card } from "@/components/ui";
 
@@ -12,9 +12,9 @@ export default function Roadmap() {
   const cur = plan.main.length ? P[plan.main[0]][4] : 4;
 
   return (
-    <Card title="Roadmap to May 2027" sub="Four phases, about 2 hours a day">
+    <Card title={`Roadmap to ${parse(state.quota.placement).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}`} sub="Four phases, about 2 hours a day">
       <ol className="relative flex flex-col gap-4 before:absolute before:bottom-4 before:left-[15px] before:top-4 before:w-0.5 before:bg-line">
-        {PHASES.map((ph, k) => {
+        {phases(state.quota).map((ph, k) => {
           const tot = P.filter((p) => p[4] === ph.n).length;
           const dn = Object.keys(state.done).filter((i) => P[+i] && P[+i][4] === ph.n).length;
           const now_ = ph.n === cur, past = ph.n < cur;

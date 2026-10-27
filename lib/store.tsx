@@ -2,7 +2,7 @@
 // One client store for progress, cloud sync and theme. Progress lives in localStorage key dsa-daily-v1
 // (same keys as the old static site, so existing ticks carry over) and syncs to the signed-in user's row.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { normQuota, ymd, type How, type Quota, type State } from "./logic";
+import { normQuota, validDates, ymd, type Count, type How, type State } from "./logic";
 import { applyDiff, diff, pushDiff, same } from "./sync";
 import { supabase } from "./supabase/client";
 import { claimLocal, clearLocal } from "./owner";
@@ -23,7 +23,7 @@ const write = (k: string, v: unknown) => { try { if (v == null) localStorage.rem
 type Ctx = {
   ready: boolean; state: State; now: Date; status: string; synced: boolean; connected: boolean; email: string | null; signOut(): Promise<void>;
   toggle(i: number, on: boolean): void; setHow(i: number, h: How): void; setNote(i: number, n: string): void;
-  revisitDone(i: number): void; setQuota(k: keyof Quota, v: number): void; importState(s: State): void;
+  revisitDone(i: number): void; setQuota(k: Count, v: number): void; setDate(k: "start" | "placement", v: string): void; importState(s: State): void;
   palette: Palette; mode: Mode; setPalette(p: Palette): void; setMode(m: Mode): void; toast: string | null; say(msg: string): void;
 };
 const Store = createContext<Ctx | null>(null);
@@ -130,6 +130,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setNote: (i, n) => commit((s) => ({ ...s, done: { ...s.done, [i]: { ...s.done[i], n: n.slice(0, 200) } } })),
     revisitDone: (i) => commit((s) => ({ ...s, done: { ...s.done, [i]: { ...s.done[i], r: (s.done[i].r || 0) + 1 } } })),
     setQuota: (k, v) => commit((s) => ({ ...s, quota: { ...s.quota, [k]: Math.max(0, Math.min(10, v || 0)) } })),
+    setDate: (k, v) => { const q = { ...cur.current.quota, [k]: v }; if (validDates(q.start, q.placement)) commit((s) => ({ ...s, quota: q })); },
     importState: (imp) => commit(() => ({ done: imp.done, quota: normQuota(imp.quota) })),
   }), [ready, state, now, status, synced, email, palette, mode, toast, say, commit, sync]);
 
