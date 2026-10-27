@@ -25,16 +25,14 @@ export function SolveProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Small button used on question rows. */
-export function SolveButton({ t, className = "" }: { t: SolveTarget; className?: string }) {
+/** Small button used on question rows. `short` keeps only the icon on phones, for tight rows. */
+export function SolveButton({ t, className = "", short }: { t: SolveTarget; className?: string; short?: boolean }) {
   const open = useSolve();
   const has = !!SOLUTIONS[t.slug];
   return (
-    <motion.button type="button" whileHover={{ y: -1 }} whileTap={{ scale: 0.95 }} onClick={() => open(t)}
-      className={`inline-flex h-7 shrink-0 cursor-pointer items-center gap-1 rounded-full border px-2.5 text-[12px] font-semibold transition-colors ${has ? "border-accent/50 bg-accent-soft text-accent hover:bg-accent hover:text-accent-ink" : "border-line bg-surface text-muted hover:border-accent/50 hover:text-ink"} ${className}`}
-      aria-label={`${has ? "Solution" : "Approach"} for ${t.title}`}>
-      <Lightbulb size={13} weight={has ? "fill" : "regular"} aria-hidden />{has ? "Solution" : "Approach"}
-    </motion.button>
+    <button type="button" onClick={() => open(t)} className={`chip ${has ? "chip-accent" : ""} ${className}`} aria-label={`${has ? "Solution" : "Approach"} for ${t.title}`}>
+      <Lightbulb size={14} weight={has ? "fill" : "regular"} aria-hidden /><span className={short ? "max-sm:hidden" : undefined}>{has ? "Solution" : "Approach"}</span>
+    </button>
   );
 }
 
@@ -59,19 +57,19 @@ function Sheet({ t, onClose }: { t: SolveTarget; onClose(): void }) {
 
   return (
     <div className="fixed inset-0 z-50">
-      <motion.div className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} aria-hidden />
+      <motion.div className="scrim absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} aria-hidden />
       <motion.aside role="dialog" aria-modal="true" aria-labelledby="solve-title"
         className="absolute inset-y-0 right-0 flex w-full max-w-[760px] flex-col border-l border-line bg-surface shadow-card"
         initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 340, damping: 36 }}>
         <header className="flex items-start gap-3 border-b border-line px-5 py-4">
           <div className="min-w-0 flex-1">
-            <h2 id="solve-title" className="text-[19px] font-semibold leading-snug">{t.title}</h2>
+            <h2 id="solve-title" className="t-h2">{t.title}</h2>
             <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px]">
               <span className={`pill lv-${t.level}`}>{t.level}</span>
-              <a href={t.url} target="_blank" rel="noopener" className="inline-flex items-center gap-1 font-medium text-muted hover:text-accent">Open on LeetCode<ArrowUpRight size={12} aria-hidden /></a>
+              <a href={t.url} target="_blank" rel="noopener" className="inline-flex items-center gap-1 font-medium text-muted transition-colors hover:text-accent">Open on LeetCode<ArrowUpRight size={14} aria-hidden /></a>
             </div>
           </div>
-          <button ref={closeBtn} type="button" onClick={onClose} aria-label="Close" className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-[10px] text-muted hover:bg-surface-2 hover:text-ink"><X size={18} aria-hidden /></button>
+          <button ref={closeBtn} type="button" onClick={onClose} aria-label="Close" className="btn btn-ghost btn-icon -mr-2 shrink-0"><X size={18} aria-hidden /></button>
         </header>
 
         <div className="flex gap-1 border-b border-line px-5" role="tablist" aria-label="View">
@@ -89,40 +87,40 @@ function Sheet({ t, onClose }: { t: SolveTarget; onClose(): void }) {
             <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }} className="flex flex-col gap-5">
               {tab === "solution" && sol && (
                 <>
-                  <p className="rounded-[14px] border-l-4 border-accent bg-accent-soft px-4 py-3 text-[15px] leading-relaxed"><span className="font-semibold">Key move: </span>{sol.approach}</p>
+                  <p className="callout text-[15px] leading-relaxed"><span className="font-semibold">Key move: </span>{sol.approach}</p>
                   <ol className="flex flex-col gap-2">{sol.idea.map((x, i) => <li key={x} className="flex gap-3 text-[14px] leading-relaxed"><span className="num grid size-6 shrink-0 place-items-center rounded-full bg-surface-2 text-[12px] font-semibold text-accent">{i + 1}</span>{x}</li>)}</ol>
                 </>
               )}
               {tab === "pattern" && pattern && topic && (
                 <>
                   <p className="text-[13px] text-muted">{SOLVE_EXACT.has(t.slug) ? "This question is in this pattern's practice list." : "Closest pattern, matched from the question's LeetCode tags."}</p>
-                  {PLAIN[`${topic.id}:${pattern.n}`] && <p className="rounded-[14px] border-l-4 border-accent bg-accent-soft px-4 py-3 text-[15px] leading-relaxed">{PLAIN[`${topic.id}:${pattern.n}`].plain}</p>}
+                  {PLAIN[`${topic.id}:${pattern.n}`] && <p className="callout text-[15px] leading-relaxed">{PLAIN[`${topic.id}:${pattern.n}`].plain}</p>}
                   <p className="text-[14px] leading-relaxed">{pattern.summary}</p>
                 </>
               )}
-              {!sol && !pattern && <p className="text-[14px] text-muted">{t.sql ? "SQL questions get hand-written solutions in batches. This one is not written yet; open it on LeetCode and try a JOIN or GROUP BY first." : "No pattern matched this question yet."}</p>}
+              {!sol && !pattern && <p className="empty">{t.sql ? "SQL questions get hand-written solutions in batches. This one is not written yet; open it on LeetCode and try a JOIN or GROUP BY first." : "No pattern matched this question yet."}</p>}
 
               {diagram && <Visualizer diagram={diagram} />}
 
               {(sol || pattern) && (
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-[12px] bg-surface-2 p-3"><div className="text-[12px] text-muted">Time</div><div className="num mt-0.5 text-[15px] font-semibold">{tab === "solution" ? sol!.time : pattern!.complexity.average}</div></div>
-                  <div className="rounded-[12px] bg-surface-2 p-3"><div className="text-[12px] text-muted">Extra space</div><div className="num mt-0.5 text-[15px] font-semibold">{tab === "solution" ? sol!.space : pattern!.complexity.space}</div></div>
+                  <div className="tile"><div className="text-[12px] text-muted">Time</div><div className="num mt-0.5 text-[16px] font-semibold">{tab === "solution" ? sol!.time : pattern!.complexity.average}</div></div>
+                  <div className="tile"><div className="text-[12px] text-muted">Extra space</div><div className="num mt-0.5 text-[16px] font-semibold">{tab === "solution" ? sol!.space : pattern!.complexity.space}</div></div>
                 </div>
               )}
 
               {code && (
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <h3 className="text-[14px] font-semibold">{tab === "solution" ? (sol!.lang === "sql" ? "Solution (MySQL)" : "Solution (Python)") : "Pattern template (Python)"}</h3>
-                    <button type="button" className="btn h-8 px-2.5 text-[12px]" onClick={copy}>{copied ? <><Check size={14} aria-hidden />Copied</> : <><Copy size={14} aria-hidden />Copy</>}</button>
+                    <h3 className="t-h3">{tab === "solution" ? (sol!.lang === "sql" ? "Solution (MySQL)" : "Solution (Python)") : "Pattern template (Python)"}</h3>
+                    <button type="button" className="btn btn-sm" onClick={copy}>{copied ? <><Check size={14} aria-hidden />Copied</> : <><Copy size={14} aria-hidden />Copy</>}</button>
                   </div>
-                  <pre className="overflow-x-auto rounded-[14px] border border-line bg-bg p-4 text-[12.5px] leading-relaxed"><code className="font-mono">{code}</code></pre>
+                  <pre className="code"><code>{code}</code></pre>
                 </div>
               )}
 
               {pattern && topic && (
-                <Link href={`/patterns/${topic.id}#p-${pattern.n}`} onClick={onClose} className="btn h-auto justify-between py-3">
+                <Link href={`/patterns/${topic.id}#p-${pattern.n}`} onClick={onClose} className="btn btn-nav justify-between">
                   <span><span className="block text-[12px] font-normal text-muted">Study the pattern</span>{topic.name}: {pattern.name}</span><ArrowRight size={16} aria-hidden />
                 </Link>
               )}

@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipContentProps } from "recharts";
 import { addDays, parse, ymd } from "@/lib/logic";
 
-const tipBox = "rounded-[10px] border border-line bg-surface px-3 py-2 text-[12px] shadow-card";
+const tipBox = "rounded-control border border-line bg-surface px-3 py-2 text-[12px] shadow-card";
 
 function Tip({ active, payload, label }: Partial<TooltipContentProps<number, string>>) {
   if (!active || !payload?.length) return null;

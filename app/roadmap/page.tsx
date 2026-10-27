@@ -1,15 +1,15 @@
 "use client";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import { useStore } from "@/lib/store";
 import { parse, phases, todayPlan } from "@/lib/logic";
 import { P } from "@/lib/problems";
-import { Bar, Card } from "@/components/ui";
+import { Bar, Card, Skeleton } from "@/components/ui";
 
 export default function Roadmap() {
-  const { state, now } = useStore();
-  const reduce = useReducedMotion();
+  const { ready, state, now } = useStore();
   const plan = todayPlan(state, now);
   const cur = plan.main.length ? P[plan.main[0]][4] : 4;
+  if (!ready) return <div aria-busy="true" aria-label="Loading"><Skeleton className="h-[640px]" /></div>;
 
   return (
     <Card title={`Roadmap to ${parse(state.quota.placement).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}`} sub="Four phases, about 2 hours a day">
@@ -20,11 +20,11 @@ export default function Roadmap() {
           const now_ = ph.n === cur, past = ph.n < cur;
           return (
             <motion.li key={ph.n} className="relative grid grid-cols-[32px_minmax(0,1fr)] gap-4"
-              initial={reduce ? false : { opacity: 0, x: -10 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.45, delay: k * 0.08, ease: [0.16, 1, 0.3, 1] }}>
+              initial={{ opacity: 0, x: -10 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.45, delay: k * 0.08, ease: [0.16, 1, 0.3, 1] }}>
               <span className={`num relative z-10 grid size-8 place-items-center rounded-full border-2 text-[13px] font-semibold ${now_ ? "border-accent bg-accent text-accent-ink" : past ? "border-accent bg-surface text-accent" : "border-line-strong bg-surface text-muted"}`}>{ph.n}</span>
-              <div className={`rounded-[14px] border p-4 ${now_ ? "border-accent/50 bg-accent-soft" : "border-line"}`}>
+              <div className={`inset p-4 ${now_ ? "border-accent/50 bg-accent-soft" : ""}`}>
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="text-[16px] font-semibold">{ph.name}{now_ && <span className="pill lv-CF ml-2 align-middle">You are here</span>}</h3>
+                  <h3 className="t-h3">{ph.name}{now_ && <span className="pill pill-accent ml-2 align-middle">You are here</span>}</h3>
                   <span className="text-[13px] text-muted">{ph.when}</span>
                 </div>
                 <div className="mt-3 flex items-center gap-3">

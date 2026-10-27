@@ -43,15 +43,15 @@ export function ComplexityChart({ c, children }: { c: Complexity; children?: Rea
     <div className="flex flex-col gap-5">
       <div>
         <div className="relative pt-8" role="img" aria-label={`Best ${c.best}, average ${c.average}, worst ${c.worst}`}>
-          <div className="grid grid-cols-8 overflow-hidden rounded-[10px] border border-line">
+          <div className="grid grid-cols-8 overflow-hidden rounded-control border border-line">
             {CLASSES.map((cl, i) => (
               <div key={cl.k} className={`num whitespace-nowrap border-l border-line px-0.5 py-2 text-center text-[11px] first:border-l-0 sm:text-[12px] ${shown.has(i) ? "font-semibold text-ink" : "text-muted"}`}
-                style={{ background: `color-mix(in oklab, var(--hard) ${i * 4}%, var(--surface))` }}><span className="sm:hidden">{cl.s}</span><span className="hidden sm:inline">{cl.k}</span></div>
+                style={{ background: `color-mix(in oklab, var(--hard) ${i * 2}%, var(--surface))` }}><span className="sm:hidden">{cl.s}</span><span className="hidden sm:inline">{cl.k}</span></div>
             ))}
           </div>
           {groups.map(({ cls, ks, color }) => (
             <div key={cls} className="absolute top-0 flex -translate-x-1/2 flex-col items-center" style={{ left: `${(cls + 0.5) * 12.5}%` }}>
-              <span className="whitespace-nowrap rounded-[6px] px-1.5 py-0.5 text-[11px] font-semibold text-surface" style={{ background: color }}>{joinCases(ks)}</span>
+              <span className="whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-surface" style={{ background: color }}>{joinCases(ks)}</span>
               <span className="h-2 w-0.5" style={{ background: color }} />
             </div>
           ))}
@@ -59,7 +59,7 @@ export function ComplexityChart({ c, children }: { c: Complexity; children?: Rea
         <p className="mt-2 text-[12px] text-muted">Growth classes from fastest (left) to slowest (right).</p>
       </div>
       <div className="grid items-start gap-4 md:grid-cols-[300px_minmax(0,1fr)]">
-        <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full rounded-[12px] bg-surface-2/60" role="img" aria-label="How the work grows with input size">
+        <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full rounded-tile bg-surface-2/60" role="img" aria-label="How the work grows with input size">
           <line x1={30} x2={W - 10} y1={H - 22} y2={H - 22} stroke="var(--line-strong)" />
           <line x1={30} x2={30} y1={14} y2={H - 22} stroke="var(--line-strong)" />
           <text x={W - 10} y={H - 7} fontSize={10} textAnchor="end" fill="var(--muted)">input size n</text>

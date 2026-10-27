@@ -11,6 +11,8 @@ import { lookById } from "./looks";
 const LS_KEY = "dsa-daily-v1";
 // last server-confirmed state, per account; a fresh account/device starts by adding local ticks
 const baseKey = (email: string) => `dsa-daily-base:${email}`;
+// Playwright runs: pretend a user is signed in and never talk to Supabase
+const E2E = process.env.NEXT_PUBLIC_E2E === "1";
 export const PALETTES = {
   midnight: ["Midnight", "#1D4ED8", "#5B9BFF"], galaxy: ["Galaxy", "#4A4E8F", "#A3A7F2"], ocean: ["Ocean", "#0F766E", "#4FD1C5"],
   forest: ["Forest", "#3F6B3A", "#8CC77F"], sunset: ["Sunset", "#C2410C", "#FB923C"], rose: ["Rose", "#BE185D", "#F472B6"], mono: ["Mono", "#111111", "#F2F2F2"],
@@ -49,7 +51,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const say = useCallback((msg: string) => { setToast(msg); setTimeout(() => setToast((t) => (t === msg ? null : t)), 2800); }, []);
 
   const sync = useCallback(async () => {
-    if (!key.current) return;
+    if (!key.current || E2E) return;
     if (busy.current) { again.current = true; return; }
     busy.current = true;
     const sent = structuredClone(cur.current);
@@ -103,6 +105,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       base.current = mail ? read<State | null>(baseKey(mail), null) : null;
       if (mail) void sync(); else setStatus("Saved on this device");
     };
+    if (E2E) { follow("e2e@test.local"); setAuthChecked(true); return; }
     void supabase().auth.getSession().then(({ data }) => { follow(data.session?.user.email?.toLowerCase() ?? null); setAuthChecked(true); });
     const { data: sub } = supabase().auth.onAuthStateChange((_e, session) => follow(session?.user.email?.toLowerCase() ?? null));
     const onVis = () => { if (!document.hidden) void sync(); };
