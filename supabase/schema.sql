@@ -148,3 +148,7 @@ revoke all on function public.progress_sync(jsonb, text[], jsonb) from public, a
 revoke all on function public.progress_patterns_sync(jsonb, text[]) from public, anon;
 grant execute on function public.progress_sync(jsonb, text[], jsonb) to authenticated;
 grant execute on function public.progress_patterns_sync(jsonb, text[]) to authenticated;
+
+-- Switch-over done: data copied to dsa_progress for hsehra001@gmail.com; the sync-key RPCs are retired.
+revoke execute on function public.dsa_sync(text, jsonb, text[], jsonb) from anon, authenticated, public;
+revoke execute on function public.dsa_patterns_sync(text, jsonb, text[]) from anon, authenticated, public;
