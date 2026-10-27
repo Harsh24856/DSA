@@ -33,10 +33,10 @@ export function SignIn() {
 
   return (
     <motion.div className="fixed inset-0 z-50 grid place-items-center bg-bg/40 px-4"
-      initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       <motion.section role="dialog" aria-modal="true" aria-labelledby="signin" aria-describedby="signin-desc"
         className="card w-full max-w-[400px] p-7 shadow-[0_24px_80px_-24px_color-mix(in_oklab,var(--ink)_40%,transparent)]"
-        initial={reduce ? false : { opacity: 0, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.45, delay: reduce ? 0 : 0.1, ease: [0.16, 1, 0.3, 1] }}>
+        initial={{ opacity: 0, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.45, delay: reduce ? 0 : 0.1, ease: [0.16, 1, 0.3, 1] }}>
         <span className="grid size-11 place-items-center rounded-tile bg-accent text-accent-ink"><CodeBlock size={22} weight="bold" aria-hidden /></span>
         <h2 id="signin" className="t-title mt-5">Sign in to DSA Daily</h2>
         <p id="signin-desc" className="mt-2 text-[15px] leading-relaxed text-muted">Your ticks, notes and pattern progress are saved to your account, so every device shows the same thing. This browser stays signed in.</p>

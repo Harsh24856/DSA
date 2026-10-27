@@ -67,7 +67,7 @@ export function Visualizer({ diagram, input }: { diagram: Diagram; input?: React
       </div>
       <div className="mt-2 min-h-[44px] overflow-hidden rounded-control bg-surface px-3 py-2.5 text-[14px] leading-snug" aria-live="polite">
         <AnimatePresence mode="wait" initial={false}>
-          <motion.p key={step} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
+          <motion.p key={step} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
             <span className="num mr-2 text-[12px] font-semibold text-accent">{step + 1}/{n}</span>{frame.note}
           </motion.p>
         </AnimatePresence>
@@ -115,7 +115,7 @@ function Cells({ d, f }: { d: Extract<Diagram, { kind: "cells" }>; f: Extract<Di
                     <div key={i} className="flex w-10 flex-col items-center gap-1">
                       <motion.div animate={{ y: t === "active" ? -3 : 0, scale: t === "found" ? 1.06 : 1 }} transition={spring}
                         className={`num grid h-10 w-10 place-items-center overflow-hidden rounded-lg text-[14px] font-semibold ring-1 ring-inset transition-colors duration-300 ${CELL[t]} ${t === "active" ? "shadow-card" : ""}`}>
-                        <motion.span key={String(v)} initial={reduce ? false : { scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={spring}>{String(v)}</motion.span>
+                        <motion.span key={String(v)} initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={spring}>{String(v)}</motion.span>
                       </motion.div>
                       {r === 0 && !d.rowLabels && <span className="num text-[10px] text-muted">{i}</span>}
                     </div>
@@ -245,7 +245,7 @@ function Stack({ d, f, reduce }: { d: Extract<Diagram, { kind: "stack" }>; f: Ex
         <div className="flex min-h-[176px] w-36 flex-col-reverse items-stretch gap-1 rounded-b-[12px] border-x-2 border-b-2 border-line-strong p-1.5">
           <AnimatePresence initial={false}>
           {f.items.map((x, i) => (
-            <motion.div key={`${i}-${x}`} layout={!reduce} initial={reduce ? false : { opacity: 0, y: -24, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={reduce ? undefined : { opacity: 0, y: -28, scale: 0.9 }} transition={{ type: "spring", stiffness: 420, damping: 30 }}
+            <motion.div key={`${i}-${x}`} layout={!reduce} initial={{ opacity: 0, y: -24, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -28, scale: 0.9 }} transition={{ type: "spring", stiffness: 420, damping: 30 }}
               className={`num rounded-lg px-2 py-1.5 text-center text-[13px] font-semibold ring-1 ring-inset ${i === f.items.length - 1 ? CELL.window : CELL.none}`}>{x}</motion.div>
           ))}
           </AnimatePresence>
