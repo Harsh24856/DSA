@@ -2,14 +2,16 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { animate, motion, useInView, useReducedMotion } from "motion/react";
 
+// Initial states never branch on useReducedMotion: it is null on the server, so the branch causes a hydration
+// mismatch. MotionConfig reducedMotion="user" in Shell skips the transforms and keeps the short fades.
+
 /** Card with a heading row. Fades up on mount (feedback that new content arrived). Not whileInView: a card taller than
  *  the viewport never reaches the visibility threshold, so it stayed invisible until scrolled. */
 export function Card({ title, sub, aside, children, className = "", delay = 0 }: { title: string; sub?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string; delay?: number }) {
-  const reduce = useReducedMotion();
   const id = "h-" + title.toLowerCase().replace(/\W+/g, "-");
   return (
     <motion.section aria-labelledby={id} className={`card p-5 ${className}`}
-      initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay, ease: [0.16, 1, 0.3, 1] }}>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
@@ -41,10 +43,9 @@ export function Count({ value, className = "" }: { value: number; className?: st
 }
 
 export function Bar({ value, max, className = "" }: { value: number; max: number; className?: string }) {
-  const reduce = useReducedMotion();
   return (
     <div className={`h-1.5 overflow-hidden rounded-full bg-surface-2 ${className}`}>
-      <motion.div className="h-full origin-left rounded-full bg-accent" initial={reduce ? false : { scaleX: 0 }}
+      <motion.div className="h-full origin-left rounded-full bg-accent" initial={{ scaleX: 0 }}
         animate={{ scaleX: max ? value / max : 0 }} transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }} />
     </div>
   );
