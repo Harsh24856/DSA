@@ -157,7 +157,7 @@ dialog::backdrop{background:rgb(4 6 11 / .55);backdrop-filter:blur(3px)}
 
 :root[data-kind="photo"]{ background:var(--bg); }
 :root[data-kind="photo"] :is(.card, aside, dialog, .field, .btn:not(.btn-primary)){
-  background:color-mix(in oklab,var(--surface) 74%,transparent);
+  background:color-mix(in oklab,var(--surface) 80%,transparent);
   -webkit-backdrop-filter:blur(16px) saturate(1.3); backdrop-filter:blur(16px) saturate(1.3);
   box-shadow:inset 0 1px 0 color-mix(in oklab,#FFFFFF 9%,transparent), var(--shadow);
 }
@@ -174,3 +174,21 @@ dialog::backdrop{background:rgb(4 6 11 / .55);backdrop-filter:blur(3px)}
 /* page header text sits directly on the photo: lift it off busy backgrounds */
 :root[data-kind="photo"] main > header{ text-shadow:0 1px 14px color-mix(in oklab,var(--bg) 85%,transparent), 0 0 2px color-mix(in oklab,var(--bg) 60%,transparent); }
 :root[data-kind="photo"] main > header p{ color:var(--ink); opacity:.85; }
+
+/* ===== Anime picture themes (owner's images in public/themes) =====
+   Each picks panel, text and accent colours that stay readable over its picture. */
+:is(:root[data-look="starfall"]:not(#_), [data-preview="starfall"]){ --bg:#0E0F2A; --surface:#15163A; --ink:#F4F1FF; --muted:#CBC5F2; --line:color-mix(in oklab,#FFFFFF 16%,transparent); --accent:#FFB27A; --accent-ink:#24130A; --soft:#2A2554; --easy:#9BE8C4; --medium:#FFD884; --hard:#FF9AB4; color-scheme:dark; }
+:is(:root[data-look="frieren"]:not(#_), [data-preview="frieren"]){ --bg:#F6E7C9; --surface:#FFF8EA; --ink:#2A2216; --muted:#6B5A40; --line:color-mix(in oklab,#2A2216 14%,transparent); --accent:#2D5DA6; --accent-ink:#FFF8EA; --soft:#E9DDC0; --easy:#2F7448; --medium:#99600E; --hard:#A8322E; color-scheme:light; }
+:is(:root[data-look="miku"]:not(#_), [data-preview="miku"]){ --bg:#04121C; --surface:#071C2A; --ink:#E8FCFF; --muted:#A3D7E4; --line:color-mix(in oklab,#86E8F2 20%,transparent); --accent:#3FDDE8; --accent-ink:#03222A; --soft:#0C3341; --easy:#8CF0C4; --medium:#FFD77F; --hard:#FF6E98; color-scheme:dark; }
+:is(:root[data-look="crimson"]:not(#_), [data-preview="crimson"]){ --bg:#1C0610; --surface:#22091A; --ink:#FFF2F4; --muted:#F3BCC6; --line:color-mix(in oklab,#FFFFFF 15%,transparent); --accent:#FFE6EB; --accent-ink:#6E0A22; --soft:#3E1022; --easy:#A8EBC0; --medium:#FFD889; --hard:#FF8A9C; color-scheme:dark; }
+:is(:root[data-look="maple"]:not(#_), [data-preview="maple"]){ --bg:#F3F1EE; --surface:#FBFAF8; --ink:#1C1818; --muted:#5A5252; --line:color-mix(in oklab,#1C1818 14%,transparent); --accent:#C1121F; --accent-ink:#FFF6F5; --soft:#F2DEDB; --easy:#2E6B47; --medium:#92600E; --hard:#C1121F; color-scheme:light; }
+:is(:root[data-look="keyblade"]:not(#_), [data-preview="keyblade"]){ --bg:#E9EDF2; --surface:#F7F9FC; --ink:#111822; --muted:#4D5867; --line:color-mix(in oklab,#111822 14%,transparent); --accent:#2B4F86; --accent-ink:#F7F9FC; --soft:#DCE3ED; --easy:#2C6E4A; --medium:#8E5C0E; --hard:#A93246; color-scheme:light; }
+:is(:root[data-look="mysteries"]:not(#_), [data-preview="mysteries"]){ --bg:#0A1216; --surface:#0E191E; --ink:#EEF6F3; --muted:#A8C4BE; --line:color-mix(in oklab,#CFE8E0 16%,transparent); --accent:#E8B76C; --accent-ink:#241605; --soft:#18292D; --easy:#93E2BE; --medium:#F0CE80; --hard:#FF9B95; color-scheme:dark; }
+:is(:root[data-look="spidey"]:not(#_), [data-preview="spidey"]){ --bg:#EDEDED; --surface:#FAFAFA; --ink:#141414; --muted:#545454; --line:color-mix(in oklab,#141414 14%,transparent); --accent:#C8102E; --accent-ink:#FFF5F5; --soft:#F1DADA; --easy:#2C6B46; --medium:#8C5A0D; --hard:#C8102E; color-scheme:light; }
+.petal{ background:var(--petal, color-mix(in oklab,#F29DC4 70%,#FFFFFF)); }
+
+:root[data-kind="photo"][data-light] :is(.card, aside, dialog, .field, .btn:not(.btn-primary)){
+  background:color-mix(in oklab,var(--surface) 86%,transparent);
+  box-shadow:inset 0 1px 0 color-mix(in oklab,#FFFFFF 60%,transparent), 0 10px 30px -18px color-mix(in oklab,var(--ink) 35%,transparent);
+}
+:root[data-kind="photo"][data-light] main > header{ text-shadow:0 1px 14px color-mix(in oklab,var(--bg) 95%,transparent), 0 0 2px color-mix(in oklab,var(--bg) 85%,transparent); }

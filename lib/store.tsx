@@ -120,6 +120,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (mode === "auto") r.removeAttribute("data-theme"); else r.dataset.theme = mode;
     const L = lookById(look);
     if (L.id === "classic") { delete r.dataset.look; delete r.dataset.kind; } else { r.dataset.look = L.id; r.dataset.kind = L.photo ? "photo" : "drawn"; }
+    if (L.light) r.dataset.light = ""; else delete r.dataset.light;
     write("dsa-daily-palette", palette); write("dsa-daily-theme", mode); write("dsa-daily-look", L.id);
   }, [palette, mode, look, ready]);
 
