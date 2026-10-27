@@ -2,12 +2,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
 import { ChartLineUp, CloudCheck, CloudSlash, CodeBlock, GearSix, ListChecks, MapTrifold, SunHorizon, TreeStructure, type Icon } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import { diffDays, parse } from "@/lib/logic";
 import { Settings } from "./Settings";
 import { SignIn } from "./SignIn";
+import { SolveProvider } from "./SolvePanel";
 
 const NAV: { href: string; label: string; icon: Icon }[] = [
   { href: "/", label: "Today", icon: SunHorizon },
@@ -32,7 +33,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const locked = authChecked && !email; // signed out: app stays visible but blurred and inert under the dialog
 
   return (
-    <>
+    <MotionConfig reducedMotion="user">
+    <SolveProvider>
     <div inert={locked} aria-hidden={locked || undefined}
       className={locked ? "pointer-events-none select-none blur-[7px] saturate-75" : undefined}>
     <div className="mx-auto grid min-h-[100dvh] max-w-[1400px] lg:grid-cols-[240px_minmax(0,1fr)]">
@@ -125,6 +127,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     </div>
     </div>
     {locked && <SignIn />}
-    </>
+    </SolveProvider>
+    </MotionConfig>
   );
 }

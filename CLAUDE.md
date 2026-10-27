@@ -8,6 +8,7 @@ Placement practice tracker, now public: anyone can sign in with Google and gets 
 - `components/`: `Shell` (sidebar, mobile tab bar, toast), `Settings` (sheet dialog), `ProblemRow`, `charts.tsx` (Recharts + custom heatmap/topic bars), `ui.tsx` (Card, Count, Bar, Seg, Skeleton).
 - `lib/`: `problems.ts` (data), `logic.ts` (scheduling + analytics, pure functions), `sync.ts` (Supabase RPC), `store.tsx` (client context: state, actions, sync, theme).
 - Patterns section: `lib/patterns/*.ts` (14 topics, 85 patterns: theory, steps, Python template, best/average/worst complexity, traps, visualiser), `lib/patterns/problems.ts` (generated practice lists keyed by LeetCode number), `lib/sim.ts` (simulators that record real algorithm steps as frames), `lib/diagram.ts` (frame types), `components/Visualizer.tsx` (player + 7 renderers), `components/TopicView.tsx`. Pattern problems are separate from the daily plan: ticks live in localStorage `dsa-patterns-v1` and the Supabase `patterns` column via RPC `dsa_patterns_sync` (same sync key), and never touch `lib/problems.ts`, Today or Analytics. The written content is original; the cheatsheets only supplied the pattern list and problem numbers.
+- Solve panel (`components/SolvePanel.tsx`): every daily and pattern question has a Solution/Approach button. Hand-written solutions with their own visualisers live in `lib/solutions/` (`arrays.ts`, `structures.ts`, `sql.ts`, keyed by LeetCode slug; currently the first two weeks of the plan, 48 LeetCode + 20 SQL). Everything else shows its closest pattern from `lib/patterns/solveMap.ts` (generated: exact if the question is in a pattern list, else from LeetCode topic tags). New solution batches: add to those files, then `npm run check:solutions` (runs each Python solution against LeetCode examples in `lib/solutions/solutions_test.py`, and every visualiser).
 - `public/`: favicon and manifest.
 - `trackers/`: the Excel/Google Sheets tracker and the single-file Claude artifact version. `tools/`: generators that produced the original site and xlsx (reference only; `.vercelignore` keeps both off Vercel).
 
@@ -24,6 +25,7 @@ Placement practice tracker, now public: anyone can sign in with Google and gets 
 - `npm run build`: production build (must pass before shipping)
 - `npm run typecheck`: `tsc --noEmit` (must pass before shipping)
 - `npm run check`: rolling-window schedule checks (`lib/logic.check.ts`)
+- `npm run check:solutions`: solution examples and visualisers
 
 ## Design system
 Source of truth: tokens in `app/globals.css`, mapped to Tailwind colors in `@theme inline` (`bg-surface`, `bg-surface-2`, `text-ink`, `text-muted`, `border-line`, `border-line-strong`, `bg-accent`, `text-accent-ink`, `bg-accent-soft`, `text-easy|medium|hard`, `--heat-0..4` for chart intensity).

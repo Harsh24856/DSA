@@ -1,7 +1,7 @@
 "use client";
 // Step-through player + renderers for lib/diagram.ts specs. Colors come only from tokens.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowCounterClockwise, CaretLeft, CaretRight, Pause, Play } from "@phosphor-icons/react";
 import type { Diagram, Mark, Tone } from "@/lib/diagram";
 
@@ -62,11 +62,19 @@ export function Visualizer({ diagram, input }: { diagram: Diagram; input?: React
           {diagram.kind === "stack" && <Stack d={diagram} f={frame as never} reduce={!!reduce} />}
           {diagram.kind === "list" && <List d={diagram} f={frame as never} />}
           {diagram.kind === "intervals" && <Intervals d={diagram} f={frame as never} />}
+          {diagram.kind === "tables" && <Tables f={frame as never} />}
         </div>
       </div>
-      <p className="mt-2 min-h-[44px] rounded-[10px] bg-surface px-3 py-2.5 text-[14px] leading-snug" aria-live="polite">
-        <span className="num mr-2 text-[12px] font-semibold text-accent">{step + 1}/{n}</span>{frame.note}
-      </p>
+      <div className="mt-2 min-h-[44px] overflow-hidden rounded-[10px] bg-surface px-3 py-2.5 text-[14px] leading-snug" aria-live="polite">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.p key={step} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
+            <span className="num mr-2 text-[12px] font-semibold text-accent">{step + 1}/{n}</span>{frame.note}
+          </motion.p>
+        </AnimatePresence>
+      </div>
+      <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+        <motion.div className="h-full origin-left rounded-full bg-accent" animate={{ scaleX: (step + 1) / n }} transition={{ duration: reduce ? 0 : 0.35, ease: [0.16, 1, 0.3, 1] }} />
+      </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button type="button" className="btn h-9 w-9 px-0" onClick={() => go(0)} aria-label="Restart"><ArrowCounterClockwise size={16} aria-hidden /></button>
         <button type="button" className="btn h-9 w-9 px-0" onClick={() => by(-1)} disabled={step === 0} aria-label="Previous step"><CaretLeft size={16} aria-hidden /></button>
@@ -84,28 +92,49 @@ export function Visualizer({ diagram, input }: { diagram: Diagram; input?: React
 }
 
 /* ---------- cells ---------- */
+const STEP = 46; // cell width 40 + gap 6
 function Cells({ d, f }: { d: Extract<Diagram, { kind: "cells" }>; f: Extract<Diagram, { kind: "cells" }>["frames"][number] }) {
+  const reduce = useReducedMotion();
   const rows = f.rows ?? d.rows;
-  const marks = (r: number, i: number) => (f.marks ?? []).filter((m: Mark) => (m.row ?? 0) === r && m.i === i).map((m) => m.label);
+  const spring = reduce ? { duration: 0 } : { type: "spring" as const, stiffness: 420, damping: 32 };
   return (
     <div className="flex flex-col gap-2">
-      {rows.map((row, r) => (
-        <div key={r} className="flex items-start gap-2">
-          {d.rowLabels && <span className="num w-16 shrink-0 pt-2.5 text-right text-[11px] text-muted">{d.rowLabels[r]}</span>}
-          <div className="flex gap-1.5">
-            {row.map((v, i) => {
-              const t = f.tones?.[`${r}:${i}`] ?? "none", m = marks(r, i);
-              return (
-                <div key={i} className="flex w-10 flex-col items-center gap-1">
-                  <div className={`num grid h-10 w-10 place-items-center rounded-[9px] text-[14px] font-semibold ring-1 ring-inset transition-all duration-300 ${CELL[t]} ${t === "active" ? "-translate-y-0.5 shadow-card" : ""}`}>{String(v)}</div>
-                  {r === 0 && !d.rowLabels && <span className="num text-[10px] text-muted">{i}</span>}
-                  {m.length > 0 && <span className="num rounded bg-ink px-1 text-[10px] font-semibold text-bg">{m.join(" ")}</span>}
+      {rows.map((row, r) => {
+        // pointers for this row; several on one cell stack downward
+        const ms = (f.marks ?? []).filter((m: Mark) => (m.row ?? 0) === r);
+        const slot = (m: Mark) => ms.filter((o) => o.i === m.i).indexOf(m);
+        const lanes = ms.length ? Math.max(...ms.map(slot)) + 1 : 0;
+        return (
+          <div key={r} className="flex items-start gap-2">
+            {d.rowLabels && <span className="num w-16 shrink-0 pt-2.5 text-right text-[11px] text-muted">{d.rowLabels[r]}</span>}
+            <div>
+              <div className="flex gap-1.5">
+                {row.map((v, i) => {
+                  const t = f.tones?.[`${r}:${i}`] ?? "none";
+                  return (
+                    <div key={i} className="flex w-10 flex-col items-center gap-1">
+                      <motion.div animate={{ y: t === "active" ? -3 : 0, scale: t === "found" ? 1.06 : 1 }} transition={spring}
+                        className={`num grid h-10 w-10 place-items-center overflow-hidden rounded-[9px] text-[14px] font-semibold ring-1 ring-inset transition-colors duration-300 ${CELL[t]} ${t === "active" ? "shadow-card" : ""}`}>
+                        <motion.span key={String(v)} initial={reduce ? false : { scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={spring}>{String(v)}</motion.span>
+                      </motion.div>
+                      {r === 0 && !d.rowLabels && <span className="num text-[10px] text-muted">{i}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              {lanes > 0 && (
+                <div className="relative mt-1" style={{ height: lanes * 18, width: row.length * STEP - 6 }}>
+                  {ms.map((m) => (
+                    <motion.div key={m.label} className="absolute left-0 top-0 flex w-10 justify-center" initial={false} animate={{ x: m.i * STEP, y: slot(m) * 18 }} transition={spring}>
+                      <span className="num whitespace-nowrap rounded bg-ink px-1 text-[10px] font-semibold text-bg">{m.label}</span>
+                    </motion.div>
+                  ))}
                 </div>
-              );
-            })}
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -198,7 +227,7 @@ function Table({ d, f }: { d: Extract<Diagram, { kind: "table" }>; f: Extract<Di
             {row.map((v, c) => {
               const act = f.active?.[0] === r && f.active?.[1] === c, t = f.tones?.[`${r}:${c}`];
               const cls = act ? CELL.active : isDep(r, c) ? CELL.window : t ? CELL[t] : v == null ? "bg-transparent ring-line/60 text-muted" : CELL.none;
-              return <td key={c} className={`h-9 min-w-9 rounded-[8px] px-2 text-center font-semibold ring-1 ring-inset transition-all duration-300 ${cls}`}>{v == null ? "" : String(v)}</td>;
+              return <td key={c} className={`h-9 min-w-9 rounded-[8px] px-2 text-center font-semibold ring-1 ring-inset transition-colors duration-300 ${cls}`}>{v == null ? "" : <motion.span key={String(v)} className="inline-block" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 420, damping: 28 }}>{String(v)}</motion.span>}</td>;
             })}
           </tr>
         ))}
@@ -214,10 +243,12 @@ function Stack({ d, f, reduce }: { d: Extract<Diagram, { kind: "stack" }>; f: Ex
       {d.input && <div className="flex flex-col items-center gap-1"><span className="text-[11px] text-muted">input</span><div className="flex gap-1">{d.input.map((x, i) => <span key={i} className={`num grid h-8 min-w-8 place-items-center rounded-[8px] px-1.5 text-[13px] font-semibold ring-1 ring-inset ${String(x) === String(f.incoming) ? CELL.active : CELL.none}`}>{x}</span>)}</div></div>}
       <div className="flex flex-col items-center gap-1">
         <div className="flex min-h-[176px] w-36 flex-col-reverse items-stretch gap-1 rounded-b-[12px] border-x-2 border-b-2 border-line-strong p-1.5">
+          <AnimatePresence initial={false}>
           {f.items.map((x, i) => (
-            <motion.div key={`${i}-${x}`} initial={reduce ? false : { opacity: 0, y: -14 }} animate={{ opacity: 1, y: 0 }} transition={{ type: "spring", stiffness: 420, damping: 30 }}
+            <motion.div key={`${i}-${x}`} layout={!reduce} initial={reduce ? false : { opacity: 0, y: -24, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={reduce ? undefined : { opacity: 0, y: -28, scale: 0.9 }} transition={{ type: "spring", stiffness: 420, damping: 30 }}
               className={`num rounded-[8px] px-2 py-1.5 text-center text-[13px] font-semibold ring-1 ring-inset ${i === f.items.length - 1 ? CELL.window : CELL.none}`}>{x}</motion.div>
           ))}
+          </AnimatePresence>
         </div>
         <span className="text-[11px] text-muted">{f.items.length ? "top ↑" : "empty"}</span>
       </div>
@@ -243,7 +274,7 @@ function List({ d, f }: { d: Extract<Diagram, { kind: "list" }>; f: Extract<Diag
         const up = j < i, a = X(i) + (up ? -6 : 6), b = X(j) + (up ? 6 : -6), yy = up ? cy - 44 : cy + 44;
         return <path key={i} d={`M ${a} ${cy + (up ? -18 : 18)} C ${a} ${yy}, ${b} ${yy}, ${b} ${cy + (up ? -20 : 20)}`} fill="none" stroke="var(--accent)" strokeWidth={1.8} markerEnd="url(#la)" />;
       })}
-      {d.values.map((v, i) => {
+      {(f.values ?? d.values).map((v, i) => {
         const t = f.tones?.[i] ?? "none", c = FILL[t], ptr = f.ptrs.filter((p) => p.i === i).map((p) => p.label).join(", ");
         return <g key={i} opacity={c.op ?? 1}>
           <rect x={X(i) - 20} y={cy - 18} width={40} height={36} rx={9} fill={c.fill} stroke={c.stroke} strokeWidth={1.6} style={{ transition: "fill .3s" }} />
@@ -268,5 +299,27 @@ function Intervals({ d, f }: { d: Extract<Diagram, { kind: "intervals" }>; f: Ex
       {f.result && <g>{f.result.map(([s, e], k) => <rect key={k} x={X(s)} y={14 + d.items.length * 22} width={Math.max(4, X(e) - X(s))} height={15} rx={5} fill="color-mix(in oklab, var(--easy) 30%, var(--surface))" stroke="var(--easy)" strokeWidth={1.4} />)}<text x={4} y={25 + d.items.length * 22} fontSize={9} fill="var(--easy)" fontWeight={700}>out</text></g>}
       {f.line != null && <line x1={X(f.line)} x2={X(f.line)} y1={4} y2={rowsH - 22} stroke="var(--accent)" strokeWidth={2} />}
     </svg>
+  );
+}
+
+/* ---------- SQL tables ---------- */
+function Tables({ f }: { f: Extract<Diagram, { kind: "tables" }>["frames"][number] }) {
+  return (
+    <div className="flex flex-wrap items-start gap-4">
+      {f.tables.map((t) => (
+        <motion.div key={t.name} layout className="min-w-0" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+          <div className={`mb-1 text-[12px] font-semibold ${t.tone === "found" ? "text-easy" : "text-muted"}`}>{t.name}</div>
+          <table className="num border-separate border-spacing-0 overflow-hidden rounded-[10px] border border-line text-[12.5px]">
+            <thead><tr>{t.cols.map((c) => <th key={c} className="border-b border-line bg-surface-2 px-2.5 py-1.5 text-left font-semibold">{c}</th>)}</tr></thead>
+            <tbody>
+              {t.rows.map((r, i) => {
+                const on = t.hl?.includes(i);
+                return <tr key={i} className={`transition-colors duration-300 ${on ? (t.tone === "bad" ? "bg-hard/15 text-hard" : t.tone === "found" ? "bg-easy/15" : "bg-accent-soft") : ""}`}>{r.map((v, j) => <td key={j} className="border-t border-line px-2.5 py-1.5 first:border-t-0">{v == null ? <span className="text-muted">null</span> : String(v)}</td>)}</tr>;
+              })}
+            </tbody>
+          </table>
+        </motion.div>
+      ))}
+    </div>
   );
 }

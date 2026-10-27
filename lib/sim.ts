@@ -1,7 +1,7 @@
 // Simulators: run each algorithm on a tiny input and record frames for the diagram player.
 import type { CellsFrame, Diagram, GraphFrame, IntervalsFrame, ListFrame, StackFrame, TableFrame, Tone, TreeFrame } from "./diagram";
 
-const range = (a: number, b: number, row = 0, tone: Tone = "window") => Object.fromEntries(Array.from({ length: Math.max(0, b - a + 1) }, (_, k) => [`${row}:${a + k}`, tone])) as Record<string, Tone>;
+export const range = (a: number, b: number, row = 0, tone: Tone = "window") => Object.fromEntries(Array.from({ length: Math.max(0, b - a + 1) }, (_, k) => [`${row}:${a + k}`, tone])) as Record<string, Tone>;
 
 /* ================= arrays ================= */
 
@@ -295,8 +295,8 @@ export function activitySelect(items: [number, number][] = [[1, 2], [2, 3], [3, 
 
 /* ================= trees ================= */
 
-type TNode = { id: number; label: string; parent: number | null; side?: "L" | "R"; edge?: string };
-function levelTree(vals: (number | null)[]): { nodes: TNode[]; kids: Record<number, [number | null, number | null]> } {
+export type TNode = { id: number; label: string; parent: number | null; side?: "L" | "R"; edge?: string };
+export function levelTree(vals: (number | null)[]): { nodes: TNode[]; kids: Record<number, [number | null, number | null]> } {
   const nodes: TNode[] = [], kids: Record<number, [number | null, number | null]> = {};
   vals.forEach((v, i) => { if (v == null) return; const p = i ? Math.floor((i - 1) / 2) : null; nodes.push({ id: i, label: String(v), parent: p, side: i % 2 ? "L" : "R" }); kids[i] = [vals[2 * i + 1] != null ? 2 * i + 1 : null, vals[2 * i + 2] != null ? 2 * i + 2 : null]; });
   return { nodes, kids };
@@ -527,7 +527,7 @@ export function stateMachine(prices = [1, 2, 3, 0, 2]): Diagram {
 
 /* ================= bits & math ================= */
 
-const bin = (x: number, w = 8) => (x >>> 0).toString(2).padStart(w, "0").split("");
+export const bin = (x: number, w = 8) => (x >>> 0).toString(2).padStart(w, "0").split("");
 
 export function bitOps(x = 44, i = 2): Diagram {
   const frames: CellsFrame[] = [];

@@ -11,6 +11,8 @@ import type { Viz } from "@/lib/patterns/types";
 import { Visualizer } from "./Visualizer";
 import { ComplexityChart } from "./ComplexityChart";
 import { Bar } from "./ui";
+import { SolveButton } from "./SolvePanel";
+import { TickBurst } from "./TickBurst";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -139,6 +141,7 @@ function PatternView({ t, p, prev, next, pick }: { t: Topic; p: Pattern; prev?: 
   }, [cur, applied]);
   const probs = problemsOf(t.id, p.n);
   const dn = probs.filter((x) => done[x[0]]).length;
+  const [burst, setBurst] = useState<[number, number] | null>(null); // [lc, nonce] of the last tick
 
   return (
     <article aria-labelledby="pat" className="flex flex-col gap-7">
@@ -234,8 +237,9 @@ function PatternView({ t, p, prev, next, pick }: { t: Topic; p: Pattern; prev?: 
               const on = !!done[lc];
               return (
                 <li key={lc} className={`flex items-center gap-3 rounded-[12px] border px-3 py-2.5 transition-colors ${on ? "border-easy/40 bg-easy/10" : "border-line bg-surface"}`}>
-                  <button type="button" role="checkbox" aria-checked={on} aria-label={(on ? "Untick " : "Tick ") + title} onClick={() => toggle(lc, !on)}
-                    className={`grid size-6 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition active:scale-90 ${on ? "border-easy bg-easy text-surface" : "border-line-strong hover:border-accent"}`}>
+                  <button type="button" role="checkbox" aria-checked={on} aria-label={(on ? "Untick " : "Tick ") + title} onClick={() => { if (!on) setBurst([lc, Date.now()]); toggle(lc, !on); }}
+                    className={`relative grid size-6 shrink-0 cursor-pointer place-items-center rounded-full border-2 transition active:scale-90 ${on ? "border-easy bg-easy text-surface" : "border-line-strong hover:border-accent"}`}>
+                    {burst?.[0] === lc && <TickBurst key={burst[1]} color="var(--easy)" />}
                     {on && <Check size={13} weight="bold" aria-hidden />}
                   </button>
                   <span className="num w-10 shrink-0 text-[12px] text-muted">{lc}</span>
@@ -244,6 +248,7 @@ function PatternView({ t, p, prev, next, pick }: { t: Topic; p: Pattern; prev?: 
                   </a>
                   {premium && <span className="pill bg-surface-2 text-muted" title="Needs LeetCode Premium">Premium</span>}
                   <span className={`pill lv-${level} shrink-0`}>{level}</span>
+                  <SolveButton t={{ slug, title, level, url: lcUrl(slug) }} />
                 </li>
               );
             })}

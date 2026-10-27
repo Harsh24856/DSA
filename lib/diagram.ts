@@ -9,7 +9,9 @@ export type TreeFrame = { note: string; tones?: Record<number, Tone>; labels?: R
 export type GraphFrame = { note: string; tones?: Record<number, Tone>; edgeTones?: Record<string, Tone>; badges?: Record<number, string> }; // edge key "a-b"
 export type TableFrame = { note: string; cells: (string | number | null)[][]; active?: [number, number]; deps?: [number, number][]; tones?: Record<string, Tone> };
 export type StackFrame = { note: string; items: (string | number)[]; incoming?: string | number; popped?: (string | number)[]; side?: string };
-export type ListFrame = { note: string; next: number[]; ptrs: Mark[]; tones?: Record<number, Tone> }; // next[i] = target node, -1 = null
+export type ListFrame = { note: string; next: number[]; ptrs: Mark[]; tones?: Record<number, Tone>; values?: (string | number)[] }; // next[i] = target node, -1 = null
+export type SqlTable = { name: string; cols: string[]; rows: (string | number | null)[][]; hl?: number[]; tone?: Tone };
+export type TablesFrame = { note: string; tables: SqlTable[] };
 export type IntervalsFrame = { note: string; tones?: Record<number, Tone>; result?: [number, number][]; line?: number };
 
 export type Diagram =
@@ -19,4 +21,5 @@ export type Diagram =
   | { kind: "table"; title: string; rowHead: string[]; colHead: string[]; frames: TableFrame[] }
   | { kind: "stack"; title: string; input?: (string | number)[]; frames: StackFrame[] }
   | { kind: "list"; title: string; values: (string | number)[]; frames: ListFrame[] }
-  | { kind: "intervals"; title: string; items: [number, number][]; frames: IntervalsFrame[] };
+  | { kind: "intervals"; title: string; items: [number, number][]; frames: IntervalsFrame[] }
+  | { kind: "tables"; title: string; frames: TablesFrame[] };

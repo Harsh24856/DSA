@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { TickBurst } from "./TickBurst";
+import { SolveButton } from "./SolvePanel";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight, Check } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
@@ -11,6 +13,7 @@ type Props = { i: number; side?: string; compact?: boolean; revisit?: boolean };
 export function ProblemRow({ i, side, compact, revisit }: Props) {
   const { state, toggle, setHow, setNote, revisitDone } = useStore();
   const [showTopic, setShowTopic] = useState(false);
+  const [burst, setBurst] = useState(0);
   const reduce = useReducedMotion();
   const d = state.done[i];
   const checked = revisit ? false : !!d;
@@ -20,8 +23,9 @@ export function ProblemRow({ i, side, compact, revisit }: Props) {
     <motion.div layout={!reduce} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
       className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 border-t border-line py-3.5 first:border-t-0">
       <button type="button" role="checkbox" aria-checked={checked} aria-label={(revisit ? "Mark revisit done: " : checked ? "Untick " : "Tick ") + name}
-        onClick={() => (revisit ? revisitDone(i) : toggle(i, !checked))}
-        className={`mt-0.5 grid size-6 cursor-pointer place-items-center rounded-full border-2 transition-colors duration-200 active:scale-90 ${checked ? "border-accent bg-accent text-accent-ink" : "border-line-strong hover:border-accent"}`}>
+        onClick={() => { if (!checked) setBurst((b) => b + 1); if (revisit) revisitDone(i); else toggle(i, !checked); }}
+        className={`relative mt-0.5 grid size-6 cursor-pointer place-items-center rounded-full border-2 transition-colors duration-200 active:scale-90 ${checked ? "border-accent bg-accent text-accent-ink" : "border-line-strong hover:border-accent"}`}>
+        {burst > 0 && <TickBurst key={burst} />}
         <AnimatePresence>
           {checked && (
             <motion.span initial={reduce ? false : { scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 22 }}>
@@ -42,6 +46,7 @@ export function ProblemRow({ i, side, compact, revisit }: Props) {
           {showTopic ? <span>{P[i][5]}</span> : (
             <button type="button" onClick={() => setShowTopic(true)} className="cursor-pointer rounded-md px-1 text-muted underline decoration-dotted underline-offset-2 hover:text-ink">show topic</button>
           )}
+          {P[i][0] !== "C" && <SolveButton className="ml-auto" t={{ slug: P[i][2], title: name, level: P[i][3], url: url(i), sql: P[i][0] === "S" }} />}
         </div>
         {revisit && d?.n && <p className="mt-1.5 text-[13px] text-muted">Your insight: {d.n}</p>}
 
