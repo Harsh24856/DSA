@@ -5,7 +5,7 @@ import { useStore } from "@/lib/store";
 import { addDays, bestStreak, byHow, byLevel, diffDays, fmtDay, parse, pace, perDay, topics, ymd } from "@/lib/logic";
 import { P } from "@/lib/problems";
 import { Donut, Heatmap, PaceChart, TopicBars } from "@/components/charts";
-import { Card, Count, Seg, Skeleton } from "@/components/ui";
+import { Card, Count, Seg, Skeleton, Stat } from "@/components/ui";
 
 type Range = "30" | "90" | "all";
 
@@ -14,7 +14,7 @@ export default function Analytics() {
   const [range, setRange] = useState<Range>("30");
   const days = useMemo(() => perDay(state), [state]);
   const rows = useMemo(() => pace(state, now), [state, now]);
-  if (!ready) return <div className="grid gap-5" aria-busy="true"><Skeleton className="h-28" /><Skeleton className="h-56" /><Skeleton className="h-72" /></div>;
+  if (!ready) return <div className="grid gap-5" aria-busy="true"><div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[112px]" />)}</div><Skeleton className="h-56" /><Skeleton className="h-72" /></div>;
 
   const total = Object.keys(state.done).length;
   const placement = parse(state.quota.placement), by = fmtDay(placement);
@@ -37,10 +37,10 @@ export default function Analytics() {
   return (
     <div className="flex flex-col gap-5">
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Insights">
-        <Insight icon={<Gauge size={18} aria-hidden />} label="Needed per day" value={need.toFixed(1)} note={`to finish all ${P.length} by ${by}`} />
-        <Insight icon={<TrendUp size={18} aria-hidden />} label="Your 30-day average" value={avg.toFixed(1)} note={avg >= need ? "On pace" : `${(need - avg).toFixed(1)} a day short of pace`} />
-        <Insight icon={<Lightning size={18} weight="fill" aria-hidden />} label="Best streak" count={bestStreak(state)} note="Longest run of active days" />
-        <Insight icon={<CalendarCheck size={18} aria-hidden />} label="Most active on" value={bestDow} note={`${days.size} active ${days.size === 1 ? "day" : "days"} so far`} />
+        <Stat icon={<Gauge size={16} aria-hidden />} label="Needed per day" note={`to finish all ${P.length} by ${by}`}><span className="num">{need.toFixed(1)}</span></Stat>
+        <Stat icon={<TrendUp size={16} aria-hidden />} label="Your 30-day average" note={avg >= need ? "On pace" : `${(need - avg).toFixed(1)} a day short of pace`}><span className="num">{avg.toFixed(1)}</span></Stat>
+        <Stat icon={<Lightning size={16} weight="fill" aria-hidden />} label="Best streak" note="Longest run of active days"><Count value={bestStreak(state)} /></Stat>
+        <Stat icon={<CalendarCheck size={16} aria-hidden />} label="Most active on" note={`${days.size} active ${days.size === 1 ? "day" : "days"} so far`}><span className="num truncate">{bestDow}</span></Stat>
       </section>
 
       <Card title="Activity" sub="Problems solved per day, last 26 weeks">
@@ -68,16 +68,6 @@ export default function Analytics() {
       <Card title="Topics" sub="LeetCode tags, most common first. Light bar is the total, dark bar is what you solved.">
         <TopicBars rows={topics(state)} />
       </Card>
-    </div>
-  );
-}
-
-function Insight({ icon, label, value, count, note }: { icon: React.ReactNode; label: string; value?: string; count?: number; note: string }) {
-  return (
-    <div className="card flex min-w-0 flex-col gap-2 p-4">
-      <div className="flex items-center gap-2 text-[13px] font-medium text-muted"><span className="grid size-7 place-items-center rounded-[8px] bg-accent-soft text-accent">{icon}</span>{label}</div>
-      {count != null ? <Count value={count} className="text-[26px] font-semibold leading-none" /> : <span className="num truncate text-[26px] font-semibold leading-none">{value}</span>}
-      <p className="line-clamp-2 text-[12px] text-muted">{note}</p>
     </div>
   );
 }

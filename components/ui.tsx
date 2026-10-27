@@ -51,17 +51,26 @@ export function Bar({ value, max, className = "" }: { value: number; max: number
   );
 }
 
-export function Seg<T extends string>({ value, options, onChange, label }: { value: T; options: [T, string][]; onChange(v: T): void; label: string }) {
+/** Segmented control (.seg). Used for chart ranges, how a problem was solved, and light/dark. */
+export function Seg<T extends string>({ value, options, onChange, label, className = "" }: { value: T; options: readonly (readonly [T, string])[]; onChange(v: T): void; label: string; className?: string }) {
   return (
-    <div className="inline-flex rounded-[10px] bg-surface-2 p-0.5" role="group" aria-label={label}>
-      {options.map(([k, l]) => (
-        <button key={k} type="button" aria-pressed={value === k} onClick={() => onChange(k)}
-          className="h-7 cursor-pointer rounded-[8px] px-3 text-[12px] font-medium text-muted transition aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-card">{l}</button>
-      ))}
+    <div className={`seg ${className}`} role="group" aria-label={label}>
+      {options.map(([k, l]) => <button key={k} type="button" aria-pressed={value === k} onClick={() => onChange(k)}>{l}</button>)}
     </div>
   );
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`skeleton ${className}`} aria-hidden />;
+}
+
+/** Key number tile (Today and Analytics): icon + label, big number, one-line note. Fades up as the page arrives. */
+export function Stat({ icon, label, children, note }: { icon: ReactNode; label: string; children: ReactNode; note: string }) {
+  return (
+    <motion.div className="card flex min-w-0 flex-col gap-2 p-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}>
+      <div className="flex items-center gap-2 text-[13px] font-medium text-muted"><span className="badge-icon">{icon}</span>{label}</div>
+      <div className="flex min-w-0 items-baseline gap-1.5 text-[26px] font-semibold leading-none">{children}</div>
+      <p className="line-clamp-2 text-[12px] text-muted">{note}</p>
+    </motion.div>
+  );
 }

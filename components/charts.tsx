@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipContentProps } from "recharts";
 import { addDays, parse, ymd } from "@/lib/logic";
 
-const tipBox = "rounded-[10px] border border-line bg-surface px-3 py-2 text-[12px] shadow-card";
+const tipBox = "rounded-control border border-line bg-surface px-3 py-2 text-[12px] shadow-card";
 
 function Tip({ active, payload, label }: Partial<TooltipContentProps<number, string>>) {
   if (!active || !payload?.length) return null;
@@ -66,7 +66,7 @@ export function Heatmap({ days, now }: { days: Map<string, number>; now: Date })
             <div key={c} className="flex min-w-0 flex-1 flex-col gap-[2px] sm:gap-[3px]">
               {col.map((cell, r) => (
                 <motion.div key={cell.key} onMouseEnter={() => setHover(cell)}
-                  initial={reduce ? false : { opacity: 0, scale: 0.4 }} animate={{ opacity: cell.future ? 0.25 : 1, scale: 1 }}
+                  initial={{ opacity: 0, scale: 0.4 }} animate={{ opacity: cell.future ? 0.25 : 1, scale: 1 }}
                   transition={{ duration: 0.3, delay: reduce ? 0 : c * 0.012 + r * 0.01 }}
                   className="aspect-square w-full max-w-[22px] rounded-[3px] ring-1 ring-inset ring-line/40" style={{ background: `var(--heat-${lvl(cell.n)})` }} />
               ))}
@@ -157,9 +157,9 @@ export function TopicBars({ rows }: { rows: { tag: string; total: number; done: 
           <span className="num text-[12px] text-muted">{r.done}/{r.total}</span>
           <div className="relative col-span-2 h-2 overflow-hidden rounded-full bg-surface-2">
             <motion.div className="absolute inset-y-0 left-0 origin-left rounded-full" style={{ width: `${(100 * r.total) / max}%`, background: "var(--heat-1)" }}
-              initial={reduce ? false : { scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 0.7, delay: i * 0.04, ease: [0.16, 1, 0.3, 1] }} />
+              initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 0.7, delay: i * 0.04, ease: [0.16, 1, 0.3, 1] }} />
             <motion.div className="absolute inset-y-0 left-0 origin-left rounded-full bg-accent" style={{ width: `${(100 * r.done) / max}%` }}
-              initial={reduce ? false : { scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 0.9, delay: 0.2 + i * 0.04, ease: [0.16, 1, 0.3, 1] }} />
+              initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 0.9, delay: 0.2 + i * 0.04, ease: [0.16, 1, 0.3, 1] }} />
           </div>
         </li>
       ))}

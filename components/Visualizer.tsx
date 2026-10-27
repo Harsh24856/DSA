@@ -48,7 +48,7 @@ export function Visualizer({ diagram, input }: { diagram: Diagram; input?: React
   return (
     <div ref={box} tabIndex={0} aria-label={`${diagram.title}. Step ${step + 1} of ${n}. Use the arrow keys to step.`}
       onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); by(1); } if (e.key === "ArrowLeft") { e.preventDefault(); by(-1); } if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); } }}
-      className="rounded-[14px] border border-line bg-surface-2/50 p-4 outline-none focus-visible:ring-2 focus-visible:ring-accent">
+      className="inset bg-surface-2/50 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-[14px] font-semibold">{diagram.title}</h4>
         {input}
@@ -65,9 +65,9 @@ export function Visualizer({ diagram, input }: { diagram: Diagram; input?: React
           {diagram.kind === "tables" && <Tables f={frame as never} />}
         </div>
       </div>
-      <div className="mt-2 min-h-[44px] overflow-hidden rounded-[10px] bg-surface px-3 py-2.5 text-[14px] leading-snug" aria-live="polite">
+      <div className="mt-2 min-h-[44px] overflow-hidden rounded-control bg-surface px-3 py-2.5 text-[14px] leading-snug" aria-live="polite">
         <AnimatePresence mode="wait" initial={false}>
-          <motion.p key={step} initial={reduce ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={reduce ? undefined : { opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
+          <motion.p key={step} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
             <span className="num mr-2 text-[12px] font-semibold text-accent">{step + 1}/{n}</span>{frame.note}
           </motion.p>
         </AnimatePresence>
@@ -76,14 +76,14 @@ export function Visualizer({ diagram, input }: { diagram: Diagram; input?: React
         <motion.div className="h-full origin-left rounded-full bg-accent" animate={{ scaleX: (step + 1) / n }} transition={{ duration: reduce ? 0 : 0.35, ease: [0.16, 1, 0.3, 1] }} />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button type="button" className="btn h-9 w-9 px-0" onClick={() => go(0)} aria-label="Restart"><ArrowCounterClockwise size={16} aria-hidden /></button>
-        <button type="button" className="btn h-9 w-9 px-0" onClick={() => by(-1)} disabled={step === 0} aria-label="Previous step"><CaretLeft size={16} aria-hidden /></button>
-        <button type="button" className="btn btn-primary h-9 min-w-24" onClick={() => { if (step >= n - 1) setStep(0); setPlaying((p) => !p); }}>
-          {playing ? <><Pause size={16} weight="fill" aria-hidden />Pause</> : <><Play size={16} weight="fill" aria-hidden />{step >= n - 1 ? "Replay" : "Play"}</>}
+        <button type="button" className="btn btn-sm btn-icon" onClick={() => go(0)} aria-label="Restart"><ArrowCounterClockwise size={14} aria-hidden /></button>
+        <button type="button" className="btn btn-sm btn-icon" onClick={() => by(-1)} disabled={step === 0} aria-label="Previous step"><CaretLeft size={14} aria-hidden /></button>
+        <button type="button" className="btn btn-primary btn-sm min-w-24" onClick={() => { if (step >= n - 1) setStep(0); setPlaying((p) => !p); }}>
+          {playing ? <><Pause size={14} weight="fill" aria-hidden />Pause</> : <><Play size={14} weight="fill" aria-hidden />{step >= n - 1 ? "Replay" : "Play"}</>}
         </button>
-        <button type="button" className="btn h-9 w-9 px-0" onClick={() => by(1)} disabled={step >= n - 1} aria-label="Next step"><CaretRight size={16} aria-hidden /></button>
+        <button type="button" className="btn btn-sm btn-icon" onClick={() => by(1)} disabled={step >= n - 1} aria-label="Next step"><CaretRight size={14} aria-hidden /></button>
         <input type="range" min={0} max={n - 1} value={step} onChange={(e) => go(+e.target.value)} aria-label="Step" className="mx-1 h-1.5 min-w-24 flex-1 cursor-pointer accent-[var(--accent)]" />
-        <select className="field h-9 w-20 px-2 text-[13px]" value={speed} onChange={(e) => setSpeed(+e.target.value)} aria-label="Speed">
+        <select className="field field-sm w-20 px-2" value={speed} onChange={(e) => setSpeed(+e.target.value)} aria-label="Speed">
           <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
         </select>
       </div>
@@ -114,8 +114,8 @@ function Cells({ d, f }: { d: Extract<Diagram, { kind: "cells" }>; f: Extract<Di
                   return (
                     <div key={i} className="flex w-10 flex-col items-center gap-1">
                       <motion.div animate={{ y: t === "active" ? -3 : 0, scale: t === "found" ? 1.06 : 1 }} transition={spring}
-                        className={`num grid h-10 w-10 place-items-center overflow-hidden rounded-[9px] text-[14px] font-semibold ring-1 ring-inset transition-colors duration-300 ${CELL[t]} ${t === "active" ? "shadow-card" : ""}`}>
-                        <motion.span key={String(v)} initial={reduce ? false : { scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={spring}>{String(v)}</motion.span>
+                        className={`num grid h-10 w-10 place-items-center overflow-hidden rounded-lg text-[14px] font-semibold ring-1 ring-inset transition-colors duration-300 ${CELL[t]} ${t === "active" ? "shadow-card" : ""}`}>
+                        <motion.span key={String(v)} initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={spring}>{String(v)}</motion.span>
                       </motion.div>
                       {r === 0 && !d.rowLabels && <span className="num text-[10px] text-muted">{i}</span>}
                     </div>
@@ -227,7 +227,7 @@ function Table({ d, f }: { d: Extract<Diagram, { kind: "table" }>; f: Extract<Di
             {row.map((v, c) => {
               const act = f.active?.[0] === r && f.active?.[1] === c, t = f.tones?.[`${r}:${c}`];
               const cls = act ? CELL.active : isDep(r, c) ? CELL.window : t ? CELL[t] : v == null ? "bg-transparent ring-line/60 text-muted" : CELL.none;
-              return <td key={c} className={`h-9 min-w-9 rounded-[8px] px-2 text-center font-semibold ring-1 ring-inset transition-colors duration-300 ${cls}`}>{v == null ? "" : <motion.span key={String(v)} className="inline-block" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 420, damping: 28 }}>{String(v)}</motion.span>}</td>;
+              return <td key={c} className={`h-9 min-w-9 rounded-lg px-2 text-center font-semibold ring-1 ring-inset transition-colors duration-300 ${cls}`}>{v == null ? "" : <motion.span key={String(v)} className="inline-block" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 420, damping: 28 }}>{String(v)}</motion.span>}</td>;
             })}
           </tr>
         ))}
@@ -240,13 +240,13 @@ function Table({ d, f }: { d: Extract<Diagram, { kind: "table" }>; f: Extract<Di
 function Stack({ d, f, reduce }: { d: Extract<Diagram, { kind: "stack" }>; f: Extract<Diagram, { kind: "stack" }>["frames"][number]; reduce: boolean }) {
   return (
     <div className="flex flex-wrap items-end justify-center gap-6">
-      {d.input && <div className="flex flex-col items-center gap-1"><span className="text-[11px] text-muted">input</span><div className="flex gap-1">{d.input.map((x, i) => <span key={i} className={`num grid h-8 min-w-8 place-items-center rounded-[8px] px-1.5 text-[13px] font-semibold ring-1 ring-inset ${String(x) === String(f.incoming) ? CELL.active : CELL.none}`}>{x}</span>)}</div></div>}
+      {d.input && <div className="flex flex-col items-center gap-1"><span className="text-[11px] text-muted">input</span><div className="flex gap-1">{d.input.map((x, i) => <span key={i} className={`num grid h-8 min-w-8 place-items-center rounded-lg px-1.5 text-[13px] font-semibold ring-1 ring-inset ${String(x) === String(f.incoming) ? CELL.active : CELL.none}`}>{x}</span>)}</div></div>}
       <div className="flex flex-col items-center gap-1">
         <div className="flex min-h-[176px] w-36 flex-col-reverse items-stretch gap-1 rounded-b-[12px] border-x-2 border-b-2 border-line-strong p-1.5">
           <AnimatePresence initial={false}>
           {f.items.map((x, i) => (
-            <motion.div key={`${i}-${x}`} layout={!reduce} initial={reduce ? false : { opacity: 0, y: -24, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={reduce ? undefined : { opacity: 0, y: -28, scale: 0.9 }} transition={{ type: "spring", stiffness: 420, damping: 30 }}
-              className={`num rounded-[8px] px-2 py-1.5 text-center text-[13px] font-semibold ring-1 ring-inset ${i === f.items.length - 1 ? CELL.window : CELL.none}`}>{x}</motion.div>
+            <motion.div key={`${i}-${x}`} layout={!reduce} initial={{ opacity: 0, y: -24, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -28, scale: 0.9 }} transition={{ type: "spring", stiffness: 420, damping: 30 }}
+              className={`num rounded-lg px-2 py-1.5 text-center text-[13px] font-semibold ring-1 ring-inset ${i === f.items.length - 1 ? CELL.window : CELL.none}`}>{x}</motion.div>
           ))}
           </AnimatePresence>
         </div>
@@ -254,7 +254,7 @@ function Stack({ d, f, reduce }: { d: Extract<Diagram, { kind: "stack" }>; f: Ex
       </div>
       {(f.popped?.length || f.side) && (
         <div className="flex flex-col gap-2 text-[12px]">
-          {!!f.popped?.length && <div><span className="text-muted">popped </span>{f.popped.map((p, i) => <span key={i} className={`num ml-1 inline-block rounded-[6px] px-1.5 py-0.5 font-semibold ring-1 ring-inset ${CELL.bad}`}>{p}</span>)}</div>}
+          {!!f.popped?.length && <div><span className="text-muted">popped </span>{f.popped.map((p, i) => <span key={i} className={`num ml-1 inline-block rounded-md px-1.5 py-0.5 font-semibold ring-1 ring-inset ${CELL.bad}`}>{p}</span>)}</div>}
           {f.side && <div className="num text-muted">{f.side}</div>}
         </div>
       )}
@@ -309,7 +309,7 @@ function Tables({ f }: { f: Extract<Diagram, { kind: "tables" }>["frames"][numbe
       {f.tables.map((t) => (
         <motion.div key={t.name} layout className="min-w-0" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
           <div className={`mb-1 text-[12px] font-semibold ${t.tone === "found" ? "text-easy" : "text-muted"}`}>{t.name}</div>
-          <table className="num border-separate border-spacing-0 overflow-hidden rounded-[10px] border border-line text-[12.5px]">
+          <table className="num border-separate border-spacing-0 overflow-hidden rounded-control border border-line text-[12.5px]">
             <thead><tr>{t.cols.map((c) => <th key={c} className="border-b border-line bg-surface-2 px-2.5 py-1.5 text-left font-semibold">{c}</th>)}</tr></thead>
             <tbody>
               {t.rows.map((r, i) => {

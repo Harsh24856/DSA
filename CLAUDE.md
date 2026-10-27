@@ -28,12 +28,14 @@ Placement practice tracker, now public: anyone can sign in with Google and gets 
 - `npm run check`: rolling-window schedule checks (`lib/logic.check.ts`)
 - `npm run check:solutions`: solution examples and visualisers
 - `npm run test:e2e`: Playwright (`e2e/`, `playwright.config.ts`); starts `next dev` on :4100 with `NEXT_PUBLIC_E2E=1`, which makes `lib/store.tsx` act signed in without Supabase. `e2e/navigation.spec.ts` clicks through every route and fails if content is not visible within 500 ms.
+- `npm run test:ui`: Playwright UI checks (`e2e/ui.spec.ts`): every page, Settings and Solve at 1280px and 375px in Classic light/dark, Frieren and Starfall; fails on sideways scroll, console errors or text under AA contrast; screenshots land in `test-results/ui/`. Runs `next dev` with `NEXT_PUBLIC_E2E=1` (fake signed-in user, no Supabase); set `E2E_PORT` if 4100 is busy
 
 ## Design system
 Source of truth: tokens in `app/globals.css`, mapped to Tailwind colors in `@theme inline` (`bg-surface`, `bg-surface-2`, `text-ink`, `text-muted`, `border-line`, `border-line-strong`, `bg-accent`, `text-accent-ink`, `bg-accent-soft`, `text-easy|medium|hard`, `--heat-0..4` for chart intensity).
 - Fonts: Geist (UI) and Geist Mono (numbers, `.num`) via `next/font`.
 - Icons: `@phosphor-icons/react` only, one family, decorative icons get `aria-hidden`.
-- Radius: cards 16px (`.card`), controls 10px (`.field`, `.btn`), pills full.
+- Radius: cards 16px (`.card`, `rounded-card`), panels inside cards 12px (`.tile`, `.inset`, `.callout`, `.code`, `rounded-tile`), controls 10px (`.field`, `.btn`, `.seg`, `rounded-control`), pills and chips full.
+- Shared classes (component layer in `globals.css`), use them before writing utilities: headings `.t-title` (28) / `.t-h2` (18, sheets) / `.t-h3` (16, cards and sections) / `.t-eyebrow` (13 muted); buttons `.btn` (40px) + `.btn-sm` (32) / `.btn-lg` (48) / `.btn-icon` / `.btn-ghost` / `.btn-primary` / `.btn-nav`; `.chip` (+ `.chip-accent`, filled when `aria-pressed`/`aria-selected`/`aria-current`); `.seg` via `Seg`; `.tick` checkbox circle; `.pill` + `.lv-*` / `.pill-muted` / `.pill-accent`; `.badge-icon`; `.empty` for empty states; `.scrim` behind sheets. Key numbers use `Stat` from `components/ui.tsx`.
 - Motion: `motion/react`, ease `[0.16, 1, 0.3, 1]`, 0.25-0.9s. Every animation has a reason (state change, new content, feedback) and respects `useReducedMotion()` / the reduced-motion CSS block.
 - Charts: colors from tokens only; each chart has a text alternative (`aria-label` summary or visible numbers) and never relies on color alone.
 

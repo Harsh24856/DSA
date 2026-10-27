@@ -7,6 +7,7 @@ import { ArrowUpRight, Check } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import { HOW, level, title, TRACK, url, type How } from "@/lib/logic";
 import { P } from "@/lib/problems";
+import { Seg } from "./ui";
 
 type Props = { i: number; side?: string; compact?: boolean; revisit?: boolean };
 
@@ -20,15 +21,15 @@ export function ProblemRow({ i, side, compact, revisit }: Props) {
   const name = title(i);
 
   return (
-    <motion.div layout={!reduce} initial={reduce ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+    <motion.div layout={!reduce} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
       className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 border-t border-line py-3.5 first:border-t-0">
       <button type="button" role="checkbox" aria-checked={checked} aria-label={(revisit ? "Mark revisit done: " : checked ? "Untick " : "Tick ") + name}
         onClick={() => { if (!checked) setBurst((b) => b + 1); if (revisit) revisitDone(i); else toggle(i, !checked); }}
-        className={`relative mt-0.5 grid size-6 cursor-pointer place-items-center rounded-full border-2 transition-colors duration-200 active:scale-90 ${checked ? "border-accent bg-accent text-accent-ink" : "border-line-strong hover:border-accent"}`}>
+        className="tick mt-0.5">
         {burst > 0 && <TickBurst key={burst} />}
         <AnimatePresence>
           {checked && (
-            <motion.span initial={reduce ? false : { scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 22 }}>
+            <motion.span initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: "spring", stiffness: 500, damping: 22 }}>
               <Check size={14} weight="bold" aria-hidden />
             </motion.span>
           )}
@@ -44,7 +45,7 @@ export function ProblemRow({ i, side, compact, revisit }: Props) {
           <span>{TRACK[P[i][0]]}</span>
           <span className={`pill lv-${level(i)}`}>{P[i][3]}</span>
           {showTopic ? <span>{P[i][5]}</span> : (
-            <button type="button" onClick={() => setShowTopic(true)} className="cursor-pointer rounded-md px-1 text-muted underline decoration-dotted underline-offset-2 hover:text-ink">show topic</button>
+            <button type="button" onClick={() => setShowTopic(true)} className="cursor-pointer rounded-md px-1 text-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-ink">show topic</button>
           )}
           {P[i][0] !== "C" && <SolveButton className="ml-auto" t={{ slug: P[i][2], title: name, level: P[i][3], url: url(i), sql: P[i][0] === "S" }} />}
         </div>
@@ -52,15 +53,10 @@ export function ProblemRow({ i, side, compact, revisit }: Props) {
 
         <AnimatePresence initial={false}>
           {d && !compact && !revisit && (
-            <motion.div initial={reduce ? false : { height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }} className="overflow-hidden">
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }} className="overflow-hidden">
               <div className="flex flex-wrap items-center gap-2 pt-3">
-                <div className="flex rounded-[10px] bg-surface-2 p-0.5" role="group" aria-label="How you solved it">
-                  {(Object.keys(HOW) as How[]).map((k) => (
-                    <button key={k} type="button" aria-pressed={(d.h || "s") === k} onClick={() => setHow(i, k)}
-                      className="h-7 cursor-pointer rounded-[8px] px-2.5 text-[12px] font-medium text-muted transition aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-card">{HOW[k]}</button>
-                  ))}
-                </div>
-                <input className="field h-8 flex-1 basis-52 text-[13px]" defaultValue={d.n || ""} placeholder="Key insight in one line" aria-label={"Key insight for " + name}
+                <Seg<How> label="How you solved it" value={d.h || "s"} onChange={(k) => setHow(i, k)} options={(Object.keys(HOW) as How[]).map((k) => [k, HOW[k]] as const)} />
+                <input className="field field-sm flex-1 basis-52" defaultValue={d.n || ""} placeholder="Key insight in one line" aria-label={"Key insight for " + name}
                   onBlur={(e) => { if (e.target.value !== (d.n || "")) setNote(i, e.target.value); }} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
               </div>
             </motion.div>

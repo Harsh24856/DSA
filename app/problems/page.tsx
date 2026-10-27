@@ -43,14 +43,14 @@ export default function Problems() {
         <select className="field" aria-label="Status" value={st} onChange={filter(setSt)}><option value="">Any status</option><option value="todo">Not solved</option><option value="done">Solved</option><option value="help">Needed help</option></select>
         <select className="field" aria-label="Difficulty" value={lv} onChange={filter(setLv)}><option value="">Any level</option><option>Easy</option><option>Medium</option><option>Hard</option></select>
       </div>
-      {!ready ? <div className="flex flex-col gap-3 pt-2">{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-12" />)}</div> : (
+      {!ready ? <div className="flex flex-col gap-3 pt-2" aria-busy="true" aria-label="Loading">{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-12 rounded-tile" />)}</div> : (
         <>
           <div>
             {ids.slice(0, shown).map((i) => (
               <ProblemRow key={i} i={i} side={state.done[i] ? "solved " + parse(state.done[i].d).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "Phase " + P[i][4]} />
             ))}
           </div>
-          {!ids.length && <p className="py-10 text-center text-[14px] text-muted">No problems match. Clear the search or pick another filter.</p>}
+          {!ids.length && <p className="empty">No problems match. Clear the search or pick another filter.</p>}
           {ids.length > shown && <div className="mt-4 flex justify-center"><button className="btn" type="button" onClick={() => setShown((n) => n + PAGE)}>Show more</button></div>}
         </>
       )}

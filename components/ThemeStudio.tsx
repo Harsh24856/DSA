@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { Check } from "@phosphor-icons/react";
 import { GROUPS, LOOKS, type Look } from "@/lib/looks";
 import { PALETTES, useStore, type Mode, type Palette } from "@/lib/store";
+import { Seg } from "./ui";
 
 const MODES: [Mode, string][] = [["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]];
 
@@ -37,24 +38,24 @@ export function ThemeStudio() {
   return (
     <section className="flex flex-col gap-3" aria-labelledby="studio">
       <div>
-        <h3 id="studio" className="text-[15px] font-semibold">Theme Studio</h3>
+        <h3 id="studio" className="t-h3">Theme Studio</h3>
         <p className="text-[13px] text-muted">Pick a look for the whole site. It applies instantly and is saved on this device.</p>
       </div>
       {GROUPS.map((g) => (
       <div key={g} className="flex flex-col gap-2">
-      <h4 className="mt-1 text-[13px] font-semibold text-muted">{g}</h4>
+      <h4 className="t-eyebrow mt-1">{g}</h4>
       <ul className="flex flex-col gap-3">
         {LOOKS.filter((l) => l.group === g).map((l, i) => {
           const on = s.look === l.id;
           return (
             <motion.li key={l.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03, duration: 0.3 }}>
               <motion.button type="button" aria-pressed={on} onClick={() => s.setLook(l.id)} whileTap={{ scale: 0.985 }}
-                className={`group w-full cursor-pointer overflow-hidden rounded-[16px] border text-left transition-colors ${on ? "border-accent ring-2 ring-accent-soft" : "border-line hover:border-line-strong"}`}>
+                className={`group w-full cursor-pointer overflow-hidden rounded-tile border text-left transition-colors ${on ? "border-accent ring-2 ring-accent-soft" : "border-line hover:border-line-strong"}`}>
                 <Preview l={l} />
                 <div className="flex items-center gap-3 border-t border-line bg-surface px-4 py-2.5">
-                  <span className="text-[15px] font-semibold">{l.name}</span>
+                  <span className="text-[14px] font-semibold">{l.name}</span>
                   <span className="min-w-0 flex-1 truncate text-[12px] text-muted">{l.blurb}</span>
-                  <span className={`grid size-6 shrink-0 place-items-center rounded-full border-2 transition-colors ${on ? "border-accent bg-accent text-accent-ink" : "border-line-strong"}`}>{on && <Check size={13} weight="bold" aria-hidden />}</span>
+                  <span className="tick pointer-events-none" data-on={on || undefined}>{on && <Check size={14} weight="bold" aria-hidden />}</span>
                 </div>
               </motion.button>
               {on && l.id === "classic" && (
@@ -62,17 +63,12 @@ export function ThemeStudio() {
                   <div className="grid grid-cols-4 gap-2">
                     {(Object.entries(PALETTES) as [Palette, readonly [string, string, string]][]).map(([k, [name, lc, dc]]) => (
                       <button key={k} type="button" aria-pressed={s.palette === k} onClick={() => s.setPalette(k)}
-                        className="flex cursor-pointer flex-col items-center gap-1.5 rounded-[10px] border border-line py-2.5 text-[12px] font-medium transition hover:bg-surface-2 aria-pressed:border-accent aria-pressed:ring-2 aria-pressed:ring-accent-soft">
+                        className="flex cursor-pointer flex-col items-center gap-1.5 rounded-control border border-line py-2.5 text-[12px] font-medium transition hover:bg-surface-2 active:scale-[0.97] aria-pressed:border-accent aria-pressed:ring-2 aria-pressed:ring-accent-soft">
                         <span className="size-5 rounded-full ring-1 ring-line" style={{ background: `linear-gradient(135deg, ${lc} 50%, ${dc} 50%)` }} aria-hidden />{name}
                       </button>
                     ))}
                   </div>
-                  <div className="grid grid-cols-3 rounded-[10px] bg-surface-2 p-1" role="group" aria-label="Light or dark">
-                    {MODES.map(([k, label]) => (
-                      <button key={k} type="button" aria-pressed={s.mode === k} onClick={() => s.setMode(k)}
-                        className="h-8 cursor-pointer rounded-[8px] text-[13px] font-medium text-muted transition aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-card">{label}</button>
-                    ))}
-                  </div>
+                  <Seg<Mode> label="Light or dark" className="flex" value={s.mode} onChange={s.setMode} options={MODES} />
                 </div>
               )}
               {on && l.photo?.credit && <p className="mt-1.5 px-1 text-[11px] text-muted">Photo by <a className="underline hover:text-accent" href={l.photo.credit.page} target="_blank" rel="noopener">{l.photo.credit.author}</a> on Unsplash</p>}
