@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { normQuota, ymd, type How, type Quota, type State } from "./logic";
 import { applyDiff, diff, pushDiff, same } from "./sync";
 import { supabase } from "./supabase/client";
+import { claimLocal, clearLocal } from "./owner";
 
 const LS_KEY = "dsa-daily-v1";
 // last server-confirmed state, per account; a fresh account/device starts by adding local ticks
@@ -64,8 +65,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       setSynced(false);
-      if (/not allowed/.test(msg)) { await supabase().auth.signOut(); location.href = "/login?denied=1"; }
-      else if (/not signed in|JWT/.test(msg)) setStatus("Signed out, saved on this device");
+      if (/not signed in|JWT/.test(msg)) setStatus("Signed out, saved on this device");
       else setStatus("Offline, saved on this device");
     } finally {
       busy.current = false;
@@ -94,6 +94,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // the session lives in cookies; follow sign-in, token refresh and sign-out
     const follow = (mail: string | null) => {
       if (mail === key.current) return;
+      if (mail && claimLocal(LS_KEY, mail)) { const empty = { done: {}, quota: normQuota() }; cur.current = empty; setState(empty); }
       key.current = mail; setEmail(mail);
       base.current = mail ? read<State | null>(baseKey(mail), null) : null;
       if (mail) void sync(); else setStatus("Saved on this device");
@@ -118,7 +119,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<Ctx>(() => ({
     ready, state, now, status, synced, connected: !!email, email, palette, mode, toast, say,
-    signOut: async () => { await supabase().auth.signOut(); location.href = "/login"; },
+    signOut: async () => { await supabase().auth.signOut(); clearLocal(LS_KEY, "dsa-patterns-v1"); location.href = "/login"; },
     setPalette: setPaletteRaw, setMode: setModeRaw,
     toggle: (i, on) => commit((s) => {
       const done = { ...s.done };

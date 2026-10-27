@@ -13,7 +13,6 @@ export default function Login() {
     const n = q.get("next");
     if (n && n.startsWith("/") && !n.startsWith("//")) setNext(n);
     if (q.get("error")) setError("Google sign-in did not finish. Try again.");
-    if (q.get("denied")) setError("This Google account is not allowed. Sign in with hsehra001@gmail.com.");
   }, []);
 
   const signIn = async () => {

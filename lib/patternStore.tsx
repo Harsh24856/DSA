@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { ymd } from "./logic";
 import { pushPatterns, type PTick } from "./sync";
 import { supabase } from "./supabase/client";
+import { claimLocal } from "./owner";
 
 const LS = "dsa-patterns-v1", BASE = (email: string) => `dsa-patterns-base:${email}`;
 type Done = Record<string, PTick>;
@@ -23,7 +24,10 @@ export function PatternProvider({ children }: { children: ReactNode }) {
   const sync = useCallback(async () => {
     const key = (await supabase().auth.getSession()).data.session?.user.email?.toLowerCase();
     if (!key) return;
-    if (base.current === null || baseFor.current !== key) { base.current = read(BASE(key)); baseFor.current = key; }
+    if (baseFor.current !== key) {
+      if (claimLocal(LS, key)) { cur.current = {}; setDone({}); }   // a different account used this browser before
+      base.current = read(BASE(key)); baseFor.current = key;
+    }
     if (busy.current) { again.current = true; return; }
     busy.current = true;
     const sent = { ...cur.current }, b = base.current;

@@ -152,3 +152,16 @@ grant execute on function public.progress_patterns_sync(jsonb, text[]) to authen
 -- Switch-over done: data copied to dsa_progress for hsehra001@gmail.com; the sync-key RPCs are retired.
 revoke execute on function public.dsa_sync(text, jsonb, text[], jsonb) from anon, authenticated, public;
 revoke execute on function public.dsa_patterns_sync(text, jsonb, text[]) from anon, authenticated, public;
+
+-- Public: any signed-in Google user gets their own private row (RLS read-own); payloads size-capped.
+create or replace function public.dsa_progress_row() returns text
+language plpgsql security definer set search_path = ''
+as $$
+declare e text := lower(auth.jwt() ->> 'email');
+begin
+  if e is null or e = '' then raise exception 'not signed in'; end if;
+  insert into public.dsa_progress (email) values (e) on conflict (email) do nothing;
+  return e;
+end;
+$$;
+-- progress_sync / progress_patterns_sync re-created with: if pg_column_size(p_set) > 262144 or cardinality(p_del) > 5000 → 'payload too large'
