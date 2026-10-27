@@ -7,6 +7,7 @@ import { ChartLineUp, CloudCheck, CloudSlash, CodeBlock, GearSix, ListChecks, Ma
 import { useStore } from "@/lib/store";
 import { diffDays, parse } from "@/lib/logic";
 import { Settings } from "./Settings";
+import { SignIn } from "./SignIn";
 
 const NAV: { href: string; label: string; icon: Icon }[] = [
   { href: "/", label: "Today", icon: SunHorizon },
@@ -18,7 +19,7 @@ const NAV: { href: string; label: string; icon: Icon }[] = [
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const { now, status, synced, connected, toast, ready, email, state } = useStore();
+  const { now, status, synced, connected, toast, ready, email, state, authChecked } = useStore();
   const [open, setOpen] = useState(false);
   const reduce = useReducedMotion();
   const start = parse(state.quota.start), placement = parse(state.quota.placement);
@@ -27,9 +28,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const page = NAV.find((n) => n.href === path) ?? NAV.find((n) => n.href !== "/" && path.startsWith(n.href)) ?? NAV[0];
   const isOn = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
-  if (path.startsWith("/login") || path.startsWith("/auth")) return <>{children}</>;
+  if (path.startsWith("/auth")) return <>{children}</>;
+  const locked = authChecked && !email; // signed out: app stays visible but blurred and inert under the dialog
 
   return (
+    <>
+    <div inert={locked} aria-hidden={locked || undefined}
+      className={locked ? "pointer-events-none select-none blur-[7px] saturate-75" : undefined}>
     <div className="mx-auto grid min-h-[100dvh] max-w-[1400px] lg:grid-cols-[240px_minmax(0,1fr)]">
       {/* sidebar (desktop) */}
       <aside className="sticky top-0 hidden h-[100dvh] flex-col gap-6 border-r border-line px-4 py-6 lg:flex" aria-label="Main">
@@ -118,5 +123,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
         )}
       </AnimatePresence>
     </div>
+    </div>
+    {locked && <SignIn />}
+    </>
   );
 }

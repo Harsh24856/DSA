@@ -21,7 +21,7 @@ const read = <T,>(k: string, fallback: T): T => { try { const v = localStorage.g
 const write = (k: string, v: unknown) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v)); } catch {} };
 
 type Ctx = {
-  ready: boolean; state: State; now: Date; status: string; synced: boolean; connected: boolean; email: string | null; signOut(): Promise<void>;
+  ready: boolean; state: State; now: Date; status: string; synced: boolean; connected: boolean; email: string | null; authChecked: boolean; signOut(): Promise<void>;
   toggle(i: number, on: boolean): void; setHow(i: number, h: How): void; setNote(i: number, n: string): void;
   revisitDone(i: number): void; setQuota(k: Count, v: number): void; setDate(k: "start" | "placement", v: string): void; importState(s: State): void;
   palette: Palette; mode: Mode; setPalette(p: Palette): void; setMode(m: Mode): void; toast: string | null; say(msg: string): void;
@@ -36,6 +36,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState("Loading…");
   const [synced, setSynced] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [palette, setPaletteRaw] = useState<Palette>("midnight");
   const [mode, setModeRaw] = useState<Mode>("auto");
   const [toast, setToast] = useState<string | null>(null);
@@ -99,7 +100,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       base.current = mail ? read<State | null>(baseKey(mail), null) : null;
       if (mail) void sync(); else setStatus("Saved on this device");
     };
-    void supabase().auth.getSession().then(({ data }) => follow(data.session?.user.email?.toLowerCase() ?? null));
+    void supabase().auth.getSession().then(({ data }) => { follow(data.session?.user.email?.toLowerCase() ?? null); setAuthChecked(true); });
     const { data: sub } = supabase().auth.onAuthStateChange((_e, session) => follow(session?.user.email?.toLowerCase() ?? null));
     const onVis = () => { if (!document.hidden) void sync(); };
     document.addEventListener("visibilitychange", onVis);
@@ -118,8 +119,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [palette, mode, ready]);
 
   const value = useMemo<Ctx>(() => ({
-    ready, state, now, status, synced, connected: !!email, email, palette, mode, toast, say,
-    signOut: async () => { await supabase().auth.signOut(); clearLocal(LS_KEY, "dsa-patterns-v1"); location.href = "/login"; },
+    ready, state, now, status, synced, connected: !!email, email, authChecked, palette, mode, toast, say,
+    signOut: async () => { await supabase().auth.signOut(); clearLocal(LS_KEY, "dsa-patterns-v1"); location.href = "/"; },
     setPalette: setPaletteRaw, setMode: setModeRaw,
     toggle: (i, on) => commit((s) => {
       const done = { ...s.done };
@@ -132,7 +133,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setQuota: (k, v) => commit((s) => ({ ...s, quota: { ...s.quota, [k]: Math.max(0, Math.min(10, v || 0)) } })),
     setDate: (k, v) => { const q = { ...cur.current.quota, [k]: v }; if (validDates(q.start, q.placement)) commit((s) => ({ ...s, quota: q })); },
     importState: (imp) => commit(() => ({ done: imp.done, quota: normQuota(imp.quota) })),
-  }), [ready, state, now, status, synced, email, palette, mode, toast, say, commit, sync]);
+  }), [ready, state, now, status, synced, email, authChecked, palette, mode, toast, say, commit, sync]);
 
   return <Store.Provider value={value}>{children}</Store.Provider>;
 }

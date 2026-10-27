@@ -1,4 +1,4 @@
-// Refreshes the Supabase session cookie on every page request and sends signed-out visitors to /login.
+// Refreshes the Supabase session cookie on every page request. Signed-out visitors see the sign-in dialog in the app.
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_KEY, SUPABASE_URL } from "./lib/supabase/config";
@@ -17,16 +17,7 @@ export async function proxy(request: NextRequest) {
     },
   });
   // keep this call directly after createServerClient: it validates and refreshes the session
-  const { data } = await supabase.auth.getClaims();
-  const path = request.nextUrl.pathname;
-  if (!data?.claims && !path.startsWith("/login") && !path.startsWith("/auth")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.search = path === "/" ? "" : `?next=${encodeURIComponent(path)}`;
-    const redirect = NextResponse.redirect(url);
-    response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
-    return redirect;
-  }
+  await supabase.auth.getClaims();
   return response;
 }
 

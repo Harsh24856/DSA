@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  // sign-in is a dialog on every page now; keep old /login links working
+  async redirects() {
+    return [{ source: "/login", destination: "/", permanent: true }];
+  },
+};
 
 export default nextConfig;
