@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
-import { ChartLineUp, CloudCheck, CloudSlash, GearSix, ListChecks, MapTrifold, SunHorizon, TreeStructure, type Icon } from "@phosphor-icons/react";
+import { ChartLineUp, CloudCheck, CloudSlash, GearSix, ListChecks, MapTrifold, Sparkle, SunHorizon, TreeStructure, type Icon } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import { diffDays, parse } from "@/lib/logic";
 import { Settings } from "./Settings";
@@ -17,6 +17,7 @@ const NAV: { href: string; label: string; icon: Icon }[] = [
   { href: "/analytics", label: "Analytics", icon: ChartLineUp },
   { href: "/patterns", label: "Patterns", icon: TreeStructure },
   { href: "/problems", label: "Problems", icon: ListChecks },
+  { href: "/genai", label: "Gen AI", icon: Sparkle },
   { href: "/roadmap", label: "Roadmap", icon: MapTrifold },
 ];
 
@@ -110,7 +111,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </main>
 
       {/* bottom tab bar (mobile) */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden" aria-label="Sections">
+      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t border-line bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md lg:hidden" aria-label="Sections">
         {NAV.map(({ href, label, icon: I }) => {
           const on = isOn(href);
           return (

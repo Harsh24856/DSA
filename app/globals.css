@@ -153,6 +153,81 @@
   .lv-Hard{color:var(--hard);background:color-mix(in oklab,var(--hard) 14%,transparent)}
   .lv-CF{color:var(--accent);background:var(--accent-soft)}
   .num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+  /* Gen AI playbook pages (components/GenaiDoc.tsx): the playbook HTML in lib/genai/content.ts uses gx- classes */
+  .gx{display:flex;flex-direction:column;gap:20px;font-size:14.5px;line-height:1.6}
+  .gx-slide{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;padding:20px;min-width:0;scroll-margin-top:24px}
+  [data-nav="top"] .gx-slide{scroll-margin-top:88px}
+  .gx-slide-tag{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .gx-slide-tag b{color:var(--accent);font-weight:600}
+  .gx-project .gx-slide-tag b{color:var(--ink)}
+  .gx h3{font-size:20px;line-height:1.25;font-weight:600}
+  .gx h4{font-size:15px;line-height:1.35;font-weight:600;margin-top:4px}
+  .gx :is(p,li){max-width:72ch;text-wrap:pretty}
+  .gx :is(ul,ol):not([class]){display:grid;gap:6px;padding-left:1.25em}
+  .gx ul:not([class]){list-style:disc}
+  .gx ol:not([class]){list-style:decimal}
+  .gx li::marker{color:var(--accent)}
+  .gx strong,.gx-strong{font-weight:600;color:var(--ink)}
+  .gx a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+  .gx :not(pre)>code{font-family:var(--mono);font-size:.88em;overflow-wrap:anywhere;background:var(--surface-2);padding:.1em .35em;border-radius:5px}
+  .gx-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:16px 28px}
+  .gx-two>*{min-width:0;display:grid;gap:8px;align-content:start}
+  .gx-formula{font-family:var(--mono);font-size:13.5px;background:var(--accent-soft);padding:12px 14px;border-radius:12px;overflow-x:auto;white-space:pre}
+  .gx-callout{display:grid;gap:4px;border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:12px;padding:12px 16px}
+  .gx-callout.gx-warn{border-left-color:var(--medium);background:color-mix(in oklab,var(--medium) 10%,transparent)}
+  .gx-callout.gx-tip{border-left-color:var(--easy);background:color-mix(in oklab,var(--easy) 10%,transparent)}
+  .gx-label{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--accent)}
+  .gx-warn .gx-label{color:var(--medium)}
+  .gx-tip .gx-label{color:var(--easy)}
+  .gx-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+  .gx table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+  .gx :is(th,td){text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  .gx th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--surface-2)}
+  .gx tr:last-child td{border-bottom:0}
+  .gx td:first-child{font-weight:600}
+  .gx-diagram{display:grid;gap:8px;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:16px;overflow-x:auto}
+  .gx-diagram figcaption{font-size:13px;color:var(--muted)}
+  .gx pre.mermaid{margin:0;text-align:center;font-family:var(--body);white-space:pre-wrap;font-size:12px;color:var(--muted)}
+  .gx pre.mermaid:not([data-done]){min-height:120px;color:transparent}
+  .gx pre.mermaid svg{display:block;height:auto;margin-inline:auto} /* natural size; wide ones scroll inside .gx-diagram */
+  .gx-code{border:1px solid var(--line);background:var(--bg);border-radius:12px;overflow:hidden;min-width:0}
+  .gx-code-head{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 14px;border-bottom:1px solid var(--line)}
+  .gx-code-head span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .gx-copy{height:28px;padding:0 10px;border-radius:8px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);font-size:12px;font-weight:600;cursor:pointer}
+  .gx-copy:hover{background:var(--surface-2)}
+  .gx-code pre{margin:0;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.65;tab-size:4}
+  .gx-qlist{display:grid;gap:8px;list-style:none;padding:0;counter-reset:q}
+  .gx-qlist>li{counter-increment:q}
+  .gx details{border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+  .gx summary{display:flex;gap:10px;padding:12px 14px;font-weight:550;cursor:pointer;list-style:none}
+  .gx summary::-webkit-details-marker{display:none}
+  .gx summary::before{content:counter(q,decimal-leading-zero);flex:none;padding-top:2px;font-family:var(--mono);font-size:12px;color:var(--accent)}
+  .gx details[open] summary{border-bottom:1px solid var(--line)}
+  .gx-ans{display:grid;gap:8px;padding:12px 14px 14px}
+  .gx-task-list{display:grid;gap:8px;list-style:none;padding:0}
+  .gx-task-list li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;padding:10px 12px;border:1px dashed var(--line-strong);border-radius:12px}
+  .gx-level{display:inline-flex;height:22px;align-items:center;padding:0 8px;border-radius:999px;font-size:12px;font-weight:600}
+  .gx-level.gx-e{color:var(--easy);background:color-mix(in oklab,var(--easy) 9%,transparent)}
+  .gx-level.gx-m{color:var(--medium);background:color-mix(in oklab,var(--medium) 9%,transparent)}
+  .gx-level.gx-h{color:var(--hard);background:color-mix(in oklab,var(--hard) 9%,transparent)}
+  .gx-checklist{display:grid;gap:8px;list-style:none;padding:0}
+  .gx-checklist li{display:flex;gap:10px}
+  .gx-checklist li::before{content:"";flex:none;width:14px;height:14px;margin-top:4px;border:1.5px solid var(--line-strong);border-radius:4px}
+  .gx-stack{display:grid;gap:6px;font-family:var(--mono);font-size:13px}
+  .gx-stack div{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+  .gx-stack div.gx-cached{background:color-mix(in oklab,var(--easy) 12%,transparent);border-color:transparent}
+  .gx-stack div.gx-hot{background:var(--accent-soft);border-color:transparent}
+  .gx-stack small{color:var(--muted);font-family:var(--body)}
+  .gx-res{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:10px;list-style:none;padding:0}
+  .gx-res li{display:grid;gap:4px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg)}
+  .gx-res li span{font-size:13.5px;color:var(--muted)}
+  .gx-res a{font-weight:600;text-decoration:none}
+  .gx-res a:hover{text-decoration:underline}
+  .gx-glossary{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:10px 24px;margin:0}
+  .gx-glossary div{display:grid;gap:2px}
+  .gx-glossary dt{font-family:var(--mono);font-size:13.5px;font-weight:600}
+  .gx-glossary dd{margin:0;color:var(--muted);font-size:14px}
   .skeleton{background:linear-gradient(90deg,var(--surface-2),color-mix(in oklab,var(--surface-2),var(--ink) 5%),var(--surface-2));background-size:200% 100%;animation:shimmer 1.4s linear infinite;border-radius:16px}
 }
 @keyframes shimmer{to{background-position:-200% 0}}

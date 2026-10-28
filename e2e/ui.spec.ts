@@ -19,6 +19,8 @@ const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void> }[]
   { name: "pattern", path: "/patterns/array#p-1" },
   { name: "problems", path: "/problems" },
   { name: "roadmap", path: "/roadmap" },
+  { name: "genai", path: "/genai" },
+  { name: "genai-module", path: "/genai/m4" },
   { name: "settings", path: "/", open: (p) => p.locator('button[aria-label="Settings"]:visible').click() },
   { name: "solve", path: "/", open: (p) => p.getByRole("button", { name: /^Solution for/ }).first().click() },
 ];

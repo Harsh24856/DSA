@@ -1,5 +1,5 @@
 "use client";
-// Ticks for pattern-practice problems, keyed by LeetCode number. Stored in dsa-patterns-v1 and the
+// Ticks for pattern-practice problems, keyed by LeetCode number, and Gen AI modules done, keyed "genai:<id>". Stored in dsa-patterns-v1 and the
 // Supabase `patterns` column, never in the daily-plan state, so Today and Analytics stay unaffected.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ymd } from "./logic";
@@ -9,7 +9,7 @@ import { claimLocal } from "./owner";
 
 const LS = "dsa-patterns-v1", BASE = (email: string) => `dsa-patterns-base:${email}`;
 type Done = Record<string, PTick>;
-type Ctx = { ready: boolean; done: Done; toggle(lc: number, on: boolean): void };
+type Ctx = { ready: boolean; done: Done; toggle(key: number | string, on: boolean): void };
 const C = createContext<Ctx | null>(null);
 export const usePatterns = () => { const c = useContext(C); if (!c) throw new Error("usePatterns outside PatternProvider"); return c; };
 
@@ -58,9 +58,9 @@ export function PatternProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<Ctx>(() => ({
     ready, done,
-    toggle: (lc, on) => {
+    toggle: (key, on) => {
       const next = { ...cur.current };
-      if (on) next[lc] = { d: ymd(new Date()) }; else delete next[lc];
+      if (on) next[key] = { d: ymd(new Date()) }; else delete next[key];
       cur.current = next; setDone(next); write(LS, next);
       clearTimeout(timer.current); timer.current = setTimeout(() => void sync(), 300);
     },
