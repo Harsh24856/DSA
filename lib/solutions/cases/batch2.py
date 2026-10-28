@@ -41,8 +41,17 @@ CASES = {
  "longest-duplicate-substring": [("longestDupSubstring", ("banana",), "ana"), ("longestDupSubstring", ("abcd",), ""), ("longestDupSubstring", ("aa",), "a")],
  "smallest-subsequence-of-distinct-characters": [("smallestSubsequence", ("bcabc",), "abc"), ("smallestSubsequence", ("cbacdcbc",), "acdb"), ("smallestSubsequence", ("a",), "a")],
  "total-hamming-distance": [("totalHammingDistance", ([4,14,2],), 6), ("totalHammingDistance", ([4,14,4],), 4), ("totalHammingDistance", ([7],), 0)],
+ "number-of-ways-to-arrive-at-destination": [("countPaths", (7,[[0,6,7],[0,1,2],[1,2,3],[1,3,3],[6,3,3],[3,5,1],[6,5,1],[2,5,1],[0,4,5],[4,6,2]]), 4), ("countPaths", (2,[[1,0,10]]), 1), ("countPaths", (1,[]), 1)],
+ "unique-paths-iii": [("uniquePathsIII", ([[1,0,0,0],[0,0,0,0],[0,0,2,-1]],), 2), ("uniquePathsIII", ([[1,0,0,0],[0,0,0,0],[0,0,0,2]],), 4), ("uniquePathsIII", ([[0,1],[2,0]],), 0)],
+ "maximum-number-of-events-that-can-be-attended": [("maxEvents", ([[1,2],[2,3],[3,4]],), 3), ("maxEvents", ([[1,2],[2,3],[3,4],[1,2]],), 4), ("maxEvents", ([[1,1],[1,1]],), 1)],
+ "minimum-time-to-complete-trips": [("minimumTime", ([1,2,3],5), 3), ("minimumTime", ([2],1), 2), ("minimumTime", ([5,10,10],9), 25)],
+ "score-after-flipping-matrix": [("matrixScore", ([[0,0,1,1],[1,0,1,0],[1,1,0,0]],), 39), ("matrixScore", ([[0]],), 1)],
+ "reduction-operations-to-make-the-array-elements-equal": [("reductionOperations", ([5,1,3],), 3), ("reductionOperations", ([1,1,1],), 0), ("reductionOperations", ([1,1,2,2,3],), 4)],
+ "cherry-pickup": [("cherryPickup", ([[0,1,-1],[1,0,-1],[1,1,1]],), 5), ("cherryPickup", ([[1,1,-1],[1,-1,1],[-1,1,1]],), 0), ("cherryPickup", ([[1]],), 1)],
+ "3sum-closest": [("threeSumClosest", ([-1,2,1,-4],1), 2), ("threeSumClosest", ([0,0,0],1), 0), ("threeSumClosest", ([1,1,1,0],-100), 2)],
 }
 TREE = {
+ "find-largest-value-in-each-tree-row": [("largestValues", ([1,3,2,5,3,None,9],), [1,3,9], None), ("largestValues", ([1,2,3],), [1,3], None), ("largestValues", ([],), [], None)],
  "binary-tree-cameras": [("minCameraCover", ([0,0,None,0,0],), 1, None), ("minCameraCover", ([0,0,None,0,None,0,None,None,0],), 2, None), ("minCameraCover", ([0],), 1, None)],
  "sum-of-nodes-with-even-valued-grandparent": [("sumEvenGrandparent", ([6,7,8,2,7,1,3,9,None,1,4,None,None,None,5],), 18, None), ("sumEvenGrandparent", ([1],), 0, None)],
  "even-odd-tree": [("isEvenOddTree", ([1,10,4,3,None,7,9,12,8,6,None,None,2],), True, None), ("isEvenOddTree", ([5,4,2,3,3,7],), False, None), ("isEvenOddTree", ([5,9,1,3,5,7],), False, None), ("isEvenOddTree", ([1],), True, None)],
@@ -55,4 +64,13 @@ CUSTOM = [
  lambda load, check, h: check("MapSum", (lambda m: [m.insert("apple",3), m.sum("ap"), m.insert("app",2), m.sum("ap"), m.insert("apple",1), m.sum("ap"), m.sum("b")])(load("map-sum-pairs")["MapSum"]()), [None,3,None,5,None,3,0]),
  lambda load, check, h: check("criticalConnections", [sorted(map(sorted, load("critical-connections-in-a-network")["criticalConnections"](n, e))) for n, e in [(4,[[0,1],[1,2],[2,0],[1,3]]), (2,[[0,1]]), (3,[[0,1],[1,2],[2,0]])]], [[[1,3]], [[0,1]], []]),
  lambda load, check, h: check("createBinaryTree", [h.level(load("create-binary-tree-from-descriptions")["createBinaryTree"](d)) for d in ([[20,15,1],[20,17,0],[50,20,1],[50,80,0],[80,19,1]], [[1,2,1],[2,3,0],[3,4,1]])], [[50,20,80,15,17,19], [1,2,None,None,3,4]]),
+ lambda load, check, h: check("detectCycle", [(lambda head, nodes, pos: (lambda r: None if r is None else nodes.index(r))(load("linked-list-cycle-ii")["detectCycle"](head)))(*_cyc(v, p)) for v, p in [([3,2,0,-4],1), ([1,2],0), ([1],-1)]], [1, 0, None]),
+ lambda load, check, h: check("delNodes", [sorted((h.level(t) for t in load("delete-nodes-and-return-forest")["delNodes"](h.tree(a), d)), key=lambda x: x[0]) for a, d in [([1,2,3,4,5,6,7],[3,5]), ([1,2,4,None,3],[3]), ([1],[1])]], [[[1,2,None,4],[6],[7]], [[1,2,4]], []]),
+ lambda load, check, h: check("palindromePairs", [sorted(load("palindrome-pairs")["palindromePairs"](w)) for w in (["abcd","dcba","lls","s","sssll"], ["bat","tab","cat"], ["a",""])], [[[0,1],[1,0],[2,4],[3,2]], [[0,1],[1,0]], [[0,1],[1,0]]]),
 ]
+def _cyc(vals, pos):
+    nodes = []
+    head = lst(vals); n = head
+    while n: nodes.append(n); n = n.next
+    if pos >= 0: nodes[-1].next = nodes[pos]
+    return head, nodes, pos

@@ -1224,5 +1224,305 @@ def criticalConnections(n, connections):
       return { kind: "table", title: `Total Hamming distance of [${a.join(", ")}]: ${total}`, rowHead: a.map(String), colHead: Array.from({ length: W }, (_, i) => `bit ${W - 1 - i}`), frames };
     },
   },
+  "find-largest-value-in-each-tree-row": {
+    approach: "BFS one level at a time and keep the maximum of each level.",
+    idea: ["The queue size at the start of a round is exactly the number of nodes on that level.", "Pop that many nodes, track their maximum, push their children.", "Append the maximum per level."],
+    code: `from collections import deque
+def largestValues(root):
+    out, q = [], deque([root] if root else [])
+    while q:
+        best = float("-inf")
+        for _ in range(len(q)):
+            node = q.popleft()
+            best = max(best, node.val)
+            if node.left:
+                q.append(node.left)
+            if node.right:
+                q.append(node.right)
+        out.append(best)
+    return out`,
+    lang: "python", time: "O(n)", space: "O(width)",
+    viz: () => {
+      const vals = [1, 3, 2, 5, 3, null, 9], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], out: number[] = [], won: number[] = []; let q = [0], lv = 0;
+      while (q.length) { const best = Math.max(...q.map(val)), bi = q.find((i) => val(i) === best)!; out.push(best); won.push(bi); frames.push({ note: `level ${lv}: [${q.map(val).join(", ")}] → max ${best}; answer [${out.join(", ")}]`, tones: { ...tones(q, "window"), ...tones(won, "found") } }); q = q.flatMap((i) => kids[i].filter((c): c is number => c != null)); lv++; }
+      return tree(`Row maxima: [${out.join(", ")}]`, nodes, trail(frames));
+    },
+  },
+
+  "linked-list-cycle-ii": {
+    approach: "Floyd: slow and fast pointers meet inside the cycle; then a pointer from the head and one from the meeting point, both moving one step, meet at the cycle start.",
+    idea: ["If there is a cycle, fast (2 steps) catches slow (1 step) inside it.", "Let the head be a steps from the cycle start and the meeting point b steps past it. Slow walked a + b, fast 2(a + b), so a + b is a multiple of the cycle length.", "So walking a more steps from the meeting point lands on the start, the same as walking a steps from the head."],
+    code: `def detectCycle(head):
+    slow = fast = head
+    while fast and fast.next:
+        slow, fast = slow.next, fast.next.next
+        if slow is fast:
+            slow = head
+            while slow is not fast:
+                slow, fast = slow.next, fast.next
+            return slow
+    return None`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const vals = [3, 2, 0, -4, 7], next = [1, 2, 3, 4, 1], frames: ListFrame[] = []; let s = 0, f = 0;
+      frames.push({ note: "slow and fast start at the head", next, ptrs: [{ i: 0, label: "slow, fast" }] });
+      do { s = next[s]; f = next[next[f]]; frames.push({ note: s === f ? `they meet at ${vals[s]}: there is a cycle` : `slow → ${vals[s]}, fast → ${vals[f]}`, next, ptrs: s === f ? [{ i: s, label: "meet" }] : [{ i: s, label: "slow" }, { i: f, label: "fast" }], tones: s === f ? { [s]: "active" } : {} }); } while (s !== f);
+      s = 0; frames.push({ note: "move one pointer back to the head; both now step once at a time", next, ptrs: [{ i: s, label: "p" }, { i: f, label: "q" }] });
+      while (s !== f) { s = next[s]; f = next[f]; frames.push({ note: s === f ? `they meet at ${vals[s]}: the cycle starts here (index ${s})` : `p → ${vals[s]}, q → ${vals[f]}`, next, ptrs: s === f ? [{ i: s, label: "start" }] : [{ i: s, label: "p" }, { i: f, label: "q" }], tones: s === f ? { [s]: "found" } : {} }); }
+      return { kind: "list", title: `Cycle starts at index ${s}`, values: vals, frames };
+    },
+  },
+
+  "delete-nodes-and-return-forest": {
+    approach: "One DFS: a node becomes a new root when its parent was deleted and it survives; deleted nodes return None so their parent's link is cut.",
+    idea: ["Pass down whether the parent is gone (the root counts as having a deleted parent).", "A surviving node with a deleted parent starts a new tree: add it to the answer.", "Children are processed first, then the node returns None if it is deleted, which detaches it from its parent."],
+    code: `def delNodes(root, to_delete):
+    kill, out = set(to_delete), []
+    def dfs(node, parent_gone):
+        if not node:
+            return None
+        gone = node.val in kill
+        if parent_gone and not gone:
+            out.append(node)
+        node.left = dfs(node.left, gone)
+        node.right = dfs(node.right, gone)
+        return None if gone else node
+    dfs(root, True)
+    return out`,
+    lang: "python", time: "O(n)", space: "O(n)",
+    viz: () => {
+      const vals = [1, 2, 3, 4, 5, 6, 7], kill = new Set([3, 5]), { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], roots: number[] = [];
+      const dfs = (i: number | null, pg: boolean) => { if (i == null) return; const gone = kill.has(val(i)); if (pg && !gone) roots.push(val(i)); frames.push({ note: gone ? `${val(i)} is deleted: its children lose their parent` : pg ? `${val(i)} survives and its parent is gone → new root (roots ${roots.join(", ")})` : `${val(i)} stays in its parent's tree`, tones: { [i]: gone ? "bad" : pg ? "found" : "active" } }); dfs(kids[i][0], gone); dfs(kids[i][1], gone); };
+      dfs(0, true);
+      return tree(`Forest roots: ${roots.join(", ")}`, nodes, trail(frames));
+    },
+  },
+
+  "number-of-ways-to-arrive-at-destination": {
+    approach: "Dijkstra that also counts shortest paths: a strictly shorter route replaces the count, an equally short one adds to it.",
+    idea: ["Nodes leave the heap in order of final shortest distance, so their path counts are final when popped.", "Relaxing u → v: if d + t < dist[v], set dist[v] and ways[v] = ways[u]; if equal, ways[v] += ways[u].", "Answer ways[n - 1] mod 1e9 + 7."],
+    code: `import heapq
+def countPaths(n, roads):
+    MOD = 10**9 + 7
+    g = [[] for _ in range(n)]
+    for u, v, t in roads:
+        g[u].append((v, t))
+        g[v].append((u, t))
+    dist, ways = [float("inf")] * n, [0] * n
+    dist[0], ways[0] = 0, 1
+    pq = [(0, 0)]
+    while pq:
+        d, u = heapq.heappop(pq)
+        if d > dist[u]:
+            continue
+        for v, t in g[u]:
+            nd = d + t
+            if nd < dist[v]:
+                dist[v], ways[v] = nd, ways[u]
+                heapq.heappush(pq, (nd, v))
+            elif nd == dist[v]:
+                ways[v] = (ways[v] + ways[u]) % MOD
+    return ways[n - 1]`,
+    lang: "python", time: "O(E log V)", space: "O(V + E)",
+    viz: () => {
+      const n = 5, R = [[0, 1, 1], [0, 2, 2], [1, 2, 1], [1, 3, 2], [2, 3, 1], [3, 4, 1]], nodes = [{ id: 0, label: "0", x: 5, y: 50 }, { id: 1, label: "1", x: 35, y: 15 }, { id: 2, label: "2", x: 35, y: 85 }, { id: 3, label: "3", x: 65, y: 50 }, { id: 4, label: "4", x: 95, y: 50 }];
+      const g: [number, number][][] = Array.from({ length: n }, () => []); R.forEach(([u, v, t]) => { g[u].push([v, t]); g[v].push([u, t]); });
+      const dist = Array(n).fill(-1), ways = Array(n).fill(0), done: number[] = [], frames: GraphFrame[] = []; dist[0] = 0; ways[0] = 1; let pq: [number, number][] = [[0, 0]];
+      const badges = () => Object.fromEntries(dist.map((d, i) => [i, d < 0 ? "?" : `d${d} ×${ways[i]}`])) as Record<number, string>;
+      while (pq.length) { pq.sort((a, b) => a[0] - b[0]); const [d, u] = pq.shift()!; if (d > dist[u]) continue; done.push(u); const notes: string[] = []; for (const [v, t] of g[u]) { const nd = d + t; if (dist[v] < 0 || nd < dist[v]) { dist[v] = nd; ways[v] = ways[u]; pq.push([nd, v]); notes.push(`${v}: shorter (${nd}), ways = ${ways[v]}`); } else if (nd === dist[v]) { ways[v] += ways[u]; notes.push(`${v}: tie at ${nd}, ways += ${ways[u]} → ${ways[v]}`); } } frames.push({ note: `pop ${u} (distance ${d}). ${notes.join("; ") || "nothing improves"}`, tones: { ...tones(done, "done"), [u]: "active" }, badges: badges() }); }
+      return { kind: "graph", title: `Shortest ways to ${n - 1}: ${ways[n - 1]}`, nodes, edges: R.map(([a, b, w]) => ({ a, b, w })), frames };
+    },
+  },
+
+  "unique-paths-iii": {
+    approach: "Backtracking DFS from the start, marking cells as visited; a path counts only if it reaches the end after stepping on every empty cell.",
+    idea: ["Count the cells that must be walked: every 0 plus the end square.", "DFS in four directions, marking the cell used and unmarking on the way back.", "Reaching the end with zero cells left to cover is one valid path."],
+    code: `def uniquePathsIII(grid):
+    R, C = len(grid), len(grid[0])
+    need = sum(row.count(0) for row in grid) + 1
+    sr, sc = next((r, c) for r in range(R) for c in range(C) if grid[r][c] == 1)
+    def dfs(r, c, left):
+        if not (0 <= r < R and 0 <= c < C) or grid[r][c] < 0:
+            return 0
+        if grid[r][c] == 2:
+            return int(left == 0)
+        grid[r][c] = -1
+        total = sum(dfs(r + dr, c + dc, left - 1) for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+        grid[r][c] = 0
+        return total
+    return dfs(sr, sc, need)`,
+    lang: "python", time: "O(3^cells)", space: "O(cells)",
+    viz: () => {
+      const g = [[1, 0, 0, 0], [0, 0, 0, 0], [0, 0, 2, -1]], R = 3, C = 4, need = g.flat().filter((x) => x === 0).length + 1, path: [number, number][] = [], frames: TableFrame[] = []; let count = 0, dead = 0;
+      const base = g.map((r) => r.map((x) => (x === 1 ? "S" : x === 2 ? "E" : x < 0 ? "#" : ""))) as (string | number | null)[][];
+      const dfs = (r: number, c: number, left: number) => { if (r < 0 || r >= R || c < 0 || c >= C || g[r][c] < 0) return; if (g[r][c] === 2) { const show = base.map((x) => [...x]); path.forEach(([pr, pc], k) => { if (k) show[pr][pc] = k; }); if (left === 0) { count++; frames.push({ note: `reached the end after covering every cell: path ${count}`, cells: show, tones: keys([...path.map(([a, b]) => `${a}:${b}`), `${r}:${c}`], "found") }); } else if (dead++ < 2) frames.push({ note: `reached the end with ${left} cell${left > 1 ? "s" : ""} still unvisited: not counted`, cells: show, tones: { ...keys(path.map(([a, b]) => `${a}:${b}`), "window"), [`${r}:${c}`]: "bad" } }); return; } const keep = g[r][c]; g[r][c] = -1; path.push([r, c]); for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) dfs(r + dr, c + dc, left - 1); path.pop(); g[r][c] = keep; };
+      dfs(0, 0, need);
+      frames.push({ note: `${count} paths walk over every empty square exactly once`, cells: base });
+      return { kind: "table", title: `Unique paths III: ${count}`, rowHead: heads(R, "r"), colHead: heads(C, "c"), frames };
+    },
+  },
+
+  "maximum-number-of-events-that-can-be-attended": {
+    approach: "Go day by day; add events that have started to a min-heap of end days, drop expired ones, and attend the one ending soonest.",
+    idea: ["On any day, among the events you could attend, the one that ends first is the most urgent; the others can wait.", "Sort by start; each day push newly started events' ends and pop ends that are already past.", "If the heap empties, jump straight to the next start day."],
+    code: `import heapq
+def maxEvents(events):
+    events.sort()
+    heap, i, n, day, ans = [], 0, len(events), 0, 0
+    while i < n or heap:
+        if not heap:
+            day = max(day, events[i][0])
+        while i < n and events[i][0] <= day:
+            heapq.heappush(heap, events[i][1])
+            i += 1
+        heapq.heappop(heap)
+        ans += 1
+        day += 1
+        while heap and heap[0] < day:
+            heapq.heappop(heap)
+    return ans`,
+    lang: "python", time: "O(n log n)", space: "O(n)",
+    viz: () => {
+      const items = ([[1, 2], [1, 2], [2, 3], [3, 4], [1, 1]] as [number, number][]).sort((a, b) => a[0] - b[0] || a[1] - b[1]), frames: IntervalsFrame[] = [], tn: Record<number, Tone> = {}; let heap: number[] = [], i = 0, day = 0, ans = 0;
+      while (i < items.length || heap.length) { if (!heap.length) day = Math.max(day, items[i][0]); while (i < items.length && items[i][0] <= day) heap.push(i++); heap.sort((a, b) => items[a][1] - items[b][1]); const e = heap.shift()!; ans++; tn[e] = "found"; const missed = heap.filter((x) => items[x][1] < day + 1); missed.forEach((x) => (tn[x] = "bad")); heap = heap.filter((x) => items[x][1] >= day + 1); frames.push({ note: `day ${day}: attend [${items[e].join(", ")}] (ends soonest), total ${ans}${missed.length ? `; ${missed.length} event${missed.length > 1 ? "s" : ""} expired` : ""}`, tones: { ...tones(heap, "window"), ...tn, [e]: "active" }, line: day }); day++; }
+      return { kind: "intervals", title: `Events attended: ${ans}`, items, frames };
+    },
+  },
+
+  "minimum-time-to-complete-trips": {
+    approach: "Binary search the time T: the trips done by T is sum(T // t), which only grows with T.",
+    idea: ["Feasibility is monotone: if T is enough, any larger T is too.", "Search between 1 and min(time) × totalTrips (the fastest bus alone gets there).", "Take the smallest T whose trip count reaches the goal."],
+    code: `def minimumTime(time, totalTrips):
+    lo, hi = 1, min(time) * totalTrips
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if sum(mid // t for t in time) >= totalTrips:
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo`,
+    lang: "python", time: "O(n log(min·trips))", space: "O(1)",
+    viz: () => {
+      const time = [1, 2, 3], goal = 5, frames: CellsFrame[] = []; let lo = 1, hi = Math.min(...time) * goal;
+      while (lo < hi) { const mid = (lo + hi) >> 1, per = time.map((t) => Math.floor(mid / t)), s = per.reduce((a, b) => a + b, 0); frames.push({ note: `T = ${mid}: trips [${per.join(", ")}] = ${s} ${s >= goal ? `≥ ${goal}, try smaller (hi = ${mid})` : `< ${goal}, need more (lo = ${mid + 1})`}`, rows: [time, per], tones: range(0, time.length - 1, 1, s >= goal ? "found" : "bad") }); if (s >= goal) hi = mid; else lo = mid + 1; }
+      frames.push({ note: `lo = hi = ${lo}: the least time`, rows: [time, time.map((t) => Math.floor(lo / t))], tones: range(0, time.length - 1, 1, "found") });
+      return cells(`Least time for ${goal} trips: ${lo}`, [time, blank(time.length)], frames, ["bus time", "trips by T"]);
+    },
+  },
+
+  "score-after-flipping-matrix": {
+    approach: "Flip every row that starts with 0 (the leading bit outweighs all others), then flip each column if it has more 0s than 1s.",
+    idea: ["The first column's bit is worth more than all later bits together, so every row should start with 1.", "After that, each column independently contributes max(ones, zeros) × its place value.", "With rows flipped to lead with 1, a cell ends up 1 exactly when it equals its row's first cell."],
+    code: `def matrixScore(grid):
+    R, C = len(grid), len(grid[0])
+    total = 0
+    for c in range(C):
+        ones = sum(grid[r][c] == grid[r][0] for r in range(R))
+        total += max(ones, R - ones) << (C - 1 - c)
+    return total`,
+    lang: "python", time: "O(R·C)", space: "O(1)",
+    viz: () => {
+      const g = [[0, 0, 1, 1], [1, 0, 1, 0], [1, 1, 0, 0]], R = 3, C = 4, m = g.map((r) => (r[0] ? [...r] : r.map((x) => 1 - x))), frames: TableFrame[] = [{ note: "flip rows that start with 0", cells: grid(m), tones: keys(g.flatMap((r, i) => (r[0] ? [] : Array.from({ length: C }, (_, c) => `${i}:${c}`))), "window") }]; let total = 0;
+      for (let c = 0; c < C; c++) { const ones = m.filter((r) => r[c]).length, flip = ones * 2 < R; if (flip) m.forEach((r) => (r[c] = 1 - r[c])); const v = Math.max(ones, R - ones) << (C - 1 - c); total += v; frames.push({ note: `column ${c}: ${ones} one${ones === 1 ? "" : "s"}${flip ? ", flip it" : ""} → ${Math.max(ones, R - ones)} × ${1 << (C - 1 - c)} = ${v} (total ${total})`, cells: grid(m), tones: keys(m.map((_, r) => `${r}:${c}`), flip ? "active" : "found") }); }
+      return { kind: "table", title: `Max score: ${total}`, rowHead: heads(R, "r"), colHead: heads(C, "c"), frames };
+    },
+  },
+
+  "reduction-operations-to-make-the-array-elements-equal": {
+    approach: "Sort ascending; each element needs as many operations as there are distinct smaller values, so add the running count of value changes.",
+    idea: ["The largest value steps down to the next largest, then again, until it reaches the minimum.", "A value with k distinct values below it is reduced k times.", "After sorting, k is the number of times the value has changed so far."],
+    code: `def reductionOperations(nums):
+    nums.sort()
+    ops = steps = 0
+    for i in range(1, len(nums)):
+        if nums[i] != nums[i - 1]:
+            steps += 1
+        ops += steps
+    return ops`,
+    lang: "python", time: "O(n log n)", space: "O(1)",
+    viz: () => {
+      const a = [1, 1, 2, 2, 3, 5].sort((p, q) => p - q), st: (string | number)[] = blank(a.length), frames: CellsFrame[] = []; let ops = 0, steps = 0; st[0] = 0;
+      for (let i = 1; i < a.length; i++) { if (a[i] !== a[i - 1]) steps++; ops += steps; st[i] = steps; frames.push({ note: `${a[i]} has ${steps} distinct smaller value${steps === 1 ? "" : "s"} → ${steps} operation${steps === 1 ? "" : "s"} (total ${ops})`, rows: [a, [...st]], tones: { [`1:${i}`]: "active", [`0:${i}`]: "active" } }); }
+      return cells(`Operations: ${ops}`, [a, blank(a.length)], frames, ["sorted", "ops"]);
+    },
+  },
+
+  "cherry-pickup": {
+    approach: "Turn the round trip into two people walking from the top-left to the bottom-right at the same time; DP over the step and both rows.",
+    idea: ["The way back is just another path forward, so send two walkers together.", "After t steps a walker in row r is in column t - r, so (t, r1, r2) describes both. A shared cell is counted once.", "dp[r1][r2] at step t = cherries here + best of the four ways both could have arrived."],
+    code: `def cherryPickup(grid):
+    n, NEG = len(grid), float("-inf")
+    dp = [[NEG] * n for _ in range(n)]
+    dp[0][0] = grid[0][0]
+    for t in range(1, 2 * n - 1):
+        nxt = [[NEG] * n for _ in range(n)]
+        for r1 in range(max(0, t - n + 1), min(n, t + 1)):
+            for r2 in range(max(0, t - n + 1), min(n, t + 1)):
+                c1, c2 = t - r1, t - r2
+                if grid[r1][c1] < 0 or grid[r2][c2] < 0:
+                    continue
+                best = max(dp[a][b] for a in (r1 - 1, r1) for b in (r2 - 1, r2) if a >= 0 and b >= 0)
+                gain = grid[r1][c1] + (grid[r2][c2] if r1 != r2 else 0)
+                nxt[r1][r2] = best + gain
+        dp = nxt
+    return max(0, dp[n - 1][n - 1])`,
+    lang: "python", time: "O(n³)", space: "O(n²)",
+    viz: () => {
+      const g = [[0, 1, -1], [1, 0, -1], [1, 1, 1]], n = 3, NEG = -1e9, frames: TableFrame[] = []; let dp = Array.from({ length: n }, () => Array(n).fill(NEG)); dp[0][0] = g[0][0];
+      const show = grid(g).map((r) => r.map((x) => (x === -1 ? "#" : x)));
+      for (let t = 1; t < 2 * n - 1; t++) { const nx = Array.from({ length: n }, () => Array(n).fill(NEG)); let bv = NEG, b1 = 0, b2 = 0; for (let r1 = Math.max(0, t - n + 1); r1 < Math.min(n, t + 1); r1++) for (let r2 = Math.max(0, t - n + 1); r2 < Math.min(n, t + 1); r2++) { const c1 = t - r1, c2 = t - r2; if (g[r1][c1] < 0 || g[r2][c2] < 0) continue; let best = NEG; for (const a of [r1 - 1, r1]) for (const b of [r2 - 1, r2]) if (a >= 0 && b >= 0) best = Math.max(best, dp[a][b]); if (best <= NEG / 2) continue; nx[r1][r2] = best + g[r1][c1] + (r1 !== r2 ? g[r2][c2] : 0); if (nx[r1][r2] > bv) { bv = nx[r1][r2]; b1 = r1; b2 = r2; } } dp = nx; const diag = Array.from({ length: n }, (_, r) => r).filter((r) => t - r >= 0 && t - r < n).map((r) => `${r}:${t - r}`); frames.push({ note: `step ${t}: best so far ${bv} with walkers at (${b1},${t - b1}) and (${b2},${t - b2})`, cells: show, tones: { ...keys(diag, "window"), ...keys([`${b1}:${t - b1}`, `${b2}:${t - b2}`], "found") } }); }
+      const ans = Math.max(0, dp[n - 1][n - 1]);
+      return { kind: "table", title: `Cherries collected: ${ans}`, rowHead: heads(n, "r"), colHead: heads(n, "c"), frames };
+    },
+  },
+
+  "3sum-closest": {
+    approach: "Sort; fix the first number and move two pointers inward, keeping the sum closest to the target.",
+    idea: ["For fixed i, a sum below the target can only get closer by moving the left pointer right; above it, by moving the right pointer left.", "Track the best sum by distance to the target.", "An exact hit can return immediately."],
+    code: `def threeSumClosest(nums, target):
+    nums.sort()
+    best = nums[0] + nums[1] + nums[2]
+    for i in range(len(nums) - 2):
+        j, k = i + 1, len(nums) - 1
+        while j < k:
+            s = nums[i] + nums[j] + nums[k]
+            if abs(s - target) < abs(best - target):
+                best = s
+            if s < target:
+                j += 1
+            elif s > target:
+                k -= 1
+            else:
+                return s
+    return best`,
+    lang: "python", time: "O(n²)", space: "O(1)",
+    viz: () => {
+      const a = [-1, 2, 1, -4, 3].sort((p, q) => p - q), target = 1, frames: CellsFrame[] = []; let best = a[0] + a[1] + a[2];
+      outer: for (let i = 0; i < a.length - 2; i++) { let j = i + 1, k = a.length - 1; while (j < k) { const s = a[i] + a[j] + a[k]; if (Math.abs(s - target) < Math.abs(best - target)) best = s; frames.push({ note: `${a[i]} + ${a[j]} + ${a[k]} = ${s} (best ${best})${s < target ? ", too small: j++" : s > target ? ", too big: k--" : ", exact"}`, tones: { [`0:${i}`]: "found", [`0:${j}`]: "active", [`0:${k}`]: "active" }, marks: [{ i, label: "i" }, { i: j, label: "j" }, { i: k, label: "k" }] }); if (s < target) j++; else if (s > target) k--; else break outer; } }
+      return cells(`Closest to ${target}: ${best}`, [a], frames);
+    },
+  },
+
+  "palindrome-pairs": {
+    approach: "Store every reversed word in a map; split each word into prefix + suffix, and when one part is a palindrome, look up the reverse of the other part.",
+    idea: ["If prefix is a palindrome and some word equals reverse(suffix), that word + this word reads the same both ways.", "If suffix is a palindrome and some word equals reverse(prefix), this word + that word is a palindrome.", "Skip the empty split on the second check so a pair is not found twice."],
+    code: `def palindromePairs(words):
+    idx = {w[::-1]: i for i, w in enumerate(words)}
+    out = []
+    for i, w in enumerate(words):
+        for k in range(len(w) + 1):
+            pre, suf = w[:k], w[k:]
+            if pre == pre[::-1] and suf in idx and idx[suf] != i:
+                out.append([idx[suf], i])
+            if k != len(w) and suf == suf[::-1] and pre in idx and idx[pre] != i:
+                out.append([i, idx[pre]])
+    return out`,
+    lang: "python", time: "O(n · L²)", space: "O(n · L)",
+    viz: () => {
+      const words = ["abcd", "dcba", "lls", "s", "sssll"], idx = new Map(words.map((w, i) => [[...w].reverse().join(""), i])), pal = (x: string) => x === [...x].reverse().join(""), frames: TableFrame[] = [], out: number[][] = [];
+      words.forEach((w, i) => { for (let k = 0; k <= w.length; k++) { const pre = w.slice(0, k), suf = w.slice(k); if (pal(pre) && idx.has(suf) && idx.get(suf) !== i) { const j = idx.get(suf)!; out.push([j, i]); frames.push({ note: `"${w}": prefix "${pre}" is a palindrome and "${words[j]}" reverses the rest → "${words[j]}${w}"`, cells: [words], tones: { ["0:" + j]: "active", ["0:" + i]: "found" } }); } if (k !== w.length && pal(suf) && idx.has(pre) && idx.get(pre) !== i) { const j = idx.get(pre)!; out.push([i, j]); frames.push({ note: `"${w}": suffix "${suf}" is a palindrome and "${words[j]}" reverses "${pre}" → "${w}${words[j]}"`, cells: [words], tones: { ["0:" + i]: "found", ["0:" + j]: "active" } }); } } });
+      return { kind: "table", title: `Pairs: ${out.map((p) => `[${p.join(",")}]`).join(" ")}`, rowHead: ["words"], colHead: heads(words.length), frames };
+    },
+  },
   // @more
 };
