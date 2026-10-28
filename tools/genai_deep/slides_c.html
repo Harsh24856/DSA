@@ -1,0 +1,166 @@
+<!-- @m5 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 5.10 LangChain core</div>
+    <h3>Runnables and LCEL: how LangChain pieces snap together</h3>
+    <p>LangChain is a set of standard interfaces (chat models, prompts, retrievers, tools, output parsers) with integrations for hundreds of providers. Every piece is a <strong>Runnable</strong>, so every piece has the same methods, and pieces compose with <code>|</code> (the LangChain Expression Language, LCEL).</p>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  Q["question"] --> PAR{{"RunnableParallel"}}
+  PAR -->|"context"| R["retriever"] --> F["format_docs"]
+  PAR -->|"question"| P0["RunnablePassthrough"]
+  F --> PR["ChatPromptTemplate<br/>system + human messages"]
+  P0 --> PR
+  PR --> M["chat model<br/>ChatAnthropic, ChatOpenAI, ..."]
+  M --> OP["StrOutputParser<br/>or with_structured_output"]
+  OP --> A["answer"]</pre>
+      <figcaption>A RAG chain: a dict of parallel branches feeds the prompt, then the model, then the parser.</figcaption>
+    </figure>
+    <div class="two">
+      <div>
+        <h4>The Runnable interface</h4>
+        <div class="table-wrap"><table style="min-width:0">
+          <thead><tr><th>Method</th><th>What you get</th></tr></thead>
+          <tbody>
+            <tr><td>invoke / ainvoke</td><td>one input → one output (sync / async)</td></tr>
+            <tr><td>batch</td><td>many inputs in parallel, with a concurrency limit</td></tr>
+            <tr><td>stream / astream</td><td>output chunks as they are produced</td></tr>
+            <tr><td>astream_events</td><td>every inner step (retriever done, token produced) for UIs</td></tr>
+            <tr><td>with_retry / with_fallbacks</td><td>retry on errors, or fall back to another model</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div>
+        <h4>Composition rules</h4>
+        <ul>
+          <li><code>a | b</code>: run a, feed its output to b (RunnableSequence).</li>
+          <li>A dict or <code>RunnableParallel</code>: run branches on the same input, collect a dict.</li>
+          <li>A plain function in a chain becomes a <code>RunnableLambda</code>.</li>
+          <li><code>RunnablePassthrough</code>: pass the input through unchanged; <code>.assign(k=...)</code> adds a key.</li>
+          <li><code>model.with_structured_output(PydanticModel)</code>: the model returns a validated object instead of text.</li>
+        </ul>
+        <div class="callout tip"><span class="label">When to use LCEL</span><p>Straight pipelines (prompt → model → parser, simple RAG). As soon as you need loops, branching on results or memory across turns, use LangGraph; its nodes can still call LCEL chains.</p></div>
+      </div>
+    </div>
+    <div class="code"><div class="code-head"><span>lcel_rag.py · runs offline with fake embeddings and a scripted model</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:lcel_rag.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>What does the dict at the start of the chain receive and return?</summary><div class="ans"><p>It receives the raw question. Each branch runs on that same input: the retriever branch returns formatted context, the passthrough returns the question. The result is {"context": ..., "question": ...}, exactly the variables the prompt template needs.</p></div></details></li>
+      <li><details><summary>Why does streaming work through the whole chain?</summary><div class="ans"><p>Every Runnable implements stream. Components that can pass chunks along (the model, the string parser) do so as soon as chunks arrive; components that need the whole input (the retriever) run first and then hand over.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 5.11 agents in LangChain 1.x</div>
+    <h3>create_agent, middleware and streaming</h3>
+    <p>In LangChain 1.x, <code>create_agent</code> is the standard tool-calling agent. Under the hood it builds a LangGraph graph: a model node and a tools node in a loop. <strong>Middleware</strong> hooks into that loop to change behaviour without rewriting it. (Older code uses <code>langgraph.prebuilt.create_react_agent</code>; the idea is the same.)</p>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  S(["START"]) --> BA["before_agent"]
+  BA --> BM["before_model<br/>e.g. summarise old messages"]
+  BM --> MC["wrap_model_call<br/>retry, fallback, pick tools"]
+  MC --> AM["after_model<br/>e.g. human approval"]
+  AM --> D{"tool calls?"}
+  D -->|"yes"| TC["wrap_tool_call<br/>run each tool"]
+  TC --> BM
+  D -->|"no"| AA["after_agent"] --> E(["END"])</pre>
+      <figcaption>The agent loop with its middleware hooks. Built-ins include summarisation, human-in-the-loop, call limits, model fallback and PII redaction.</figcaption>
+    </figure>
+    <div class="two">
+      <div>
+        <h4>Middleware you will actually use</h4>
+        <ul>
+          <li><strong>SummarizationMiddleware</strong>: compress old turns when the context gets long.</li>
+          <li><strong>HumanInTheLoopMiddleware</strong>: pause before chosen tools for approval (uses LangGraph interrupts).</li>
+          <li><strong>ModelCallLimitMiddleware / tool call limits</strong>: stop runaway loops and cost spikes.</li>
+          <li><strong>ModelFallbackMiddleware</strong>: switch to another model when one fails.</li>
+          <li><strong>PIIMiddleware</strong>: detect and redact personal data in inputs and outputs.</li>
+          <li>Custom: subclass <code>AgentMiddleware</code> and implement only the hooks you need.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Streaming modes (LangGraph underneath)</h4>
+        <div class="table-wrap"><table style="min-width:0">
+          <thead><tr><th>stream_mode</th><th>Each chunk is</th></tr></thead>
+          <tbody>
+            <tr><td>updates</td><td>what one node just changed</td></tr>
+            <tr><td>values</td><td>the full state after each step</td></tr>
+            <tr><td>messages</td><td>LLM tokens as they are generated, with metadata</td></tr>
+            <tr><td>custom</td><td>anything your node writes (progress, logs)</td></tr>
+          </tbody>
+        </table></div>
+        <p>UIs usually combine <code>messages</code> (typing effect) with <code>updates</code> (show "searching the docs...").</p>
+      </div>
+    </div>
+    <div class="code"><div class="code-head"><span>create_agent_offline.py · the full loop, no API key</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:create_agent_offline.py}}</code></pre></div>
+    <div class="code"><div class="code-head"><span>langgraph_stream.py · updates vs values</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:langgraph_stream.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>The agent ran but used the tool 40 times. Which guards belong in every agent?</summary><div class="ans"><p>A model or tool call limit, a timeout, a cost budget per request, and tracing (LangSmith or similar) so you can see why it looped. Often the root cause is a tool returning an unclear error the model keeps retrying.</p></div></details></li>
+      <li><details><summary>create_agent or a hand-built StateGraph?</summary><div class="ans"><p>create_agent for the standard "model plus tools in a loop", with middleware for most customisation. A hand-built graph when the flow itself is custom: fixed steps, parallel branches, several agents, or approval stages that are not about a single tool call.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 5.12 the framework landscape</div>
+    <h3>LangChain, LangGraph and the other agent frameworks</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  subgraph LC["LangChain ecosystem"]
+    direction LR
+    CORE["langchain-core<br/>interfaces, LCEL"] --- INT["integrations<br/>langchain-anthropic, -openai, ..."]
+    LCA["langchain<br/>create_agent, middleware"] --- LG["LangGraph<br/>graphs, state, persistence"]
+    LS["LangSmith<br/>tracing, evals, prompt hub"] --- DEP["LangGraph server / platform<br/>deploy long-running agents"]
+  end
+  APP["your app"] --> LCA
+  APP --> LG
+  LCA --> LG
+  LG --> CORE
+  APP -.->|"traces"| LS</pre>
+      <figcaption>LangChain gives the building blocks, LangGraph runs them as a stateful graph, LangSmith shows what happened.</figcaption>
+    </figure>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Framework</th><th>Core idea</th><th>Pick it when</th></tr></thead>
+      <tbody>
+        <tr><td>LangGraph</td><td>Explicit state machine with checkpoints and interrupts</td><td>You need control: loops, branches, human approval, durable long runs</td></tr>
+        <tr><td>LangChain (create_agent)</td><td>Standard tool loop plus middleware, many integrations</td><td>A typical agent, fast, with any provider</td></tr>
+        <tr><td>LlamaIndex</td><td>Data first: loaders, indexes, query engines, event-driven Workflows</td><td>RAG over many document types is the main job</td></tr>
+        <tr><td>OpenAI Agents SDK</td><td>Agents, handoffs, guardrails, built-in tracing</td><td>Lightweight multi-agent apps, mostly on OpenAI models</td></tr>
+        <tr><td>Claude Agent SDK</td><td>The Claude Code agent loop as a library: files, shell, tools, subagents, MCP</td><td>Coding and computer-work agents on Claude</td></tr>
+        <tr><td>Pydantic AI</td><td>Type-safe agents, validated outputs, dependency injection</td><td>Python teams who want plain, typed code</td></tr>
+        <tr><td>CrewAI</td><td>Role-based "crews" of agents with tasks</td><td>Quick prototypes of role-play multi-agent flows</td></tr>
+        <tr><td>Microsoft AutoGen / Semantic Kernel</td><td>Conversational multi-agent; enterprise SDK (being unified as Microsoft Agent Framework)</td><td>.NET or Azure-centred teams</td></tr>
+        <tr><td>Google ADK</td><td>Agent Development Kit with A2A support</td><td>Gemini / Vertex AI deployments</td></tr>
+        <tr><td>DSPy</td><td>Write modules with signatures; optimisers tune the prompts and examples for you</td><td>You have a metric and want prompts optimised, not hand-written</td></tr>
+        <tr><td>Haystack</td><td>Pipelines of components for search and RAG</td><td>Production search pipelines with clear components</td></tr>
+      </tbody>
+    </table></div>
+    <div class="two">
+      <div>
+        <h4>How to choose</h4>
+        <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  A{"Fixed steps known<br/>in advance?"} -->|"yes"| W["Plain code or LCEL chain"]
+  A -->|"no"| B{"Need approval, memory<br/>or long-running state?"}
+  B -->|"yes"| G["LangGraph"]
+  B -->|"no"| C{"Mostly RAG over<br/>documents?"}
+  C -->|"yes"| L["LlamaIndex or LangChain RAG"]
+  C -->|"no"| D["create_agent, OpenAI Agents SDK,<br/>Claude Agent SDK or Pydantic AI"]</pre>
+          <figcaption>Start simple; add a framework when it removes code you would otherwise write.</figcaption>
+        </figure>
+      </div>
+      <div>
+        <h4>What transfers between all of them</h4>
+        <ul>
+          <li>The loop is always: model → tool calls → results → model, until done.</li>
+          <li>Tools are functions with a name, description and JSON schema; MCP lets one tool server work in all of them.</li>
+          <li>State, memory, guardrails, tracing and evals are separate concerns, whatever the framework calls them.</li>
+          <li>APIs in this space change quickly. Pin versions, read the changelog when upgrading, and keep your business logic in plain functions the framework calls.</li>
+        </ul>
+      </div>
+    </div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>What is the difference between LangChain and LangGraph in one sentence?</summary><div class="ans"><p>LangChain gives you the components (models, prompts, retrievers, tools) and a standard agent; LangGraph gives you the runtime that wires steps into a stateful, resumable graph, and LangChain's agents run on it.</p></div></details></li>
+      <li><details><summary>Why can DSPy improve a pipeline without you editing prompts?</summary><div class="ans"><p>You declare what each step takes and returns, plus a metric. Its optimisers try instructions and few-shot examples, measure the metric on your data, and keep what scores best, much like training weights but for prompts.</p></div></details></li>
+    </ol>
+  </article>

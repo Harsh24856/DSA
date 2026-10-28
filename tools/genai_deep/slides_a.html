@@ -190,7 +190,7 @@ discrete:    h_t = Ā·h_(t-1) + B̄·x_t,     y_t = C·h_t</div>
 
 <!-- @m2 -->
   <article class="slide">
-    <div class="slide-tag"><b>Deep dive</b> · 2.6 the transformer, shape by shape</div>
+    <div class="slide-tag"><b>Deep dive</b> · 2.10 the transformer, shape by shape</div>
     <h3>Follow one batch through a decoder</h3>
     <figure class="diagram">
 <pre class="mermaid">flowchart TB
@@ -236,7 +236,7 @@ inference ≈ 2 · N FLOPs per generated token</div>
   </article>
 
   <article class="slide">
-    <div class="slide-tag"><b>Deep dive</b> · 2.7 making attention fast</div>
+    <div class="slide-tag"><b>Deep dive</b> · 2.11 making attention fast</div>
     <h3>FlashAttention and the online softmax</h3>
     <p>On a GPU, moving data is slower than doing math. Naive attention writes the full T×T score matrix to slow GPU memory (HBM), reads it back for softmax, writes it again, then reads it to multiply by V. For long sequences that traffic, not the arithmetic, is the bottleneck.</p>
     <div class="two">
@@ -274,7 +274,7 @@ output = a / l      (after the last block)</div>
   </article>
 
   <article class="slide">
-    <div class="slide-tag"><b>Deep dive</b> · 2.8 long context and faster decoding</div>
+    <div class="slide-tag"><b>Deep dive</b> · 2.12 long context and faster decoding</div>
     <h3>Stretching context and generating faster</h3>
     <div class="two">
       <div>

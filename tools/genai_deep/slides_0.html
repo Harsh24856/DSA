@@ -1,0 +1,229 @@
+<!-- @m2 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 2.6 attention, one number at a time</div>
+    <h3>Self-attention worked by hand</h3>
+    <p>Attention answers one question for every token: <em>which earlier tokens should I read from, and how much?</em> Each token makes three vectors from its embedding with three learned matrices: a <strong>query</strong> (what I am looking for), a <strong>key</strong> (what I contain, for matching) and a <strong>value</strong> (what I hand over if chosen).</p>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  X["X: token embeddings<br/>(T, d_model)"] --> WQ["× W_Q"] --> Q["Q (T, d_k)<br/>what each token looks for"]
+  X --> WK["× W_K"] --> K["K (T, d_k)<br/>what each token offers"]
+  X --> WV["× W_V"] --> V["V (T, d_v)<br/>the content passed on"]
+  Q --> S["Q·Kᵀ / √d_k<br/>scores (T, T)"]
+  K --> S
+  S --> M["+ causal mask<br/>-∞ above diagonal"]
+  M --> SM["softmax per row<br/>weights (T, T)"]
+  SM --> O["weights · V<br/>output (T, d_v)"]
+  V --> O</pre>
+      <figcaption>Attention(Q, K, V) = softmax(QKᵀ / √d_k + mask) · V. Three matrix multiplies and a softmax.</figcaption>
+    </figure>
+    <div class="two">
+      <div>
+        <h4>The example (3 tokens, one head of size 2)</h4>
+        <div class="formula">tokens:   the      cat      sat
+Q rows:  [2, 0]   [0, 4]   [2, 2]
+K rows:  [0, 2]   [4, 0]   [2, 2]
+V rows:  [1, 0]   [2, 4]   [2, 2]</div>
+        <h4>Scores = Q·Kᵀ / √2, with the causal mask</h4>
+        <div class="table-wrap"><table style="min-width:0">
+          <thead><tr><th>query ↓ key →</th><th>the</th><th>cat</th><th>sat</th></tr></thead>
+          <tbody>
+            <tr><td>the</td><td>0.00</td><td>-∞</td><td>-∞</td></tr>
+            <tr><td>cat</td><td>5.66</td><td>0.00</td><td>-∞</td></tr>
+            <tr><td>sat</td><td>2.83</td><td>5.66</td><td>5.66</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div>
+        <h4>Softmax per row = attention weights</h4>
+        <div class="table-wrap"><table style="min-width:0">
+          <thead><tr><th>query</th><th>the</th><th>cat</th><th>sat</th></tr></thead>
+          <tbody>
+            <tr><td>the</td><td>1.000</td><td>0</td><td>0</td></tr>
+            <tr><td>cat</td><td>0.997</td><td>0.003</td><td>0</td></tr>
+            <tr><td>sat</td><td>0.029</td><td>0.486</td><td>0.486</td></tr>
+          </tbody>
+        </table></div>
+        <h4>Read it like this</h4>
+        <ul>
+          <li>"the" can only see itself (the mask), so it copies its own value.</li>
+          <li>"cat"'s query [0, 4] matches "the"'s key [0, 2] strongly, so "cat" reads almost only from "the".</li>
+          <li>"sat" splits its attention between "cat" and itself, so its output [1.97, 2.91] is close to the average of their values.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout key"><span class="label">Why divide by √d_k</span><p>If q and k have d_k independent parts with variance 1, their dot product has variance d_k. At d_k = 128 scores would be about 11× larger, softmax would put nearly all weight on one token, and gradients through the other tokens would vanish. Dividing by √d_k brings the variance back to 1.</p></div>
+    <div class="code"><div class="code-head"><span>attention_by_hand.py · reproduces every number above</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:attention_by_hand.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Why use separate Q and K matrices instead of comparing X with X?</summary><div class="ans"><p>X·Xᵀ is symmetric: token a would score b exactly as b scores a, and every token would match itself best. Separate W_Q and W_K let "looking for" differ from "offering", so a verb can look for its subject without the subject looking back.</p></div></details></li>
+      <li><details><summary>What is the output shape, and how does it get back to d_model?</summary><div class="ans"><p>Each head outputs (T, d_v). The H heads are concatenated to (T, H·d_v), usually equal to d_model, and multiplied by W_O. The result is added to the residual stream.</p></div></details></li>
+      <li><details><summary>Why is attention O(T²)?</summary><div class="ans"><p>The score matrix has one entry per (query, key) pair: T × T. Doubling the context quadruples the score computation, which is why long context needs FlashAttention, sparse patterns or linear alternatives.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 2.7 heads, masks and cross-attention</div>
+    <h3>Multi-head attention, masks and the three attention types</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  X["x (T, 512)"] --> P["Q, K, V projections<br/>(T, 512) each"]
+  P --> SP["split into 8 heads<br/>(8, T, 64)"]
+  SP --> H1["head 1<br/>syntax?"]
+  SP --> H2["head 2<br/>previous token?"]
+  SP --> H3["..."]
+  SP --> H8["head 8<br/>coreference?"]
+  H1 --> C["concat (T, 512)"]
+  H2 --> C
+  H3 --> C
+  H8 --> C
+  C --> WO["× W_O (512 × 512)"] --> OUT["back to the residual stream"]</pre>
+      <figcaption>Heads work in parallel on 64-dimensional slices; the cost is the same as one 512-dimensional head. Head roles are learned, not assigned; the labels are examples interpretability work has found.</figcaption>
+    </figure>
+    <div class="two">
+      <div>
+        <h4>Masks</h4>
+        <ul>
+          <li><strong>Causal mask</strong> (decoders): position i may attend to positions ≤ i. Implemented by adding -∞ above the diagonal before softmax.</li>
+          <li><strong>Padding mask</strong>: in a batch of different lengths, pad tokens get -∞ so nobody attends to them.</li>
+          <li><strong>Sliding window</strong>: each token sees only the last W tokens. Several layers stacked still reach far back (receptive field grows W per layer).</li>
+          <li><strong>Document mask</strong>: when several documents are packed into one training sequence, block attention across document boundaries.</li>
+        </ul>
+        <div class="formula">causal mask, T = 4 (0 = allowed, x = blocked)
+      k1 k2 k3 k4
+q1     0  x  x  x
+q2     0  0  x  x
+q3     0  0  0  x
+q4     0  0  0  0</div>
+      </div>
+      <div>
+        <h4>Three kinds of attention</h4>
+        <div class="table-wrap"><table style="min-width:0">
+          <thead><tr><th>Type</th><th>Q from</th><th>K, V from</th><th>Used in</th></tr></thead>
+          <tbody>
+            <tr><td>Bidirectional self</td><td>the sequence</td><td>the same sequence, all positions</td><td>BERT, ViT, encoders</td></tr>
+            <tr><td>Causal self</td><td>the sequence</td><td>the same sequence, earlier positions</td><td>GPT-style LLMs</td></tr>
+            <tr><td>Cross</td><td>the decoder</td><td>the encoder's output</td><td>T5, Whisper, translation, many diffusion models (text → image)</td></tr>
+          </tbody>
+        </table></div>
+        <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  SRC["source: audio or French text"] --> ENC["encoder<br/>bidirectional self-attention"]
+  ENC -->|"K, V"| CA["cross-attention"]
+  TGT["target so far"] --> DEC["decoder<br/>causal self-attention"]
+  DEC -->|"Q"| CA
+  CA --> NXT["next target token"]</pre>
+          <figcaption>Encoder-decoder: the decoder asks questions (Q) of the encoded source (K, V).</figcaption>
+        </figure>
+      </div>
+    </div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Does adding heads add parameters?</summary><div class="ans"><p>Not if the total width stays the same. 8 heads of 64 use the same W_Q, W_K, W_V and W_O sizes as one head of 512; the matrices are just split into slices.</p></div></details></li>
+      <li><details><summary>Why can BERT not generate text left to right well?</summary><div class="ans"><p>It was trained with bidirectional attention to fill in masked words using both sides. Generating needs a causal model that predicts the next token from the left context only, which is exactly what decoder-only training teaches.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 2.8 positions in depth</div>
+    <h3>How a transformer knows word order</h3>
+    <div class="two">
+      <div>
+        <h4>Sinusoidal (original transformer)</h4>
+        <div class="formula">PE(pos, 2i)   = sin(pos / 10000^(2i/d))
+PE(pos, 2i+1) = cos(pos / 10000^(2i/d))
+x = token_embedding + PE(pos)</div>
+        <p>Each pair of dimensions is a clock ticking at a different speed: fast clocks tell nearby positions apart, slow clocks tell far ones apart. It is added once at the input.</p>
+        <h4>RoPE (rotary, most modern LLMs)</h4>
+        <div class="formula">rotate each pair (x₁, x₂) of q and k by angle pos·θ_i
+⟨RoPE(q, m), RoPE(k, n)⟩ depends only on (m - n)</div>
+        <ul>
+          <li>Applied to q and k inside every attention layer, not added to the embedding.</li>
+          <li>Rotating both by their own position means the score sees only the <strong>distance</strong> between tokens: the same pattern works anywhere in the text.</li>
+          <li>Extending context means changing how fast the clocks tick (position interpolation, NTK, YaRN).</li>
+        </ul>
+      </div>
+      <div>
+        <h4>ALiBi and none at all</h4>
+        <ul>
+          <li><strong>ALiBi</strong>: no position vectors; add -m·|i - j| to each score, a penalty growing with distance (a different slope m per head).</li>
+          <li><strong>NoPE</strong>: causal decoders can infer some position information from the mask alone; some hybrid models drop positions in a few layers.</li>
+        </ul>
+        <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  subgraph ABS["Absolute (sinusoidal / learned)"]
+    direction LR
+    A1["embedding + PE(pos)"] --> A2["all layers"]
+  end
+  subgraph ROT["RoPE"]
+    direction LR
+    R1["q, k in every layer"] --> R2["rotate by position"] --> R3["score depends on distance"]
+  end
+  subgraph ALI["ALiBi"]
+    direction LR
+    L1["raw score"] --> L2["minus slope × distance"]
+  end</pre>
+          <figcaption>Where each method injects position.</figcaption>
+        </figure>
+      </div>
+    </div>
+    <div class="code"><div class="code-head"><span>rope_relative.py · proves the relative-distance property</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:rope_relative.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Why is RoPE applied to q and k but not to v?</summary><div class="ans"><p>Position should change <em>who attends to whom</em> (the scores), not the content being passed along. Rotating q and k makes the scores depend on relative distance; v stays a pure content vector.</p></div></details></li>
+      <li><details><summary>Why do learned absolute positions fail beyond the training length?</summary><div class="ans"><p>Position 5,000 has no trained embedding if training stopped at 4,096. Sinusoidal and RoPE give every position a defined value, though quality still drops without scaling and some long-context training.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 2.9 training vs generating</div>
+    <h3>One training step and one generation loop, end to end</h3>
+    <div class="two">
+      <div>
+        <h4>Training: teacher forcing</h4>
+        <div class="formula">text:    The cat sat on the mat
+inputs:  The cat sat on  the
+targets: cat sat on  the mat      (shifted left by one)
+
+loss = mean over positions of -log p(target_t | inputs_≤t)</div>
+        <ul>
+          <li>All T positions are predicted <strong>in parallel</strong> in one forward pass. The causal mask stops each position from seeing its own target.</li>
+          <li>Inputs are always the true previous tokens, never the model's own guesses (teacher forcing). That is what makes training fast.</li>
+          <li><strong>Packing:</strong> many short documents are joined into one long sequence with separator tokens, so no compute is wasted on padding.</li>
+          <li>For chat fine-tuning, only the assistant's tokens count in the loss (the rest are masked out).</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Generation: one token at a time</h4>
+        <figure class="diagram">
+<pre class="mermaid">sequenceDiagram
+  participant U as Your code
+  participant M as Model
+  participant C as KV cache
+  U->>M: prefill: whole prompt in one pass
+  M->>C: store K, V for every prompt token
+  M-->>U: logits for the next token
+  loop until stop token or max length
+    U->>U: sample (temperature, top-p)
+    U->>M: only the new token
+    M->>C: read all cached K, V and append one
+    M-->>U: logits for the next token
+  end</pre>
+          <figcaption>Prefill is parallel; decode is sequential, one cheap forward pass per token thanks to the KV cache.</figcaption>
+        </figure>
+      </div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th></th><th>Training</th><th>Prefill</th><th>Decode</th></tr></thead>
+      <tbody>
+        <tr><td>Tokens per forward pass</td><td>whole sequence, every batch row</td><td>whole prompt</td><td>1 per sequence</td></tr>
+        <tr><td>Uses the KV cache</td><td>no</td><td>writes it</td><td>reads and appends</td></tr>
+        <tr><td>Bottleneck</td><td>compute</td><td>compute</td><td>memory bandwidth</td></tr>
+        <tr><td>Backward pass</td><td>yes</td><td>no</td><td>no</td></tr>
+      </tbody>
+    </table></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>What is "exposure bias"?</summary><div class="ans"><p>During training the model always sees correct previous tokens; at generation time it sees its own outputs, including mistakes it never saw in training. Errors can compound. Larger models, sampling choices and RL fine-tuning on the model's own outputs reduce the effect.</p></div></details></li>
+      <li><details><summary>Why does the prompt's length mostly affect time to first token, while the answer's length affects total time?</summary><div class="ans"><p>The prompt is processed in one parallel prefill pass, so it adds to the wait before the first token. Every answer token needs its own sequential decode step, so total time grows with output length.</p></div></details></li>
+    </ol>
+  </article>
