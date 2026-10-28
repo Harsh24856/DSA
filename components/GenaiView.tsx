@@ -1,8 +1,9 @@
 "use client";
 // One Gen AI playbook page: head (with the Module done tick for modules), the section's content, prev/next links.
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, Check, Flask } from "@phosphor-icons/react";
 import { GENAI } from "@/lib/genai/content";
+import { LABS } from "@/lib/genai/labs";
 import { usePatterns } from "@/lib/patternStore";
 import { GenaiDoc } from "./GenaiDoc";
 
@@ -34,7 +35,8 @@ export function GenaiView({ id }: { id: string }) {
                 <li key={t.id}>
                   <a href={`#${t.id}`} className="flex gap-2.5 rounded-control py-1 text-[14px] transition-colors hover:text-accent">
                     <span className="num w-5 shrink-0 pt-px text-[12px] text-muted">{String(k + 1).padStart(2, "0")}</span>
-                    <span className="min-w-0"><span className="font-medium">{t.title}</span><span className="text-muted"> · {t.tag}</span></span>
+                    <span className="min-w-0"><span className="font-medium">{t.title}</span><span className="text-muted"> · {t.tag}</span>
+                      {LABS[id]?.some(([sl]) => sl === t.id) && <span className="ml-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-accent"><Flask size={12} weight="fill" aria-hidden />lab</span>}</span>
                   </a>
                 </li>
               ))}
@@ -43,7 +45,7 @@ export function GenaiView({ id }: { id: string }) {
         )}
       </section>
 
-      <GenaiDoc html={s.html} />
+      <GenaiDoc html={s.html} labs={LABS[id]} />
 
       <nav className="grid gap-3 sm:grid-cols-2" aria-label="Playbook pages">
         {prev ? <Link href={`/genai/${prev.id}`} className="btn btn-nav justify-start gap-3"><ArrowLeft size={16} aria-hidden /><span><span className="block text-[12px] font-normal text-muted">Previous</span>{prev.nav}</span></Link> : <span />}
