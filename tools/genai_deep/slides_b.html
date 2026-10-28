@@ -1,0 +1,388 @@
+<!-- @m4 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 4.7 inside a vector database</div>
+    <h3>Approximate nearest neighbour search</h3>
+    <p>Exact search compares the query with every stored vector: O(N·d) per query. At 100 million vectors that is far too slow, so vector databases use <strong>approximate</strong> indexes that look at a small fraction of the data and accept missing a few true neighbours. The quality measure is <strong>recall@k</strong>: what share of the true top-k the index returns.</p>
+    <div class="two">
+      <div>
+        <h4>HNSW: a graph you can walk</h4>
+        <ul>
+          <li>Every vector is a node linked to about M of its nearest neighbours.</li>
+          <li>Upper layers hold a few random nodes with long links (like express trains); lower layers hold more nodes with short links. Layer 0 holds everything.</li>
+          <li><strong>Search:</strong> start at the top, greedily hop to whichever neighbour is closer to the query, drop a layer when stuck, repeat. On layer 0 keep a candidate list of size <code>ef_search</code>.</li>
+          <li><strong>Knobs:</strong> M (links per node: memory and recall), ef_construction (build quality), ef_search (query-time recall vs latency).</li>
+          <li>Fast and high recall, but the graph lives in RAM and deletes are awkward.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>IVF and product quantization</h4>
+        <ul>
+          <li><strong>IVF:</strong> k-means splits the space into nlist cells. A query searches only its <code>nprobe</code> nearest cells.</li>
+          <li><strong>PQ:</strong> cut each vector into m pieces and replace each piece with the id of its nearest of 256 centroids. A 768-float vector (3 KB) becomes m bytes.</li>
+          <li>Distances are computed from a small lookup table per query: fast and tiny, but approximate. <strong>Re-score</strong> the top candidates with full vectors to get recall back.</li>
+          <li><strong>DiskANN</strong>-style indexes keep a graph on SSD with compressed vectors in RAM, for billions of vectors on one machine.</li>
+        </ul>
+      </div>
+    </div>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  subgraph L2["Layer 2: few nodes, long links"]
+    direction LR
+    A2(("entry")) --- B2(("n7"))
+  end
+  subgraph L1["Layer 1: more nodes"]
+    direction LR
+    A1(("n7")) --- B1(("n12")) --- C1(("n30"))
+  end
+  subgraph L0["Layer 0: every vector, short links"]
+    direction LR
+    A0(("n30")) --- B0(("n31")) --- C0(("n44")) --- D0(("nearest"))
+  end
+  L2 -.->|"drop down at n7"| L1
+  L1 -.->|"drop down at n30"| L0</pre>
+      <figcaption>HNSW search: greedy hops on sparse upper layers get close fast; layer 0 refines.</figcaption>
+    </figure>
+    <div class="code"><div class="code-head"><span>ivf_pq.py · IVF + PQ from scratch</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:ivf_pq.py}}</code></pre></div>
+    <p>Typical output: about 0.2 recall from PQ codes alone, about 0.99 after re-scoring 100 candidates, while scanning 8% of cells and storing codes 3% the size of the floats. That gap is why production systems almost always re-score.</p>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Recall dropped after adding a metadata filter. Why, and what helps?</summary><div class="ans"><p>With post-filtering, the index returns its top-k first and the filter then removes most of them. Use a database that filters during the graph walk (filtered HNSW), raise k or ef_search when filters are strict, or partition the data by the filter field.</p></div></details></li>
+      <li><details><summary>Cosine, dot product or L2?</summary><div class="ans"><p>Use what the embedding model was trained with. For unit-normalised vectors all three rank results the same way (cosine = dot, and L2² = 2 - 2·cos), so normalise and use dot product, which is the cheapest.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 4.8 choosing and tuning a store</div>
+    <h3>Vector stores and modern embedding tricks</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Store</th><th>Shape</th><th>Good fit</th></tr></thead>
+      <tbody>
+        <tr><td>pgvector (Postgres)</td><td>Extension</td><td>You already run Postgres; joins, transactions and filters with SQL; up to tens of millions of vectors</td></tr>
+        <tr><td>Qdrant, Weaviate, Milvus</td><td>Dedicated server or cloud</td><td>Large collections, strong filtering, hybrid search, sharding</td></tr>
+        <tr><td>Pinecone, Turbopuffer and other managed services</td><td>Serverless API</td><td>No ops; pay per use; check cost at your scale</td></tr>
+        <tr><td>Chroma, LanceDB, FAISS</td><td>Embedded library</td><td>Prototypes, notebooks, on-device or single-process apps</td></tr>
+        <tr><td>Elasticsearch / OpenSearch</td><td>Search engine</td><td>Mature BM25 plus vectors, when keyword search already lives there</td></tr>
+      </tbody>
+    </table></div>
+    <div class="two">
+      <div>
+        <h4>Smaller and cheaper embeddings</h4>
+        <ul>
+          <li><strong>Matryoshka embeddings:</strong> trained so the first 256 (or 128) dimensions already work well. Truncate for a fast first pass, use full length to re-score.</li>
+          <li><strong>Quantization:</strong> int8 keeps almost all quality at 4× less memory; <strong>binary</strong> (1 bit per dimension, Hamming distance) is 32× smaller and very fast, usually followed by float re-scoring.</li>
+          <li><strong>Sparse learned (SPLADE)</strong> and BM25 still win on exact terms; keep them for hybrid search.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Better retrieval units</h4>
+        <ul>
+          <li><strong>Late interaction (ColBERT):</strong> keep one vector per token and score with MaxSim. More accurate on hard queries, more storage. ColPali applies the same idea to page images.</li>
+          <li><strong>Contextual retrieval:</strong> before embedding a chunk, prepend a short LLM-written sentence saying where it comes from ("This section of the 2025 refund policy covers EU customers"). Cheap with prompt caching and a large recall gain.</li>
+          <li><strong>Parent-child:</strong> search small chunks, return their larger parent section to the LLM.</li>
+        </ul>
+      </div>
+    </div>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  Q["query"] --> E["embed"]
+  E --> BQ["binary / 256-dim first pass<br/>scan millions, keep 500"]
+  BQ --> RS["re-score 500 with<br/>full float vectors, keep 50"]
+  RS --> CE["cross-encoder rerank<br/>keep 5"]
+  CE --> LLM["LLM answer with citations"]</pre>
+      <figcaption>A funnel: each stage is slower but more accurate, and sees fewer candidates.</figcaption>
+    </figure>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>10M chunks, 1024-dim float32: how much RAM for raw vectors? With binary?</summary><div class="ans"><p>10M × 1024 × 4 bytes ≈ 41 GB. Binary: 10M × 1024 bits ≈ 1.3 GB, which fits in RAM easily; keep the floats on disk for re-scoring.</p></div></details></li>
+      <li><details><summary>When is pgvector the right choice?</summary><div class="ans"><p>When you already use Postgres and the collection is moderate: you get transactions, joins with your business data and row-level permissions for free, and one fewer system to run. Move to a dedicated store when scale, filtering speed or ops needs outgrow it.</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @m5 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 5.7 LangGraph in depth</div>
+    <h3>State, reducers and control flow</h3>
+    <p>LangGraph models an agent as a <strong>state machine</strong>. It runs in "super-steps" (from Google's Pregel model): every node scheduled in a step runs, possibly in parallel, their updates are merged into the state, and the edges decide which nodes run next. The state is checkpointed after every super-step.</p>
+    <div class="two">
+      <div>
+        <h4>The pieces</h4>
+        <ul>
+          <li><strong>State schema:</strong> a TypedDict (or Pydantic model). Each key is a "channel".</li>
+          <li><strong>Reducers:</strong> how updates to a key are merged. Default is overwrite; <code>Annotated[list, operator.add]</code> appends; <code>add_messages</code> appends and updates messages by id. Without a reducer, two parallel nodes writing the same key is an error.</li>
+          <li><strong>Nodes</strong> return only the keys they change.</li>
+          <li><strong>Edges:</strong> fixed (<code>add_edge</code>), conditional (<code>add_conditional_edges</code> with a router function), or decided inside a node by returning <code>Command(goto=..., update=...)</code>.</li>
+          <li><strong>Send:</strong> a router may return a list of <code>Send("node", payload)</code> to fan out one branch per item (map-reduce).</li>
+        </ul>
+      </div>
+      <div>
+        <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  S(["START"]) --> P["plan<br/>writes subqs"]
+  P -->|"Send × 3"| R1["research A"]
+  P -->|"Send"| R2["research B"]
+  P -->|"Send"| R3["research C"]
+  R1 --> W["write<br/>reads all notes"]
+  R2 --> W
+  R3 --> W
+  W --> E(["END"])
+  R1 -.-|"notes += [...]"| N[("notes channel<br/>reducer: operator.add")]</pre>
+          <figcaption>Map-reduce with Send: three branches run in the same super-step; the reducer appends their notes.</figcaption>
+        </figure>
+      </div>
+    </div>
+    <div class="code"><div class="code-head"><span>langgraph_fanout.py · runs without an API key</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:langgraph_fanout.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Two parallel nodes both return {"notes": [...]}. What happens without a reducer?</summary><div class="ans"><p>LangGraph raises an error, because a plain channel can take only one value per super-step. Declare the key with a reducer such as operator.add so the updates are combined.</p></div></details></li>
+      <li><details><summary>Conditional edge or Command?</summary><div class="ans"><p>A conditional edge keeps routing logic separate and visible in the graph definition. Command lets a node update state and choose the next node in one return, which is handy for handoffs between agents. Both compile to the same kind of graph.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 5.8 persistence and humans in the loop</div>
+    <h3>Checkpoints, interrupts and multi-agent graphs</h3>
+    <div class="two">
+      <div>
+        <h4>Persistence</h4>
+        <ul>
+          <li>A <strong>checkpointer</strong> (InMemorySaver for tests; SQLite or Postgres savers in production) stores a snapshot after every super-step, keyed by <code>thread_id</code>.</li>
+          <li>That gives you conversation memory, crash recovery (resume from the last step), and <strong>time travel</strong>: list past snapshots with <code>get_state_history</code>, edit one with <code>update_state</code>, and re-run from there.</li>
+          <li><strong>Short-term memory</strong> = the thread's state. <strong>Long-term memory</strong> (facts about a user across threads) goes in a separate Store, searched when needed.</li>
+        </ul>
+        <h4>Human in the loop</h4>
+        <ul>
+          <li>Call <code>interrupt(payload)</code> inside a node. The graph stops, saves state and returns the payload to your app.</li>
+          <li>Resume with <code>invoke(Command(resume=value), cfg)</code>. The node restarts from its beginning and <code>interrupt</code> now returns the value, so keep code before it free of side effects.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Multi-agent shapes</h4>
+        <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  U["user"] --> SUP["supervisor<br/>routes each turn"]
+  SUP --> RA["research agent<br/>(subgraph)"]
+  SUP --> CA["coding agent<br/>(subgraph)"]
+  SUP --> HA["human approval<br/>interrupt()"]
+  RA --> SUP
+  CA --> SUP
+  HA --> SUP</pre>
+          <figcaption>Supervisor pattern: one router, specialist subgraphs, a human checkpoint for risky actions.</figcaption>
+        </figure>
+        <ul>
+          <li><strong>Supervisor:</strong> a central router; easy to reason about.</li>
+          <li><strong>Swarm / handoff:</strong> agents pass control directly with <code>Command(goto=...)</code>; fewer hops, harder to debug.</li>
+          <li>Each agent can be its own compiled graph used as a node (a <strong>subgraph</strong>) with its own private state.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="code"><div class="code-head"><span>langgraph_interrupt.py · approval before a risky action</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:langgraph_interrupt.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Why must code before interrupt() be safe to run twice?</summary><div class="ans"><p>On resume, LangGraph re-runs the interrupted node from its first line; only the interrupt call returns differently. Anything before it (sending an email, charging a card) would happen again. Put side effects after the interrupt or in a separate node.</p></div></details></li>
+      <li><details><summary>Two users chat with the same compiled graph. How is their state kept apart?</summary><div class="ans"><p>Each conversation uses its own thread_id in the config. The checkpointer stores and loads snapshots per thread_id, so one compiled graph can serve many users.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 5.9 agent protocols</div>
+    <h3>MCP and agent-to-agent protocols</h3>
+    <div class="two">
+      <div>
+        <h4>Model Context Protocol (MCP)</h4>
+        <ul>
+          <li>An open protocol (JSON-RPC) between a <strong>host</strong> app (Claude, an IDE, your agent), its <strong>clients</strong>, and <strong>servers</strong> that expose capabilities.</li>
+          <li><strong>Server primitives:</strong> <em>tools</em> (functions the model may call), <em>resources</em> (data the app can read, such as files or rows), <em>prompts</em> (reusable templates the user picks).</li>
+          <li><strong>Client features</strong> a server can ask for: sampling (borrow the host's model) and elicitation (ask the user for input).</li>
+          <li><strong>Transports:</strong> stdio for local servers; Streamable HTTP for remote ones, with OAuth for auth.</li>
+          <li>Security: treat tool descriptions and results from third-party servers as untrusted input (prompt injection), and scope each server's permissions tightly.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Agent-to-agent (A2A)</h4>
+        <ul>
+          <li>MCP connects an agent to tools and data. <strong>A2A</strong> (an open protocol started by Google, now under the Linux Foundation) connects agents to other agents that may run on different frameworks or companies.</li>
+          <li>Each agent publishes an <strong>agent card</strong> (what it can do, how to reach it). Work is exchanged as <strong>tasks</strong> with status updates and artifacts, including long-running ones.</li>
+          <li>Rule of thumb: inside one system, a function call or a LangGraph subgraph is simpler. Use a protocol at boundaries you do not own.</li>
+        </ul>
+      </div>
+    </div>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  subgraph H["Host app"]
+    LLM["LLM"] <--> C1["MCP client"]
+    LLM <--> C2["MCP client"]
+  end
+  C1 <-->|"stdio"| S1["Local server<br/>files, git"]
+  C2 <-->|"Streamable HTTP + OAuth"| S2["Remote server<br/>CRM, tickets"]
+  H <-->|"A2A tasks"| AG["Another company's agent"]</pre>
+      <figcaption>MCP: one client per server inside the host. A2A: agent to agent across a boundary.</figcaption>
+    </figure>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Tool vs resource in MCP?</summary><div class="ans"><p>A tool is an action the model decides to call (search, create ticket). A resource is data the application chooses to load into context (a file, a database row). The model controls tools; the app or user controls resources.</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @m6 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 6.5 post-training theory</div>
+    <h3>From SFT to reinforcement learning with verifiable rewards</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  B["Base model<br/>predicts web text"] --> S["SFT<br/>imitate good answers"]
+  S --> P["Preference tuning<br/>RLHF / DPO"]
+  P --> R["RL with verifiable rewards<br/>math, code, tool use"]
+  R --> D["Distil into<br/>smaller models"]</pre>
+      <figcaption>A typical modern post-training pipeline. Labs mix and repeat these stages.</figcaption>
+    </figure>
+    <div class="two">
+      <div>
+        <h4>The objectives</h4>
+        <div class="formula">SFT:   L = -Σ log π(y_t | x, y_&lt;t)        (loss on answer tokens only)
+
+RLHF:  max  E[r(x, y)] - β · KL(π ‖ π_ref)
+
+DPO:   L = -log σ( β·[log π(y_w)/π_ref(y_w)
+                      - log π(y_l)/π_ref(y_l)] )
+
+GRPO:  A_i = (r_i - mean(r)) / std(r)   over G samples</div>
+        <ul>
+          <li>The <strong>KL term</strong> keeps the policy near the reference so it does not drift into gibberish that fools the reward model.</li>
+          <li><strong>DPO</strong> shows the RLHF optimum can be reached with a classification-style loss on preference pairs: no reward model, no sampling loop.</li>
+          <li><strong>GRPO</strong> drops PPO's value network: sample a group of answers per prompt and use each answer's reward relative to the group as its advantage.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Why RL with verifiable rewards (RLVR) took off</h4>
+        <ul>
+          <li>For math, code and many tool tasks a program can check the answer (unit tests, exact match), so rewards are cheap and hard to fool.</li>
+          <li>Long chains of thought, self-checking and backtracking emerged from this kind of training (DeepSeek-R1 was the well-known open example).</li>
+          <li><strong>Reward hacking</strong> still happens: models learn to game weak checkers (special-casing tests). Strong, varied verifiers matter.</li>
+        </ul>
+        <h4>Distillation</h4>
+        <div class="formula">L = KL( softmax(z_teacher / τ) ‖ softmax(z_student / τ) ) · τ²</div>
+        <p>A small student copies a big teacher's full probability distribution (or simply its generated reasoning traces). Many small reasoning models are made this way.</p>
+        <h4>Parameter-efficient variants</h4>
+        <p>LoRA and QLoRA (Module 6.2) remain the default. <strong>DoRA</strong> splits each weight into magnitude and direction and applies LoRA to the direction, often closing part of the gap to full fine-tuning.</p>
+      </div>
+    </div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>What does β control in RLHF and DPO?</summary><div class="ans"><p>How far the policy may move from the reference. Small β lets it chase the reward (or the preferences) harder, with more risk of degenerate outputs; large β keeps it close to the starting model.</p></div></details></li>
+      <li><details><summary>Why does GRPO not need a value network?</summary><div class="ans"><p>It estimates how good an answer is by comparing it with other answers to the same prompt. The group mean acts as the baseline that PPO's critic would otherwise learn, which saves memory and a whole model.</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @m7 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 7.6 inside an inference engine</div>
+    <h3>How vLLM-style servers get their throughput</h3>
+    <div class="two">
+      <div>
+        <h4>Two phases, two bottlenecks</h4>
+        <ul>
+          <li><strong>Prefill</strong> processes the whole prompt in parallel: big matrix multiplies, <strong>compute-bound</strong>. It sets time to first token (TTFT).</li>
+          <li><strong>Decode</strong> makes one token per step and must read every weight and the KV cache each time: <strong>memory-bandwidth-bound</strong>. It sets time per output token (TPOT).</li>
+          <li>Batching many users in decode is nearly free, because the weights are read once and reused for every sequence in the batch.</li>
+        </ul>
+        <div class="formula">decode speed limit, one sequence:
+  tokens/s ≲ memory bandwidth / bytes of weights
+  e.g. 3.35 TB/s ÷ 16 GB (8B in bf16) ≈ 200 tok/s
+
+latency ≈ TTFT + output_tokens × TPOT</div>
+      </div>
+      <div>
+        <h4>The techniques</h4>
+        <ul>
+          <li><strong>Continuous batching:</strong> requests join and leave the running batch every step instead of waiting for the slowest one.</li>
+          <li><strong>PagedAttention:</strong> the KV cache is stored in fixed-size blocks, like operating-system memory pages, so there is almost no wasted memory and more users fit.</li>
+          <li><strong>Prefix caching</strong> (RadixAttention in SGLang): requests sharing a prefix (system prompt, few-shot examples) reuse its KV blocks.</li>
+          <li><strong>Chunked prefill:</strong> long prompts are split so they do not freeze everyone else's decoding.</li>
+          <li><strong>Disaggregated serving:</strong> prefill and decode run on separate GPU pools, each tuned for its bottleneck, with KV caches shipped between them.</li>
+          <li><strong>Parallelism:</strong> tensor parallel (split each matrix across GPUs in one node), pipeline parallel (split layers), expert parallel (spread MoE experts).</li>
+        </ul>
+      </div>
+    </div>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  RQ["incoming requests"] --> SCH["scheduler<br/>continuous batching"]
+  SCH --> PF["prefill workers<br/>compute-bound"]
+  PF -->|"KV blocks"| DC["decode workers<br/>bandwidth-bound"]
+  KV[("paged KV cache<br/>+ prefix cache")] --- PF
+  KV --- DC
+  DC --> ST["stream tokens to users"]</pre>
+      <figcaption>A disaggregated engine. Small deployments run both phases on the same GPUs.</figcaption>
+    </figure>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Format</th><th>Bytes / weight</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>bf16</td><td>2</td><td>Reference quality; training format</td></tr>
+        <tr><td>FP8 (W8A8)</td><td>1</td><td>Near-lossless on recent data-centre GPUs; weights and activations</td></tr>
+        <tr><td>INT8 / INT4 weight-only (AWQ, GPTQ)</td><td>1 / 0.5</td><td>Good when memory-bound; activations stay 16-bit</td></tr>
+        <tr><td>FP4 (MXFP4, NVFP4)</td><td>~0.5</td><td>Newest GPUs have native support; some open models ship in it</td></tr>
+        <tr><td>GGUF Q4_K_M etc.</td><td>~0.6</td><td>llama.cpp / Ollama on laptops and CPUs</td></tr>
+      </tbody>
+    </table></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>TTFT is fine but tokens stream slowly. Which phase, and what helps?</summary><div class="ans"><p>Decode. It is bandwidth-bound: quantize the weights (fewer bytes to read), use speculative decoding, use a smaller model, or reduce batch contention. Prefill tricks will not help.</p></div></details></li>
+      <li><details><summary>Why does prefix caching save so much in RAG and agents?</summary><div class="ans"><p>The system prompt, tool definitions and long documents repeat across requests. Reusing their KV blocks skips that prefill work entirely, cutting TTFT and cost. Put stable content first so the shared prefix is long.</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @m8 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 8.4 generative image and video theory</div>
+    <h3>From diffusion to flow matching</h3>
+    <div class="two">
+      <div>
+        <h4>Diffusion recap</h4>
+        <div class="formula">forward:   x_t = √ᾱ_t · x₀ + √(1 - ᾱ_t) · ε
+training:  min ‖ ε - ε_θ(x_t, t, text) ‖²
+sampling:  start from noise, denoise step by step</div>
+        <ul>
+          <li><strong>Latent diffusion:</strong> work in a VAE's compressed latent space (e.g. 8× smaller per side), not pixels. Much cheaper.</li>
+          <li><strong>DDIM</strong> and modern solvers sample in 20 to 50 steps instead of 1000.</li>
+          <li><strong>Classifier-free guidance:</strong> ε = ε_uncond + w·(ε_cond - ε_uncond). Higher w follows the prompt more closely and lowers diversity.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Flow matching and rectified flow</h4>
+        <div class="formula">path:      x_t = (1 - t)·x₀ + t·ε        (straight line)
+target:    v = ε - x₀                    (constant velocity)
+training:  min ‖ v - v_θ(x_t, t, text) ‖²
+sampling:  integrate dx/dt = v_θ from noise back to data</div>
+        <ul>
+          <li>Learns a velocity field along straight paths between data and noise. Straighter paths need fewer integration steps.</li>
+          <li>Most recent image and video models (Stable Diffusion 3, FLUX and many video models) use flow matching with a <strong>Diffusion Transformer (DiT)</strong> backbone instead of a U-Net.</li>
+          <li><strong>Distillation</strong> (consistency models, adversarial distillation) cuts sampling to 1 to 4 steps for real-time use.</li>
+        </ul>
+      </div>
+    </div>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  T["text prompt"] --> TE["text encoder"]
+  N["noise latent<br/>(frames × h × w)"] --> DIT["DiT: transformer over<br/>spacetime patches"]
+  TE --> DIT
+  DIT -->|"repeat N steps:<br/>predict velocity, step"| DIT
+  DIT --> VD["VAE decoder"] --> V["image or video"]</pre>
+      <figcaption>Video models treat a clip as a 3D grid of spacetime patches and denoise them all with one transformer.</figcaption>
+    </figure>
+    <div class="two">
+      <div>
+        <h4>Native multimodal LLMs</h4>
+        <ul>
+          <li><strong>Encoder + projector</strong> (LLaVA style): a vision encoder turns the image into embeddings, a small adapter maps them into the LLM's token space.</li>
+          <li><strong>Early fusion:</strong> images (and audio) become tokens in the same sequence from the start of pretraining, so one transformer reasons across all of them.</li>
+          <li><strong>Speech-to-speech:</strong> audio tokens in and out of one model remove the speech-to-text and text-to-speech hops, cutting voice latency.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Check yourself</h4>
+        <ol class="qlist">
+          <li><details><summary>Why do straight flow paths allow fewer sampling steps?</summary><div class="ans"><p>Numerical integration is exact for a constant velocity along a straight line: one big step lands in the right place. Curved diffusion paths need many small steps to follow the curve.</p></div></details></li>
+          <li><details><summary>Guidance scale 15 gives oversaturated images. Why?</summary><div class="ans"><p>Guidance extrapolates past the conditional prediction by w times the difference. Large w pushes latents outside the range seen in training, giving harsh colours and artefacts. Typical values are much lower.</p></div></details></li>
+        </ol>
+      </div>
+    </div>
+  </article>

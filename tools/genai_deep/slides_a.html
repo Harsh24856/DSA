@@ -1,0 +1,317 @@
+<!-- @m0 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 0.4 the math of learning</div>
+    <h3>Backpropagation on a computation graph</h3>
+    <p>Every network is a graph of small operations. The forward pass computes values left to right. The backward pass sends one number, ∂L/∂(that node), right to left, and each node multiplies it by its own local derivative. That is the whole algorithm.</p>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  X["x = 2"] --> M["z = w·x + b<br/>z = 0.8"]
+  W["w = 0.5"] --> M
+  B["b = -0.2"] --> M
+  M --> S["p = σ(z)<br/>p = 0.690"]
+  S --> L["L = (p - y)²<br/>L = 0.096"]
+  Y["y = 1"] --> L
+  L -.->|"∂L/∂p = -0.620"| S
+  S -.->|"∂L/∂z = -0.133"| M
+  M -.->|"∂L/∂w = -0.265"| W</pre>
+      <figcaption>Solid arrows: forward values. Dotted arrows: gradients flowing back. Each gradient is the one after it times a local derivative.</figcaption>
+    </figure>
+    <div class="two">
+      <div>
+        <h4>Rules you use every day</h4>
+        <ul>
+          <li><strong>Chain rule:</strong> ∂L/∂w = ∂L/∂p · ∂p/∂z · ∂z/∂w.</li>
+          <li><strong>Fan-out adds:</strong> if a value feeds two places, its gradient is the sum of both incoming gradients. This is why residual connections pass gradient straight through.</li>
+          <li><strong>Matrix form:</strong> for Y = XW, ∂L/∂W = Xᵀ·∂L/∂Y and ∂L/∂X = ∂L/∂Y·Wᵀ. Shapes always match the thing you differentiate.</li>
+          <li><strong>Cost:</strong> the backward pass costs about 2× the forward pass, so one training step ≈ 3× a forward pass.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Two results worth deriving once</h4>
+        <div class="formula">softmax + cross-entropy:
+  p = softmax(z),  L = -log p_y
+  ∂L/∂z = p - onehot(y)
+
+sigmoid:  σ'(z) = σ(z)(1 - σ(z)) ≤ 0.25</div>
+        <ul>
+          <li>The first is why the LLM loss trains so cleanly: the gradient is simply "predicted probabilities minus the truth".</li>
+          <li>The second explains vanishing gradients: 10 sigmoid layers multiply at most 0.25¹⁰ ≈ 10⁻⁶ into the signal.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="code"><div class="code-head"><span>backprop_by_hand.py</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:backprop_by_hand.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Why does a residual connection help the gradient?</summary><div class="ans"><p>For y = x + F(x), ∂y/∂x = I + ∂F/∂x. The identity term carries the gradient back unchanged even when ∂F/∂x is tiny, so deep stacks do not multiply the signal down to zero.</p></div></details></li>
+      <li><details><summary>Reverse-mode vs forward-mode autodiff: why do frameworks use reverse mode?</summary><div class="ans"><p>Reverse mode gives the gradient of one scalar (the loss) with respect to all parameters in one backward pass. Forward mode would need one pass per parameter. With millions of parameters and one loss, reverse mode wins by a huge factor.</p></div></details></li>
+      <li><details><summary>What does activation checkpointing trade?</summary><div class="ans"><p>The backward pass needs the forward activations. Checkpointing stores only some of them and recomputes the rest during backward: less memory, roughly one extra forward pass of compute.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 0.5 generalisation</div>
+    <h3>Why networks generalise: bias, variance, initialisation</h3>
+    <div class="two">
+      <div>
+        <h4>Bias and variance</h4>
+        <div class="formula">E[(y - ŷ)²] = bias² + variance + noise</div>
+        <ul>
+          <li><strong>Bias:</strong> error from a model too simple to fit the pattern (underfitting).</li>
+          <li><strong>Variance:</strong> error from fitting the quirks of this particular training set (overfitting).</li>
+          <li><strong>Noise:</strong> the part no model can remove.</li>
+          <li>Classical view: as models grow, test error falls, then rises (a U shape).</li>
+        </ul>
+        <h4>Double descent</h4>
+        <p>Modern networks keep growing past the point where they fit the training set perfectly, and test error falls again. With many parameters, gradient descent tends to find smooth, simple solutions among all the ones that fit (implicit regularisation). This is one reason "bigger plus more data" kept working for LLMs.</p>
+      </div>
+      <div>
+        <h4>Initialisation keeps signals alive</h4>
+        <div class="formula">Var(output) = n_in · Var(w) · Var(input)
+
+Xavier (tanh):  Var(w) = 2 / (n_in + n_out)
+He (ReLU):      Var(w) = 2 / n_in</div>
+        <p>If each layer multiplies the variance by more than 1, activations explode; by less than 1, they vanish. Picking Var(w) so the factor is 1 keeps every layer in a useful range. ReLU zeros half its inputs, hence the 2 in He init.</p>
+        <h4>Regularisers and what they really do</h4>
+        <div class="table-wrap"><table style="min-width:0">
+          <thead><tr><th>Method</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr><td>Weight decay</td><td>Pulls weights toward 0, prefers smoother functions</td></tr>
+            <tr><td>Dropout</td><td>Trains an ensemble of thinned networks</td></tr>
+            <tr><td>Data augmentation</td><td>Teaches invariances (crop, flip, paraphrase)</td></tr>
+            <tr><td>Early stopping</td><td>Stops before the model memorises noise</td></tr>
+            <tr><td>Label smoothing</td><td>Stops logits growing without bound</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  A["Small model<br/>high bias"] --> B["Sweet spot<br/>classical regime"]
+  B --> C["Interpolation threshold<br/>fits train set exactly,<br/>test error peaks"]
+  C --> D["Over-parameterised<br/>test error falls again"]</pre>
+      <figcaption>Double descent: the classical U shape is only the left half of the story.</figcaption>
+    </figure>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Train accuracy 99%, test 70%. Bias or variance problem?</summary><div class="ans"><p>Variance (overfitting). More data, augmentation, regularisation or a smaller model help. If both were 70%, it would be bias: use a bigger model or better features.</p></div></details></li>
+      <li><details><summary>Why use He init instead of Xavier with ReLU?</summary><div class="ans"><p>ReLU outputs zero for half of its inputs, which halves the variance passed on. He init doubles Var(w) to compensate, so the variance stays constant through depth.</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @m1 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 1.9 inductive bias</div>
+    <h3>Why each architecture fits its data</h3>
+    <p>An architecture is a set of assumptions built into the wiring, called its <strong>inductive bias</strong>. The right bias means the network learns from less data, because it does not have to discover the structure on its own.</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Architecture</th><th>Built-in assumption</th><th>Symmetry it respects</th><th>Cost per layer</th></tr></thead>
+      <tbody>
+        <tr><td>MLP</td><td>None: every input talks to every unit</td><td>None</td><td>O(n·d)</td></tr>
+        <tr><td>CNN</td><td>Nearby pixels matter most; patterns repeat</td><td>Translation (shift the image, the features shift)</td><td>O(n·k²·c²)</td></tr>
+        <tr><td>RNN / LSTM</td><td>Order matters; the past is summarised in a state</td><td>Same rule at every time step</td><td>O(n·d²), sequential</td></tr>
+        <tr><td>Transformer</td><td>Any token may matter to any other</td><td>Permutation (positions are added explicitly)</td><td>O(n²·d + n·d²)</td></tr>
+        <tr><td>GNN</td><td>Information flows along edges</td><td>Relabelling the nodes</td><td>O(edges·d)</td></tr>
+        <tr><td>SSM (Mamba)</td><td>A compressed running state, like an RNN, but trainable in parallel</td><td>Same rule at every step</td><td>O(n·d), linear</td></tr>
+      </tbody>
+    </table></div>
+    <div class="two">
+      <div>
+        <h4>Receptive field</h4>
+        <div class="formula">CNN, kernel k, L layers, stride 1:
+  receptive field = 1 + L·(k - 1)
+
+Transformer: whole context after 1 layer</div>
+        <p>A CNN must stack many layers (or downsample) before a pixel can see the whole image. Attention sees everything at once, which is why Vision Transformers need more data: they must learn locality that a CNN gets for free.</p>
+      </div>
+      <div>
+        <h4>The bitter lesson, in practice</h4>
+        <ul>
+          <li>With little data, strong biases (CNN, GNN) win.</li>
+          <li>With huge data and compute, weaker biases (transformers) catch up and pass them, because they can learn structure the designer did not imagine.</li>
+          <li>Hybrids are common: ConvNeXt (CNN with transformer tricks), Swin (local attention windows), and conv stems in front of ViTs.</li>
+        </ul>
+      </div>
+    </div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Why does a plain transformer need positional information?</summary><div class="ans"><p>Attention is permutation-equivariant: shuffling the input tokens just shuffles the outputs. Without positions, "dog bites man" and "man bites dog" look the same.</p></div></details></li>
+      <li><details><summary>You have 5,000 labelled medical images. ViT from scratch or CNN?</summary><div class="ans"><p>A CNN (or a pretrained model fine-tuned). The CNN's locality bias makes it far more data-efficient; a ViT from scratch would overfit. A ViT pretrained on a big dataset can also work well when fine-tuned.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 1.10 beyond attention</div>
+    <h3>State space models, linear attention and hybrids</h3>
+    <p>Attention compares every token with every other, so cost grows as n². A whole family of models tries to keep transformer quality with cost that grows as n.</p>
+    <div class="two">
+      <div>
+        <h4>State space models (SSMs)</h4>
+        <div class="formula">continuous:  h'(t) = A·h(t) + B·x(t),   y(t) = C·h(t)
+discrete:    h_t = Ā·h_(t-1) + B̄·x_t,     y_t = C·h_t</div>
+        <ul>
+          <li>Like an RNN, each step updates a fixed-size state h, so generation is O(1) per token and needs no growing KV cache.</li>
+          <li>Unlike an RNN, the recurrence is linear, so training can run over the whole sequence in parallel (as a convolution or a parallel scan).</li>
+          <li><strong>Mamba</strong> makes B, C and the step size depend on the input ("selective"), so the model can choose what to remember and what to forget. Mamba-2 recasts this as a structured form of attention, which runs faster on GPUs.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Linear attention and RNN revivals</h4>
+        <ul>
+          <li><strong>Linear attention</strong> replaces softmax(QKᵀ)V with φ(Q)(φ(K)ᵀV). Computing the right part first makes the cost linear in n.</li>
+          <li><strong>RetNet, RWKV, GLA, DeltaNet</strong>: recurrent models with gating that train in parallel.</li>
+          <li><strong>Weakness:</strong> a fixed-size state cannot store everything. Exact recall of a detail from far back ("what was the phone number on page 3?") is where pure SSMs fall behind attention.</li>
+        </ul>
+        <h4>Hybrids</h4>
+        <p>Many recent long-context models mix a few attention layers (for precise recall) with many SSM or linear layers (for cheap long context). Jamba and several Nemotron and Qwen variants follow this pattern. Treat the exact mix as fast-moving: check each model card.</p>
+      </div>
+    </div>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  subgraph AT["Attention layer"]
+    direction LR
+    A1["token t"] --> A2["compare with all t-1 earlier tokens<br/>(KV cache grows)"]
+  end
+  subgraph SS["SSM layer"]
+    direction LR
+    S1["token t"] --> S2["update a fixed-size state h<br/>(constant memory)"]
+  end
+  subgraph HY["Hybrid stack"]
+    direction LR
+    H1["SSM"] --> H2["SSM"] --> H3["Attention"] --> H4["SSM"] --> H5["SSM"] --> H6["Attention"]
+  end</pre>
+      <figcaption>Hybrids keep a little attention for exact recall and use cheap layers everywhere else.</figcaption>
+    </figure>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Why can an SSM generate with constant memory while a transformer cannot?</summary><div class="ans"><p>The SSM summarises the past in a fixed-size state h. A transformer keeps the keys and values of every past token (the KV cache), which grows with the context length.</p></div></details></li>
+      <li><details><summary>What does "selective" add in Mamba?</summary><div class="ans"><p>The state update depends on the current input, so the model can decide per token to keep or overwrite information. Earlier SSMs used the same fixed dynamics for every token, which made content-based recall hard.</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @m2 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 2.6 the transformer, shape by shape</div>
+    <h3>Follow one batch through a decoder</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  I["token ids<br/>(B, T)"] --> E["embedding lookup<br/>(B, T, d)"]
+  E --> R(("residual stream<br/>(B, T, d)"))
+  R --> N1["RMSNorm"] --> Q["Q, K, V projections<br/>(B, H, T, d/H)"]
+  Q --> AT["softmax(QKᵀ/√d_h + mask)·V<br/>scores (B, H, T, T)"]
+  AT --> O["concat heads, W_o<br/>(B, T, d)"] --> R
+  R --> N2["RMSNorm"] --> F["SwiGLU MLP<br/>d → ~3.5d → d"] --> R
+  R --> NF["final norm"] --> LM["unembed<br/>(B, T, vocab)"] --> P["softmax over next token"]</pre>
+      <figcaption>Every layer reads from and adds back into one shared vector per token: the residual stream.</figcaption>
+    </figure>
+    <div class="two">
+      <div>
+        <h4>The residual stream view</h4>
+        <ul>
+          <li>Each token carries a d-dimensional vector through the whole network. Layers never replace it; they <strong>add</strong> to it.</li>
+          <li><strong>Attention moves information between tokens</strong> (this word reads from that word).</li>
+          <li><strong>The MLP processes information inside one token</strong>, and much factual knowledge appears to be stored in MLP weights.</li>
+          <li>Interpretability research reads directions in this stream as features; "induction heads" (copy what followed the last time you saw this token) explain much of in-context learning.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Where the parameters and FLOPs go</h4>
+        <div class="formula">per layer ≈ attention 4d² (less with GQA)
+          + MLP 3·d·d_ff (SwiGLU)
+total     ≈ layers × per-layer + vocab·d
+
+training  ≈ 6 · N · D FLOPs   (N params, D tokens)
+inference ≈ 2 · N FLOPs per generated token</div>
+        <ul>
+          <li>The attention scores themselves cost O(T²·d) per layer: small next to the weights at short context, dominant at long context.</li>
+          <li>Chinchilla scaling: compute-optimal training uses about 20 tokens per parameter. Modern models train far beyond that (often 100×+) because a smaller model is cheaper to serve.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="code"><div class="code-head"><span>param_count.py</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:param_count.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Why multiple heads instead of one big attention?</summary><div class="ans"><p>Each head has its own small Q/K/V projection, so different heads can attend to different things at once (syntax, coreference, position). One head would have to average all of them into a single weighting.</p></div></details></li>
+      <li><details><summary>Doubling context from 8k to 16k: what grows, and how?</summary><div class="ans"><p>Attention score compute and its memory grow about 4× (T²); the KV cache grows 2× (linear in T); the weight-related compute per token stays the same.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 2.7 making attention fast</div>
+    <h3>FlashAttention and the online softmax</h3>
+    <p>On a GPU, moving data is slower than doing math. Naive attention writes the full T×T score matrix to slow GPU memory (HBM), reads it back for softmax, writes it again, then reads it to multiply by V. For long sequences that traffic, not the arithmetic, is the bottleneck.</p>
+    <div class="two">
+      <div>
+        <h4>The trick</h4>
+        <ul>
+          <li>Split Q, K and V into tiles that fit in fast on-chip memory (SRAM).</li>
+          <li>For each Q tile, stream over K/V tiles and keep a <strong>running softmax</strong>: the max so far, the denominator so far and the weighted sum so far.</li>
+          <li>The full T×T matrix is never stored. Memory drops from O(T²) to O(T), and the result is <strong>exactly</strong> the same, not an approximation.</li>
+          <li>Backward recomputes scores from the tiles instead of saving them: more FLOPs, far less memory traffic, faster overall.</li>
+        </ul>
+        <div class="formula">new block scores s, old max m, old sum l, old acc a:
+m' = max(m, max(s))
+l' = l·e^(m - m') + Σ e^(s - m')
+a' = a·e^(m - m') + Σ e^(s - m')·v
+output = a / l      (after the last block)</div>
+      </div>
+      <div>
+        <h4>The memory hierarchy</h4>
+        <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  S["SRAM on each streaming multiprocessor<br/>tiny, about 10× faster"] <--> H["HBM, GPU memory<br/>tens of GB, holds weights and KV cache"]
+  H <--> C["CPU RAM / NVMe<br/>offload, much slower"]</pre>
+          <figcaption>Fast kernels keep data in the top level as long as possible.</figcaption>
+        </figure>
+        <p>Later versions (FlashAttention-2 and 3, and similar kernels in vLLM, SGLang and cuDNN) improve how work is split across GPU threads and use newer hardware features such as FP8 and asynchronous copies. In PyTorch you get them through <code>F.scaled_dot_product_attention</code>.</p>
+      </div>
+    </div>
+    <div class="code"><div class="code-head"><span>online_softmax.py</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:online_softmax.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Is FlashAttention an approximation of attention?</summary><div class="ans"><p>No. It computes exactly the same result as standard attention; only the order of operations and what is kept in memory change. (Sparse and linear attention, by contrast, are approximations.)</p></div></details></li>
+      <li><details><summary>Why subtract the running max at all?</summary><div class="ans"><p>For numerical stability: e^1000 overflows. Subtracting the max keeps every exponent at or below 0. When a later block has a bigger max, the old sums are rescaled by e^(m - m′), which is the core of the online softmax.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 2.8 long context and faster decoding</div>
+    <h3>Stretching context and generating faster</h3>
+    <div class="two">
+      <div>
+        <h4>Long context</h4>
+        <ul>
+          <li><strong>RoPE scaling:</strong> position interpolation squeezes new positions into the trained range; NTK-aware scaling and <strong>YaRN</strong> stretch low frequencies more than high ones, then a short fine-tune on long documents adapts the model.</li>
+          <li><strong>KV cache size</strong> is the practical limit. Shrink it with GQA (share K/V across heads), <strong>MLA</strong> (store a small latent vector per token and expand it when needed), KV quantization (FP8/INT8), and sliding-window layers that only keep recent tokens.</li>
+          <li><strong>Attention sinks:</strong> models put a lot of attention on the first few tokens; keeping them in the cache keeps streaming generation stable.</li>
+          <li><strong>Lost in the middle:</strong> a long window does not guarantee the model uses it. Facts in the middle are often recalled worse than at the start or end, so test with your own long-context evals ("needle" tests are a minimum, not proof).</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Faster decoding</h4>
+        <ul>
+          <li>Decoding is memory-bound: each new token reads all the weights once. A small extra amount of compute is almost free.</li>
+          <li><strong>Speculative decoding:</strong> a cheap drafter proposes k tokens, the big model checks all k in one forward pass, keeps the longest correct prefix and adds one token of its own. The output distribution is unchanged.</li>
+          <li><strong>Drafters:</strong> a small model of the same family, extra prediction heads (Medusa, EAGLE) or <strong>multi-token prediction</strong> heads trained with the model (used by DeepSeek-V3).</li>
+          <li><strong>Reasoning models</strong> spend more tokens thinking before answering ("test-time compute"). Quality rises with thinking budget, so latency and cost do too: measure both.</li>
+        </ul>
+      </div>
+    </div>
+    <figure class="diagram">
+<pre class="mermaid">sequenceDiagram
+  participant D as Draft model (small)
+  participant T as Target model (large)
+  D->>D: propose 4 tokens: "on the warm mat"
+  D->>T: verify all 4 in ONE forward pass
+  T-->>T: accept "on the", reject "warm"
+  T->>T: sample its own token: "soft"
+  Note over D,T: 3 tokens for roughly the cost of 1 big step</pre>
+      <figcaption>Speculative decoding: more tokens per expensive forward pass, same output distribution.</figcaption>
+    </figure>
+    <div class="formula">expected tokens per target pass, acceptance rate α, draft length k:
+  (1 - α^(k+1)) / (1 - α)        e.g. α = 0.8, k = 4  →  3.4 tokens</div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Why does speculative decoding not change the output quality?</summary><div class="ans"><p>The target model verifies every drafted token with a rejection-sampling rule that makes accepted tokens follow exactly the target's own distribution. The drafter only changes speed, never which outputs are possible or how likely they are.</p></div></details></li>
+      <li><details><summary>MLA vs GQA: what does each save?</summary><div class="ans"><p>GQA stores fewer K/V heads and shares them across query heads. MLA stores one compressed latent per token and rebuilds K and V from it, which can shrink the cache further while keeping quality close to full multi-head attention.</p></div></details></li>
+    </ol>
+  </article>
