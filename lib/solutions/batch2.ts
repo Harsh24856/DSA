@@ -915,5 +915,314 @@ def findLonely(nums):
       return { kind: "table", title: `Smaller after self: [${res.join(", ")}]`, rowHead: ["seen", ""], colHead: vals.map(String), frames };
     },
   },
+  "count-sorted-vowel-strings": {
+    approach: "dp[v] = strings of the current length that start with vowel v; one letter longer, a string starting with v is v followed by a string starting with v or any later vowel.",
+    idea: ["Sorted strings never go back to an earlier vowel, so only the first letter matters for what can follow.", "New dp[v] = sum of old dp[w] for w ≥ v, a suffix sum.", "Updating from 'o' down to 'a' in place builds the suffix sums in one pass per length."],
+    code: `def countVowelStrings(n):
+    dp = [1] * 5   # dp[v]: strings that start with vowel v
+    for _ in range(n - 1):
+        for v in range(3, -1, -1):
+            dp[v] += dp[v + 1]
+    return sum(dp)`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const n = 3, rows: (number | null)[][] = [[1, 1, 1, 1, 1], ...Array.from({ length: n - 1 }, () => [null, null, null, null, null] as (number | null)[])], dp = [1, 1, 1, 1, 1], V = "aeiou", frames: TableFrame[] = [{ note: "length 1: one string per vowel", cells: rows.map((r) => [...r]), tones: keys([0, 1, 2, 3, 4].map((c) => `0:${c}`), "found") }];
+      for (let L = 1; L < n; L++) { rows[L][4] = 1; for (let v = 3; v >= 0; v--) { dp[v] += dp[v + 1]; rows[L][v] = dp[v]; frames.push({ note: `length ${L + 1} starting with '${V[v]}': '${V[v]}' + any length-${L} string starting at '${V[v]}' or later = ${dp[v]}`, cells: rows.map((r) => [...r]), active: [L, v], deps: Array.from({ length: 5 - v }, (_, k) => [L - 1, v + k] as [number, number]) }); } }
+      const total = dp.reduce((a, b) => a + b, 0);
+      frames.push({ note: `sum of the last row = ${total}`, cells: rows, tones: keys([0, 1, 2, 3, 4].map((c) => `${n - 1}:${c}`), "found") });
+      return { kind: "table", title: `Sorted vowel strings of length ${n}: ${total}`, rowHead: Array.from({ length: n }, (_, i) => `n=${i + 1}`), colHead: [...V], frames };
+    },
+  },
+
+  "binary-tree-cameras": {
+    approach: "Post-order greedy: put a camera on the parent of any uncovered leaf; each node reports 'needs cover', 'has camera' or 'covered'.",
+    idea: ["A camera on a leaf covers less than one on its parent, so never place cameras on leaves.", "Bottom up: if a child needs cover, this node takes a camera. If a child has a camera, this node is covered. Otherwise it needs cover from its parent.", "If the root still needs cover at the end, add one more camera."],
+    code: `def minCameraCover(root):
+    cams = 0
+    def dfs(node):   # 0 = needs cover, 1 = has camera, 2 = covered
+        nonlocal cams
+        if not node:
+            return 2
+        l, r = dfs(node.left), dfs(node.right)
+        if l == 0 or r == 0:
+            cams += 1
+            return 1
+        return 2 if l == 1 or r == 1 else 0
+    root_state = dfs(root)
+    return cams + (root_state == 0)`,
+    lang: "python", time: "O(n)", space: "O(h)",
+    viz: () => {
+      const vals = [0, 0, null, 0, 0, null, null, 0], { nodes, kids } = T(vals), frames: TreeFrame[] = [], tn: Record<number, Tone> = {}, badges: Record<number, string> = {}, name = ["needs cover", "camera", "covered"]; let cams = 0;
+      const dfs = (i: number | null): number => { if (i == null) return 2; const l = dfs(kids[i][0]), r = dfs(kids[i][1]); let st: number; if (l === 0 || r === 0) { cams++; st = 1; } else st = l === 1 || r === 1 ? 2 : 0; tn[i] = st === 1 ? "found" : st === 2 ? "done" : "bad"; badges[i] = name[st]; frames.push({ note: `node ${i}: children report ${name[l]} / ${name[r]} → ${st === 1 ? `place a camera (total ${cams})` : name[st]}`, tones: { ...tn, [i]: st === 1 ? "found" : "active" }, badges: { ...badges } }); return st; };
+      if (dfs(0) === 0) { cams++; tn[0] = "found"; badges[0] = "camera"; frames.push({ note: `root still needs cover: one more camera (total ${cams})`, tones: { ...tn }, badges: { ...badges } }); }
+      return tree(`Cameras needed: ${cams}`, nodes, frames);
+    },
+  },
+
+  "basic-calculator": {
+    approach: "Scan once keeping a running result and the current sign; '(' saves (result, sign) on a stack and starts fresh, ')' folds the inner result back in.",
+    idea: ["Without parentheses the value is just a signed sum: add sign × number whenever a number ends.", "At '(' push the result so far and the sign in front of the bracket, then reset.", "At ')' finish the inner sum, pop, and set result = saved + savedSign × inner."],
+    code: `def calculate(s):
+    res, num, sign, st = 0, 0, 1, []
+    for c in s:
+        if c.isdigit():
+            num = num * 10 + int(c)
+        elif c in "+-":
+            res += sign * num
+            num, sign = 0, 1 if c == "+" else -1
+        elif c == "(":
+            st.append((res, sign))
+            res, sign = 0, 1
+        elif c == ")":
+            res += sign * num
+            num = 0
+            prev, psign = st.pop()
+            res = prev + psign * res
+    return res + sign * num`,
+    lang: "python", time: "O(n)", space: "O(depth)",
+    viz: () => {
+      const s = "2-(4+5-(1+2))", st: [number, number][] = [], frames: StackFrame[] = []; let res = 0, num = 0, sign = 1;
+      const show = () => st.map(([r, g]) => `${r}, ${g > 0 ? "+" : "-"}`), side = () => `res ${res}, num ${num}, sign ${sign > 0 ? "+" : "-"}`;
+      for (const c of s) {
+        let note: string, popped: string[] | undefined;
+        if (/\d/.test(c)) { num = num * 10 + +c; note = `digit ${c}: number so far ${num}`; }
+        else if (c === "+" || c === "-") { res += sign * num; num = 0; sign = c === "+" ? 1 : -1; note = `'${c}': add the finished number, result ${res}, next sign ${c}`; }
+        else if (c === "(") { st.push([res, sign]); note = `'(': save result ${res} and sign ${sign > 0 ? "+" : "-"}, start fresh`; res = 0; sign = 1; }
+        else { res += sign * num; num = 0; const [p, g] = st.pop()!; popped = [`${p}, ${g > 0 ? "+" : "-"}`]; note = `')': inner sum ${res}, so ${p} ${g > 0 ? "+" : "-"} ${res} = ${p + g * res}`; res = p + g * res; }
+        frames.push({ note, items: show(), incoming: c, popped, side: side() });
+      }
+      const ans = res + sign * num; frames.push({ note: `end: add the last number → ${ans}`, items: [], side: `answer ${ans}` });
+      return { kind: "stack", title: `${s} = ${ans}`, input: [...s], frames };
+    },
+  },
+
+  "lexicographical-numbers": {
+    approach: "Walk the numbers in dictionary order without sorting: go one level deeper (×10) when possible, otherwise step to the next sibling, climbing up past 9s and numbers above n.",
+    idea: ["Dictionary order is a preorder walk of the digit tree 1..9, each with children x0..x9.", "If x × 10 ≤ n, the next number is x × 10.", "Otherwise drop trailing 9s and anything that would exceed n by dividing by 10, then add 1."],
+    code: `def lexicalOrder(n):
+    out, x = [], 1
+    for _ in range(n):
+        out.append(x)
+        if x * 10 <= n:
+            x *= 10
+        else:
+            while x % 10 == 9 or x + 1 > n:
+                x //= 10
+            x += 1
+    return out`,
+    lang: "python", time: "O(n)", space: "O(1) extra",
+    viz: () => {
+      const n = 13, out: (string | number)[] = blank(n), frames: CellsFrame[] = []; let x = 1;
+      for (let k = 0; k < n; k++) { out[k] = x; let why: string; if (x * 10 <= n) { why = `${x} × 10 = ${x * 10} ≤ ${n}: go deeper`; x *= 10; } else { const from = x; while (x % 10 === 9 || x + 1 > n) x = Math.floor(x / 10); x += 1; why = k === n - 1 ? "done" : `${from} cannot go deeper: next sibling is ${x}`; } frames.push({ note: `output ${out[k]}; ${why}`, rows: [[...out]], tones: { ...range(0, k - 1, 0, "done"), [`0:${k}`]: "found" } }); }
+      return cells(`Lexicographical 1..${n}`, [blank(n)], frames);
+    },
+  },
+
+  "max-number-of-k-sum-pairs": {
+    approach: "Sort, then two pointers from both ends: a pair summing to k is removed; a smaller sum moves the left pointer, a bigger one the right.",
+    idea: ["After sorting, if nums[i] + nums[j] < k the smallest value cannot pair with anything left, so drop it; symmetric for > k.", "On an exact match take the pair; taking it never blocks a better answer.", "A Counter works too in O(n)."],
+    code: `def maxOperations(nums, k):
+    nums.sort()
+    i, j, ops = 0, len(nums) - 1, 0
+    while i < j:
+        s = nums[i] + nums[j]
+        if s == k:
+            ops += 1
+            i += 1
+            j -= 1
+        elif s < k:
+            i += 1
+        else:
+            j -= 1
+    return ops`,
+    lang: "python", time: "O(n log n)", space: "O(1)",
+    viz: () => {
+      const a = [3, 1, 3, 4, 3, 2, 5].sort((p, q) => p - q), k = 6, frames: CellsFrame[] = [], tn: Record<string, Tone> = {}; let i = 0, j = a.length - 1, ops = 0;
+      while (i < j) { const s = a[i] + a[j]; if (s === k) { ops++; tn[`0:${i}`] = tn[`0:${j}`] = "found"; } frames.push({ note: `${a[i]} + ${a[j]} = ${s} ${s === k ? `= ${k}: pair ${ops}` : s < k ? `< ${k}: move left` : `> ${k}: move right`}`, tones: { ...tn, [`0:${i}`]: s === k ? "found" : "active", [`0:${j}`]: s === k ? "found" : "active" }, marks: [{ i, label: "i" }, { i: j, label: "j" }] }); if (s === k) { i++; j--; } else if (s < k) i++; else j--; }
+      return cells(`Pairs summing to ${k}: ${ops}`, [a], frames);
+    },
+  },
+
+  "append-characters-to-string-to-make-subsequence": {
+    approach: "Greedily match t's characters inside s from left to right; whatever part of t is left unmatched must be appended.",
+    idea: ["Matching each character of t at its earliest possible position in s matches the longest prefix of t.", "The unmatched suffix of t has to be added at the end.", "Answer = len(t) - matched."],
+    code: `def appendCharacters(s, t):
+    j = 0
+    for c in s:
+        if j < len(t) and c == t[j]:
+            j += 1
+    return len(t) - j`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const s = "coaching", t = "coding", W = Math.max(s.length, t.length), frames: CellsFrame[] = [], tn: Record<string, Tone> = {}; let j = 0;
+      const rows = [[...s, ...blank(W - s.length)], [...t, ...blank(W - t.length)]];
+      [...s].forEach((c, i) => { const hit = j < t.length && c === t[j]; if (hit) { tn[`0:${i}`] = "found"; tn[`1:${j}`] = "found"; j++; } frames.push({ note: `s[${i}] = '${c}' ${hit ? `matches t[${j - 1}]` : `is not '${t[j] ?? ""}'`}; matched ${j}`, rows, tones: { ...tn, [`0:${i}`]: hit ? "found" : "active" }, marks: [{ i, label: "i" }, { i: Math.min(j, t.length - 1), label: "j", row: 1 }] }); });
+      frames.push({ note: `matched ${j} of ${t.length}: append "${t.slice(j)}" → ${t.length - j}`, rows, tones: { ...tn, ...range(j, t.length - 1, 1, "bad") } });
+      return cells(`Characters to append: ${t.length - j}`, rows, frames, ["s", "t"]);
+    },
+  },
+
+  "minimum-operations-to-make-a-subsequence": {
+    approach: "Map arr to positions in target (dropping values not in target); the longest common subsequence becomes a longest increasing subsequence, found with patience sorting.",
+    idea: ["target has distinct values, so a common subsequence is a set of arr values whose target positions increase.", "Compute the LIS of those positions in O(n log n): tails[k] = smallest ending position of an increasing run of length k + 1.", "Insertions needed = len(target) - LIS."],
+    code: `from bisect import bisect_left
+def minOperations(target, arr):
+    pos = {x: i for i, x in enumerate(target)}
+    tails = []
+    for x in arr:
+        if x in pos:
+            k = bisect_left(tails, pos[x])
+            if k == len(tails):
+                tails.append(pos[x])
+            else:
+                tails[k] = pos[x]
+    return len(target) - len(tails)`,
+    lang: "python", time: "O(n log n)", space: "O(n)",
+    viz: () => {
+      const target = [6, 4, 8, 1, 3, 2], arr = [4, 7, 6, 2, 3, 8, 6, 1], pos = new Map(target.map((x, i) => [x, i])), tails: number[] = [], frames: CellsFrame[] = [], mapped: (string | number)[] = arr.map((x) => (pos.has(x) ? pos.get(x)! : "-"));
+      arr.forEach((x, i) => { if (!pos.has(x)) { frames.push({ note: `${x} is not in target: skip`, rows: [arr, mapped, [...tails, ...blank(arr.length - tails.length)]], tones: { [`0:${i}`]: "muted" } }); return; } const p = pos.get(x)!; let k = 0; while (k < tails.length && tails[k] < p) k++; const ext = k === tails.length; tails[k] = p; frames.push({ note: `${x} sits at target position ${p}: ${ext ? `extends the run to length ${tails.length}` : `replaces tails[${k}] (a smaller ending)`}`, rows: [arr, mapped, [...tails, ...blank(arr.length - tails.length)]], tones: { [`0:${i}`]: "active", [`2:${k}`]: "found" } }); });
+      frames.push({ note: `LIS = ${tails.length}, so insert ${target.length} - ${tails.length} = ${target.length - tails.length}`, rows: [arr, mapped, [...tails, ...blank(arr.length - tails.length)]], tones: range(0, tails.length - 1, 2, "found") });
+      return cells(`Insertions needed: ${target.length - tails.length}`, [arr, mapped, blank(arr.length)], frames, ["arr", "target pos", "tails"]);
+    },
+  },
+
+  "longest-duplicate-substring": {
+    approach: "Binary search the length: if some substring of length L repeats, so does one of length L - 1. Check a length with a rolling hash over all windows.",
+    idea: ["Repeats are monotone in length, so binary search for the largest L that has a duplicate.", "For a fixed L, a Rabin-Karp hash slides across s in O(n); equal hashes are confirmed by comparing the actual substrings.", "Keep the substring found at the largest working L."],
+    code: `def longestDupSubstring(s):
+    n, MOD, B = len(s), (1 << 61) - 1, 131
+    def dup(L):
+        h, p, seen = 0, pow(B, L, MOD), {}
+        for i, c in enumerate(s):
+            h = (h * B + ord(c)) % MOD
+            if i >= L:
+                h = (h - ord(s[i - L]) * p) % MOD
+            if i >= L - 1:
+                st = i - L + 1
+                for j in seen.get(h, []):
+                    if s[j:j + L] == s[st:st + L]:
+                        return st
+                seen.setdefault(h, []).append(st)
+        return -1
+    lo, hi, best = 1, n - 1, ""
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        st = dup(mid)
+        if st >= 0:
+            best, lo = s[st:st + mid], mid + 1
+        else:
+            hi = mid - 1
+    return best`,
+    lang: "python", time: "O(n log n)", space: "O(n)",
+    viz: () => {
+      const s = "banana", frames: CellsFrame[] = []; let lo = 1, hi = s.length - 1, best = "";
+      const dup = (L: number) => { const seen = new Map<string, number>(); for (let i = 0; i + L <= s.length; i++) { const w = s.slice(i, i + L); if (seen.has(w)) return [seen.get(w)!, i]; seen.set(w, i); } return null; };
+      while (lo <= hi) { const mid = (lo + hi) >> 1, d = dup(mid); if (d) { best = s.slice(d[1], d[1] + mid); frames.push({ note: `length ${mid}: "${best}" appears at ${d[0]} and ${d[1]} → try longer (lo = ${mid + 1})`, tones: { ...range(d[0], d[0] + mid - 1), ...range(d[1], d[1] + mid - 1, 0, "found") } }); lo = mid + 1; } else { frames.push({ note: `length ${mid}: every window is unique → try shorter (hi = ${mid - 1})`, tones: range(0, s.length - 1, 0, "muted") }); hi = mid - 1; } }
+      return cells(`Longest repeat in "${s}": "${best}"`, [[...s]], frames);
+    },
+  },
+
+  "critical-connections-in-a-network": {
+    approach: "Tarjan's bridge finding: DFS records discovery time and the lowest time reachable through back edges; edge (u, v) is a bridge when low[v] > tin[u].",
+    idea: ["Removing u-v disconnects the graph exactly when nothing under v can reach u or above without that edge.", "low[v] = smallest discovery time reachable from v's subtree using one back edge.", "If low[v] > tin[u], v's subtree is stuck below the edge, so it is critical."],
+    code: `import sys
+def criticalConnections(n, connections):
+    sys.setrecursionlimit(1 << 20)
+    g = [[] for _ in range(n)]
+    for a, b in connections:
+        g[a].append(b)
+        g[b].append(a)
+    tin, low, out, t = [-1] * n, [0] * n, [], [0]
+    def dfs(u, parent):
+        tin[u] = low[u] = t[0]
+        t[0] += 1
+        for v in g[u]:
+            if v == parent:
+                continue
+            if tin[v] == -1:
+                dfs(v, u)
+                low[u] = min(low[u], low[v])
+                if low[v] > tin[u]:
+                    out.append([u, v])
+            else:
+                low[u] = min(low[u], tin[v])
+    dfs(0, -1)
+    return out`,
+    lang: "python", time: "O(V + E)", space: "O(V + E)",
+    viz: () => {
+      const n = 6, E = [[0, 1], [1, 2], [2, 0], [1, 3], [3, 4], [4, 5], [5, 3]], nodes = [{ id: 0, label: "0", x: 5, y: 20 }, { id: 1, label: "1", x: 35, y: 50 }, { id: 2, label: "2", x: 5, y: 80 }, { id: 3, label: "3", x: 65, y: 50 }, { id: 4, label: "4", x: 95, y: 20 }, { id: 5, label: "5", x: 95, y: 80 }];
+      const g: number[][] = Array.from({ length: n }, () => []); E.forEach(([a, b]) => { g[a].push(b); g[b].push(a); });
+      const tin = Array(n).fill(-1), low = Array(n).fill(0), frames: GraphFrame[] = [], et: Record<string, Tone> = {}, out: string[] = []; let t = 0;
+      const badges = () => Object.fromEntries(tin.map((x, i) => [i, x < 0 ? "" : `${x}/${low[i]}`]).filter(([, b]) => b)) as Record<number, string>;
+      const dfs = (u: number, p: number) => { tin[u] = low[u] = t++; frames.push({ note: `visit ${u}: time ${tin[u]} (badge = time/low)`, tones: tones(tin.map((x, i) => (x >= 0 ? i : -1)).filter((i) => i >= 0), "done"), edgeTones: { ...et }, badges: badges() }); for (const v of g[u]) { if (v === p) continue; if (tin[v] === -1) { et[ek(u, v)] = "window"; dfs(v, u); low[u] = Math.min(low[u], low[v]); const bridge = low[v] > tin[u]; if (bridge) { out.push(`${u}-${v}`); et[ek(u, v)] = "bad"; } frames.push({ note: `back at ${u} from ${v}: low[${v}] = ${low[v]} ${bridge ? `> time ${tin[u]}, so ${u}-${v} is critical` : `≤ time ${tin[u]}, a cycle protects ${u}-${v}`}`, tones: { [u]: "active" }, edgeTones: { ...et }, badges: badges() }); } else if (tin[v] < low[u]) { low[u] = tin[v]; frames.push({ note: `${u} sees ${v} again (back edge): low[${u}] = ${low[u]}`, tones: { [u]: "active", [v]: "window" }, edgeTones: { ...et, [ek(u, v)]: "found" }, badges: badges() }); } } };
+      dfs(0, -1);
+      return { kind: "graph", title: `Critical: ${out.join(", ")}`, nodes, edges: E.map(([a, b]) => ({ a, b })), frames };
+    },
+  },
+
+  "create-binary-tree-from-descriptions": {
+    approach: "Create or reuse a node for every value, link child to parent on the given side, and the root is the only parent that never appears as a child.",
+    idea: ["A dictionary from value to node lets each description link two nodes in O(1).", "Remember every child value.", "The root is the one node that is never a child."],
+    code: `def createBinaryTree(descriptions):
+    nodes, kids = {}, set()
+    for p, c, left in descriptions:
+        a = nodes.setdefault(p, TreeNode(p))
+        b = nodes.setdefault(c, TreeNode(c))
+        if left:
+            a.left = b
+        else:
+            a.right = b
+        kids.add(c)
+    return next(nodes[p] for p, _, _ in descriptions if p not in kids)`,
+    lang: "python", time: "O(n)", space: "O(n)",
+    viz: () => {
+      const D = [[20, 15, 1], [20, 17, 0], [50, 20, 1], [50, 80, 0], [80, 19, 1]], vals = [...new Set(D.flatMap(([p, c]) => [p, c]))], id = (v: number) => vals.indexOf(v);
+      const nodes: TNode[] = vals.map((v) => { const d = D.find(([, c]) => c === v); return { id: id(v), label: String(v), parent: d ? id(d[0]) : null, side: d ? (d[2] ? "L" : "R") : undefined }; });
+      const made = new Set<number>(), kids = new Set<number>(), frames: TreeFrame[] = [];
+      D.forEach(([p, c, l]) => { made.add(p); made.add(c); kids.add(c); frames.push({ note: `${c} becomes the ${l ? "left" : "right"} child of ${p}`, tones: { ...tones(vals.filter((v) => !made.has(v)).map(id), "muted"), ...tones([...made].map(id), "done"), [id(c)]: "active" } }); });
+      const root = vals.find((v) => !kids.has(v))!;
+      frames.push({ note: `${root} is never a child → it is the root`, tones: { ...tones(vals.map(id), "done"), [id(root)]: "found" } });
+      return tree(`Root: ${root}`, nodes, frames);
+    },
+  },
+
+  "smallest-subsequence-of-distinct-characters": {
+    approach: "Monotonic stack: before pushing c, pop larger letters from the top if they appear again later; skip letters already in the stack.",
+    idea: ["Each letter must appear once, so a letter on the stack is kept unless a smaller letter can go before it.", "A larger top can be popped only if its last occurrence is later, so it can be added again.", "Letters already in the result are skipped; their position is already the best one."],
+    code: `def smallestSubsequence(s):
+    last = {c: i for i, c in enumerate(s)}
+    st, inside = [], set()
+    for i, c in enumerate(s):
+        if c in inside:
+            continue
+        while st and st[-1] > c and last[st[-1]] > i:
+            inside.remove(st.pop())
+        st.append(c)
+        inside.add(c)
+    return "".join(st)`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const s = "cbacdcbc", last = new Map([...s].map((c, i) => [c, i])), st: string[] = [], frames: StackFrame[] = [];
+      [...s].forEach((c, i) => { if (st.includes(c)) { frames.push({ note: `'${c}' is already in the answer: skip`, items: [...st], side: `"${st.join("")}"` }); return; } const popped: string[] = []; while (st.length && st[st.length - 1] > c && last.get(st[st.length - 1])! > i) popped.push(st.pop()!); st.push(c); frames.push({ note: `'${c}'${popped.length ? `: pop ${popped.join(", ")} (bigger, and they appear again later)` : ""}; push it`, items: [...st], incoming: c, popped, side: `"${st.join("")}"` }); });
+      return { kind: "stack", title: `"${s}" → "${st.join("")}"`, input: [...s], frames };
+    },
+  },
+
+  "total-hamming-distance": {
+    approach: "Count bit by bit: if k numbers have bit b set, that bit contributes k × (n - k) differing pairs.",
+    idea: ["The total Hamming distance is the sum over bits of the number of pairs that differ there.", "At one bit, a pair differs exactly when one number has a 1 and the other a 0: ones × zeros pairs.", "32 bits × n numbers instead of n² pairs."],
+    code: `def totalHammingDistance(nums):
+    n, total = len(nums), 0
+    for b in range(32):
+        ones = sum(x >> b & 1 for x in nums)
+        total += ones * (n - ones)
+    return total`,
+    lang: "python", time: "O(32 n)", space: "O(1)",
+    viz: () => {
+      const a = [4, 14, 2], W = 4, bits = a.map((x) => x.toString(2).padStart(W, "0").split("").map(Number)), frames: TableFrame[] = []; let total = 0;
+      for (let b = 0; b < W; b++) { const c = W - 1 - b, ones = a.filter((x) => (x >> b) & 1).length; total += ones * (a.length - ones); frames.push({ note: `bit ${b}: ${ones} one${ones === 1 ? "" : "s"}, ${a.length - ones} zero${a.length - ones === 1 ? "" : "s"} → ${ones} × ${a.length - ones} = ${ones * (a.length - ones)} (total ${total})`, cells: bits, tones: keys(a.map((_, r) => `${r}:${c}`), "window") }); }
+      return { kind: "table", title: `Total Hamming distance of [${a.join(", ")}]: ${total}`, rowHead: a.map(String), colHead: Array.from({ length: W }, (_, i) => `bit ${W - 1 - i}`), frames };
+    },
+  },
   // @more
 };

@@ -32,8 +32,18 @@ CASES = {
  "maximum-erasure-value": [("maximumUniqueSubarray", ([4,2,4,5,6],), 17), ("maximumUniqueSubarray", ([5,2,1,2,5,2,1,2,5],), 8), ("maximumUniqueSubarray", ([3],), 3)],
  "max-sum-of-a-pair-with-equal-sum-of-digits": [("maximumSum", ([18,43,36,13,7],), 54), ("maximumSum", ([10,12,19,14],), -1), ("maximumSum", ([9,18,90,1],), 108)],
  "count-of-smaller-numbers-after-self": [("countSmaller", ([5,2,6,1],), [2,1,1,0]), ("countSmaller", ([-1],), [0]), ("countSmaller", ([-1,-1],), [0,0])],
+ "count-sorted-vowel-strings": [("countVowelStrings", (1,), 5), ("countVowelStrings", (2,), 15), ("countVowelStrings", (33,), 66045)],
+ "basic-calculator": [("calculate", ("1 + 1",), 2), ("calculate", (" 2-1 + 2 ",), 3), ("calculate", ("(1+(4+5+2)-3)+(6+8)",), 23), ("calculate", ("-(2+3)",), -5), ("calculate", ("2147483647",), 2147483647)],
+ "lexicographical-numbers": [("lexicalOrder", (13,), [1,10,11,12,13,2,3,4,5,6,7,8,9]), ("lexicalOrder", (2,), [1,2]), ("lexicalOrder", (1,), [1])],
+ "max-number-of-k-sum-pairs": [("maxOperations", ([1,2,3,4],5), 2), ("maxOperations", ([3,1,3,4,3],6), 1), ("maxOperations", ([5],5), 0)],
+ "append-characters-to-string-to-make-subsequence": [("appendCharacters", ("coaching","coding"), 4), ("appendCharacters", ("abcde","a"), 0), ("appendCharacters", ("z","abcde"), 5)],
+ "minimum-operations-to-make-a-subsequence": [("minOperations", ([5,1,3],[9,4,2,3,4]), 2), ("minOperations", ([6,4,8,1,3,2],[4,7,6,2,3,8,6,1]), 3), ("minOperations", ([1],[2]), 1)],
+ "longest-duplicate-substring": [("longestDupSubstring", ("banana",), "ana"), ("longestDupSubstring", ("abcd",), ""), ("longestDupSubstring", ("aa",), "a")],
+ "smallest-subsequence-of-distinct-characters": [("smallestSubsequence", ("bcabc",), "abc"), ("smallestSubsequence", ("cbacdcbc",), "acdb"), ("smallestSubsequence", ("a",), "a")],
+ "total-hamming-distance": [("totalHammingDistance", ([4,14,2],), 6), ("totalHammingDistance", ([4,14,4],), 4), ("totalHammingDistance", ([7],), 0)],
 }
 TREE = {
+ "binary-tree-cameras": [("minCameraCover", ([0,0,None,0,0],), 1, None), ("minCameraCover", ([0,0,None,0,None,0,None,None,0],), 2, None), ("minCameraCover", ([0],), 1, None)],
  "sum-of-nodes-with-even-valued-grandparent": [("sumEvenGrandparent", ([6,7,8,2,7,1,3,9,None,1,4,None,None,None,5],), 18, None), ("sumEvenGrandparent", ([1],), 0, None)],
  "even-odd-tree": [("isEvenOddTree", ([1,10,4,3,None,7,9,12,8,6,None,None,2],), True, None), ("isEvenOddTree", ([5,4,2,3,3,7],), False, None), ("isEvenOddTree", ([5,9,1,3,5,7],), False, None), ("isEvenOddTree", ([1],), True, None)],
 }
@@ -43,4 +53,6 @@ CUSTOM = [
  lambda load, check, h: check("flatten", [(lambda r: (load("flatten-binary-tree-to-linked-list")["flatten"](r), h.level(r))[1])(h.tree(a)) for a in ([1,2,5,3,4,None,6], [0])], [[1,None,2,None,3,None,4,None,5,None,6], [0]]),
  lambda load, check, h: check("addTwoNumbers", [h.arr(load("add-two-numbers-ii")["addTwoNumbers"](h.lst(a), h.lst(b))) for a, b in [([7,2,4,3],[5,6,4]), ([2,4,3],[5,6,4]), ([0],[0]), ([9,9],[1])]], [[7,8,0,7], [8,0,7], [0], [1,0,0]]),
  lambda load, check, h: check("MapSum", (lambda m: [m.insert("apple",3), m.sum("ap"), m.insert("app",2), m.sum("ap"), m.insert("apple",1), m.sum("ap"), m.sum("b")])(load("map-sum-pairs")["MapSum"]()), [None,3,None,5,None,3,0]),
+ lambda load, check, h: check("criticalConnections", [sorted(map(sorted, load("critical-connections-in-a-network")["criticalConnections"](n, e))) for n, e in [(4,[[0,1],[1,2],[2,0],[1,3]]), (2,[[0,1]]), (3,[[0,1],[1,2],[2,0]])]], [[[1,3]], [[0,1]], []]),
+ lambda load, check, h: check("createBinaryTree", [h.level(load("create-binary-tree-from-descriptions")["createBinaryTree"](d)) for d in ([[20,15,1],[20,17,0],[50,20,1],[50,80,0],[80,19,1]], [[1,2,1],[2,3,0],[3,4,1]])], [[50,20,80,15,17,19], [1,2,None,None,3,4]]),
 ]
