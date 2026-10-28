@@ -1,10 +1,26 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { DownloadSimple, SignOut, UploadSimple, X } from "@phosphor-icons/react";
-import { useStore } from "@/lib/store";
+import { useStore, type NavLayout } from "@/lib/store";
 import { ThemeStudio } from "./ThemeStudio";
 import { phases, todayPlan, ymd, type Count, type State } from "@/lib/logic";
 import { P } from "@/lib/problems";
+
+const LAYOUTS: [NavLayout, string, string][] = [["full", "Full", "Icons and names"], ["rail", "Icons", "Slim rail, more room"], ["top", "Top bar", "Links across the top"]];
+
+/** Tiny drawing of each sidebar layout: bars for nav, a block for the page. */
+function LayoutSketch({ k }: { k: NavLayout }) {
+  const links = (n: number, cls: string) => Array.from({ length: n }, (_, i) => <span key={i} className={`rounded-full bg-muted/50 ${cls}`} />);
+  return (
+    <span className={`flex h-14 gap-1.5 overflow-hidden rounded-[8px] border border-line bg-bg p-1.5 ${k === "top" ? "flex-col" : ""}`} aria-hidden>
+      <span className={`flex shrink-0 gap-1 rounded-[5px] bg-surface-2 p-1 ${k === "full" ? "w-[38%] flex-col" : k === "rail" ? "w-3 flex-col items-center" : "h-3 items-center"}`}>
+        <span className="size-1.5 shrink-0 rounded-[2px] bg-accent" />
+        {k === "full" ? links(3, "h-1 w-full") : k === "rail" ? links(3, "size-1") : links(3, "h-1 w-3")}
+      </span>
+      <span className="flex-1 rounded-[5px] bg-surface" />
+    </span>
+  );
+}
 
 const QUOTAS: [string, Count, Count][] = [["LeetCode", "L", "wL"], ["SQL", "S", "wS"], ["Codeforces", "C", "wC"]];
 
@@ -70,6 +86,22 @@ export function Settings({ open, onClose }: { open: boolean; onClose(): void }) 
             <DateField label="Placements" value={s.state.quota.placement} min={s.state.quota.start} onChange={(v) => s.setDate("placement", v)} />
           </div>
           <p className="text-[13px] text-muted">You are in Phase {phase.n}, {phase.name} ({phase.short}).</p>
+        </section>
+
+        <section className="flex flex-col gap-3" aria-labelledby="layoutH">
+          <div>
+            <h3 id="layoutH" className="t-h3">Sidebar</h3>
+            <p className="text-[13px] text-muted">How the menu sits on wide screens. Phones always use the bottom tabs.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {LAYOUTS.map(([k, name, blurb]) => (
+              <button key={k} type="button" aria-pressed={s.nav === k} onClick={() => s.setNav(k)}
+                className="flex cursor-pointer flex-col gap-2 rounded-control border border-line p-2 text-left transition hover:bg-surface-2 active:scale-[0.97] aria-pressed:border-accent aria-pressed:ring-2 aria-pressed:ring-accent-soft">
+                <LayoutSketch k={k} />
+                <span className="px-0.5"><span className="block text-[13px] font-semibold">{name}</span><span className="block text-[11px] leading-snug text-muted">{blurb}</span></span>
+              </button>
+            ))}
+          </div>
         </section>
 
         <ThemeStudio />

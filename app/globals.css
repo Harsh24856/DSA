@@ -8,6 +8,9 @@
   --display:var(--font-geist),ui-sans-serif,system-ui,sans-serif;
   --body:var(--font-geist),ui-sans-serif,system-ui,sans-serif;
   --mono:var(--font-geist-mono),ui-monospace,Menlo,monospace;
+  /* brand logo (components/Logo.tsx): the primary logo on light themes, the navy logo's white marks on dark ones */
+  color-scheme:light; /* dark sets override it; light-dark() below needs one set */
+  --logo-ink:light-dark(#0A0A0A,#FFFFFF); --logo-navy:light-dark(#14284B,#FFFFFF); --logo-cut:light-dark(#FFFFFF,#14284B); --logo-s:light-dark(#14284B,transparent); --logo-s-ink:#FFFFFF;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){ --bg:#04060B; --surface:#0B1530; --ink:#F5F7FF; --muted:#8F9CBC; --line:#1B2950; --accent:#5B9BFF; --accent-ink:#04060B; --soft:#13224A; --good:#5B9BFF; --good-soft:#13224A; --medium:#E3AE5A; --hard:#EE8496; --easy:#5CC79E; color-scheme:dark; }}
 :root[data-theme="dark"]{ --bg:#04060B; --surface:#0B1530; --ink:#F5F7FF; --muted:#8F9CBC; --line:#1B2950; --accent:#5B9BFF; --accent-ink:#04060B; --soft:#13224A; --good:#5B9BFF; --good-soft:#13224A; --medium:#E3AE5A; --hard:#EE8496; --easy:#5CC79E; color-scheme:dark; }
@@ -43,6 +46,10 @@
   --shadow:0 1px 2px color-mix(in oklab,var(--ink) 6%,transparent),0 8px 24px -12px color-mix(in oklab,var(--ink) 18%,transparent);
   --ease:cubic-bezier(.16,1,.3,1);
 }
+
+/* desktop sidebar layouts, set by data-nav on <html> (absent = full) */
+@custom-variant nav-rail (&:where([data-nav="rail"] *));
+@custom-variant nav-top (&:where([data-nav="top"] *));
 
 @theme inline{
   --color-bg:var(--bg);
