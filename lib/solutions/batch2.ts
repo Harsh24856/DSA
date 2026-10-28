@@ -1524,5 +1524,273 @@ def maxEvents(events):
       return { kind: "table", title: `Pairs: ${out.map((p) => `[${p.join(",")}]`).join(" ")}`, rowHead: ["words"], colHead: heads(words.length), frames };
     },
   },
-  // @more
+  "find-the-original-array-of-prefix-xor": {
+    approach: "XOR undoes itself, so arr[i] = pref[i] ^ pref[i - 1].",
+    idea: ["pref[i] = pref[i - 1] ^ arr[i].", "XOR both sides with pref[i - 1]: arr[i] = pref[i] ^ pref[i - 1].", "arr[0] = pref[0]."],
+    code: `def findArray(pref):
+    return [pref[0]] + [pref[i] ^ pref[i - 1] for i in range(1, len(pref))]`,
+    lang: "python", time: "O(n)", space: "O(n)",
+    viz: () => {
+      const p = [5, 2, 0, 3, 1], out: (string | number)[] = blank(p.length), frames: CellsFrame[] = [];
+      p.forEach((x, i) => { out[i] = i ? x ^ p[i - 1] : x; frames.push({ note: i ? `arr[${i}] = ${x} ^ ${p[i - 1]} = ${out[i]}` : `arr[0] = pref[0] = ${x}`, rows: [p, [...out]], tones: { [`0:${i}`]: "active", ...(i ? { [`0:${i - 1}`]: "window" as Tone } : {}), [`1:${i}`]: "found" } }); });
+      return cells(`Original: [${out.join(", ")}]`, [p, blank(p.length)], frames, ["pref", "arr"]);
+    },
+  },
+
+  "remove-invalid-parentheses": {
+    approach: "BFS over strings, removing one parenthesis per level; the first level that contains valid strings has the fewest removals, so return all of them.",
+    idea: ["Level d holds every string reachable by d removals (a set removes duplicates).", "Check each string with a balance counter: never below 0, ending at 0.", "The first level with any valid string is the answer; stop there."],
+    code: `def removeInvalidParentheses(s):
+    def valid(t):
+        bal = 0
+        for c in t:
+            if c == "(":
+                bal += 1
+            elif c == ")":
+                bal -= 1
+                if bal < 0:
+                    return False
+        return bal == 0
+    level = {s}
+    while True:
+        good = [t for t in level if valid(t)]
+        if good:
+            return good
+        level = {t[:i] + t[i + 1:] for t in level for i in range(len(t)) if t[i] in "()"}`,
+    lang: "python", time: "O(n · 2ⁿ) worst case", space: "O(2ⁿ)",
+    viz: () => {
+      const s = "()())()", valid = (t: string) => { let b = 0; for (const c of t) { if (c === "(") b++; else if (c === ")" && --b < 0) return false; } return b === 0; }, frames: TableFrame[] = [], rows: string[][] = [];
+      let level = [s]; const W = 6;
+      for (let d = 0; ; d++) { const good = level.filter(valid); rows.push(level.slice(0, W)); const cellsNow = rows.map((r) => [...r, ...Array(W - r.length).fill(null)]); frames.push({ note: good.length ? `level ${d}: valid strings ${good.map((g) => `"${g}"`).join(", ")} → stop` : `level ${d}: ${level.length} string${level.length > 1 ? "s" : ""}, none valid → remove one more bracket`, cells: cellsNow, tones: keys(level.slice(0, W).map((t, j) => (valid(t) ? `${d}:${j}` : "")).filter(Boolean), "found") }); if (good.length) break; level = [...new Set(level.flatMap((t) => [...t].map((c, i) => (c === "(" || c === ")" ? t.slice(0, i) + t.slice(i + 1) : "")).filter((x, i) => "()".includes(t[i]))))]; }
+      return { kind: "table", title: `Fewest removals from "${s}"`, rowHead: rows.map((_, d) => `${d} removed`), colHead: heads(W), frames };
+    },
+  },
+
+  "minimum-average-difference": {
+    approach: "One pass with a running prefix sum: the left average is prefix // (i + 1) and the right average uses total - prefix.",
+    idea: ["Precompute the total so the right side's sum is total - prefix.", "The right side is empty at the last index; its average counts as 0.", "Keep the first index with the smallest absolute difference."],
+    code: `def minimumAverageDifference(nums):
+    n, total, pre = len(nums), sum(nums), 0
+    best, ans = float("inf"), 0
+    for i, x in enumerate(nums):
+        pre += x
+        left = pre // (i + 1)
+        right = (total - pre) // (n - i - 1) if i < n - 1 else 0
+        if abs(left - right) < best:
+            best, ans = abs(left - right), i
+    return ans`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const a = [2, 5, 3, 9, 5, 3], n = a.length, total = a.reduce((x, y) => x + y, 0), diff: (string | number)[] = blank(n), frames: CellsFrame[] = []; let pre = 0, best = -1, ans = 0;
+      a.forEach((x, i) => { pre += x; const l = Math.floor(pre / (i + 1)), r = i < n - 1 ? Math.floor((total - pre) / (n - i - 1)) : 0, d = Math.abs(l - r); if (best < 0 || d < best) { best = d; ans = i; } diff[i] = d; frames.push({ note: `i = ${i}: left ${pre} / ${i + 1} → ${l}, right ${i < n - 1 ? `${total - pre} / ${n - i - 1} → ${r}` : "empty → 0"}; difference ${d} (best index ${ans})`, rows: [a, [...diff]], tones: { ...range(0, i), ...range(i + 1, n - 1, 0, "muted"), [`1:${ans}`]: "found" } }); });
+      return cells(`Minimum average difference at index ${ans}`, [a, blank(n)], frames, ["nums", "|diff|"]);
+    },
+  },
+
+  "find-longest-special-substring-that-occurs-thrice-i": {
+    approach: "Only runs of one letter matter. For each letter take its three longest runs a ≥ b ≥ c; the best length occurring three times is max(a - 2, min(a - 1, b), c).",
+    idea: ["A special substring of length L inside a run of length r appears r - L + 1 times.", "Three copies come from: one run (a - 2), the top two runs together (min(a - 1, b)), or three different runs (c).", "Take the best over all letters; 0 means none, so return -1."],
+    code: `from collections import defaultdict
+from itertools import groupby
+def maximumLength(s):
+    runs = defaultdict(list)
+    for ch, g in groupby(s):
+        runs[ch].append(len(list(g)))
+    best = -1
+    for lens in runs.values():
+        a, b, c = (sorted(lens, reverse=True) + [0, 0])[:3]
+        best = max(best, a - 2, min(a - 1, b), c)
+    return best if best > 0 else -1`,
+    lang: "python", time: "O(n log n)", space: "O(n)",
+    viz: () => {
+      const s = "aaabaacaa", runs = new Map<string, number[]>(), frames: TableFrame[] = []; let best = -1;
+      for (let i = 0; i < s.length;) { let j = i; while (j < s.length && s[j] === s[i]) j++; runs.set(s[i], [...(runs.get(s[i]) || []), j - i]); i = j; }
+      const letters = [...runs.keys()], rows: (string | number | null)[][] = letters.map(() => [null, null, null, null]);
+      letters.forEach((ch, r) => { const [a, b, c] = [...runs.get(ch)!.sort((x, y) => y - x), 0, 0].slice(0, 3), v = Math.max(a - 2, Math.min(a - 1, b), c); best = Math.max(best, v); rows[r] = [a, b, c, v]; frames.push({ note: `'${ch}' runs ${a}, ${b}, ${c}: max(${a} - 2, min(${a - 1}, ${b}), ${c}) = ${v} (best ${best})`, cells: rows.map((x) => [...x]), active: [r, 3] }); });
+      const ans = best > 0 ? best : -1;
+      return { kind: "table", title: `"${s}": ${ans}`, rowHead: letters, colHead: ["a", "b", "c", "length"], frames };
+    },
+  },
+
+  "shortest-palindrome": {
+    approach: "Find the longest palindromic prefix with KMP on s + '#' + reverse(s); reverse what is left after it and put it in front.",
+    idea: ["Adding characters only in front means s must keep its longest palindromic prefix and mirror the rest.", "A prefix of s is a palindrome when it equals a suffix of reverse(s); the KMP failure value at the end of s + '#' + rev gives the longest such match.", "The '#' stops matches from running past the middle."],
+    code: `def shortestPalindrome(s):
+    t = s + "#" + s[::-1]
+    lps = [0] * len(t)
+    for i in range(1, len(t)):
+        k = lps[i - 1]
+        while k and t[i] != t[k]:
+            k = lps[k - 1]
+        if t[i] == t[k]:
+            k += 1
+        lps[i] = k
+    return s[lps[-1]:][::-1] + s`,
+    lang: "python", time: "O(n)", space: "O(n)",
+    viz: () => {
+      const s = "aabba", t = s + "#" + [...s].reverse().join(""), lps = Array(t.length).fill(0), shown: (string | number)[] = blank(t.length), frames: CellsFrame[] = []; shown[0] = 0;
+      for (let i = 1; i < t.length; i++) { let k = lps[i - 1]; while (k && t[i] !== t[k]) k = lps[k - 1]; if (t[i] === t[k]) k++; lps[i] = k; shown[i] = k; frames.push({ note: `lps[${i}] = ${k}: longest prefix that also ends at position ${i} has length ${k}`, rows: [[...t], [...shown]], tones: { [`1:${i}`]: "active", ...(k ? range(i - k + 1, i) : {}) } }); }
+      const L = lps[t.length - 1], ans = [...s.slice(L)].reverse().join("") + s;
+      frames.push({ note: `palindromic prefix "${s.slice(0, L)}" (length ${L}); put "${[...s.slice(L)].reverse().join("")}" in front → "${ans}"`, rows: [[...t], lps], tones: { ...range(0, L - 1, 0, "found"), [`1:${t.length - 1}`]: "found" } });
+      return cells(`"${s}" → "${ans}"`, [[...t], blank(t.length)], frames, ["s#rev", "lps"]);
+    },
+  },
+
+  "minimum-number-of-days-to-make-m-bouquets": {
+    approach: "Binary search the day: by day d, count bouquets made from runs of k adjacent bloomed flowers, which only grows with d.",
+    idea: ["If m·k exceeds the number of flowers, it is impossible.", "For a day d, scan once: extend the run on bloomed flowers, reset on others, and cut a bouquet when the run reaches k.", "The smallest d with at least m bouquets is the answer."],
+    code: `def minDays(bloomDay, m, k):
+    if m * k > len(bloomDay):
+        return -1
+    def ok(d):
+        made = run = 0
+        for b in bloomDay:
+            run = run + 1 if b <= d else 0
+            if run == k:
+                made += 1
+                run = 0
+        return made >= m
+    lo, hi = min(bloomDay), max(bloomDay)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if ok(mid):
+            hi = mid
+        else:
+            lo = mid + 1
+    return lo`,
+    lang: "python", time: "O(n log max)", space: "O(1)",
+    viz: () => {
+      const b = [7, 7, 7, 7, 12, 7, 7], m = 2, k = 3, frames: CellsFrame[] = []; let lo = Math.min(...b), hi = Math.max(...b);
+      const test = (d: number) => { let made = 0, run = 0; const tn: Record<string, Tone> = {}; b.forEach((x, i) => { run = x <= d ? run + 1 : 0; tn[`0:${i}`] = x <= d ? "window" : "muted"; if (run === k) { made++; run = 0; for (let j = i - k + 1; j <= i; j++) tn[`0:${j}`] = "found"; } }); return { made, tn }; };
+      while (lo < hi) { const mid = (lo + hi) >> 1, { made, tn } = test(mid); frames.push({ note: `day ${mid}: ${made} bouquet${made === 1 ? "" : "s"} ${made >= m ? `≥ ${m}, try earlier (hi = ${mid})` : `< ${m}, wait longer (lo = ${mid + 1})`}`, tones: tn }); if (made >= m) hi = mid; else lo = mid + 1; }
+      frames.push({ note: `answer: day ${lo}`, tones: test(lo).tn });
+      return cells(`${m} bouquets of ${k}: day ${lo}`, [b], frames);
+    },
+  },
+
+  "shortest-path-in-a-grid-with-obstacles-elimination": {
+    approach: "BFS over states (row, col, eliminations left); revisit a cell only when arriving with more eliminations left than any earlier visit.",
+    idea: ["BFS by layers gives the fewest steps, but the same cell can matter with different numbers of eliminations left.", "Stepping onto a 1 costs one elimination; drop moves that would go below 0.", "Earlier visits had fewer steps, so a later visit only helps if it has more eliminations left. If k ≥ R + C - 2 the straight path works."],
+    code: `from collections import deque
+def shortestPath(grid, k):
+    R, C = len(grid), len(grid[0])
+    if k >= R + C - 2:
+        return R + C - 2
+    best = [[-1] * C for _ in range(R)]
+    best[0][0] = k
+    q, steps = deque([(0, 0, k)]), 0
+    while q:
+        for _ in range(len(q)):
+            r, c, left = q.popleft()
+            if (r, c) == (R - 1, C - 1):
+                return steps
+            for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                if 0 <= nr < R and 0 <= nc < C:
+                    nl = left - grid[nr][nc]
+                    if nl > best[nr][nc]:
+                        best[nr][nc] = nl
+                        q.append((nr, nc, nl))
+        steps += 1
+    return -1`,
+    lang: "python", time: "O(R·C·k)", space: "O(R·C)",
+    viz: () => {
+      const g = [[0, 0, 0], [1, 1, 0], [0, 0, 0], [0, 1, 1], [0, 0, 0]], k = 1, R = 5, C = 3, best = g.map((r) => r.map(() => -1)), show = g.map((r) => r.map((x) => (x ? "#" : ""))) as (string | number | null)[][], frames: TableFrame[] = []; best[0][0] = k; show[0][0] = 0;
+      let q: [number, number, number][] = [[0, 0, k]], steps = 0, ans = -1;
+      while (q.length) { if (q.some(([r, c]) => r === R - 1 && c === C - 1)) { ans = steps; break; } const nx: [number, number, number][] = []; for (const [r, c, left] of q) for (const [nr, nc] of [[r + 1, c], [r - 1, c], [r, c + 1], [r, c - 1]]) if (nr >= 0 && nr < R && nc >= 0 && nc < C) { const nl = left - g[nr][nc]; if (nl > best[nr][nc]) { best[nr][nc] = nl; nx.push([nr, nc, nl]); if (show[nr][nc] === "" || show[nr][nc] === "#") show[nr][nc] = g[nr][nc] ? `${steps + 1}*` : steps + 1; } } steps++; q = nx; frames.push({ note: `step ${steps}: ${nx.length} new state${nx.length === 1 ? "" : "s"}${nx.some(([r, c]) => g[r][c]) ? " (* = reached by breaking a wall)" : ""}`, cells: show.map((r) => [...r]), tones: keys(nx.map(([r, c]) => `${r}:${c}`), "window") }); }
+      frames.push({ note: ans >= 0 ? `bottom-right reached in ${ans} steps` : "unreachable", cells: show.map((r) => [...r]), active: [R - 1, C - 1] });
+      return { kind: "table", title: `Shortest path with k = ${k}: ${ans}`, rowHead: heads(R, "r"), colHead: heads(C, "c"), frames };
+    },
+  },
+
+  "letter-case-permutation": {
+    approach: "Build the strings left to right: each letter doubles the list (lower and upper), each digit just extends it.",
+    idea: ["Every letter is an independent two-way choice; digits have one.", "Keep all partial strings and extend each with the options for the next character.", "There are 2^(letters) results."],
+    code: `def letterCasePermutation(s):
+    out = [""]
+    for c in s:
+        opts = (c.lower(), c.upper()) if c.isalpha() else (c,)
+        out = [p + x for p in out for x in opts]
+    return out`,
+    lang: "python", time: "O(2ⁿ · n)", space: "O(2ⁿ · n)",
+    viz: () => {
+      const s = "a1b2", frames: TableFrame[] = [], rows: string[][] = []; let out = [""];
+      for (const c of s) { const opts = /[a-z]/i.test(c) ? [c.toLowerCase(), c.toUpperCase()] : [c]; out = out.flatMap((p) => opts.map((x) => p + x)); rows.push([...out]); frames.push({ note: `'${c}': ${opts.length > 1 ? "letter, every string splits in two" : "digit, append it"} → ${out.length} string${out.length > 1 ? "s" : ""}`, cells: rows.map((r) => [...r, ...Array(4 - r.length).fill(null)]), tones: keys(out.map((_, j) => `${rows.length - 1}:${j}`), "found") }); }
+      return { kind: "table", title: `"${s}": ${out.join(", ")}`, rowHead: [...s].map((c) => `after ${c}`), colHead: heads(4), frames };
+    },
+  },
+
+  "range-sum-of-sorted-subarray-sums": {
+    approach: "List every subarray sum with a running total from each start (n ≤ 1000, so about 500k sums), sort, and add up positions left..right.",
+    idea: ["From start i, extending one element at a time gives each sum in O(1).", "Sort the n(n + 1)/2 sums.", "Sum the slice [left - 1, right) and take it mod 1e9 + 7. A heap or binary search on the value avoids storing all sums if n were larger."],
+    code: `def rangeSum(nums, n, left, right):
+    sums = []
+    for i in range(n):
+        s = 0
+        for j in range(i, n):
+            s += nums[j]
+            sums.append(s)
+    sums.sort()
+    return sum(sums[left - 1:right]) % (10**9 + 7)`,
+    lang: "python", time: "O(n² log n)", space: "O(n²)",
+    viz: () => {
+      const a = [1, 2, 3, 4], n = 4, L = 1, Rt = 5, M: (number | null)[][] = a.map(() => Array(n).fill(null)), frames: TableFrame[] = [], sums: number[] = [];
+      for (let i = 0; i < n; i++) { let s = 0; for (let j = i; j < n; j++) { s += a[j]; M[i][j] = s; sums.push(s); } frames.push({ note: `start ${i}: running sums ${M[i].filter((x) => x != null).join(", ")}`, cells: M.map((r) => [...r]), tones: keys(Array.from({ length: n - i }, (_, d) => `${i}:${i + d}`), "window") }); }
+      const sorted = [...sums].sort((p, q) => p - q), pick = sorted.slice(L - 1, Rt), tot = pick.reduce((p, q) => p + q, 0);
+      frames.push({ note: `sorted: [${sorted.join(", ")}]; positions ${L}..${Rt} are [${pick.join(", ")}] → ${tot}`, cells: M, tones: keys(M.flatMap((r, i) => r.map((v, j) => (v != null && pick.includes(v) ? `${i}:${j}` : ""))).filter(Boolean), "found") });
+      return { kind: "table", title: `Sum of sorted positions ${L}..${Rt}: ${tot}`, rowHead: heads(n, "from "), colHead: heads(n, "to "), frames };
+    },
+  },
+
+  "maximum-running-time-of-n-computers": {
+    approach: "Binary search the running time T: it is achievable when the batteries can supply n·T minutes, counting each battery for at most T.",
+    idea: ["A battery can power at most one computer at a time, so over T minutes it contributes at most min(b, T).", "If the capped total is at least n·T, swapping batteries freely makes it work.", "Feasibility shrinks as T grows, so find the largest feasible T (upper bound sum // n)."],
+    code: `def maxRunTime(n, batteries):
+    lo, hi = 0, sum(batteries) // n
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if sum(min(b, mid) for b in batteries) >= n * mid:
+            lo = mid
+        else:
+            hi = mid - 1
+    return lo`,
+    lang: "python", time: "O(m log(sum/n))", space: "O(1)",
+    viz: () => {
+      const n = 2, bat = [3, 3, 3], frames: CellsFrame[] = []; let lo = 0, hi = Math.floor(bat.reduce((a, b) => a + b, 0) / n);
+      while (lo < hi) { const mid = (lo + hi + 1) >> 1, cap = bat.map((b) => Math.min(b, mid)), s = cap.reduce((a, b) => a + b, 0), ok = s >= n * mid; frames.push({ note: `T = ${mid}: capped supply ${cap.join(" + ")} = ${s} ${ok ? `≥ ${n} × ${mid}, works (lo = ${mid})` : `< ${n} × ${mid}, too long (hi = ${mid - 1})`}`, rows: [bat, cap], tones: range(0, bat.length - 1, 1, ok ? "found" : "bad") }); if (ok) lo = mid; else hi = mid - 1; }
+      return cells(`${n} computers run for ${lo} minutes`, [bat, blank(bat.length)], frames, ["battery", "min(b, T)"]);
+    },
+  },
+
+  "minimum-height-trees": {
+    approach: "Peel leaves layer by layer, like burning the tree from the outside; the one or two nodes left at the end are the centres.",
+    idea: ["The best roots are the middle of the longest path, so they are the last nodes reached when trimming from every leaf at once.", "Remove all current leaves, lower their neighbours' degrees, and collect the new leaves.", "Stop when at most two nodes remain."],
+    code: `def findMinHeightTrees(n, edges):
+    if n == 1:
+        return [0]
+    g = [set() for _ in range(n)]
+    for a, b in edges:
+        g[a].add(b)
+        g[b].add(a)
+    leaves = [i for i in range(n) if len(g[i]) == 1]
+    left = n
+    while left > 2:
+        left -= len(leaves)
+        nxt = []
+        for x in leaves:
+            y = g[x].pop()
+            g[y].remove(x)
+            if len(g[y]) == 1:
+                nxt.append(y)
+        leaves = nxt
+    return leaves`,
+    lang: "python", time: "O(n)", space: "O(n)",
+    viz: () => {
+      const n = 6, E = [[3, 0], [3, 1], [3, 2], [3, 4], [5, 4]], nodes = [{ id: 0, label: "0", x: 10, y: 15 }, { id: 1, label: "1", x: 10, y: 50 }, { id: 2, label: "2", x: 10, y: 85 }, { id: 3, label: "3", x: 40, y: 50 }, { id: 4, label: "4", x: 70, y: 50 }, { id: 5, label: "5", x: 95, y: 50 }];
+      const g = Array.from({ length: n }, () => new Set<number>()); E.forEach(([a, b]) => { g[a].add(b); g[b].add(a); });
+      let leaves = [...g.keys()].filter((i) => g[i].size === 1), left = n; const gone: number[] = [], et: Record<string, Tone> = {}, frames: GraphFrame[] = [];
+      while (left > 2) { frames.push({ note: `trim leaves ${leaves.join(", ")}`, tones: { ...tones(gone, "muted"), ...tones(leaves, "bad") }, edgeTones: { ...et } }); left -= leaves.length; const nx: number[] = []; for (const x of leaves) { const y = [...g[x]][0]; g[x].delete(y); g[y].delete(x); et[ek(x, y)] = "muted"; gone.push(x); if (g[y].size === 1) nx.push(y); } leaves = nx; }
+      frames.push({ note: `${left} node${left > 1 ? "s" : ""} left: [${leaves.join(", ")}] are the roots of minimum height`, tones: { ...tones(gone, "muted"), ...tones(leaves, "found") }, edgeTones: { ...et } });
+      return { kind: "graph", title: `Minimum height roots: [${leaves.join(", ")}]`, nodes, edges: E.map(([a, b]) => ({ a, b })), frames };
+    },
+  },
 };
