@@ -1,0 +1,499 @@
+<!-- @start -->
+  <article class="slide">
+    <div class="slide-tag"><b>Outcomes</b> · what each module should leave you able to do</div>
+    <h3>You should now be able to...</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Module</th><th>After it, you can</th></tr></thead>
+      <tbody>
+        <tr><td>0 Neural nets</td><td>derive a gradient by hand, explain why ReLU, residuals and AdamW help, and spot over- vs underfitting</td></tr>
+        <tr><td>1 Architectures</td><td>pick CNN, RNN, transformer, SSM or diffusion for a problem and justify it by inductive bias</td></tr>
+        <tr><td>2 LLM internals</td><td>compute attention by hand, explain RoPE, the KV cache and FlashAttention, and count a model's parameters</td></tr>
+        <tr><td>3 APIs and context</td><td>budget a context window, use prompt caching, and get valid structured output with a retry loop</td></tr>
+        <tr><td>4 RAG and evals</td><td>build hybrid retrieval with RRF, measure recall@k and MRR, and name the failure point of a bad answer</td></tr>
+        <tr><td>5 Agents</td><td>write a tool loop, build it as a LangGraph graph with checkpoints and approvals, and explain MCP</td></tr>
+        <tr><td>6 Fine-tuning</td><td>decide prompt vs RAG vs fine-tune, estimate LoRA/QLoRA memory, and explain DPO and GRPO</td></tr>
+        <tr><td>7 Serving and security</td><td>explain prefill vs decode, continuous batching, the request path, and layered injection defences</td></tr>
+        <tr><td>8 Multimodal</td><td>estimate image token costs and describe vision, speech and diffusion pipelines</td></tr>
+        <tr><td>9 Capstone</td><td>ship DocuMind with evals and defend every design choice in an interview</td></tr>
+      </tbody>
+    </table></div>
+  </article>
+
+<!-- @m3 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 3.7 context engineering, drawn</div>
+    <h3>Budgeting the context window and caching the prefix</h3>
+    <p>Every call has a fixed window shared by instructions, tools, documents, history and the answer. Context engineering is deciding what earns a place, in what order, and what can be cached.</p>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  A["system prompt: role, rules, format<br/>stable, cache it"] --> B["tool definitions<br/>stable, cache it"]
+  B --> C["long reference docs<br/>stable per session, cache it"]
+  C --> D["retrieved chunks for this question<br/>changes every call"]
+  D --> E["recent conversation turns<br/>oldest dropped or summarised first"]
+  E --> F["the question + final instructions<br/>last, where attention is strongest"]
+  F --> G["reserved space for the answer"]</pre>
+          <figcaption>Stable content first so the provider can reuse the cached prefix; volatile content last.</figcaption>
+        </figure>
+    <figure class="diagram">
+<pre class="mermaid">sequenceDiagram
+  participant App
+  participant API as LLM API
+  App->>API: call 1: [cache breakpoint after docs] + question A
+  API-->>App: answer A (prefix written to cache, slight surcharge)
+  App->>API: call 2: identical prefix + question B
+  API-->>App: answer B (prefix read from cache: much cheaper, faster first token)
+  Note over App,API: change one byte of the prefix and the cache misses</pre>
+          <figcaption>Prompt caching: pay full price for the shared prefix once, then a fraction of it on every reuse within the cache lifetime.</figcaption>
+        </figure>
+    <div class="two">
+      <div>
+        <h4>Rules of thumb</h4>
+        <ul>
+          <li>Reserve the output budget first; a response cut off at max tokens is a common silent failure.</li>
+          <li>Cap retrieved text (for example 50 to 60% of the budget) and keep only the best-ranked chunks.</li>
+          <li>Drop or summarise the oldest turns, never the system prompt or the question.</li>
+          <li>Put anything that varies per user (timestamps, names) after the cached prefix, or the cache never hits.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Why order matters</h4>
+        <ul>
+          <li>Models recall the start and end of long contexts better than the middle, so put the question and key instructions last.</li>
+          <li>Label sections with tags (&lt;docs&gt;, &lt;question&gt;) so the model can tell instructions from data, which also helps against injection.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="code"><div class="code-head"><span>context_budget.py</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:context_budget.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Your prompt cache hit rate is near zero. What is the usual cause?</summary><div class="ans"><p>Something early in the prompt changes on every call: a timestamp, the user's name, a shuffled tool list or retrieved documents placed before the stable instructions. Caching matches an exact prefix, so move every per-request value after the cache breakpoint.</p></div></details></li>
+      <li><details><summary>The model ignores an instruction buried in a 50-page context. What do you change?</summary><div class="ans"><p>Move the instruction to the end, next to the question, repeat the critical constraint there, cut irrelevant context (better retrieval or summaries), and mark sections with clear tags. Long windows do not guarantee the model attends to everything equally.</p></div></details></li>
+      <li><details><summary>History is filling the window in a long chat. Options?</summary><div class="ans"><p>Keep a sliding window of recent turns, summarise older turns into a running memory note, store facts in long-term memory and retrieve them when relevant, and trim tool outputs to the fields the model needs.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 3.8 structured output that never breaks your parser</div>
+    <h3>From "please return JSON" to guaranteed shapes</h3>
+    <div class="two">
+      <div>
+        <h4>Three levels of reliability</h4>
+        <ol>
+          <li><strong>Ask nicely</strong> with an example: often works, sometimes adds chatter or wrong types.</li>
+          <li><strong>Validate and retry</strong>: parse with a schema (Pydantic, Zod); on failure send the exact error back and ask for a fix.</li>
+          <li><strong>Constrained decoding</strong> (structured outputs / tool schemas): at each step the server masks tokens that would break the JSON schema, so the output always parses. You still validate business rules.</li>
+        </ol>
+      </div>
+      <div>
+        <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  P["prompt + JSON schema"] --> M["model reply"]
+  M --> V{"parse + validate<br/>(types, ranges, enums)"}
+  V -->|"valid"| OK["use the object"]
+  V -->|"invalid"| E["append the reply and the exact validation error"]
+  E --> R{"tries left?"}
+  R -->|"yes"| M
+  R -->|"no"| F["fail loudly, log for evals"]</pre>
+          <figcaption>The validate-and-retry loop. Feeding back the precise error is what makes the second attempt work.</figcaption>
+        </figure>
+      </div>
+    </div>
+    <div class="code"><div class="code-head"><span>structured_retry.py · Pydantic validation with a retry, runs offline</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:structured_retry.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Constrained decoding guarantees valid JSON. Why validate anyway?</summary><div class="ans"><p>The schema guarantees shape, not truth. A total can be negative, a date can be in the future, an id can point to nothing. Business rules, cross-field checks and hallucinated values still need validation and sometimes a retry.</p></div></details></li>
+      <li><details><summary>Function calling vs structured outputs: what is the difference?</summary><div class="ans"><p>Function calling lets the model choose to call one of your tools and produce arguments matching that tool's schema; your code runs it. Structured output forces the final answer itself into a schema. Under the hood both rely on the model being trained (and often constrained) to emit schema-valid JSON.</p></div></details></li>
+      <li><details><summary>How do you measure an extraction pipeline?</summary><div class="ans"><p>A labelled test set of documents with expected fields; report field-level accuracy, the rate of invalid outputs before and after retries, retries per document, latency and cost. Track it in CI so prompt changes cannot silently regress.</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @m4 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 4.9 why RAG answers go wrong</div>
+    <h3>Failure points and the metrics that catch them</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  D["documents"] --> P["parse + chunk"]
+  P --> I["embed + index"]
+  Q["question"] --> R["retrieve top-k"]
+  I --> R
+  R --> K["rerank"]
+  K --> G["generate"]
+  G --> A["answer"]
+  P -.->|"tables mangled,<br/>chunks cut mid-thought"| X1["parsing failure"]
+  R -.->|"right chunk not in top-k"| X2["retrieval failure<br/>measure: recall@k, MRR"]
+  K -.->|"right chunk ranked low"| X3["ranking failure<br/>measure: nDCG"]
+  G -.->|"ignores or invents"| X4["generation failure<br/>measure: faithfulness"]</pre>
+      <figcaption>Debug a bad answer by walking the pipeline: was the evidence parsed, retrieved, ranked high, and used?</figcaption>
+    </figure>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Metric</th><th>Question it answers</th><th>Needs</th></tr></thead>
+      <tbody>
+        <tr><td>recall@k</td><td>Is the right chunk anywhere in the top k?</td><td>labelled relevant chunks</td></tr>
+        <tr><td>MRR</td><td>How high is the first right chunk?</td><td>labelled relevant chunks</td></tr>
+        <tr><td>nDCG</td><td>Are the most relevant chunks at the top?</td><td>graded relevance labels</td></tr>
+        <tr><td>Faithfulness</td><td>Is every claim supported by the retrieved text?</td><td>LLM judge or human review</td></tr>
+        <tr><td>Answer correctness</td><td>Does it match the reference answer?</td><td>reference answers</td></tr>
+      </tbody>
+    </table></div>
+    <div class="code"><div class="code-head"><span>rrf_hybrid.py · BM25 + toy dense search, fused with RRF, scored with recall@k and MRR</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:rrf_hybrid.py}}</code></pre></div>
+    <p>BM25 misses the paraphrase ("money back" vs "refund"); the dense side misses the error code. Fusing the two ranked lists finds both, which is the whole argument for hybrid search in one printout.</p>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Users complain answers are wrong. Retrieval recall@5 is 0.95. Where do you look?</summary><div class="ans"><p>Retrieval is fine, so check generation: is the context too long or badly ordered, does the prompt demand citations and "say you do not know", is the model ignoring a contradicting chunk, are chunks missing surrounding context. Measure faithfulness and correctness on the failing cases.</p></div></details></li>
+      <li><details><summary>Why use RRF instead of adding BM25 and cosine scores?</summary><div class="ans"><p>The scores live on different scales (BM25 is unbounded, cosine sits in [-1, 1]) and shift with the corpus. RRF uses only ranks, 1/(k + rank), so it needs no calibration and one strong list cannot drown the other.</p></div></details></li>
+      <li><details><summary>How do you build a retrieval eval set quickly?</summary><div class="ans"><p>Sample real user questions (or generate questions from chunks with an LLM), label which chunks answer each, spot-check the labels, and keep 50 to 200 examples. Rerun recall@k and MRR on every change to chunking, embeddings or ranking.</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @m6 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 6.6 the memory math behind fine-tuning</div>
+    <h3>Why LoRA fits on one GPU and full fine-tuning does not</h3>
+    <div class="two">
+      <div>
+        <div class="table-wrap"><table style="min-width:0">
+          <thead><tr><th>Per trained parameter</th><th>Bytes</th></tr></thead>
+          <tbody>
+            <tr><td>bf16 weight</td><td>2</td></tr>
+            <tr><td>bf16 gradient</td><td>2</td></tr>
+            <tr><td>Adam moments m and v (fp32)</td><td>8</td></tr>
+            <tr><td>fp32 master copy</td><td>4</td></tr>
+            <tr><td>Total (before activations)</td><td>16</td></tr>
+          </tbody>
+        </table></div>
+        <p>Full fine-tuning pays 16 bytes for every one of 7 billion parameters. LoRA pays 16 bytes only for the small adapters and 2 bytes (bf16) or 0.5 bytes (4-bit, QLoRA) for the frozen base.</p>
+      </div>
+      <div>
+        <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  subgraph RL["RLHF (PPO)"]
+    direction TB
+    a1["preference pairs"] --> a2["train a reward model"]
+    a2 --> a3["sample answers from the policy"]
+    a3 --> a4["score with the reward model"]
+    a4 --> a5["PPO update with a KL penalty"]
+    a5 --> a3
+  end
+  subgraph DP["DPO"]
+    direction TB
+    b1["preference pairs"] --> b2["one classification-style loss<br/>on policy vs reference log-probs"]
+  end</pre>
+          <figcaption>DPO removes the reward model and the sampling loop, so it is cheaper and more stable to run.</figcaption>
+        </figure>
+      </div>
+    </div>
+    <div class="code"><div class="code-head"><span>lora_memory.py</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:lora_memory.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Why is the optimizer state bigger than the model?</summary><div class="ans"><p>Adam keeps two running averages per parameter (momentum and squared gradients), usually in fp32: 8 bytes, versus 2 bytes for a bf16 weight. With a fp32 master copy and gradients, training costs about 16 bytes per parameter before activations.</p></div></details></li>
+      <li><details><summary>QLoRA quantizes the base model to 4 bits. Does that hurt the fine-tuned quality?</summary><div class="ans"><p>Usually only a little: the adapters are trained in higher precision on top of the frozen 4-bit weights (NF4 with double quantization), and they learn to compensate. The bigger risk is task data quality, not the quantization.</p></div></details></li>
+      <li><details><summary>When is DPO not enough?</summary><div class="ans"><p>When you can check answers automatically (math, code, tool tasks), online RL with verifiable rewards (for example GRPO) can keep improving from the model's own samples, while DPO only learns from a fixed set of preference pairs.</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @m7 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 7.7 the request path</div>
+    <h3>What sits between the user and the model</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  U["user"] --> GW["API gateway<br/>auth, rate limit, quotas"]
+  GW --> IN["input guardrails<br/>size limits, PII, policy"]
+  IN --> SC{"semantic cache hit?"}
+  SC -->|"yes"| OUT
+  SC -->|"no"| RT["router<br/>small model or large model"]
+  RT --> LLM["LLM / engine<br/>continuous batching, KV cache"]
+  LLM --> OG["output guardrails<br/>schema, safety, citations"]
+  OG --> OUT["stream to user"]
+  GW -.-> OBS[("traces, tokens, cost,<br/>latency, feedback")]
+  LLM -.-> OBS
+  OG -.-> OBS</pre>
+      <figcaption>Each box is a place to save cost, cut latency or stop a bad answer.</figcaption>
+    </figure>
+    <div class="two">
+      <div>
+        <h4>Continuous batching in numbers</h4>
+        <p>Static batching waits for the longest request in each batch; continuous batching refills a slot the moment a request finishes. The simulation below uses the same 8 requests and the same batch size.</p>
+      </div>
+      <div>
+        <h4>Levers, cheapest first</h4>
+        <ul>
+          <li>Cache: exact, prefix and semantic caches skip work.</li>
+          <li>Route: send easy requests to a small model.</li>
+          <li>Trim: shorter prompts and capped outputs.</li>
+          <li>Batch and quantize on self-hosted engines.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="code"><div class="code-head"><span>batching_sim.py</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:batching_sim.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>What can go wrong with a semantic cache?</summary><div class="ans"><p>Two questions can be similar but need different answers ("refund policy in the EU" vs "in the US"), or the cached answer goes stale, or one user's personal answer leaks to another. Use a strict similarity threshold, include the user or tenant and key parameters in the cache key, and set expiry.</p></div></details></li>
+      <li><details><summary>Why does continuous batching cut average latency so much?</summary><div class="ans"><p>In static batching a 30-token request waits for the 420-token request in its batch. Continuous batching lets it finish and leave after 30 steps, and its slot is immediately reused by the next request in the queue.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 7.8 guardrails and observability</div>
+    <h3>Prompt injection, layered defences and tracing</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  subgraph DI["Direct injection"]
+    direction LR
+    u["user: ignore your rules and..."] --> m1["model"]
+  end
+  subgraph II["Indirect injection"]
+    direction LR
+    w["web page / email / PDF with hidden instructions"] --> t["retrieved or tool output"] --> m2["model with tools"]
+    m2 --> act["sends data, deletes files"]
+  end</pre>
+      <figcaption>Indirect injection is the dangerous one: the attacker never talks to your app, they plant text the model will read.</figcaption>
+    </figure>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Layer</th><th>Defence</th></tr></thead>
+      <tbody>
+        <tr><td>Privileges</td><td>least privilege per tool; read-only by default; separate credentials per user</td></tr>
+        <tr><td>Data vs instructions</td><td>wrap untrusted text in tags and say it is data; never paste it into the system prompt</td></tr>
+        <tr><td>Actions</td><td>human approval for irreversible or outward-facing actions; allow-list destinations</td></tr>
+        <tr><td>Output</td><td>validate schemas, strip links and markdown images that could exfiltrate data</td></tr>
+        <tr><td>Monitoring</td><td>log tool calls, alert on unusual destinations, red-team regularly</td></tr>
+      </tbody>
+    </table></div>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  T["trace: one user request"] --> S1["span: retrieve<br/>120 ms, 5 chunks"]
+  T --> S2["span: LLM call<br/>3,100 in / 280 out tokens, 1.9 s"]
+  T --> S3["span: tool get_order<br/>80 ms"]
+  T --> S4["span: guardrail check<br/>pass"]</pre>
+      <figcaption>Observability: one trace per request, one span per step, with tokens, cost, latency and inputs/outputs you can replay in evals.</figcaption>
+    </figure>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Can a better system prompt fix prompt injection?</summary><div class="ans"><p>No. It lowers the success rate but cannot guarantee anything, because instructions and data share one channel. Real protection is architectural: limit what the model can do, require approval for risky actions, and validate outputs.</p></div></details></li>
+      <li><details><summary>Which numbers would you put on an LLM app's dashboard?</summary><div class="ans"><p>Requests, error and refusal rates, p50/p95 latency and time to first token, tokens and cost per request and per user, cache hit rate, tool-call failures, guardrail triggers, and quality signals (thumbs, eval scores on sampled traffic).</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @m8 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Deep dive</b> · 8.5 what images and audio cost</div>
+    <h3>Turning pixels and sound into tokens</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  IMG["image"] --> PT["cut into patches<br/>14 × 14 or 16 × 16 px"]
+  PT --> VE["vision encoder (ViT)"]
+  VE --> PR["projector: map to the<br/>LLM's embedding size"]
+  AUD["audio"] --> MEL["log-mel spectrogram<br/>frames every 10 to 20 ms"]
+  MEL --> AE["audio encoder"]
+  AE --> PR
+  TXT["text tokens"] --> LLM["LLM sees one sequence"]
+  PR --> LLM</pre>
+      <figcaption>Every modality ends up as vectors in the same sequence the LLM reads, which is why images and audio cost tokens.</figcaption>
+    </figure>
+    <div class="code"><div class="code-head"><span>vision_tokens.py</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:vision_tokens.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Your vision feature is expensive. What is the first fix?</summary><div class="ans"><p>Resize images to the smallest resolution that still answers the question: token count grows with area, so halving width and height cuts tokens about 4×. Crop to the relevant region, and send text (OCR) instead of images when the content is just text.</p></div></details></li>
+      <li><details><summary>Why do vision models tile large images?</summary><div class="ans"><p>The encoder was trained at a fixed resolution. Tiling keeps fine detail (small text in a screenshot) by encoding several full-resolution crops plus a downscaled overview for global layout, at the cost of more tokens.</p></div></details></li>
+      <li><details><summary>Speech-to-speech vs a speech-to-text, LLM, text-to-speech chain?</summary><div class="ans"><p>The chain is easier to build, debug and swap parts in, but each hop adds latency and loses tone. A native speech-to-speech model responds faster and can keep emotion and interruptions, but is harder to control and evaluate.</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @m9 -->
+  <article class="slide">
+    <div class="slide-tag"><b>Build-along</b> · DocuMind in six steps</div>
+    <h3>Build it, measure it, then talk about it</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  S1["1 · ingest: parse PDFs, chunk with page numbers,<br/>embed into pgvector or Qdrant"] --> S2["2 · retrieve: hybrid BM25 + vectors, RRF, reranker"]
+  S2 --> S3["3 · answer: structured output with citations[]<br/>and 'I do not know' when unsupported"]
+  S3 --> S4["4 · agent: LangGraph with search and ticket tools,<br/>step cap, approval before creating tickets"]
+  S4 --> S5["5 · evals in CI: recall@5, faithfulness, correctness<br/>on 100 labelled questions"]
+  S5 --> S6["6 · ship: FastAPI + streaming, tracing, rate limits,<br/>Docker, live URL, README with numbers"]</pre>
+      <figcaption>Each step reuses one module: 4 for steps 1 to 3 and 5, 5 for step 4, 7 for step 6.</figcaption>
+    </figure>
+    <div class="code"><div class="code-head"><span>suggested repository layout</span><button class="copy" type="button">Copy</button></div><pre><code class="language-plaintext">documind/
+  ingest/       parse.py, chunk.py, embed.py
+  retrieval/    bm25.py, vector.py, fuse.py (RRF), rerank.py
+  agent/        graph.py (LangGraph), tools.py, prompts/
+  api/          app.py (FastAPI, streaming), guards.py
+  evals/        questions.jsonl, run_evals.py, report.md
+  infra/        Dockerfile, docker-compose.yml
+  README.md     architecture diagram, eval table, cost and latency</code></pre></div>
+    <div class="two">
+      <div>
+        <h4>Resume bullet (fill in your numbers)</h4>
+        <div class="callout key"><span class="label">Template</span><p>Built DocuMind, a RAG assistant over 1,200 internal PDFs with hybrid retrieval and a LangGraph agent; raised recall@5 from 0.62 to 0.91 with BM25 + vector fusion and reranking, and cut cost per query 45% with prompt caching (FastAPI, pgvector, Docker).</p></div>
+      </div>
+      <div>
+        <h4>60-second project pitch</h4>
+        <ol>
+          <li>Problem: who asked, and why search was not enough.</li>
+          <li>Architecture: the six steps above, one sentence each.</li>
+          <li>The hardest bug and how evals found it.</li>
+          <li>Numbers: recall, faithfulness, latency, cost.</li>
+          <li>What you would do next with more time.</li>
+        </ol>
+      </div>
+    </div>
+    <h4>Questions interviewers ask about your project</h4>
+    <ol class="qlist">
+      <li><details><summary>Why did you choose that chunk size?</summary><div class="ans"><p>Answer with evidence: "I tried 256, 512 and 1,024 tokens with 15% overlap and measured recall@5 on my 100-question set; 512 scored best because our answers usually span a paragraph." An answer backed by an experiment beats a rule of thumb.</p></div></details></li>
+      <li><details><summary>How do you know the answers are correct?</summary><div class="ans"><p>A labelled eval set run in CI: recall@k for retrieval, an LLM judge for faithfulness checked against human labels on a sample, and correctness against reference answers. Plus user feedback logged with each trace.</p></div></details></li>
+      <li><details><summary>What breaks first at 100× the traffic?</summary><div class="ans"><p>Usually cost and rate limits on the LLM API, then the vector store's memory and the reranker's latency. Mitigations: caching, routing to a smaller model, batching rerank calls, sharding or quantizing the index, and queueing ingestion.</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @design -->
+  <article class="slide">
+    <div class="slide-tag"><b>Worked design</b> · 1 a support chatbot for 50,000 users</div>
+    <h3>RAG chatbot: requirements to numbers to boxes</h3>
+    <div class="two">
+      <div>
+        <h4>Requirements</h4>
+        <ul>
+          <li>50,000 daily users, about 4 questions each, answers from 20,000 help articles.</li>
+          <li>First token under 2 s, cited answers, hand-off to a human when unsure.</li>
+          <li>Articles change daily; cost under a fixed monthly budget.</li>
+        </ul>
+        <h4>Key decisions</h4>
+        <ul>
+          <li>RAG, not fine-tuning: knowledge changes daily and answers need citations.</li>
+          <li>Hybrid retrieval + reranker: product names and error codes need BM25.</li>
+          <li>Prompt caching on the stable system prompt and tools; small model for greetings and FAQs.</li>
+        </ul>
+      </div>
+      <div>
+        <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  CMS["help articles (CMS)"] -->|"webhook on change"| ING["ingest worker:<br/>chunk, embed, upsert"]
+  ING --> VS[("vector + BM25 index")]
+  U["user"] --> API["chat API (streaming)"]
+  API --> R["retriever + reranker"]
+  R --> VS
+  R --> L["LLM with cached system prompt"]
+  L --> API
+  API -.->|"low confidence"| H["human agent queue"]
+  API -.-> T[("traces + feedback")]</pre>
+          <figcaption>Freshness comes from event-driven re-indexing, not periodic full rebuilds.</figcaption>
+        </figure>
+      </div>
+    </div>
+    <div class="code"><div class="code-head"><span>capacity.py · say these numbers out loud in the interview</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">{{code:capacity.py}}</code></pre></div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>The cost estimate is over budget. Which levers do you pull, in order?</summary><div class="ans"><p>Cache the stable prompt prefix (often the biggest win), retrieve fewer and shorter chunks, route simple questions to a smaller model, cap output length, and add a semantic cache for repeated questions. Re-run the evals after each change to confirm quality held.</p></div></details></li>
+      <li><details><summary>How do you keep answers fresh when an article changes?</summary><div class="ans"><p>The CMS sends a webhook; a worker re-chunks and re-embeds only that article, deletes its old chunks by article id and upserts the new ones. Store the article version with each chunk so citations point to the current text, and invalidate cached answers that cited it.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Worked design</b> · 2 an LLM gateway for a whole company</div>
+    <h3>One front door for every team's model calls</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart LR
+  T1["team A app"] --> GW["LLM gateway"]
+  T2["team B app"] --> GW
+  T3["batch jobs"] --> GW
+  GW --> Q["keys, quotas,<br/>per-team budgets"]
+  GW --> C["exact + semantic cache"]
+  GW --> RT["router: model by task,<br/>fallback on errors"]
+  RT --> P1["provider 1"]
+  RT --> P2["provider 2"]
+  RT --> P3["self-hosted vLLM"]
+  GW --> LOG[("usage, cost and audit logs<br/>PII redaction")]</pre>
+      <figcaption>Teams call one API; the gateway handles keys, cost, caching, failover and compliance.</figcaption>
+    </figure>
+    <div class="two">
+      <div>
+        <h4>Why build it</h4>
+        <ul>
+          <li>Provider keys stay in one place; teams never see them.</li>
+          <li>Per-team budgets and rate limits stop one runaway job draining the account.</li>
+          <li>Fallback across providers keeps apps up during an outage.</li>
+          <li>One audit log for data-protection reviews.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Hard parts</h4>
+        <ul>
+          <li>Streaming through the gateway without adding latency.</li>
+          <li>Normalising different providers' request and tool-call formats.</li>
+          <li>Cache keys that respect tenant boundaries.</li>
+          <li>Counting tokens consistently for billing.</li>
+        </ul>
+      </div>
+    </div>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Provider 1 starts returning 429s. What should the gateway do?</summary><div class="ans"><p>Respect Retry-After with jittered backoff for retriable requests, shift traffic to a fallback provider or model if the request allows it, shed low-priority batch traffic first, and alert. Never retry indefinitely on user-facing requests: fail fast with a clear message.</p></div></details></li>
+      <li><details><summary>How would you prevent one team's cached answers leaking to another?</summary><div class="ans"><p>Include the tenant id (and any user-level scope) in every cache key, never share semantic-cache entries across tenants, and exclude responses containing personal data from caching.</p></div></details></li>
+    </ol>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Worked design</b> · 3 an internal agent platform</div>
+    <h3>Agents that act on company systems, safely</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  UI["chat / Slack"] --> OR["orchestrator (LangGraph)<br/>state per thread, checkpoints"]
+  OR --> MCP1["MCP server: tickets"]
+  OR --> MCP2["MCP server: docs search"]
+  OR --> MCP3["MCP server: deploys"]
+  OR --> APR{"risky action?"}
+  APR -->|"yes"| HUM["human approval (interrupt)"]
+  APR -->|"no"| RUN["run tool with the user's own permissions"]
+  HUM --> RUN
+  OR -.-> AUD[("audit log of every tool call")]</pre>
+      <figcaption>Tools behind MCP servers, the user's own permissions, approvals for anything irreversible, and a full audit trail.</figcaption>
+    </figure>
+    <h4>Check yourself</h4>
+    <ol class="qlist">
+      <li><details><summary>Why should the agent act with the user's permissions, not a service account?</summary><div class="ans"><p>So it can never do more than the person asking could do themselves. A shared admin account turns any successful prompt injection into an admin action; per-user credentials limit the damage and keep the audit trail honest.</p></div></details></li>
+      <li><details><summary>How do you evaluate an agent before giving it to the whole company?</summary><div class="ans"><p>Scripted tasks with known end states (was the ticket created with the right fields), measured on success rate, steps, cost and safety violations; replay real traces in a sandbox; red-team with injected documents; then a staged rollout with approvals switched on.</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @interview -->
+  <article class="slide">
+    <div class="slide-tag"><b>Model answers</b> · say it in 60 seconds</div>
+    <h3>Eight answers worth rehearsing out loud</h3>
+    <p>Structure each answer as: one-line definition, how it works, one trade-off, one example from your own work.</p>
+    <ol class="qlist">
+      <li><details><summary>Walk me through how RAG works and where it fails.</summary><div class="ans"><p>RAG retrieves relevant chunks from your documents and puts them in the prompt so the model answers from them with citations. Offline: parse, chunk, embed, index. Online: retrieve with hybrid search, rerank, generate. It fails at parsing, retrieval (measured by recall@k), ranking, or generation (faithfulness), so I debug by checking each stage on failing questions.</p></div></details></li>
+      <li><details><summary>Explain attention and why it is O(n²).</summary><div class="ans"><p>Each token makes a query, key and value. A token's query is compared with every key, softmax turns the scores into weights, and the output is the weighted sum of values. Every pair of tokens gets a score, so n tokens need n² scores; FlashAttention computes them in tiles to avoid storing the n × n matrix, but the compute is still quadratic.</p></div></details></li>
+      <li><details><summary>Prompting vs RAG vs fine-tuning: how do you choose?</summary><div class="ans"><p>Start with prompting. Add RAG when the model lacks knowledge or the knowledge changes. Fine-tune when you need a consistent behaviour, format or style the prompt cannot reliably produce, or to make a small model do one task cheaply. Knowledge goes in retrieval; behaviour goes in weights.</p></div></details></li>
+      <li><details><summary>What is the KV cache and why does it matter for serving?</summary><div class="ans"><p>During generation each new token needs the keys and values of all earlier tokens; the KV cache stores them so they are not recomputed. It makes decoding fast but grows with context length times concurrent users, so it, not the weights, often limits how many users a GPU can serve. GQA, paging and quantization shrink it.</p></div></details></li>
+      <li><details><summary>How do you evaluate an LLM application?</summary><div class="ans"><p>A versioned test set of real inputs with expected outputs or rubrics; automatic metrics where possible (exact match, schema validity, recall@k), an LLM judge calibrated against human labels for open-ended quality, and online signals (feedback, escalations). Run it in CI so every prompt or model change shows its effect.</p></div></details></li>
+      <li><details><summary>What is an agent, and when should you not build one?</summary><div class="ans"><p>An LLM in a loop that chooses tools until a goal is met. Do not build one when the steps are known in advance: a fixed workflow is cheaper, faster and easier to test. Use an agent when the path genuinely depends on intermediate results, and add step caps, approvals and evals.</p></div></details></li>
+      <li><details><summary>How does LoRA work and why is it so cheap?</summary><div class="ans"><p>LoRA freezes the original weights and learns a low-rank update B·A beside each targeted matrix. With rank 16 on a 4096 × 4096 layer that is 131k trainable numbers instead of 16.8 million, so gradients and optimizer state are tiny; QLoRA also stores the frozen base in 4 bits, so a 7B model fits on one consumer GPU.</p></div></details></li>
+      <li><details><summary>How do you defend against prompt injection?</summary><div class="ans"><p>Assume it will sometimes succeed and limit the damage: least-privilege tools acting with the user's permissions, untrusted text clearly marked as data, human approval for irreversible actions, output validation and allow-listed destinations, and monitoring of tool calls. Prompt wording alone is not a defence.</p></div></details></li>
+    </ol>
+  </article>
+
+<!-- @glossary -->
+  <article class="slide">
+    <div class="slide-tag"><b>More terms</b> · from the deep dives</div>
+    <dl class="glossary">
+      <div><dt>A2A</dt><dd>Agent-to-agent protocol: agents publish cards and exchange tasks across systems. Module 5.</dd></div>
+      <div><dt>Attention sink</dt><dd>Early tokens that soak up attention; keeping them stabilises streaming generation. Module 2.</dd></div>
+      <div><dt>Constrained decoding</dt><dd>Masking tokens that would break a schema, so output always parses. Module 3.</dd></div>
+      <div><dt>Context engineering</dt><dd>Choosing and ordering what goes into the context window. Module 3.</dd></div>
+      <div><dt>DiskANN</dt><dd>Graph index kept on SSD for billion-scale vector search. Module 4.</dd></div>
+      <div><dt>IVF</dt><dd>Inverted-file index: cluster vectors and search only the nearest clusters. Module 4.</dd></div>
+      <div><dt>LCEL</dt><dd>LangChain Expression Language: compose Runnables with the pipe operator. Module 5.</dd></div>
+      <div><dt>LLM gateway</dt><dd>One service in front of all model providers for keys, budgets, caching and failover. System design.</dd></div>
+      <div><dt>Matryoshka embedding</dt><dd>Embedding whose first dimensions work alone, so it can be truncated. Module 4.</dd></div>
+      <div><dt>MLA</dt><dd>Multi-head latent attention: store a compressed latent per token instead of full K and V. Module 2.</dd></div>
+      <div><dt>MRR</dt><dd>Mean reciprocal rank: average of 1 / rank of the first relevant result. Module 4.</dd></div>
+      <div><dt>Online softmax</dt><dd>Computing softmax block by block with a running max and sum; the core of FlashAttention. Module 2.</dd></div>
+      <div><dt>Product quantization</dt><dd>Compress a vector into a few bytes by coding each slice with a small codebook. Module 4.</dd></div>
+      <div><dt>Recall@k</dt><dd>Share of the relevant items that appear in the top k results. Module 4.</dd></div>
+      <div><dt>Residual stream</dt><dd>The per-token vector every transformer layer reads from and adds to. Module 2.</dd></div>
+      <div><dt>RLVR</dt><dd>Reinforcement learning with verifiable rewards: answers checked by a program. Module 6.</dd></div>
+      <div><dt>Semantic cache</dt><dd>Reuse an earlier answer when a new question is close enough in embedding space. Module 7.</dd></div>
+      <div><dt>Teacher forcing</dt><dd>Training on the true previous tokens instead of the model's own guesses. Module 2.</dd></div>
+      <div><dt>YaRN</dt><dd>A RoPE scaling method for extending a model's context length. Module 2.</dd></div>
+    </dl>
+  </article>

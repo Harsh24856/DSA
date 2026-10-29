@@ -5,15 +5,19 @@ each slide also gets .card so picture themes give it glass. Run: python3 tools/g
 import html, json, re
 
 src = open("tools/genai-playbook.html", encoding="utf-8").read()
-# Deep-dive slides (tools/genai_deep/slides_*.html) go in before each module's Practice slide.
+# Deep-dive slides (tools/genai_deep/slides_*.html) go in before each section's Practice slide, or at its end.
 # {{code:file.py}} pulls in a tested script from tools/genai_deep, HTML-escaped.
 import pathlib
 deep = "".join(f.read_text(encoding="utf-8") for f in sorted(pathlib.Path("tools/genai_deep").glob("slides_*.html")))
-for mod, block in re.findall(r"<!-- @(m\d+) -->\n(.*?)(?=<!-- @m\d+ -->|\Z)", deep, re.S):
+for mod, block in re.findall(r"<!-- @([\w-]+) -->\n(.*?)(?=<!-- @[\w-]+ -->|\Z)", deep, re.S):
     block = re.sub(r"\{\{code:([\w.]+)\}\}", lambda m: html.escape(pathlib.Path("tools/genai_deep", m.group(1)).read_text(encoding="utf-8").rstrip(), quote=False), block)
     start = src.index(f'<section class="module" id="{mod}"')
-    at = src.index('<article class="slide">\n    <div class="slide-tag"><b>Practice</b>', start)
-    src = src[:at] + block.strip() + "\n\n  " + src[at:]
+    end = src.index("\n</section>", start)
+    at = src.find('<article class="slide">\n    <div class="slide-tag"><b>Practice</b>', start, end)
+    if at < 0:                                 # no Practice slide (capstone, design, glossary): append at the end
+        src = src[:end] + "\n\n  " + block.strip() + src[end:]
+    else:
+        src = src[:at] + block.strip() + "\n\n  " + src[at:]
 
 rail = dict(re.findall(r'<a href="#([\w-]+)"[^>]*><span class="num">[^<]*</span>([^<]+)<', src))
 
