@@ -10,7 +10,8 @@
     "check": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/logic.check.ts",
     "check:solutions": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/solutions/solutions.check.ts",
     "test:e2e": "playwright test",
-    "test:ui": "playwright test --project=ui"
+    "test:ui": "playwright test --project=ui",
+    "check:other": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/other/other.check.ts"
   },
   "dependencies": {
     "@phosphor-icons/react": "2.1.10",

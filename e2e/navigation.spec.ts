@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const ROUTES = ["/", "/analytics", "/patterns", "/patterns/array", "/problems", "/roadmap"];
+const ROUTES = ["/", "/analytics", "/patterns", "/patterns/array", "/problems", "/genai", "/other", "/other/os"];
 
 /** Main content is on screen: it has text, and nothing in the viewport is still faded out. */
 async function visible(page: Page) {
@@ -33,7 +33,7 @@ test("every page shows its content right after a nav click", async ({ page }) =>
     for (const r of ROUTES) {
       // half the time leave the old page scrolled down, which is when blank pages showed up
       if (round % 2) await page.mouse.wheel(0, 3000);
-      if (r === "/patterns/array") await page.locator('main a[href="/patterns/array"]').click();
+      if (r === "/patterns/array" || r === "/other/os") await page.locator(`main a[href="${r}"]`).click();   // reached from its hub page
       else await nav.locator(`a[href="${r}"]`).click();
       await expect(page).toHaveURL(r);
       await expect.poll(() => visible(page), { timeout: Number(process.env.NAV_BUDGET ?? 500), intervals: [50] }).toBe("ok");
@@ -42,7 +42,7 @@ test("every page shows its content right after a nav click", async ({ page }) =>
 });
 
 // Shell and Card are fixed. Still failing: `initial={reduce ? false : ...}` in app/patterns/page.tsx, app/page.tsx,
-// app/roadmap/page.tsx, components/{charts,ProblemRow,SignIn,TopicView,Visualizer}.tsx (UI session's files). Remove fixme once those land.
+// components/{charts,ProblemRow,SignIn,TopicView,Visualizer}.tsx (UI session's files). Remove fixme once those land.
 test.fixme("no hydration mismatch under reduced motion", async ({ page }) => {
   const errors: string[] = [];
   page.on("console", (m) => { if (m.type() === "error" && /hydrat/i.test(m.text())) errors.push(m.text().split("\n").filter((l) => /^\s*[+-]\s{2,}/.test(l)).join(" | ")); });

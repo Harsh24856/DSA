@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
-import { ChartLineUp, CloudCheck, CloudSlash, GearSix, ListChecks, MapTrifold, Sparkle, SunHorizon, TreeStructure, type Icon } from "@phosphor-icons/react";
+import { ChartLineUp, CloudCheck, CloudSlash, GearSix, Books, ListChecks, Sparkle, SunHorizon, TreeStructure, type Icon } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import { diffDays, parse } from "@/lib/logic";
 import { Settings } from "./Settings";
@@ -18,7 +18,7 @@ const NAV: { href: string; label: string; icon: Icon }[] = [
   { href: "/patterns", label: "Patterns", icon: TreeStructure },
   { href: "/problems", label: "Problems", icon: ListChecks },
   { href: "/genai", label: "Gen AI", icon: Sparkle },
-  { href: "/roadmap", label: "Roadmap", icon: MapTrifold },
+  { href: "/other", label: "Other", icon: Books },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
