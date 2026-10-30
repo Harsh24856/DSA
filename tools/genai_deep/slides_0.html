@@ -4,16 +4,13 @@
     <h3>Self-attention worked by hand</h3>
     <p>Attention answers one question for every token: <em>which earlier tokens should I read from, and how much?</em> Each token makes three vectors from its embedding with three learned matrices: a <strong>query</strong> (what I am looking for), a <strong>key</strong> (what I contain, for matching) and a <strong>value</strong> (what I hand over if chosen).</p>
     <figure class="diagram">
-<pre class="mermaid">flowchart LR
-  X["X: token embeddings<br/>(T, d_model)"] --> WQ["× W_Q"] --> Q["Q (T, d_k)<br/>what each token looks for"]
-  X --> WK["× W_K"] --> K["K (T, d_k)<br/>what each token offers"]
-  X --> WV["× W_V"] --> V["V (T, d_v)<br/>the content passed on"]
-  Q --> S["Q·Kᵀ / √d_k<br/>scores (T, T)"]
-  K --> S
-  S --> M["+ causal mask<br/>-∞ above diagonal"]
-  M --> SM["softmax per row<br/>weights (T, T)"]
-  SM --> O["weights · V<br/>output (T, d_v)"]
-  V --> O</pre>
+<pre class="mermaid">flowchart TB
+  X["X: token embeddings (T, d_model)"] --> P["three projections: Q = X·W_Q what each token looks for, K = X·W_K what it offers, V = X·W_V its content"]
+  P --> S["Q·Kᵀ / √d_k: scores (T, T)"]
+  S --> M["+ causal mask: -∞ above the diagonal"]
+  M --> SM["softmax per row: weights (T, T)"]:::hot
+  SM --> O["weights · V: output (T, d_v)"]:::ok
+  P -.->|"V"| O</pre>
       <figcaption>Attention(Q, K, V) = softmax(QKᵀ / √d_k + mask) · V. Three matrix multiplies and a softmax.</figcaption>
     </figure>
     <div class="two">
@@ -66,17 +63,13 @@ V rows:  [1, 0]   [2, 4]   [2, 2]</div>
     <h3>Multi-head attention, masks and the three attention types</h3>
     <figure class="diagram">
 <pre class="mermaid">flowchart TB
-  X["x (T, 512)"] --> P["Q, K, V projections<br/>(T, 512) each"]
-  P --> SP["split into 8 heads<br/>(8, T, 64)"]
-  SP --> H1["head 1<br/>syntax?"]
-  SP --> H2["head 2<br/>previous token?"]
-  SP --> H3["..."]
-  SP --> H8["head 8<br/>coreference?"]
+  X["x (T, 512)"] --> P["Q, K, V projections: (T, 512) each"]
+  P --> SP["split into 8 heads: (8, T, 64)"]:::hot
+  SP --> H1["head 1: syntax?"]
+  SP --> H8["heads 2 to 8: previous token? coreference? ..."]
   H1 --> C["concat (T, 512)"]
-  H2 --> C
-  H3 --> C
   H8 --> C
-  C --> WO["× W_O (512 × 512)"] --> OUT["back to the residual stream"]</pre>
+  C --> WO["× W_O (512 × 512)"] --> OUT["back to the residual stream"]:::ok</pre>
       <figcaption>Heads work in parallel on 64-dimensional slices; the cost is the same as one 512-dimensional head. Head roles are learned, not assigned; the labels are examples interpretability work has found.</figcaption>
     </figure>
     <div class="two">
@@ -152,16 +145,17 @@ x = token_embedding + PE(pos)</div>
 <pre class="mermaid">flowchart TB
   subgraph ABS["Absolute (sinusoidal / learned)"]
     direction LR
-    A1["embedding + PE(pos)"] --> A2["all layers"]
+    A1["embedding + PE(pos)"] --> A2["then all layers"]
   end
   subgraph ROT["RoPE"]
     direction LR
-    R1["q, k in every layer"] --> R2["rotate by position"] --> R3["score depends on distance"]
+    R1["rotate q, k by position, every layer"] --> R2["score depends on distance"]:::hot
   end
   subgraph ALI["ALiBi"]
     direction LR
     L1["raw score"] --> L2["minus slope × distance"]
-  end</pre>
+  end
+  ABS ~~~ ROT ~~~ ALI</pre>
           <figcaption>Where each method injects position.</figcaption>
         </figure>
       </div>
@@ -195,19 +189,13 @@ loss = mean over positions of -log p(target_t | inputs_≤t)</div>
       <div>
         <h4>Generation: one token at a time</h4>
         <figure class="diagram">
-<pre class="mermaid">sequenceDiagram
-  participant U as Your code
-  participant M as Model
-  participant C as KV cache
-  U->>M: prefill: whole prompt in one pass
-  M->>C: store K, V for every prompt token
-  M-->>U: logits for the next token
-  loop until stop token or max length
-    U->>U: sample (temperature, top-p)
-    U->>M: only the new token
-    M->>C: read all cached K, V and append one
-    M-->>U: logits for the next token
-  end</pre>
+<pre class="mermaid">flowchart TB
+  P["prefill: the whole prompt in one pass"]:::hot --> C[("KV cache: K, V for every token so far")]
+  C --> L["logits for the next token"]
+  L --> S["sample: temperature, top-p"]
+  S -->|"stop token or max length"| E["done"]:::ok
+  S --> D["decode: feed only the new token; attention reads every cached K, V and appends one"]
+  D --> C</pre>
           <figcaption>Prefill is parallel; decode is sequential, one cheap forward pass per token thanks to the KV cache.</figcaption>
         </figure>
       </div>

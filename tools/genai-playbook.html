@@ -264,26 +264,21 @@ html.present .deckbar {
     <div class="slide-tag"><b>Roadmap</b> · how the modules connect</div>
     <h3>The full map</h3>
     <figure class="diagram">
-<pre class="mermaid">flowchart LR
-  M0["0 · Neural net basics"] --> M1["1 · Architecture zoo"]
-  M1 --> M2["2 · LLM internals"]
-  M2 --> M3["3 · LLM APIs + context"]
-  M3 --> M4["4 · RAG + evals"]
-  M3 --> M5["5 · Agents + MCP"]
-  M4 --> M5
-  M2 --> M6["6 · Fine-tuning + alignment"]
-  M5 --> M7["7 · Serving + LLMOps + security"]
-  M6 --> M7
-  M1 --> M8["8 · Multimodal"]
-  M7 --> M9["9 · Capstone"]
-  M8 --> M9
-  M4 --> M10["10 · Evals + monitoring"]
-  M10 --> M9
-  M2 --> M11["11 · Reasoning models"]
-  M11 --> M5
-  M7 --> M12["12 · Faster inference"]
-  M12 --> M9</pre>
-      <figcaption>Modules 0–2 are "how models work". Modules 3–5 are "how to build with models". Modules 6–9 are "how to customise, ship and prove it".</figcaption>
+<pre class="mermaid">flowchart TB
+  subgraph A["How models work"]
+    M0["0 · Neural nets"] --> M1["1 · Architecture zoo"] --> M2["2 · LLM internals"]
+  end
+  subgraph B["Build with models"]
+    M3["3 · APIs + context"] --> M4["4 · RAG + evals"] --> M5["5 · Agents + MCP"]
+  end
+  subgraph C["Customise and ship"]
+    M6["6 · Fine-tuning"] --> M7["7 · Serving + LLMOps"] --> M12["12 · Faster inference"]
+  end
+  subgraph D["Go deeper, any order"]
+    M8["8 · Multimodal"] ~~~ M10["10 · Evals"] ~~~ M11["11 · Reasoning"]
+  end
+  A --> B --> C --> D --> M9["9 · Capstone: uses all of it"]:::hot</pre>
+      <figcaption>Modules 0–2 are "how models work". Modules 3–5 are "how to build with models". Modules 6, 7 and 12 are "how to customise and ship". 8, 10 and 11 go deeper, and the capstone (9) proves it all.</figcaption>
     </figure>
     <div class="two">
       <div>
@@ -684,13 +679,23 @@ class SeqClassifier(nn.Module):
     <div class="slide-tag"><b>Notes</b> · 1.3 Transformer families</div>
     <h3>One block, three families</h3>
     <figure class="diagram">
-<pre class="mermaid">flowchart LR
-  T["Transformer block<br/>self-attention + FFN<br/>+ residual + norm"] --> E["Encoder-only<br/>bidirectional attention"]
-  T --> D["Decoder-only<br/>causal mask"]
-  T --> ED["Encoder-decoder<br/>cross-attention"]
-  E --> E1["BERT, RoBERTa, ModernBERT<br/>embeddings, rerankers, classifiers"]
-  D --> D1["GPT, Llama, Claude, Gemini, Qwen<br/>chat, code, reasoning"]
-  ED --> ED1["T5, BART, Whisper<br/>translation, speech-to-text"]</pre>
+<pre class="mermaid">flowchart TB
+  H0["Transformer block: attention + FFN + residual + norm"]
+  subgraph R1[" "]
+    direction LR
+    Q1(["Encoder-only: sees both directions"]) --> A1["BERT, ModernBERT: embeddings, rerankers, classifiers"]:::ok
+  end
+  subgraph R2[" "]
+    direction LR
+    Q2(["Decoder-only: causal mask"]) --> A2["GPT, Llama, Claude, Gemini, Qwen: chat, code, reasoning"]:::hot
+  end
+  subgraph R3[" "]
+    direction LR
+    Q3(["Encoder-decoder: cross-attention"]) --> A3["T5, BART, Whisper: translation, speech-to-text"]:::ok
+  end
+  H0 -->|"stacked three ways"| R1
+  R1 ~~~ R2
+  R2 ~~~ R3</pre>
     </figure>
     <div class="two">
       <div>
@@ -876,14 +881,13 @@ def diffusion_loss(model, x0):                        # x0: (B, C, H, W) clean i
       </div>
     </div>
     <figure class="diagram">
-<pre class="mermaid">flowchart LR
-  X["Token hidden state"] --> R{"Router<br/>softmax scores"}
-  R-->|top-1| E2["Expert 2 FFN"]
-  R-->|top-2| E5["Expert 5 FFN"]
-  R-.->|skipped| E1["Experts 1, 3, 4, 6…"]
-  E2 --> S["Weighted sum"]
+<pre class="mermaid">flowchart TB
+  X["token hidden state"] --> R{"router: softmax scores, keeps the top 2 of 8 experts"}:::hot
+  R -->|"top-1"| E2["expert 2 FFN"]
+  R -->|"top-2"| E5["expert 5 FFN"]
+  E2 --> S["weighted sum"]
   E5 --> S
-  S --> O["Output"]</pre>
+  S --> O["output: only 2 experts' compute spent"]:::ok</pre>
     </figure>
     <div class="code"><div class="code-head"><span>moe_layer.py</span><button class="copy" type="button">Copy</button></div><pre><code class="language-python">import torch, torch.nn as nn
 
@@ -1307,19 +1311,14 @@ print(encode("lowest newest", merges))</code></pre></div>
     <div class="slide-tag"><b>Notes</b> · 3.1 anatomy of a call</div>
     <h3>What an LLM API call really is</h3>
     <figure class="diagram">
-<pre class="mermaid">sequenceDiagram
-  participant U as User
-  participant A as Your app
-  participant M as LLM API
-  U->>A: question
-  A->>A: build context (system + history + docs)
-  A->>M: messages.create(model, system, messages, tools)
-  M-->>A: streamed tokens / tool_use / stop_reason
-  A->>A: validate (schema), log tokens + latency
-  alt invalid or 429/5xx
-    A->>M: retry with backoff
-  end
-  A-->>U: answer</pre>
+<pre class="mermaid">flowchart TB
+  U["user question"] --> B["your app builds context: system, history, docs"]
+  B --> C["messages.create(model, system, messages, tools)"]:::hot
+  C --> R["streamed tokens, tool_use or stop_reason"]
+  R --> V{"valid, and no 429 or 5xx?"}
+  V -->|"no"| RT["retry with backoff"]:::warn
+  RT --> C
+  V -->|"yes"| A["log tokens and latency, answer the user"]:::ok</pre>
     </figure>
     <div class="two">
       <div>
@@ -1984,13 +1983,14 @@ for ex in golden:
     <h3>Function calling and the agent loop</h3>
     <figure class="diagram">
 <pre class="mermaid">flowchart TB
-  U["User goal"] --> L["LLM call<br/>context + tool schemas"]
-  L --> Dq{"stop_reason?"}
-  Dq -->|tool_use| X["Your code runs the tool<br/>search, SQL, API, code"]
-  X --> TR["Append tool_result<br/>observation"]
-  TR --> L
-  Dq -->|end_turn| A["Final answer"]
-  Dq -->|max steps or budget hit| H["Stop safely + report"]</pre>
+  U["user goal"] --> L["LLM call: context + tool schemas"]
+  L --> Dq{"stop_reason?"}:::hot
+  Dq -->|"end_turn"| A["final answer"]:::ok
+  Dq -->|"tool_use"| X["your code runs the tool: search, SQL, API, code"]
+  X --> TR["append tool_result: the observation"]
+  TR --> B{"steps and budget left?"}
+  B -->|"yes"| L
+  B -->|"no"| H["stop safely and report"]:::warn</pre>
       <figcaption>ReAct in practice: think → act (tool) → observe → repeat. The model never executes anything itself; your code does.</figcaption>
     </figure>
     <div class="two">
@@ -2452,14 +2452,24 @@ trainer.save_model("qlora-out/adapter")  # small adapter files; merge or load th
     <div class="slide-tag"><b>Notes</b> · 6.4 alignment</div>
     <h3>RLHF, DPO and GRPO</h3>
     <figure class="diagram">
-<pre class="mermaid">flowchart LR
-  B["Base model"] --> S["SFT<br/>demonstrations"]
-  S --> R1["RLHF<br/>reward model + PPO"]
-  S --> R2["DPO<br/>chosen vs rejected pairs"]
-  S --> R3["GRPO / RLVR<br/>sample a group, reward correct ones"]
-  R1 --> F["Aligned / reasoning model"]
-  R2 --> F
-  R3 --> F</pre>
+<pre class="mermaid">flowchart TB
+  H0["base model, then SFT on demonstrations"]
+  subgraph R1[" "]
+    direction LR
+    Q1(["RLHF"]) --> A1["reward model + PPO"]:::ok
+  end
+  subgraph R2[" "]
+    direction LR
+    Q2(["DPO"]) --> A2["chosen vs rejected pairs"]:::ok
+  end
+  subgraph R3[" "]
+    direction LR
+    Q3(["GRPO / RLVR"]) --> A3["sample a group, reward the correct ones"]:::ok
+  end
+  H0 -->|"then pick one"| R1
+  R1 -->|"or"| R2
+  R2 -->|"or"| R3
+  R3 -->|"result"| T0["aligned or reasoning model"]:::hot</pre>
     </figure>
     <div class="two">
       <div>
@@ -2633,20 +2643,18 @@ print(r.choices[0].message.content)</code></pre></div>
     <div class="slide-tag"><b>Notes</b> · 7.3 production architecture</div>
     <h3>What a real Gen AI service looks like</h3>
     <figure class="diagram">
-<pre class="mermaid">flowchart LR
-  C["Client<br/>web / mobile"] --> GW["API gateway<br/>auth, rate limits"]
-  GW --> APP["App service<br/>FastAPI, async"]
-  APP --> G1["Input guardrails<br/>PII redaction, injection checks"]
-  G1 --> CA{"Cache hit?"}
-  CA -->|yes| APP
-  CA -->|no| RT["Model router<br/>small vs large, fallback"]
-  RT --> P1["LLM API provider"]
-  RT --> P2["Self-hosted vLLM"]
-  APP --> VDB[("Vector DB")]
-  APP --> DB[("Postgres<br/>users, history")]
-  APP --> G2["Output checks<br/>schema, policy"]
-  APP -.-> OBS["Tracing + metrics<br/>Langfuse / OTel"]
-  OBS -.-> EV["Online evals<br/>+ dashboards"]</pre>
+<pre class="mermaid">flowchart TB
+  C["client: web / mobile"] --> GW["API gateway: auth, rate limits"]
+  GW --> APP["app service: FastAPI, async"]:::hot
+  APP --- DATA[("vector DB + Postgres: users, history")]
+  APP --> G1["input guardrails: PII redaction, injection checks"]
+  G1 --> CA{"cache hit?"}
+  CA -->|"no"| RT["model router: small vs large, fallback"]
+  RT --> P["LLM API provider or self-hosted vLLM"]
+  CA -->|"yes"| OUT["output checks: schema, policy"]
+  P --> OUT
+  OUT --> RESP["response"]:::ok
+  RESP -.-> OBS["traces, metrics, online evals: Langfuse / OTel"]</pre>
     </figure>
     <div class="two">
       <div>
@@ -3001,22 +3009,20 @@ for score, i in zip(*scores.topk(3)):
     <figure class="diagram">
 <pre class="mermaid">flowchart TB
   subgraph Ingestion
-    SRC["Docs folder / Google Drive / Notion export"] --> PARSE["Parse + chunk + contextualize"]
-    PARSE --> IDX[("pgvector + BM25<br/>with ACL metadata")]
+    SRC["docs: Drive, Notion, a folder"] --> PARSE["parse, chunk, contextualize"]
+    PARSE --> IDX[("pgvector + BM25, ACL metadata")]
   end
   subgraph Serving
-    UI["Web UI<br/>streaming chat + citations"] --> API["FastAPI"]
-    API --> AG["LangGraph agent"]
-    AG --> T1["search_docs tool<br/>hybrid + rerank"]
-    AG --> T2["sql_query tool<br/>read-only"]
-    AG --> T3["MCP tools<br/>e.g. tickets"]
-    T1 --> IDX
+    UI["web UI: streaming chat + citations"] --> API["FastAPI"]
+    API --> AG["LangGraph agent"]:::hot
+    AG --> T1["search_docs: hybrid + rerank over the index"]
+    AG --> T2["sql_query (read-only), MCP tools"]
   end
   subgraph Quality
-    GS["Golden set: 50+ questions"] --> CI["GitHub Actions eval gate"]
-    API -.-> TR["Langfuse traces"]
-    TR -.-> DASH["Cost, latency, judge scores"]
-  end</pre>
+    GS["golden set: 50+ questions"] --> CI["CI eval gate"]
+    TR["Langfuse traces from the API"] --> DASH["cost, latency, judge scores"]
+  end
+  Ingestion ~~~ Serving ~~~ Quality</pre>
     </figure>
     <div class="two">
       <div>

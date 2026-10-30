@@ -117,15 +117,14 @@
       <div>
         <figure class="diagram">
 <pre class="mermaid">flowchart TB
-  S(["START"]) --> P["plan<br/>writes subqs"]
-  P -->|"Send × 3"| R1["research A"]
+  S(["START"]) --> P["plan: writes sub-questions"]
+  P -->|"Send"| R1["research A"]
   P -->|"Send"| R2["research B"]
   P -->|"Send"| R3["research C"]
-  R1 --> W["write<br/>reads all notes"]
+  R1 --> W["write: reads all notes, merged by the reducer operator.add"]:::hot
   R2 --> W
   R3 --> W
-  W --> E(["END"])
-  R1 -.-|"notes += [...]"| N[("notes channel<br/>reducer: operator.add")]</pre>
+  W --> E(["END"])</pre>
           <figcaption>Map-reduce with Send: three branches run in the same super-step; the reducer appends their notes.</figcaption>
         </figure>
       </div>
@@ -159,13 +158,11 @@
         <h4>Multi-agent shapes</h4>
         <figure class="diagram">
 <pre class="mermaid">flowchart TB
-  U["user"] --> SUP["supervisor<br/>routes each turn"]
-  SUP --> RA["research agent<br/>(subgraph)"]
-  SUP --> CA["coding agent<br/>(subgraph)"]
-  SUP --> HA["human approval<br/>interrupt()"]
-  RA --> SUP
-  CA --> SUP
-  HA --> SUP</pre>
+  U["user"] --> SUP["supervisor: routes each turn"]:::hot
+  SUP --> AG["specialist agent: research or coding (subgraphs)"]
+  SUP --> HA["human approval: interrupt()"]:::warn
+  AG -->|"result"| SUP
+  HA -->|"decision"| SUP</pre>
           <figcaption>Supervisor pattern: one router, specialist subgraphs, a human checkpoint for risky actions.</figcaption>
         </figure>
         <ul>
@@ -207,14 +204,22 @@
       </div>
     </div>
     <figure class="diagram">
-<pre class="mermaid">flowchart LR
-  subgraph H["Host app"]
-    LLM["LLM"] <--> C1["MCP client"]
-    LLM <--> C2["MCP client"]
+<pre class="mermaid">flowchart TB
+  H0["LLM inside the host app"]:::hot
+  subgraph R1[" "]
+    direction LR
+    Q1(["MCP client"]) <-->|"stdio"| A1["local server: files, git"]
   end
-  C1 <-->|"stdio"| S1["Local server<br/>files, git"]
-  C2 <-->|"Streamable HTTP + OAuth"| S2["Remote server<br/>CRM, tickets"]
-  H <-->|"A2A tasks"| AG["Another company's agent"]</pre>
+  subgraph R2[" "]
+    direction LR
+    Q2(["MCP client"]) <-->|"HTTP + OAuth"| A2["remote server: CRM"]
+  end
+  subgraph R3[" "]
+    direction LR
+    Q3(["host app"]) <-->|"A2A tasks"| A3["another company's agent"]
+  end
+  H0 --> R1
+  R1 ~~~ R2 ~~~ R3</pre>
       <figcaption>MCP: one client per server inside the host. A2A: agent to agent across a boundary.</figcaption>
     </figure>
     <h4>Check yourself</h4>

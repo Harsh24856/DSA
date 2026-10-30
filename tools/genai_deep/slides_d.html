@@ -112,18 +112,29 @@
     <div class="slide-tag"><b>Deep dive</b> · 4.9 why RAG answers go wrong</div>
     <h3>Failure points and the metrics that catch them</h3>
     <figure class="diagram">
-<pre class="mermaid">flowchart LR
-  D["documents"] --> P["parse + chunk"]
-  P --> I["embed + index"]
-  Q["question"] --> R["retrieve top-k"]
-  I --> R
-  R --> K["rerank"]
-  K --> G["generate"]
-  G --> A["answer"]
-  P -.->|"tables mangled,<br/>chunks cut mid-thought"| X1["parsing failure"]
-  R -.->|"right chunk not in top-k"| X2["retrieval failure<br/>measure: recall@k, MRR"]
-  K -.->|"right chunk ranked low"| X3["ranking failure<br/>measure: nDCG"]
-  G -.->|"ignores or invents"| X4["generation failure<br/>measure: faithfulness"]</pre>
+<pre class="mermaid">flowchart TB
+  H0["documents + question"]
+  subgraph R1[" "]
+    direction LR
+    Q1(["parse + chunk"]) --> A1["fails: tables mangled, chunks cut mid-thought"]:::bad
+  end
+  subgraph R2[" "]
+    direction LR
+    Q2(["retrieve top-k"]) --> A2["fails: right chunk missing. Measure recall@k, MRR"]:::bad
+  end
+  subgraph R3[" "]
+    direction LR
+    Q3(["rerank"]) --> A3["fails: right chunk ranked low. Measure nDCG"]:::bad
+  end
+  subgraph R4[" "]
+    direction LR
+    Q4(["generate"]) --> A4["fails: ignores or invents. Measure faithfulness"]:::bad
+  end
+  H0 --> R1
+  R1 -->|"then"| R2
+  R2 -->|"then"| R3
+  R3 -->|"then"| R4
+  R4 -->|"all good"| T0["answer"]:::ok</pre>
       <figcaption>Debug a bad answer by walking the pipeline: was the evidence parsed, retrieved, ranked high, and used?</figcaption>
     </figure>
     <div class="table-wrap"><table>
@@ -172,13 +183,14 @@
     a1["preference pairs"] --> a2["train a reward model"]
     a2 --> a3["sample answers from the policy"]
     a3 --> a4["score with the reward model"]
-    a4 --> a5["PPO update with a KL penalty"]
+    a4 --> a5["PPO update with a KL penalty"]:::warn
     a5 --> a3
   end
   subgraph DP["DPO"]
     direction TB
-    b1["preference pairs"] --> b2["one classification-style loss<br/>on policy vs reference log-probs"]
-  end</pre>
+    b1["preference pairs"] --> b2["one classification-style loss on policy vs reference log-probs"]:::ok
+  end
+  RL ~~~ DP</pre>
           <figcaption>DPO removes the reward model and the sampling loop, so it is cheaper and more stable to run.</figcaption>
         </figure>
       </div>
@@ -244,10 +256,12 @@
     u["user: ignore your rules and..."] --> m1["model"]
   end
   subgraph II["Indirect injection"]
-    direction LR
-    w["web page / email / PDF with hidden instructions"] --> t["retrieved or tool output"] --> m2["model with tools"]
-    m2 --> act["sends data, deletes files"]
-  end</pre>
+    direction TB
+    w["web page, email or PDF with hidden instructions"] --> t["retrieved text or tool output"]
+    t --> m2["model with tools"]
+    m2 --> act["sends data, deletes files"]:::bad
+  end
+  DI ~~~ II</pre>
       <figcaption>Indirect injection is the dangerous one: the attacker never talks to your app, they plant text the model will read.</figcaption>
     </figure>
     <div class="table-wrap"><table>
@@ -367,15 +381,15 @@
       <div>
         <figure class="diagram">
 <pre class="mermaid">flowchart TB
-  CMS["help articles (CMS)"] -->|"webhook on change"| ING["ingest worker:<br/>chunk, embed, upsert"]
+  CMS["help articles (CMS)"] -->|"webhook on change"| ING["ingest worker: chunk, embed, upsert"]
   ING --> VS[("vector + BM25 index")]
-  U["user"] --> API["chat API (streaming)"]
+  U["user"] --> API["chat API, streaming"]
   API --> R["retriever + reranker"]
-  R --> VS
-  R --> L["LLM with cached system prompt"]
-  L --> API
-  API -.->|"low confidence"| H["human agent queue"]
-  API -.-> T[("traces + feedback")]</pre>
+  VS --> R
+  R --> L["LLM with a cached system prompt"]:::hot
+  L --> C{"confident?"}
+  C -->|"yes"| A["answer; traces and feedback logged"]:::ok
+  C -->|"no"| H["human agent queue"]:::warn</pre>
           <figcaption>Freshness comes from event-driven re-indexing, not periodic full rebuilds.</figcaption>
         </figure>
       </div>
@@ -392,17 +406,14 @@
     <div class="slide-tag"><b>Worked design</b> · 2 an LLM gateway for a whole company</div>
     <h3>One front door for every team's model calls</h3>
     <figure class="diagram">
-<pre class="mermaid">flowchart LR
-  T1["team A app"] --> GW["LLM gateway"]
-  T2["team B app"] --> GW
-  T3["batch jobs"] --> GW
-  GW --> Q["keys, quotas,<br/>per-team budgets"]
-  GW --> C["exact + semantic cache"]
-  GW --> RT["router: model by task,<br/>fallback on errors"]
-  RT --> P1["provider 1"]
-  RT --> P2["provider 2"]
-  RT --> P3["self-hosted vLLM"]
-  GW --> LOG[("usage, cost and audit logs<br/>PII redaction")]</pre>
+<pre class="mermaid">flowchart TB
+  T["team apps and batch jobs"] --> GW["LLM gateway"]:::hot
+  GW --> Q["keys, quotas, per-team budgets"]
+  GW -.-> LOG[("usage, cost and audit logs, PII redacted")]
+  Q --> C["exact + semantic cache"]
+  C -->|"miss"| RT["router: model by task, fallback on errors"]
+  RT --> P1["providers 1 and 2"]
+  RT --> P3["self-hosted vLLM"]</pre>
       <figcaption>Teams call one API; the gateway handles keys, cost, caching, failover and compliance.</figcaption>
     </figure>
     <div class="two">
@@ -437,15 +448,13 @@
     <h3>Agents that act on company systems, safely</h3>
     <figure class="diagram">
 <pre class="mermaid">flowchart TB
-  UI["chat / Slack"] --> OR["orchestrator (LangGraph)<br/>state per thread, checkpoints"]
-  OR --> MCP1["MCP server: tickets"]
-  OR --> MCP2["MCP server: docs search"]
-  OR --> MCP3["MCP server: deploys"]
-  OR --> APR{"risky action?"}
-  APR -->|"yes"| HUM["human approval (interrupt)"]
-  APR -->|"no"| RUN["run tool with the user's own permissions"]
+  UI["chat / Slack"] --> OR["orchestrator (LangGraph): state per thread, checkpoints"]:::hot
+  OR --> MCP["MCP servers: tickets, docs search, deploys"]
+  MCP --> APR{"risky action?"}
+  APR -->|"yes"| HUM["human approval (interrupt)"]:::warn
+  APR -->|"no"| RUN["run with the user's own permissions"]:::ok
   HUM --> RUN
-  OR -.-> AUD[("audit log of every tool call")]</pre>
+  RUN -.-> AUD[("audit log of every tool call")]</pre>
       <figcaption>Tools behind MCP servers, the user's own permissions, approvals for anything irreversible, and a full audit trail.</figcaption>
     </figure>
     <h4>Check yourself</h4>

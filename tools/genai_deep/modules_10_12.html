@@ -230,11 +230,9 @@ difference of two independent accuracies:
     <h3>Self-consistency, best-of-n and verifiers</h3>
     <figure class="diagram">
 <pre class="mermaid">flowchart TB
-  P["one prompt, temperature above 0"] --> S1["sample 1: 42"]
-  P --> S2["sample 2: 42"]
+  P["one prompt, temperature above 0"] --> S1["samples 1 and 2: 42"]
   P --> S3["sample 3: 17"]
   S1 --> V{"choose"}
-  S2 --> V
   S3 --> V
   V -->|"vote"| A["self-consistency: 42 wins 2 to 1"]:::ok
   V -->|"checker"| B["best-of-n: the top-scored answer"]:::hot</pre>
@@ -370,10 +368,9 @@ GPU balance point: compute / bandwidth
       <div>
         <figure class="diagram">
 <pre class="mermaid">flowchart TB
-  LO["low intensity<br/>decode at batch 1"] -->|"limited by memory bandwidth"| MB["memory-bound region"]
-  MID["batch more sequences"] --> RIDGE["ridge point<br/>compute = bandwidth"]
-  HI["prefill, training,<br/>large batches"] -->|"limited by FLOPs"| CB["compute-bound region"]
-  MB --> RIDGE --> CB</pre>
+  LO["decode at batch 1: few FLOPs per byte read"] --> MB["memory-bound: waits on bandwidth"]:::warn
+  MB -->|"batch more sequences"| RIDGE["ridge point: compute = bandwidth"]:::hot
+  RIDGE -->|"prefill, training, large batches"| CB["compute-bound: waits on FLOPs"]:::ok</pre>
           <figcaption>Roofline intuition: below the ridge, faster memory or fewer bytes (quantization) help; above it, more FLOPs help.</figcaption>
         </figure>
       </div>

@@ -139,12 +139,21 @@
         <h4>How to choose</h4>
         <figure class="diagram">
 <pre class="mermaid">flowchart TB
-  A{"Fixed steps known<br/>in advance?"} -->|"yes"| W["Plain code or LCEL chain"]
-  A -->|"no"| B{"Need approval, memory<br/>or long-running state?"}
-  B -->|"yes"| G["LangGraph"]
-  B -->|"no"| C{"Mostly RAG over<br/>documents?"}
-  C -->|"yes"| L["LlamaIndex or LangChain RAG"]
-  C -->|"no"| D["create_agent, OpenAI Agents SDK,<br/>Claude Agent SDK or Pydantic AI"]</pre>
+  subgraph R1[" "]
+    direction LR
+    Q1(["Fixed steps known in advance?"]) --> A1["yes: plain code or an LCEL chain"]:::ok
+  end
+  subgraph R2[" "]
+    direction LR
+    Q2(["Need approval, memory or long-running state?"]) --> A2["yes: LangGraph"]:::ok
+  end
+  subgraph R3[" "]
+    direction LR
+    Q3(["Mostly RAG over documents?"]) --> A3["yes: LlamaIndex or LangChain RAG"]:::ok
+  end
+  R1 -->|"no"| R2
+  R2 -->|"no"| R3
+  R3 -->|"no"| T0["create_agent, OpenAI Agents SDK, Claude Agent SDK or Pydantic AI"]:::hot</pre>
           <figcaption>Start simple; add a framework when it removes code you would otherwise write.</figcaption>
         </figure>
       </div>

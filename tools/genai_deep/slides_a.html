@@ -169,16 +169,17 @@ discrete:    h_t = Ā·h_(t-1) + B̄·x_t,     y_t = C·h_t</div>
 <pre class="mermaid">flowchart TB
   subgraph AT["Attention layer"]
     direction LR
-    A1["token t"] --> A2["compare with all t-1 earlier tokens<br/>(KV cache grows)"]
+    A1["token t"] --> A2["compare with all earlier tokens: KV cache grows"]:::warn
   end
   subgraph SS["SSM layer"]
     direction LR
-    S1["token t"] --> S2["update a fixed-size state h<br/>(constant memory)"]
+    S1["token t"] --> S2["update a fixed-size state h: constant memory"]:::ok
   end
   subgraph HY["Hybrid stack"]
     direction LR
-    H1["SSM"] --> H2["SSM"] --> H3["Attention"] --> H4["SSM"] --> H5["SSM"] --> H6["Attention"]
-  end</pre>
+    H1["SSM × 2"] --> H2["attention"]:::hot --> H3["repeat"]
+  end
+  AT ~~~ SS ~~~ HY</pre>
       <figcaption>Hybrids keep a little attention for exact recall and use cheap layers everywhere else.</figcaption>
     </figure>
     <h4>Check yourself</h4>
@@ -194,13 +195,16 @@ discrete:    h_t = Ā·h_(t-1) + B̄·x_t,     y_t = C·h_t</div>
     <h3>Follow one batch through a decoder</h3>
     <figure class="diagram">
 <pre class="mermaid">flowchart TB
-  I["token ids<br/>(B, T)"] --> E["embedding lookup<br/>(B, T, d)"]
-  E --> R(("residual stream<br/>(B, T, d)"))
-  R --> N1["RMSNorm"] --> Q["Q, K, V projections<br/>(B, H, T, d/H)"]
-  Q --> AT["softmax(QKᵀ/√d_h + mask)·V<br/>scores (B, H, T, T)"]
-  AT --> O["concat heads, W_o<br/>(B, T, d)"] --> R
-  R --> N2["RMSNorm"] --> F["SwiGLU MLP<br/>d → ~3.5d → d"] --> R
-  R --> NF["final norm"] --> LM["unembed<br/>(B, T, vocab)"] --> P["softmax over next token"]</pre>
+  I["token ids (B, T)"] --> E["embedding lookup (B, T, d)"]
+  E --> R1(("residual stream"))
+  R1 --> A["RMSNorm, then attention: softmax(QKᵀ/√d_h + mask)·V, scores (B, H, T, T)"]
+  A -->|"add back"| R2(("residual stream"))
+  R1 -.->|"skip"| R2
+  R2 --> F["RMSNorm, then SwiGLU MLP: d → ~3.5d → d"]
+  F -->|"add back"| R3(("residual stream")):::hot
+  R2 -.->|"skip"| R3
+  R3 -->|"after N layers"| NF["final norm, unembed (B, T, vocab)"]
+  NF --> P["softmax over the next token"]:::ok</pre>
       <figcaption>Every layer reads from and adds back into one shared vector per token: the residual stream.</figcaption>
     </figure>
     <div class="two">
