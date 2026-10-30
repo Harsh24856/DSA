@@ -1177,6 +1177,7 @@ def gcdOfStrings(str1, str2):
     viz: () => {
       let n = 701; const rows: (string | number)[][] = [], frames: TableFrame[] = [], out: string[] = [];
       while (n) { const m = n - 1, ch = String.fromCharCode(65 + (m % 26)); out.unshift(ch); rows.push([n, m % 26, ch, Math.floor(m / 26)]); frames.push({ note: `n = ${n}: (n - 1) % 26 = ${m % 26} → '${ch}'; n = (n - 1) // 26 = ${Math.floor(m / 26)} → "${out.join("")}"`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); n = Math.floor(m / 26); }
+      frames.push({ note: `n is 0, done: 701 = 26 x 26 + 25 = "${out.join("")}" (Z is 26, Y is 25)`, cells: rows.map((r) => [...r]), tones: { "0:2": "found", "1:2": "found" } });
       return table(`701 → "${out.join("")}"`, rows.map((_, i) => `step ${i + 1}`), ["n", "(n-1) % 26", "letter", "next n"], frames);
     },
   },
@@ -1193,6 +1194,7 @@ def gcdOfStrings(str1, str2):
     viz: () => {
       const t = "ZY", frames: CellsFrame[] = []; let n = 0;
       [...t].forEach((ch, i) => { const v = ch.charCodeAt(0) - 64, prev = n; n = n * 26 + v; frames.push({ note: `'${ch}' = ${v}: ${prev} * 26 + ${v} = ${n}`, rows: [[...t], [...t].map((c, j) => (j <= i ? c.charCodeAt(0) - 64 : ""))], tones: { [`0:${i}`]: "active", [`1:${i}`]: "found" } }); });
+      frames.push({ note: `"${t}" = 26 x 26 + 25 = ${n}`, rows: [[...t], [...t].map((c) => c.charCodeAt(0) - 64)], tones: range(0, t.length - 1, 1, "found") });
       return cells(`"${t}" = ${n}`, [[...t], [...t].map(() => "")], frames, ["letter", "value"]);
     },
   },
@@ -1545,6 +1547,236 @@ def gcdOfStrings(str1, str2):
       dp[0] = 0;
       for (let i = 1; i <= n; i++) { let best = i + 1, sq = 1; for (let j = 1; j * j <= i; j++) if (+dp[i - j * j] + 1 < best) { best = +dp[i - j * j] + 1; sq = j * j; } dp[i] = best; frames.push({ note: `${i}: last square ${sq}, 1 + dp[${i - sq}] = ${best}`, rows: [idx, [...dp]], tones: { [`1:${i}`]: "found", [`1:${i - sq}`]: "window" } }); }
       return cells(`${n} = 4 + 4 + 4: ${dp[n]} squares`, [idx, idx.map(() => "")], frames, ["n", "squares"]);
+    },
+  },
+  "longest-increasing-subsequence": {
+    approach: "Keep tails[k] = smallest possible last value of an increasing subsequence of length k + 1; binary-search each number into it.",
+    idea: ["tails is always sorted, so bisect finds where a number fits.", "A number larger than every tail extends the longest subsequence.", "Otherwise it replaces the first tail ≥ it: same length, smaller ending, more room later.", "The length of tails is the answer (tails itself need not be a real subsequence)."],
+    code: `from bisect import bisect_left
+def lengthOfLIS(nums):
+    tails = []
+    for x in nums:
+        k = bisect_left(tails, x)
+        if k == len(tails):
+            tails.append(x)
+        else:
+            tails[k] = x
+    return len(tails)`,
+    lang: "python", time: "O(n log n)", space: "O(n)",
+    viz: () => {
+      const a = [10, 9, 2, 5, 3, 7, 101, 18], tails: number[] = [], frames: CellsFrame[] = [], pad = () => [...tails, ...Array(a.length - tails.length).fill("")];
+      a.forEach((x, i) => { let lo = 0, hi = tails.length; while (lo < hi) { const m = (lo + hi) >> 1; if (tails[m] < x) lo = m + 1; else hi = m; } const grew = lo === tails.length, old = tails[lo]; tails[lo] = x; frames.push({ note: grew ? `${x} is above every tail → append, length ${tails.length}` : `${x} replaces tail ${old} at slot ${lo}: a length-${lo + 1} run can now end lower`, rows: [a, pad()], tones: { [`0:${i}`]: "active", [`1:${lo}`]: grew ? "found" : "window" } }); });
+      return cells(`LIS length: ${tails.length}`, [a, a.map(() => "")], frames, ["nums", "tails"]);
+    },
+  },
+
+  "number-of-longest-increasing-subsequence": {
+    approach: "For each i keep len[i] (longest increasing run ending at i) and cnt[i] (how many such runs); combine from every smaller earlier value.",
+    idea: ["For j < i with nums[j] < nums[i], a run ending at j extends to i.", "If it gives a longer length, take len[j] + 1 and copy cnt[j]; if it ties, add cnt[j].", "Sum cnt[i] over every i whose len[i] equals the overall maximum."],
+    code: `def findNumberOfLIS(nums):
+    n = len(nums)
+    length, count = [1] * n, [1] * n
+    for i in range(n):
+        for j in range(i):
+            if nums[j] < nums[i]:
+                if length[j] + 1 > length[i]:
+                    length[i], count[i] = length[j] + 1, count[j]
+                elif length[j] + 1 == length[i]:
+                    count[i] += count[j]
+    best = max(length)
+    return sum(c for l, c in zip(length, count) if l == best)`,
+    lang: "python", time: "O(n²)", space: "O(n)",
+    viz: () => {
+      const a = [1, 3, 5, 4, 7], n = a.length, L = a.map(() => 1), C = a.map(() => 1), frames: CellsFrame[] = [];
+      for (let i = 0; i < n; i++) { const from: number[] = []; for (let j = 0; j < i; j++) if (a[j] < a[i]) { if (L[j] + 1 > L[i]) { L[i] = L[j] + 1; C[i] = C[j]; } else if (L[j] + 1 === L[i]) C[i] += C[j]; from.push(j); } frames.push({ note: from.length ? `${a[i]}: extends runs ending at ${from.map((j) => a[j]).join(", ")} → length ${L[i]}, ${C[i]} way${C[i] === 1 ? "" : "s"}` : `${a[i]}: nothing smaller before it, length 1`, rows: [a, [...L], [...C]], tones: { [`0:${i}`]: "active", ...all(from.map((j) => `0:${j}`), "window"), [`1:${i}`]: "found", [`2:${i}`]: "found" } }); }
+      const best = Math.max(...L), ans = C.filter((_, i) => L[i] === best).reduce((x, y) => x + y, 0);
+      frames.push({ note: `longest length ${best}; add counts where length is ${best}: ${ans}`, rows: [a, L, C], tones: all(L.map((l, i) => (l === best ? `2:${i}` : "")).filter(Boolean), "found") });
+      return cells(`Longest increasing subsequences: ${ans}`, [a, a.map(() => ""), a.map(() => "")], frames, ["nums", "length", "count"]);
+    },
+  },
+
+  "delete-operation-for-two-strings": {
+    approach: "Keep the longest common subsequence and delete everything else: m + n - 2 · LCS.",
+    idea: ["Whatever survives in both words must be a common subsequence.", "Keeping the longest one deletes the fewest characters.", "Compute LCS with the usual table: match → diagonal + 1, else max(up, left)."],
+    code: `def minDistance(word1, word2):
+    m, n = len(word1), len(word2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(m):
+        for j in range(n):
+            if word1[i] == word2[j]:
+                dp[i + 1][j + 1] = dp[i][j] + 1
+            else:
+                dp[i + 1][j + 1] = max(dp[i][j + 1], dp[i + 1][j])
+    return m + n - 2 * dp[m][n]`,
+    lang: "python", time: "O(m·n)", space: "O(m·n)",
+    viz: () => {
+      const a = "sea", b = "eat", m = a.length, n = b.length, dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0)), frames: TableFrame[] = [];
+      for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) { const eq = a[i - 1] === b[j - 1]; dp[i][j] = eq ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]); frames.push({ note: eq ? `'${a[i - 1]}' = '${b[j - 1]}' → diagonal + 1 = ${dp[i][j]}` : `'${a[i - 1]}' ≠ '${b[j - 1]}' → max(up, left) = ${dp[i][j]}`, cells: upto(dp, i, j), active: [i, j], deps: eq ? [[i - 1, j - 1]] : [[i - 1, j], [i, j - 1]] }); }
+      frames.push({ note: `LCS = ${dp[m][n]} ("ea") → delete ${m} + ${n} - 2 x ${dp[m][n]} = ${m + n - 2 * dp[m][n]}`, cells: dp, active: [m, n] });
+      return table(`Deletions: ${m + n - 2 * dp[m][n]}`, ["", ...a], ["", ...b], frames);
+    },
+  },
+
+  "longest-common-subsequence": {
+    approach: "dp[i][j] = LCS of the first i letters of text1 and first j of text2: diagonal + 1 on a match, else the better of dropping one letter.",
+    idea: ["If the last letters match, they can both be used: dp[i - 1][j - 1] + 1.", "Otherwise one of them is unused: max(dp[i - 1][j], dp[i][j - 1]).", "Row 0 and column 0 are 0 (an empty string)."],
+    code: `def longestCommonSubsequence(text1, text2):
+    m, n = len(text1), len(text2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(m):
+        for j in range(n):
+            if text1[i] == text2[j]:
+                dp[i + 1][j + 1] = dp[i][j] + 1
+            else:
+                dp[i + 1][j + 1] = max(dp[i][j + 1], dp[i + 1][j])
+    return dp[m][n]`,
+    lang: "python", time: "O(m·n)", space: "O(m·n)",
+    viz: () => {
+      const a = "ace", b = "abcde", m = a.length, n = b.length, dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0)), frames: TableFrame[] = [];
+      for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) { const eq = a[i - 1] === b[j - 1]; dp[i][j] = eq ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]); frames.push({ note: eq ? `'${a[i - 1]}' = '${b[j - 1]}' → diagonal + 1 = ${dp[i][j]}` : `'${a[i - 1]}' ≠ '${b[j - 1]}' → max(up, left) = ${dp[i][j]}`, cells: upto(dp, i, j), active: [i, j], deps: eq ? [[i - 1, j - 1]] : [[i - 1, j], [i, j - 1]] }); }
+      return table(`LCS("${b}", "${a}") = ${dp[m][n]}`, ["", ...a], ["", ...b], frames);
+    },
+  },
+
+  "edit-distance": {
+    approach: "dp[i][j] = edits to turn the first i letters of word1 into the first j of word2; equal letters cost nothing, otherwise 1 + the best of insert, delete, replace.",
+    idea: ["Row 0 and column 0: turning a prefix into an empty string (or back) takes that many inserts or deletes.", "Equal last letters: dp[i - 1][j - 1].", "Otherwise 1 + min(delete dp[i - 1][j], insert dp[i][j - 1], replace dp[i - 1][j - 1])."],
+    code: `def minDistance(word1, word2):
+    m, n = len(word1), len(word2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(m + 1):
+        dp[i][0] = i
+    for j in range(n + 1):
+        dp[0][j] = j
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if word1[i - 1] == word2[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1]
+            else:
+                dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+    return dp[m][n]`,
+    lang: "python", time: "O(m·n)", space: "O(m·n)",
+    viz: () => {
+      const a = "horse", b = "ros", m = a.length, n = b.length, dp = Array.from({ length: m + 1 }, (_, i) => Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0))), frames: TableFrame[] = [];
+      const show = (r: number, c: number) => dp.map((row, i) => row.map((v, j) => (i === 0 || j === 0 || i < r || (i === r && j <= c) ? v : null)));
+      frames.push({ note: "edges: i deletes to reach the empty string, j inserts to build from it", cells: show(0, n) });
+      for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) {
+        const eq = a[i - 1] === b[j - 1], del = dp[i - 1][j], ins = dp[i][j - 1], rep = dp[i - 1][j - 1]; dp[i][j] = eq ? rep : 1 + Math.min(del, ins, rep);
+        const op = eq ? "" : rep <= del && rep <= ins ? "replace" : del <= ins ? "delete" : "insert";
+        frames.push({ note: eq ? `'${a[i - 1]}' = '${b[j - 1]}' → free, copy diagonal ${dp[i][j]}` : `'${a[i - 1]}' vs '${b[j - 1]}': 1 + min(delete ${del}, insert ${ins}, replace ${rep}) = ${dp[i][j]} (${op})`, cells: show(i, j), active: [i, j], deps: eq ? [[i - 1, j - 1]] : [[i - 1, j], [i, j - 1], [i - 1, j - 1]] });
+      }
+      return table(`"${a}" → "${b}": ${dp[m][n]} edits`, ["", ...a], ["", ...b], frames);
+    },
+  },
+
+  "distinct-subsequences": {
+    approach: "dp[i][j] = ways t[:i] appears as a subsequence of s[:j]: always dp[i][j - 1], plus dp[i - 1][j - 1] when t[i - 1] == s[j - 1].",
+    idea: ["Ignoring s's last letter keeps every way already counted: dp[i][j - 1].", "If that letter equals t's last letter, it can also finish a match: add dp[i - 1][j - 1].", "The empty t appears once in any prefix, so row 0 is all 1. A 1D array updated right to left does the same work."],
+    code: `def numDistinct(s, t):
+    dp = [1] + [0] * len(t)
+    for ch in s:
+        for i in range(len(t), 0, -1):
+            if t[i - 1] == ch:
+                dp[i] += dp[i - 1]
+    return dp[len(t)]`,
+    lang: "python", time: "O(m·n)", space: "O(n)",
+    viz: () => {
+      const s = "babgbag", t = "bag", m = t.length, n = s.length, dp = Array.from({ length: m + 1 }, (_, i) => Array(n + 1).fill(i ? 0 : 1)), frames: TableFrame[] = [];
+      for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) { const eq = t[i - 1] === s[j - 1]; dp[i][j] = dp[i][j - 1] + (eq ? dp[i - 1][j - 1] : 0); frames.push({ note: eq ? `'${t[i - 1]}' matches s[${j - 1}]: left ${dp[i][j - 1]} + diagonal ${dp[i - 1][j - 1]} = ${dp[i][j]}` : `'${t[i - 1]}' ≠ '${s[j - 1]}': copy left ${dp[i][j]}`, cells: dp.map((r, a) => r.map((v, b) => (a === 0 || a < i || (a === i && b <= j) ? v : null))), active: [i, j], deps: eq ? [[i, j - 1], [i - 1, j - 1]] : [[i, j - 1]] }); }
+      return table(`"${t}" in "${s}": ${dp[m][n]} ways`, ["", ...t], ["", ...s], frames);
+    },
+  },
+
+  "interleaving-string": {
+    approach: "dp[i][j] is true when s3[:i + j] interleaves s1[:i] and s2[:j]; it comes from the cell above if s1[i - 1] matches, or from the left if s2[j - 1] matches.",
+    idea: ["The lengths must add up.", "The last character of s3[:i + j] came from either s1 or s2.", "From s1: needs s1[i - 1] == s3[i + j - 1] and dp[i - 1][j]. From s2: needs s2[j - 1] == s3[i + j - 1] and dp[i][j - 1]."],
+    code: `def isInterleave(s1, s2, s3):
+    m, n = len(s1), len(s2)
+    if m + n != len(s3):
+        return False
+    dp = [[False] * (n + 1) for _ in range(m + 1)]
+    dp[0][0] = True
+    for i in range(m + 1):
+        for j in range(n + 1):
+            if i and s1[i - 1] == s3[i + j - 1] and dp[i - 1][j]:
+                dp[i][j] = True
+            if j and s2[j - 1] == s3[i + j - 1] and dp[i][j - 1]:
+                dp[i][j] = True
+    return dp[m][n]`,
+    lang: "python", time: "O(m·n)", space: "O(m·n)",
+    viz: () => {
+      const s1 = "ab", s2 = "cab", s3 = "cabab", m = s1.length, n = s2.length, dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(false)), frames: TableFrame[] = [], tf = (b: boolean) => (b ? "T" : "F");
+      dp[0][0] = true;
+      for (let i = 0; i <= m; i++) for (let j = 0; j <= n; j++) {
+        if (!i && !j) { frames.push({ note: "two empty prefixes interleave to the empty string", cells: upto(dp.map((r) => r.map(tf)), 0, 0), active: [0, 0] }); continue; }
+        const up = i > 0 && s1[i - 1] === s3[i + j - 1] && dp[i - 1][j], left = j > 0 && s2[j - 1] === s3[i + j - 1] && dp[i][j - 1]; dp[i][j] = up || left;
+        frames.push({ note: `s3[${i + j - 1}] = '${s3[i + j - 1]}': ${up ? `from s1 ('${s1[i - 1]}', above is T)` : left ? `from s2 ('${s2[j - 1]}', left is T)` : "neither s1 nor s2 can supply it here"} → ${tf(dp[i][j])}`, cells: upto(dp.map((r) => r.map(tf)), i, j), active: [i, j], deps: up ? [[i - 1, j]] : left ? [[i, j - 1]] : [], tones: { [`${i}:${j}`]: dp[i][j] ? "found" : "bad" } });
+      }
+      return table(`"${s3}" interleaves "${s1}" and "${s2}": ${dp[m][n]}`, ["", ...s1], ["", ...s2], frames);
+    },
+  },
+
+  "shortest-common-supersequence": {
+    approach: "Build the LCS table, then walk back from the corner: a shared letter is written once, otherwise write the letter of the side the walk leaves.",
+    idea: ["The shortest string containing both is m + n - LCS long: every LCS letter is shared.", "Walking back from dp[m][n]: equal letters go in once and move diagonally.", "Otherwise move toward the larger neighbour, writing the letter being dropped from that word.", "When one word runs out, copy the rest of the other. Reverse at the end."],
+    code: `def shortestCommonSupersequence(str1, str2):
+    m, n = len(str1), len(str2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(m):
+        for j in range(n):
+            if str1[i] == str2[j]:
+                dp[i + 1][j + 1] = dp[i][j] + 1
+            else:
+                dp[i + 1][j + 1] = max(dp[i][j + 1], dp[i + 1][j])
+    out, i, j = [], m, n
+    while i and j:
+        if str1[i - 1] == str2[j - 1]:
+            out.append(str1[i - 1])
+            i -= 1
+            j -= 1
+        elif dp[i - 1][j] >= dp[i][j - 1]:
+            out.append(str1[i - 1])
+            i -= 1
+        else:
+            out.append(str2[j - 1])
+            j -= 1
+    out += str1[:i][::-1] + str2[:j][::-1]
+    return "".join(reversed(out))`,
+    lang: "python", time: "O(m·n)", space: "O(m·n)",
+    viz: () => {
+      const a = "abac", b = "cab", m = a.length, n = b.length, dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0)), frames: TableFrame[] = [];
+      for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
+      frames.push({ note: `LCS table filled: LCS = ${dp[m][n]}, so the answer has ${m} + ${n} - ${dp[m][n]} = ${m + n - dp[m][n]} letters`, cells: dp, active: [m, n] });
+      const out: string[] = [], path: string[] = []; let i = m, j = n;
+      while (i && j) {
+        path.push(`${i}:${j}`); let what: string;
+        if (a[i - 1] === b[j - 1]) { out.push(a[i - 1]); what = `'${a[i - 1]}' in both: write once, go diagonal`; i--; j--; }
+        else if (dp[i - 1][j] >= dp[i][j - 1]) { out.push(a[i - 1]); what = `write '${a[i - 1]}' from str1, go up`; i--; }
+        else { out.push(b[j - 1]); what = `write '${b[j - 1]}' from str2, go left`; j--; }
+        frames.push({ note: `${what} → "${[...out].reverse().join("")}"`, cells: dp, active: [i, j], tones: all(path, "found") });
+      }
+      const rest = a.slice(0, i) + b.slice(0, j); out.push(...[...rest].reverse());
+      const res = [...out].reverse().join("");
+      frames.push({ note: `${rest ? `copy the rest "${rest}" → ` : ""}"${res}"`, cells: dp, tones: all(path, "found") });
+      return table(`Shortest supersequence: "${res}"`, ["", ...a], ["", ...b], frames);
+    },
+  },
+
+  "unique-paths": {
+    approach: "paths[r][c] = paths[r - 1][c] + paths[r][c - 1]: you enter a cell from above or from the left.",
+    idea: ["The top row and left column have exactly one path each.", "Every other cell adds the counts of its two entry cells.", "One row of memory is enough: row[c] += row[c - 1]."],
+    code: `def uniquePaths(m, n):
+    row = [1] * n
+    for _ in range(m - 1):
+        for c in range(1, n):
+            row[c] += row[c - 1]
+    return row[-1]`,
+    lang: "python", time: "O(m·n)", space: "O(n)",
+    viz: () => {
+      const R = 3, C = 5, dp = Array.from({ length: R }, () => Array(C).fill(0)), frames: TableFrame[] = [];
+      for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) { dp[r][c] = r === 0 || c === 0 ? 1 : dp[r - 1][c] + dp[r][c - 1]; if (r && c) frames.push({ note: `(${r}, ${c}): from above ${dp[r - 1][c]} + from left ${dp[r][c - 1]} = ${dp[r][c]}`, cells: dp.map((row, i) => row.map((v, j) => (i === 0 || j === 0 || i < r || (i === r && j <= c) ? v : null))), active: [r, c], deps: [[r - 1, c], [r, c - 1]] }); }
+      frames.unshift({ note: "edge cells: only one way in (all right, or all down)", cells: dp.map((row, i) => row.map((v, j) => (i === 0 || j === 0 ? v : null))) });
+      return table(`${R} x ${C} grid: ${dp[R - 1][C - 1]} paths`, nums(R), nums(C), frames);
     },
   },
 };

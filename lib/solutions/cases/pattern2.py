@@ -129,3 +129,23 @@ CASES.update({
  "coin-change-ii": [("change", (5,[1,2,5]), 4), ("change", (3,[2]), 0), ("change", (10,[10]), 1)],
  "perfect-squares": [("numSquares", (12,), 3), ("numSquares", (13,), 2), ("numSquares", (1,), 1)],
 })
+
+CASES.update({
+ "longest-increasing-subsequence": [("lengthOfLIS", ([10,9,2,5,3,7,101,18],), 4), ("lengthOfLIS", ([0,1,0,3,2,3],), 4), ("lengthOfLIS", ([7,7,7,7,7,7,7],), 1)],
+ "number-of-longest-increasing-subsequence": [("findNumberOfLIS", ([1,3,5,4,7],), 2), ("findNumberOfLIS", ([2,2,2,2,2],), 5)],
+ "delete-operation-for-two-strings": [("minDistance", ("sea","eat"), 2), ("minDistance", ("leetcode","etco"), 4)],
+ "longest-common-subsequence": [("longestCommonSubsequence", ("abcde","ace"), 3), ("longestCommonSubsequence", ("abc","abc"), 3), ("longestCommonSubsequence", ("abc","def"), 0)],
+ "edit-distance": [("minDistance", ("horse","ros"), 3), ("minDistance", ("intention","execution"), 5), ("minDistance", ("","a"), 1)],
+ "distinct-subsequences": [("numDistinct", ("rabbbit","rabbit"), 3), ("numDistinct", ("babgbag","bag"), 5)],
+ "interleaving-string": [("isInterleave", ("aabcc","dbbca","aadbbcbcac"), True), ("isInterleave", ("aabcc","dbbca","aadbbbaccc"), False), ("isInterleave", ("","",""), True)],
+ "unique-paths": [("uniquePaths", (3,7), 28), ("uniquePaths", (3,2), 3), ("uniquePaths", (1,1), 1)],
+})
+
+def _scs(load, check, h):
+    f = load("shortest-common-supersequence")["shortestCommonSupersequence"]
+    def sub(a, b):
+        it = iter(b); return all(ch in it for ch in a)
+    for a, b, size in [("abac","cab",5), ("aaaaaaaa","aaaaaaaa",8), ("abc","def",6)]:
+        got = f(a, b); check("shortestCommonSupersequence " + a + " " + b, (len(got), sub(a, got), sub(b, got)), (size, True, True))
+
+CUSTOM.append(_scs)
