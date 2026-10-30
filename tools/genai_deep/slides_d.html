@@ -49,7 +49,7 @@
       <div>
         <h4>Rules of thumb</h4>
         <ul>
-          <li>Reserve the output budget first; a response cut off at max tokens is a common silent failure.</li>
+          <li>Reserve the output budget first; a response cut off at max tokens is a common silent failure. On models that always think before answering, <code>max_tokens</code> covers the thinking too, so set it generously (around 16,000) and control length with instructions and effort instead.</li>
           <li>Cap retrieved text (for example 50 to 60% of the budget) and keep only the best-ranked chunks.</li>
           <li>Drop or summarise the oldest turns, never the system prompt or the question.</li>
           <li>Put anything that varies per user (timestamps, names) after the cached prefix, or the cache never hits.</li>
@@ -496,4 +496,39 @@
       <div><dt>Teacher forcing</dt><dd>Training on the true previous tokens instead of the model's own guesses. Module 2.</dd></div>
       <div><dt>YaRN</dt><dd>A RoPE scaling method for extending a model's context length. Module 2.</dd></div>
     </dl>
+  </article>
+
+<!-- @resources -->
+  <article class="slide">
+    <div class="slide-tag"><b>Papers</b> · the original sources behind the deep dives</div>
+    <ul class="res">
+      <li><a href="https://arxiv.org/abs/2104.09864" target="_blank" rel="noopener">RoFormer (RoPE)</a><span>Rotary position embeddings. Module 2.8.</span></li>
+      <li><a href="https://arxiv.org/abs/2205.14135" target="_blank" rel="noopener">FlashAttention</a><span>Exact attention with tiling and the online softmax. Module 2.11.</span></li>
+      <li><a href="https://arxiv.org/abs/2211.17192" target="_blank" rel="noopener">Speculative decoding</a><span>Draft and verify without changing the output distribution. Module 2.12.</span></li>
+      <li><a href="https://arxiv.org/abs/2312.00752" target="_blank" rel="noopener">Mamba</a><span>Selective state space models. Module 1.10.</span></li>
+      <li><a href="https://arxiv.org/abs/2005.11401" target="_blank" rel="noopener">Retrieval-augmented generation</a><span>The paper that named RAG. Module 4.</span></li>
+      <li><a href="https://arxiv.org/abs/1603.09320" target="_blank" rel="noopener">HNSW</a><span>The graph index inside most vector databases. Module 4.7.</span></li>
+      <li><a href="https://arxiv.org/abs/2004.12832" target="_blank" rel="noopener">ColBERT</a><span>Late interaction retrieval. Module 4.8.</span></li>
+      <li><a href="https://arxiv.org/abs/2106.09685" target="_blank" rel="noopener">LoRA</a><span>Low-rank adaptation. Module 6.</span></li>
+      <li><a href="https://arxiv.org/abs/2305.14314" target="_blank" rel="noopener">QLoRA</a><span>Fine-tuning on a 4-bit base model. Module 6.</span></li>
+      <li><a href="https://arxiv.org/abs/2305.18290" target="_blank" rel="noopener">DPO</a><span>Preference tuning without a reward model. Module 6.5.</span></li>
+      <li><a href="https://arxiv.org/abs/2501.12948" target="_blank" rel="noopener">DeepSeek-R1</a><span>Reasoning from RL with verifiable rewards. Module 6.5.</span></li>
+      <li><a href="https://arxiv.org/abs/2309.06180" target="_blank" rel="noopener">PagedAttention (vLLM)</a><span>KV cache as memory pages. Module 7.6.</span></li>
+      <li><a href="https://arxiv.org/abs/2210.02747" target="_blank" rel="noopener">Flow matching</a><span>The training objective behind recent image and video models. Module 8.4.</span></li>
+    </ul>
+  </article>
+
+  <article class="slide">
+    <div class="slide-tag"><b>Tools and guides</b> · what you will actually install and read</div>
+    <ul class="res">
+      <li><a href="https://docs.langchain.com/oss/python/langgraph/overview" target="_blank" rel="noopener">LangChain and LangGraph docs</a><span>create_agent, middleware, graphs, persistence. Module 5.</span></li>
+      <li><a href="https://github.com/a2aproject/A2A" target="_blank" rel="noopener">A2A protocol</a><span>Agent-to-agent spec and samples. Module 5.9.</span></li>
+      <li><a href="https://www.anthropic.com/engineering/contextual-retrieval" target="_blank" rel="noopener">Contextual retrieval</a><span>Prepend chunk context before embedding. Module 4.8.</span></li>
+      <li><a href="https://github.com/pgvector/pgvector" target="_blank" rel="noopener">pgvector</a><span>Vector search inside Postgres. Module 4.</span></li>
+      <li><a href="https://github.com/facebookresearch/faiss" target="_blank" rel="noopener">FAISS</a><span>IVF, PQ and HNSW indexes to experiment with. Module 4.7.</span></li>
+      <li><a href="https://github.com/sgl-project/sglang" target="_blank" rel="noopener">SGLang</a><span>Serving engine with RadixAttention prefix caching. Module 7.</span></li>
+      <li><a href="https://docs.pydantic.dev" target="_blank" rel="noopener">Pydantic</a><span>Schemas for structured output and validation. Module 3.8.</span></li>
+      <li><a href="https://www.3blue1brown.com/topics/neural-networks" target="_blank" rel="noopener">3Blue1Brown: neural networks</a><span>Visual intuition for backprop and transformers. Modules 0 and 2.</span></li>
+      <li><a href="https://github.com/huggingface/smol-course" target="_blank" rel="noopener">Hugging Face smol course</a><span>Hands-on fine-tuning of small models. Module 6.</span></li>
+    </ul>
   </article>

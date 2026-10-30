@@ -19,7 +19,7 @@ model = ScriptedModel(messages=iter([
     AIMessage(content="", tool_calls=[{"name": "get_weather", "args": {"city": "Paris"}, "id": "call_1"}]),
     AIMessage(content="Take an umbrella: 70% chance of rain in Paris."),
 ]))
-# Real use: model="anthropic:claude-sonnet-5-5" (or a ChatAnthropic instance) and real tools.
+# Real use: model="anthropic:claude-opus-5-5" (or a ChatAnthropic instance) and real tools.
 
 agent = create_agent(
     model,
