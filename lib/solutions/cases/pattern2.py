@@ -116,3 +116,16 @@ CASES.update({
  "add-digits": [("addDigits", (38,), 2), ("addDigits", (0,), 0), ("addDigits", (18,), 9)],
  "climbing-stairs": [("climbStairs", (2,), 2), ("climbStairs", (3,), 3), ("climbStairs", (1,), 1)],
 })
+
+CASES.update({
+ "house-robber": [("rob", ([1,2,3,1],), 4), ("rob", ([2,7,9,3,1],), 12)],
+ "house-robber-ii": [("rob", ([2,3,2],), 3), ("rob", ([1,2,3,1],), 4), ("rob", ([1,2,3],), 3), ("rob", ([5],), 5)],
+ "min-cost-climbing-stairs": [("minCostClimbingStairs", ([10,15,20],), 15), ("minCostClimbingStairs", ([1,100,1,1,1,100,1,1,100,1],), 6)],
+ "decode-ways": [("numDecodings", ("12",), 2), ("numDecodings", ("226",), 3), ("numDecodings", ("06",), 0), ("numDecodings", ("10",), 1)],
+ "last-stone-weight-ii": [("lastStoneWeightII", ([2,7,4,1,8,1],), 1), ("lastStoneWeightII", ([31,26,33,21,40],), 5)],
+ "coin-change": [("coinChange", ([1,2,5],11), 3), ("coinChange", ([2],3), -1), ("coinChange", ([1],0), 0)],
+ "partition-equal-subset-sum": [("canPartition", ([1,5,11,5],), True), ("canPartition", ([1,2,3,5],), False)],
+ "target-sum": [("findTargetSumWays", ([1,1,1,1,1],3), 5), ("findTargetSumWays", ([1],1), 1), ("findTargetSumWays", ([0,0,1],1), 4), ("findTargetSumWays", ([1],2), 0)],
+ "coin-change-ii": [("change", (5,[1,2,5]), 4), ("change", (3,[2]), 0), ("change", (10,[10]), 1)],
+ "perfect-squares": [("numSquares", (12,), 3), ("numSquares", (13,), 2), ("numSquares", (1,), 1)],
+})

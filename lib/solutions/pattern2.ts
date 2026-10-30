@@ -1346,4 +1346,205 @@ def gcdOfStrings(str1, str2):
       return cells(`Ways to climb ${n} stairs: ${dp[n]}`, [idx, idx.map(() => "")], frames, ["step", "ways"]);
     },
   },
+  "house-robber": {
+    approach: "dp[i] = max(dp[i - 1], dp[i - 2] + nums[i]): either skip house i or rob it on top of the best up to i - 2.",
+    idea: ["Robbing house i rules out house i - 1, so it adds to the best total up to i - 2.", "Skipping house i keeps the best total up to i - 1.", "Only the last two values are needed."],
+    code: `def rob(nums):
+    prev, cur = 0, 0
+    for x in nums:
+        prev, cur = cur, max(cur, prev + x)
+    return cur`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const a = [2, 7, 9, 3, 1], dp: (string | number)[] = a.map(() => ""), frames: CellsFrame[] = [];
+      a.forEach((x, i) => { const take = x + (i >= 2 ? +dp[i - 2] : 0), skip = i >= 1 ? +dp[i - 1] : 0; dp[i] = Math.max(take, skip); frames.push({ note: `house ${i}: rob ${x} + ${i >= 2 ? dp[i - 2] : 0} = ${take} vs skip ${skip} → ${dp[i]}`, rows: [a, [...dp]], tones: { [`0:${i}`]: "active", [`1:${i}`]: "found", ...(i >= 1 ? { [`1:${i - 1}`]: "window" } : {}), ...(i >= 2 ? { [`1:${i - 2}`]: "window" } : {}) } }); });
+      return cells(`Most money: ${dp[a.length - 1]}`, [a, a.map(() => "")], frames, ["money", "best"]);
+    },
+  },
+
+  "house-robber-ii": {
+    approach: "The first and last houses touch, so run the straight-line robber twice: once without the last house and once without the first.",
+    idea: ["In a circle, house 0 and house n - 1 can not both be robbed.", "So one of them is always skipped: solve houses 0..n-2 and houses 1..n-1 separately.", "Each is the plain house robber; take the better result. A single house is its own answer."],
+    code: `def rob(nums):
+    def line(a):
+        prev, cur = 0, 0
+        for x in a:
+            prev, cur = cur, max(cur, prev + x)
+        return cur
+    if len(nums) == 1:
+        return nums[0]
+    return max(line(nums[:-1]), line(nums[1:]))`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const a = [2, 7, 9, 3, 1], n = a.length, r1: (string | number)[] = a.map(() => ""), r2: (string | number)[] = a.map(() => ""), frames: CellsFrame[] = [];
+      const run = (row: (string | number)[], lo: number, hi: number, label: string) => { let prev = 0, cur = 0; for (let i = lo; i <= hi; i++) { const nc = Math.max(cur, prev + a[i]); row[i] = nc; frames.push({ note: `${label}, house ${i}: max(skip ${cur}, rob ${prev} + ${a[i]}) = ${nc}`, rows: [a, [...r1], [...r2]], tones: { [`0:${i}`]: "active", [`${row === r1 ? 1 : 2}:${i}`]: "found" } }); prev = cur; cur = nc; } return cur; };
+      const x = run(r1, 0, n - 2, "without the last house"), y = run(r2, 1, n - 1, "without the first house");
+      frames.push({ note: `max(${x}, ${y}) = ${Math.max(x, y)}`, rows: [a, r1, r2], tones: x >= y ? { [`1:${n - 2}`]: "found" } : { [`2:${n - 1}`]: "found" } });
+      return cells(`Circle of houses: ${Math.max(x, y)}`, [a, a.map(() => ""), a.map(() => "")], frames, ["money", "no last", "no first"]);
+    },
+  },
+
+  "min-cost-climbing-stairs": {
+    approach: "dp[i] = cost[i] + min(dp[i - 1], dp[i - 2]) is the cheapest way to stand on step i; the top is reached from either of the last two steps.",
+    idea: ["You may start on step 0 or step 1, so dp[0] = cost[0], dp[1] = cost[1].", "To stand on step i you paid for it and came from i - 1 or i - 2.", "The top is one step past the end, so answer min(dp[n - 1], dp[n - 2])."],
+    code: `def minCostClimbingStairs(cost):
+    a, b = cost[0], cost[1]
+    for c in cost[2:]:
+        a, b = b, c + min(a, b)
+    return min(a, b)`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const c = [1, 100, 1, 1, 1, 100, 1, 1, 100, 1], n = c.length, dp: (string | number)[] = c.map(() => ""), frames: CellsFrame[] = [];
+      dp[0] = c[0]; dp[1] = c[1]; frames.push({ note: `start on step 0 or 1: dp = ${c[0]}, ${c[1]}`, rows: [c, [...dp]], tones: { "1:0": "found", "1:1": "found" } });
+      for (let i = 2; i < n; i++) { dp[i] = c[i] + Math.min(+dp[i - 1], +dp[i - 2]); frames.push({ note: `step ${i}: ${c[i]} + min(${dp[i - 1]}, ${dp[i - 2]}) = ${dp[i]}`, rows: [c, [...dp]], tones: { [`1:${i}`]: "found", [`1:${+dp[i - 1] <= +dp[i - 2] ? i - 1 : i - 2}`]: "window" } }); }
+      const ans = Math.min(+dp[n - 1], +dp[n - 2]);
+      frames.push({ note: `top = min(${dp[n - 1]}, ${dp[n - 2]}) = ${ans}`, rows: [c, dp], tones: { [`1:${n - 1}`]: "active", [`1:${n - 2}`]: "active" } });
+      return cells(`Cheapest climb: ${ans}`, [c, c.map(() => "")], frames, ["cost", "dp"]);
+    },
+  },
+
+  "decode-ways": {
+    approach: "dp[i] = ways to decode the first i digits: add dp[i - 1] if digit i is 1..9, and dp[i - 2] if the last two digits form 10..26.",
+    idea: ["The last letter used either one digit or two.", "One digit is valid if it is not 0.", "Two digits are valid if they read 10 to 26.", "Sum the two cases; dp[0] = 1 for the empty prefix."],
+    code: `def numDecodings(s):
+    prev, cur = 1, int(s[0] != "0")
+    for i in range(1, len(s)):
+        nxt = 0
+        if s[i] != "0":
+            nxt += cur
+        if 10 <= int(s[i - 1:i + 1]) <= 26:
+            nxt += prev
+        prev, cur = cur, nxt
+    return cur`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const s = "2261", n = s.length, head = ["", ...s], dp: (string | number)[] = Array(n + 1).fill(""), frames: CellsFrame[] = [];
+      dp[0] = 1; dp[1] = s[0] !== "0" ? 1 : 0; frames.push({ note: `empty prefix: 1 way; "${s[0]}": ${dp[1]} way`, rows: [head, [...dp]], tones: { "1:0": "found", "1:1": "found" } });
+      for (let i = 2; i <= n; i++) { const one = s[i - 1] !== "0", two = +s.slice(i - 2, i) >= 10 && +s.slice(i - 2, i) <= 26; dp[i] = (one ? +dp[i - 1] : 0) + (two ? +dp[i - 2] : 0); frames.push({ note: `"${s[i - 1]}" alone ${one ? `ok (+${dp[i - 1]})` : "invalid"}, "${s.slice(i - 2, i)}" ${two ? `ok (+${dp[i - 2]})` : "invalid"} → ${dp[i]}`, rows: [head, [...dp]], tones: { [`1:${i}`]: "found", ...(one ? { [`1:${i - 1}`]: "window" } : {}), ...(two ? { [`1:${i - 2}`]: "window" } : {}) } }); }
+      return cells(`"${s}" decodes ${dp[n]} ways`, [head, Array(n + 1).fill("")], frames, ["digit", "ways"]);
+    },
+  },
+
+  "last-stone-weight-ii": {
+    approach: "Smashing splits the stones into two piles with signs + and -; find the reachable subset sum closest to total / 2.",
+    idea: ["Every smash result is some stones added and the rest subtracted, so the answer is |pile A - pile B|.", "To minimise it, make one pile as close to total / 2 as possible without going over.", "Track reachable subset sums up to total / 2 (0/1 knapsack); answer total - 2 · best."],
+    code: `def lastStoneWeightII(stones):
+    total = sum(stones)
+    reach = {0}
+    for x in stones:
+        reach |= {s + x for s in reach if s + x <= total // 2}
+    return total - 2 * max(reach)`,
+    lang: "python", time: "O(n · total)", space: "O(total)",
+    viz: () => {
+      const st = [2, 7, 4, 1, 8, 1], total = st.reduce((a, b) => a + b, 0), H = Math.floor(total / 2), sums = Array.from({ length: H + 1 }, (_, i) => i), reach = new Set([0]), frames: CellsFrame[] = [];
+      const tones = (fresh: number[]) => Object.fromEntries(sums.map((v) => [`0:${v}`, fresh.includes(v) ? "found" : reach.has(v) ? "done" : "muted"])) as Record<string, Tone>;
+      frames.push({ note: `total ${total}, aim for a pile of at most ${H}`, tones: tones([0]) });
+      for (const x of st) { const fresh = [...reach].map((v) => v + x).filter((v) => v <= H && !reach.has(v)); fresh.forEach((v) => reach.add(v)); frames.push({ note: `stone ${x}: new sums ${fresh.join(", ") || "none"}`, tones: tones(fresh) }); }
+      const best = Math.max(...reach);
+      frames.push({ note: `best pile ${best} → ${total} - 2 x ${best} = ${total - 2 * best}`, tones: { ...tones([]), [`0:${best}`]: "found" } });
+      return cells(`Smallest last stone: ${total - 2 * best}`, [sums], frames, ["sum"]);
+    },
+  },
+
+  "coin-change": {
+    approach: "dp[a] = fewest coins for amount a = 1 + min(dp[a - c]) over coins c ≤ a.",
+    idea: ["The last coin used is some c, leaving amount a - c to make optimally.", "Fill dp from 0 up so every smaller amount is ready.", "Unreachable amounts stay infinite; answer -1 if dp[amount] is still infinite."],
+    code: `def coinChange(coins, amount):
+    INF = amount + 1
+    dp = [0] + [INF] * amount
+    for a in range(1, amount + 1):
+        for c in coins:
+            if c <= a and dp[a - c] + 1 < dp[a]:
+                dp[a] = dp[a - c] + 1
+    return dp[amount] if dp[amount] <= amount else -1`,
+    lang: "python", time: "O(amount · coins)", space: "O(amount)",
+    viz: () => {
+      const coins = [1, 2, 5], A = 11, idx = Array.from({ length: A + 1 }, (_, i) => i), dp: (string | number)[] = idx.map(() => ""), frames: CellsFrame[] = [];
+      dp[0] = 0; frames.push({ note: "amount 0 needs 0 coins", rows: [idx, [...dp]], tones: { "1:0": "found" } });
+      for (let a = 1; a <= A; a++) { let best = Infinity, from = 0; for (const c of coins) if (c <= a && +dp[a - c] + 1 < best) { best = +dp[a - c] + 1; from = c; } dp[a] = best; frames.push({ note: `amount ${a}: best last coin ${from}, 1 + dp[${a - from}] = ${best}`, rows: [idx, [...dp]], tones: { [`1:${a}`]: "found", [`1:${a - from}`]: "window" } }); }
+      return cells(`Fewest coins for ${A}: ${dp[A]}`, [idx, idx.map(() => "")], frames, ["amount", "coins"]);
+    },
+  },
+
+  "partition-equal-subset-sum": {
+    approach: "Look for a subset summing to total / 2 with a boolean knapsack, updating sums from high to low so each number is used once.",
+    idea: ["Two equal halves exist exactly when some subset sums to total / 2 (so total must be even).", "can[s] says whether some subset of the numbers seen so far sums to s.", "For each number x, can[s] |= can[s - x], going downward so x is not reused in the same round."],
+    code: `def canPartition(nums):
+    total = sum(nums)
+    if total % 2:
+        return False
+    half = total // 2
+    can = [True] + [False] * half
+    for x in nums:
+        for s in range(half, x - 1, -1):
+            can[s] = can[s] or can[s - x]
+    return can[half]`,
+    lang: "python", time: "O(n · total)", space: "O(total)",
+    viz: () => {
+      const a = [1, 5, 11, 5], H = a.reduce((x, y) => x + y, 0) / 2, idx = Array.from({ length: H + 1 }, (_, i) => i), can = idx.map((i) => i === 0), frames: CellsFrame[] = [];
+      const row = () => can.map((c) => (c ? "T" : "")), tones = (fresh: number[]) => ({ ...all(idx.filter((i) => can[i]).map((i) => `1:${i}`), "done"), ...all(fresh.map((i) => `1:${i}`), "found") });
+      frames.push({ note: `total ${H * 2}, target half ${H}`, rows: [idx, row()], tones: tones([0]) });
+      for (const x of a) { const fresh: number[] = []; for (let s = H; s >= x; s--) if (!can[s] && can[s - x]) { can[s] = true; fresh.push(s); } frames.push({ note: `number ${x}: newly reachable ${fresh.length ? fresh.sort((p, q) => p - q).join(", ") : "nothing"}${can[H] ? ` → ${H} is reachable` : ""}`, rows: [idx, row()], tones: tones(fresh) }); }
+      return cells(`Equal halves: ${can[H]}`, [idx, idx.map(() => "")], frames, ["sum", "reachable"]);
+    },
+  },
+
+  "target-sum": {
+    approach: "Choosing signs splits nums into P (plus) and N (minus) with P - N = target, so count subsets that sum to (total + target) / 2.",
+    idea: ["P + N = total and P - N = target give P = (total + target) / 2.", "If that is not a whole number, or |target| > total, the answer is 0.", "Count subsets with sum P using dp[s] += dp[s - x], iterating s downward so each number is used once."],
+    code: `def findTargetSumWays(nums, target):
+    total = sum(nums)
+    if abs(target) > total or (total + target) % 2:
+        return 0
+    P = (total + target) // 2
+    dp = [1] + [0] * P
+    for x in nums:
+        for s in range(P, x - 1, -1):
+            dp[s] += dp[s - x]
+    return dp[P]`,
+    lang: "python", time: "O(n · P)", space: "O(P)",
+    viz: () => {
+      const a = [1, 1, 1, 1, 1], target = 3, P = (5 + target) / 2, idx = Array.from({ length: P + 1 }, (_, i) => i), dp = idx.map((i) => (i ? 0 : 1)), frames: CellsFrame[] = [];
+      frames.push({ note: `P = (5 + ${target}) / 2 = ${P}: count subsets summing to ${P}`, rows: [idx, [...dp]], tones: { "1:0": "found" } });
+      a.forEach((x, k) => { for (let s = P; s >= x; s--) dp[s] += dp[s - x]; frames.push({ note: `number ${k + 1} (${x}): dp = [${dp.join(", ")}]`, rows: [idx, [...dp]], tones: { [`1:${P}`]: "found" } }); });
+      return cells(`Sign choices hitting ${target}: ${dp[P]}`, [idx, idx.map(() => "")], frames, ["sum", "ways"]);
+    },
+  },
+
+  "coin-change-ii": {
+    approach: "Unbounded knapsack counting: loop coins on the outside and amounts upward inside, dp[a] += dp[a - c].",
+    idea: ["dp[a] = number of combinations making a with the coins seen so far.", "Coins in the outer loop count each combination once (no orderings), because coins are always added in the same order.", "Amounts go upward so the same coin can be used again."],
+    code: `def change(amount, coins):
+    dp = [1] + [0] * amount
+    for c in coins:
+        for a in range(c, amount + 1):
+            dp[a] += dp[a - c]
+    return dp[amount]`,
+    lang: "python", time: "O(amount · coins)", space: "O(amount)",
+    viz: () => {
+      const coins = [1, 2, 5], A = 5, dp = Array.from({ length: A + 1 }, (_, i) => (i ? 0 : 1)), grid: (number | null)[][] = coins.map(() => Array(A + 1).fill(null)), frames: TableFrame[] = [];
+      coins.forEach((c, r) => { for (let a = 0; a <= A; a++) { if (a >= c) dp[a] += dp[a - c]; grid[r][a] = dp[a]; frames.push({ note: a >= c ? `coin ${c}, amount ${a}: ${dp[a] - dp[a - c]} without + ${dp[a - c]} using one more ${c} = ${dp[a]}` : `coin ${c} is bigger than ${a}: keep ${dp[a]}`, cells: grid.map((g) => [...g]), active: [r, a], deps: a >= c ? [[r, a - c], ...(r ? [[r - 1, a] as [number, number]] : [])] : [] }); } });
+      return table(`Ways to make ${A}: ${dp[A]}`, coins.map((c) => `+ coin ${c}`), Array.from({ length: A + 1 }, (_, i) => String(i)), frames);
+    },
+  },
+
+  "perfect-squares": {
+    approach: "dp[i] = 1 + min(dp[i - s]) over perfect squares s ≤ i.",
+    idea: ["The last square used is some j², leaving i - j² to build optimally.", "Fill dp from 0 upward.", "At most √i squares to try per i."],
+    code: `def numSquares(n):
+    dp = [0] + [n] * n
+    for i in range(1, n + 1):
+        j = 1
+        while j * j <= i:
+            dp[i] = min(dp[i], dp[i - j * j] + 1)
+            j += 1
+    return dp[n]`,
+    lang: "python", time: "O(n√n)", space: "O(n)",
+    viz: () => {
+      const n = 12, idx = Array.from({ length: n + 1 }, (_, i) => i), dp: (string | number)[] = idx.map(() => ""), frames: CellsFrame[] = [];
+      dp[0] = 0;
+      for (let i = 1; i <= n; i++) { let best = i + 1, sq = 1; for (let j = 1; j * j <= i; j++) if (+dp[i - j * j] + 1 < best) { best = +dp[i - j * j] + 1; sq = j * j; } dp[i] = best; frames.push({ note: `${i}: last square ${sq}, 1 + dp[${i - sq}] = ${best}`, rows: [idx, [...dp]], tones: { [`1:${i}`]: "found", [`1:${i - sq}`]: "window" } }); }
+      return cells(`${n} = 4 + 4 + 4: ${dp[n]} squares`, [idx, idx.map(() => "")], frames, ["n", "squares"]);
+    },
+  },
 };
