@@ -90,3 +90,16 @@ CASES.update({
  "decode-xored-permutation": [("decode", ([3,1],), [1,2,3]), ("decode", ([6,5,4,6],), [2,4,1,5,3])],
  "find-greatest-common-divisor-of-array": [("findGCD", ([2,5,6,9,10],), 2), ("findGCD", ([7,5,6,8,3],), 1), ("findGCD", ([3,3],), 3)],
 })
+
+CASES.update({
+ "x-of-a-kind-in-a-deck-of-cards": [("hasGroupsSizeX", ([1,2,3,4,4,3,2,1],), True), ("hasGroupsSizeX", ([1,1,1,2,2,2,3,3],), False), ("hasGroupsSizeX", ([1],), False)],
+ "greatest-common-divisor-of-strings": [("gcdOfStrings", ("ABCABC","ABC"), "ABC"), ("gcdOfStrings", ("ABABAB","ABAB"), "AB"), ("gcdOfStrings", ("LEET","CODE"), "")],
+ "count-primes": [("countPrimes", (10,), 4), ("countPrimes", (0,), 0), ("countPrimes", (1,), 0), ("countPrimes", (3,), 1)],
+ "prime-arrangements": [("numPrimeArrangements", (5,), 12), ("numPrimeArrangements", (100,), 682289015)],
+ "prime-number-of-set-bits-in-binary-representation": [("countPrimeSetBits", (6,10), 4), ("countPrimeSetBits", (10,15), 5)],
+ "powx-n": [("myPow", (2.0,10), 1024.0), ("myPow", (2.1,3), 9.261), ("myPow", (2.0,-2), 0.25)],
+ "super-pow": [("superPow", (2,[3]), 8), ("superPow", (2,[1,0]), 1024), ("superPow", (1,[4,3,3,8,5,2]), 1), ("superPow", (2147483647,[2,0,0]), 1198)],
+ "xor-operation-in-an-array": [("xorOperation", (5,0), 8), ("xorOperation", (4,3), 8)],
+ "count-good-numbers": [("countGoodNumbers", (1,), 5), ("countGoodNumbers", (4,), 400), ("countGoodNumbers", (50,), 564908303)],
+ "palindrome-number": [("isPalindrome", (121,), True), ("isPalindrome", (-121,), False), ("isPalindrome", (10,), False), ("isPalindrome", (0,), True)],
+})

@@ -955,4 +955,193 @@ export const PATTERN2: Record<string, Solution> = {
       return table(`gcd(${lo}, ${hi}) = ${a}`, rows.map((_, i) => `step ${i + 1}`), ["a", "b", "a mod b"], frames.map((f) => ({ ...f, cells: [...f.cells, ...Array(rows.length - f.cells.length).fill([null, null, null])] })));
     },
   },
+  "x-of-a-kind-in-a-deck-of-cards": {
+    approach: "Count each value; a group size X works for every value only if it divides every count, so check gcd(counts) ≥ 2.",
+    idea: ["Each value's cards must split into groups of exactly X, so X divides its count.", "X must divide all counts at once, so the largest choice is their gcd.", "Any gcd of 2 or more works."],
+    code: `from collections import Counter
+from math import gcd
+from functools import reduce
+def hasGroupsSizeX(deck):
+    return reduce(gcd, Counter(deck).values()) >= 2`,
+    lang: "python", time: "O(n log n)", space: "O(n)",
+    viz: () => {
+      const deck = [1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3], cnt = new Map<number, number>(), rows: (string | number)[][] = [], frames: TableFrame[] = [];
+      const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a); deck.forEach((v) => cnt.set(v, (cnt.get(v) || 0) + 1));
+      let g = 0; for (const [v, c] of cnt) { g = gcd(g, c); rows.push([v, c, g]); frames.push({ note: `value ${v} appears ${c} times → gcd so far ${g}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); }
+      frames.push({ note: `gcd ${g} ≥ 2 → split every value into groups of ${g}`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:2`]: "found" } });
+      return table(`Groups of size ${g}: true`, rows.map((_, i) => String(i)), ["value", "count", "gcd so far"], frames.map((f) => ({ ...f, cells: [...f.cells, ...Array(rows.length - f.cells.length).fill([null, null, null])] })));
+    },
+  },
+
+  "greatest-common-divisor-of-strings": {
+    approach: "A common divisor exists only if s1 + s2 == s2 + s1; then the answer is the prefix of length gcd(len1, len2).",
+    idea: ["If both strings are repeats of some t, joining them in either order gives the same string.", "If the two joins differ, no common divisor exists.", "When they match, the longest divisor has length gcd of the two lengths."],
+    code: `from math import gcd
+def gcdOfStrings(str1, str2):
+    if str1 + str2 != str2 + str1:
+        return ""
+    return str1[:gcd(len(str1), len(str2))]`,
+    lang: "python", time: "O(m + n)", space: "O(m + n)",
+    viz: () => {
+      const a = "ABABAB", b = "ABAB", x = [...(a + b)], y = [...(b + a)], frames: CellsFrame[] = [];
+      frames.push({ note: `s1 + s2 = "${a + b}", s2 + s1 = "${b + a}"`, rows: [x, y] });
+      frames.push({ note: "same string both ways → both are repeats of one block", rows: [x, y], tones: { ...range(0, x.length - 1, 0, "done"), ...range(0, y.length - 1, 1, "done") } });
+      frames.push({ note: `gcd(${a.length}, ${b.length}) = 2 → answer "${a.slice(0, 2)}"`, rows: [x, y], tones: { ...range(0, 1, 0, "found"), ...range(0, 1, 1, "found") } });
+      return cells(`gcd("${a}", "${b}") = "AB"`, [x, y], frames, ["s1 + s2", "s2 + s1"]);
+    },
+  },
+
+  "count-primes": {
+    approach: "Sieve of Eratosthenes: for each prime p, cross out p², p² + p, ... up to n; count what stays.",
+    idea: ["Start with every number from 2 to n - 1 marked prime.", "For each p still marked, its multiples are composite. Start at p², since smaller multiples were crossed out by smaller primes.", "Stop once p² ≥ n. The marks left are the primes."],
+    code: `def countPrimes(n):
+    if n < 3:
+        return 0
+    is_p = [True] * n
+    is_p[0] = is_p[1] = False
+    for p in range(2, int(n ** 0.5) + 1):
+        if is_p[p]:
+            is_p[p * p::p] = [False] * len(range(p * p, n, p))
+    return sum(is_p)`,
+    lang: "python", time: "O(n log log n)", space: "O(n)",
+    viz: () => {
+      const n = 20, row = Array.from({ length: n - 2 }, (_, i) => i + 2), comp = new Set<number>(), frames: CellsFrame[] = [];
+      const tones = (p: number) => Object.fromEntries(row.map((x, i) => [`0:${i}`, x === p ? "active" : comp.has(x) ? "muted" : x < p ? "found" : "window"])) as Record<string, Tone>;
+      for (let p = 2; p * p < n; p++) { if (comp.has(p)) continue; const cross: number[] = []; for (let m = p * p; m < n; m += p) if (!comp.has(m)) { comp.add(m); cross.push(m); } frames.push({ note: `${p} is prime → cross out ${cross.join(", ")}`, tones: tones(p) }); }
+      const c = row.filter((x) => !comp.has(x)).length;
+      frames.push({ note: `5² ≥ ${n}, stop. Primes below ${n}: ${row.filter((x) => !comp.has(x)).join(", ")} → ${c}`, tones: Object.fromEntries(row.map((x, i) => [`0:${i}`, comp.has(x) ? "muted" : "found"])) as Record<string, Tone> });
+      return cells(`Primes below ${n}: ${c}`, [row], frames);
+    },
+  },
+
+  "prime-arrangements": {
+    approach: "Count the primes p in 1..n; primes can be permuted among the p prime positions and the rest among the others: p! · (n - p)!.",
+    idea: ["Prime values must sit on prime indices, so they only swap among themselves: p! ways.", "The other n - p values fill the other positions: (n - p)! ways.", "Multiply and take mod 10^9 + 7."],
+    code: `def numPrimeArrangements(n):
+    MOD = 10**9 + 7
+    p = sum(all(k % d for d in range(2, int(k ** 0.5) + 1)) for k in range(2, n + 1))
+    ans = 1
+    for k in range(2, p + 1):
+        ans = ans * k % MOD
+    for k in range(2, n - p + 1):
+        ans = ans * k % MOD
+    return ans`,
+    lang: "python", time: "O(n√n)", space: "O(1)",
+    viz: () => {
+      const n = 7, row = Array.from({ length: n }, (_, i) => i + 1), isP = (k: number) => k > 1 && Array.from({ length: Math.floor(Math.sqrt(k)) - 1 }, (_, i) => i + 2).every((d) => k % d), primes = row.filter(isP), p = primes.length, fact = (k: number): number => (k <= 1 ? 1 : k * fact(k - 1)), frames: CellsFrame[] = [];
+      frames.push({ note: `positions 1..${n}: primes ${primes.join(", ")} → p = ${p}`, tones: Object.fromEntries(row.map((k, i) => [`0:${i}`, isP(k) ? "found" : "muted"])) as Record<string, Tone> });
+      frames.push({ note: `the ${p} primes swap among prime positions: ${p}! = ${fact(p)}`, tones: all(row.filter(isP).map((k) => `0:${k - 1}`), "active") });
+      frames.push({ note: `the other ${n - p} values swap among the rest: ${n - p}! = ${fact(n - p)}`, tones: all(row.filter((k) => !isP(k)).map((k) => `0:${k - 1}`), "window") });
+      frames.push({ note: `${fact(p)} x ${fact(n - p)} = ${fact(p) * fact(n - p)} arrangements`, tones: range(0, n - 1, 0, "done") });
+      return cells(`n = ${n}: ${fact(p) * fact(n - p)} arrangements`, [row], frames, ["value / index"]);
+    },
+  },
+
+  "prime-number-of-set-bits-in-binary-representation": {
+    approach: "For each number in the range, count its set bits and check that count against the small set of primes up to 20.",
+    idea: ["Numbers are below 2^20, so a bit count is at most 20.", "The primes up to 20 are 2, 3, 5, 7, 11, 13, 17, 19: a fixed set.", "Count numbers whose bit count is in that set."],
+    code: `def countPrimeSetBits(left, right):
+    primes = {2, 3, 5, 7, 11, 13, 17, 19}
+    return sum(bin(x).count("1") in primes for x in range(left, right + 1))`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const L = 6, R = 10, P = new Set([2, 3, 5, 7, 11, 13, 17, 19]), rows: (string | number)[][] = [], frames: TableFrame[] = []; let c = 0;
+      for (let x = L; x <= R; x++) { const b = x.toString(2), k = [...b].filter((d) => d === "1").length, ok = P.has(k); if (ok) c++; rows.push([x, b, k, ok ? "yes" : "no"]); frames.push({ note: `${x} = ${b}: ${k} set bits, ${ok ? "prime" : "not prime"} (count ${c})`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2], tones: { [`${rows.length - 1}:3`]: ok ? "found" : "bad" } }); }
+      return table(`[${L}, ${R}]: ${c} numbers`, rows.map((r) => String(r[0])), ["n", "binary", "bits", "prime?"], frames.map((f) => ({ ...f, cells: [...f.cells, ...Array(R - L + 1 - f.cells.length).fill([null, null, null, null])] })));
+    },
+  },
+
+  "powx-n": {
+    approach: "Fast exponentiation: square the base for every bit of n and multiply it into the result when that bit is 1; for negative n use 1/x.",
+    idea: ["x^n with n = 1010 in binary is x^8 · x^2.", "Walk the bits of n from the low end: square the base each step and multiply it in when the bit is 1.", "If n < 0, compute (1/x)^(-n). O(log n) multiplications."],
+    code: `def myPow(x, n):
+    if n < 0:
+        x, n = 1 / x, -n
+    res = 1.0
+    while n:
+        if n & 1:
+            res *= x
+        x *= x
+        n >>= 1
+    return res`,
+    lang: "python", time: "O(log n)", space: "O(1)",
+    viz: () => {
+      const x0 = 2, n0 = 10, bits = n0.toString(2).split(""), frames: CellsFrame[] = []; let res = 1, x = x0, n = n0, k = 0;
+      while (n) { const b = n & 1; if (b) res *= x; frames.push({ note: `bit ${k} is ${b}: ${b ? `res *= ${x} → ${res}` : "skip"}; then base = ${x}² = ${x * x}`, rows: [bits], tones: { [`0:${bits.length - 1 - k}`]: b ? "found" : "muted" } }); x *= x; n >>= 1; k++; }
+      frames.push({ note: `2^10 = ${res} in ${k} squarings`, rows: [bits], tones: range(0, bits.length - 1, 0, "done") });
+      return cells(`myPow(2, 10) = ${res}`, [bits], frames, ["n = 1010"]);
+    },
+  },
+
+  "super-pow": {
+    approach: "Process the digits of b left to right: a^(10·B + d) = (a^B)^10 · a^d, all mod 1337.",
+    idea: ["b is a huge number given as digits, so it can not be used as an exponent directly.", "Appending a digit d to B turns the exponent into 10·B + d.", "So result = result^10 · a^d (mod 1337) for each digit."],
+    code: `def superPow(a, b):
+    res = 1
+    a %= 1337
+    for d in b:
+        res = pow(res, 10, 1337) * pow(a, d, 1337) % 1337
+    return res`,
+    lang: "python", time: "O(len(b))", space: "O(1)",
+    viz: () => {
+      const a = 2, b = [1, 0, 2], M = 1337, rows: (string | number)[][] = [], frames: TableFrame[] = [];
+      const pw = (x: number, e: number) => { let r = 1; for (let i = 0; i < e; i++) r = (r * x) % M; return r; };
+      let res = 1, B = "";
+      for (const d of b) { const r10 = pw(res, 10), ad = pw(a, d); B += d; const nr = (r10 * ad) % M; rows.push([d, `${r10} x ${ad}`, nr]); frames.push({ note: `digit ${d}: exponent becomes ${B}; res = ${res}^10 x ${a}^${d} mod ${M} = ${r10} x ${ad} mod ${M} = ${nr}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); res = nr; }
+      frames.push({ note: `2^102 mod 1337 = ${res}`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:2`]: "found" } });
+      return table(`superPow(2, [1, 0, 2]) = ${res}`, b.map((_, i) => `digit ${i}`), ["d", "res^10 x a^d", "mod 1337"], frames.map((f) => ({ ...f, cells: [...f.cells, ...Array(b.length - f.cells.length).fill([null, null, null])] })));
+    },
+  },
+
+  "xor-operation-in-an-array": {
+    approach: "Generate start + 2i for each i and XOR them together.",
+    idea: ["nums[i] = start + 2·i.", "XOR all n values into one accumulator."],
+    code: `def xorOperation(n, start):
+    x = 0
+    for i in range(n):
+        x ^= start + 2 * i
+    return x`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const n = 5, start = 0, a = Array.from({ length: n }, (_, i) => start + 2 * i), frames: CellsFrame[] = []; let x = 0;
+      const acc: (string | number)[] = a.map(() => "");
+      a.forEach((v, i) => { x ^= v; acc[i] = x; frames.push({ note: `nums[${i}] = ${start} + 2·${i} = ${v}; x ^= ${v} → ${x}`, rows: [a, [...acc]], tones: { [`0:${i}`]: "active", [`1:${i}`]: "found" } }); });
+      return cells(`XOR of [${a.join(", ")}] = ${x}`, [a, a.map(() => "")], frames, ["nums", "x"]);
+    },
+  },
+
+  "count-good-numbers": {
+    approach: "Even positions take one of 5 even digits, odd positions one of 4 primes: 5^ceil(n/2) · 4^floor(n/2) with fast modular power.",
+    idea: ["Positions 0, 2, 4, ... must hold 0, 2, 4, 6 or 8: 5 choices each.", "Positions 1, 3, 5, ... must hold 2, 3, 5 or 7: 4 choices each.", "Choices multiply; n can be 10^15, so use pow(base, exp, mod), which is O(log n)."],
+    code: `def countGoodNumbers(n):
+    MOD = 10**9 + 7
+    return pow(5, (n + 1) // 2, MOD) * pow(4, n // 2, MOD) % MOD`,
+    lang: "python", time: "O(log n)", space: "O(1)",
+    viz: () => {
+      const n = 4, pos = Array.from({ length: n }, (_, i) => i), ch = pos.map((i) => (i % 2 ? 4 : 5)), frames: CellsFrame[] = []; let prod = 1;
+      pos.forEach((i) => { prod *= ch[i]; frames.push({ note: `position ${i} (${i % 2 ? "odd: 2, 3, 5, 7" : "even: 0, 2, 4, 6, 8"}) gives ${ch[i]} choices → ${prod} numbers so far`, rows: [pos, ch], tones: { [`1:${i}`]: "active", ...range(0, i - 1, 1, "done") } }); });
+      frames.push({ note: `5^${(n + 1) >> 1} x 4^${n >> 1} = ${prod}`, rows: [pos, ch], tones: range(0, n - 1, 1, "found") });
+      return cells(`n = ${n}: ${prod} good numbers`, [pos, ch], frames, ["position", "choices"]);
+    },
+  },
+
+  "palindrome-number": {
+    approach: "Reverse only the back half of the digits and compare it with the front half.",
+    idea: ["Negatives and numbers ending in 0 (except 0) are never palindromes.", "Pop digits from x onto rev until rev ≥ x: then each holds half the digits.", "Even length: x == rev. Odd length: the middle digit is in rev, so compare x == rev // 10."],
+    code: `def isPalindrome(x):
+    if x < 0 or (x % 10 == 0 and x != 0):
+        return False
+    rev = 0
+    while x > rev:
+        rev = rev * 10 + x % 10
+        x //= 10
+    return x == rev or x == rev // 10`,
+    lang: "python", time: "O(log x)", space: "O(1)",
+    viz: () => {
+      let x = 12321, rev = 0; const rows: (string | number)[][] = [], frames: TableFrame[] = [];
+      while (x > rev) { const d = x % 10; rev = rev * 10 + d; x = Math.floor(x / 10); rows.push([d, x, rev]); frames.push({ note: `move digit ${d}: x = ${x}, rev = ${rev}${x > rev ? "" : " → rev reached x, stop"}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); }
+      frames.push({ note: `odd length: x = ${x} vs rev // 10 = ${Math.floor(rev / 10)} → palindrome`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:1`]: "found", [`${rows.length - 1}:2`]: "found" } });
+      return table("Is 12321 a palindrome? true", rows.map((_, i) => `step ${i + 1}`), ["digit", "x", "rev"], frames);
+    },
+  },
 };
