@@ -321,3 +321,53 @@ export function aptitude(topic: AptTopic, seed: number): AptProblem {
     }
   }
 }
+
+/* ---------- System design: consistent hashing ---------- */
+/** FNV-1a, 32 bits, plus murmur3's final mix so similar strings ("user1", "user2") land far apart.
+ *  Tiny and deterministic, so the ring looks the same on every device. */
+export function fnv(s: string) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); h ^= h >>> 16;
+  return h >>> 0;
+}
+export type RingPoint = { pos: number; server: string };   // pos in [0, 1) around the ring
+
+/** Each key belongs to the first server point clockwise from it; vnodes = points per server. */
+export function hashRing(servers: string[], keys: string[], vnodes = 1) {
+  const points: RingPoint[] = servers.flatMap((s) => Array.from({ length: vnodes }, (_, v) => ({ pos: fnv(`${s}-${v}`) / 2 ** 32, server: s })))
+    .sort((a, b) => a.pos - b.pos);
+  const keyPos: Record<string, number> = {}, owner: Record<string, string> = {};
+  for (const k of keys) {
+    keyPos[k] = fnv(k) / 2 ** 32;
+    owner[k] = (points.find((p) => p.pos >= keyPos[k]) ?? points[0]).server;
+  }
+  return { points, keyPos, owner };
+}
+/** The naive alternative: server = hash(key) mod N. */
+export const modOwner = (servers: string[], keys: string[]): Record<string, string> =>
+  Object.fromEntries(keys.map((k) => [k, servers[fnv(k) % servers.length]]));
+
+/* ---------- System design: rate limiting ---------- */
+export type RateAlgo = "token" | "fixed" | "sliding";
+export type RateStep = { t: number; ok: boolean; level: number };   // level: tokens left, or requests counted in the window
+
+/** `limit` requests per `window` seconds. Token bucket: capacity `limit`, refills `limit / window` tokens a second. */
+export function rateLimit(algo: RateAlgo, times: number[], limit: number, window: number): RateStep[] {
+  let tokens = limit, last = 0;
+  const accepted: number[] = [];
+  return times.map((t) => {
+    if (algo === "token") {
+      tokens = Math.min(limit, tokens + (t - last) * (limit / window)); last = t;
+      const ok = tokens >= 1 - 1e-9;
+      if (ok) tokens -= 1;
+      return { t, ok, level: Math.round(tokens * 100) / 100 };
+    }
+    const inWindow = algo === "fixed"
+      ? accepted.filter((a) => Math.floor(a / window) === Math.floor(t / window)).length
+      : accepted.filter((a) => a > t - window).length;
+    const ok = inWindow < limit;
+    if (ok) accepted.push(t);
+    return { t, ok, level: inWindow + (ok ? 1 : 0) };
+  });
+}

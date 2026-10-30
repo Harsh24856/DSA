@@ -2,14 +2,14 @@
 // Hub of the "Other" section: one card per CS core subject with chapter progress.
 import Link from "next/link";
 import { motion } from "motion/react";
-import { ArrowRight, Atom, Calculator, Code, Cpu, Cube, Database, Globe, HardDrives, Table, type Icon } from "@phosphor-icons/react";
+import { ArrowRight, Atom, Calculator, Code, Cpu, Cube, Database, Globe, HardDrives, ShareNetwork, Table, type Icon } from "@phosphor-icons/react";
 import { chapterKey } from "@/lib/other";
 import { usePatterns } from "@/lib/patternStore";
 import { Bar, Count } from "../ui";
 import { ProgressCard } from "../ProgressCard";
 
 export type SubjectSummary = { id: string; name: string; short: string; blurb: string; chapters: string[]; cards: number; labs: number };
-const ICON: Record<string, Icon> = { os: Cpu, dbms: Database, cn: Globe, sql: Table, oops: Cube, aptitude: Calculator, syntax: Code, react: Atom, node: HardDrives };
+const ICON: Record<string, Icon> = { os: Cpu, dbms: Database, cn: Globe, sql: Table, oops: Cube, aptitude: Calculator, syntax: Code, react: Atom, node: HardDrives, design: ShareNetwork };
 
 export function OtherHub({ subjects }: { subjects: SubjectSummary[] }) {
   const { done } = usePatterns();
@@ -21,7 +21,7 @@ export function OtherHub({ subjects }: { subjects: SubjectSummary[] }) {
       <section className="card flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
         <div className="max-w-[62ch]">
           <h2 className="t-h2">CS core subjects</h2>
-          <p className="mt-1 text-[14px] text-muted">Operating systems, DBMS, networks, SQL, OOP, aptitude, and the languages and frameworks you will code in: C++, Java, Python, JavaScript, TypeScript, React, Node and Express. Each chapter has short notes, diagrams, interactive labs and interview questions with answers you open after trying.</p>
+          <p className="mt-1 text-[14px] text-muted">Operating systems, DBMS, networks, SQL, OOP, aptitude, system design, and the languages and frameworks you will code in: C++, Java, Python, JavaScript, TypeScript, React, Node and Express. Each chapter has short notes, diagrams, interactive labs and interview questions with answers you open after trying.</p>
           <div className="mt-3"><ProgressCard otherTotal={total} /></div>
         </div>
         <div className="flex shrink-0 gap-6">

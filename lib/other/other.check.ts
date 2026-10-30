@@ -1,7 +1,7 @@
 // Run: npm run check:other. Checks every simulator against known results, then checks the content:
 // SQL answers run in SQLite (node:sqlite), Java and C++ programs compile and run, and no text has an em dash.
 import assert from "node:assert";
-import { bankerSafety, bplusInsertAll, candidateKeys, closure, dispatch, levelsOf, pageReplace, schedule, slidingWindow, subnet, aptitude, type AptTopic, type BNode } from "./sim.ts";
+import { bankerSafety, bplusInsertAll, candidateKeys, closure, dispatch, levelsOf, pageReplace, schedule, slidingWindow, subnet, aptitude, hashRing, modOwner, rateLimit, type AptTopic, type BNode } from "./sim.ts";
 
 /* ---------- simulators ---------- */
 const REFS = [7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2, 1, 2, 0, 1, 7, 0, 1];
@@ -66,6 +66,23 @@ for (const t of ["percent", "profit", "interest", "work", "trains", "boats", "pn
   }
 assert.equal(aptitude("work", 3).answer, aptitude("work", 3).answer, "deterministic per seed");
 
+// consistent hashing: adding a 5th server moves about 1/5 of keys on the ring, about 4/5 with mod N
+{
+  const keys = Array.from({ length: 2000 }, (_, i) => `user${i}`), four = ["A", "B", "C", "D"], five = [...four, "E"];
+  const r4 = hashRing(four, keys, 100).owner, r5 = hashRing(five, keys, 100).owner, m4 = modOwner(four, keys), m5 = modOwner(five, keys);
+  const ringMoved = keys.filter((k) => r4[k] !== r5[k]).length, modMoved = keys.filter((k) => m4[k] !== m5[k]).length;
+  assert.ok(ringMoved > 200 && ringMoved < 600 && modMoved > 1400, `ring moved ${ringMoved}, mod moved ${modMoved}`);
+  assert.ok(keys.every((k) => r5[k] === "E" || r4[k] === r5[k]), "on the ring, keys only ever move to the new server");
+}
+// rate limiting: the fixed window lets a double burst through at the boundary; sliding window and token bucket do not
+{
+  const t = [0.9, 0.9, 0.9, 1.0, 1.0, 1.0];
+  const okCount = (a: "token" | "fixed" | "sliding") => rateLimit(a, t, 3, 1).filter((s) => s.ok).length;
+  assert.deepEqual([okCount("fixed"), okCount("sliding"), okCount("token")], [6, 3, 3]);
+  const steady = rateLimit("token", [0, 1, 2, 3, 4], 3, 3);
+  assert.ok(steady.every((s) => s.ok), "one request a second never empties a 3-per-3s bucket");
+}
+
 console.log("simulators ok");
 
 /* ---------- content ---------- */
@@ -85,8 +102,10 @@ import { ORDER_SETUP, ORDER_SQL, orderSteps, NF_STAGES, LOOP_SCENARIOS } from ".
 import { SYNTAX } from "./syntax.ts";
 import { REACT } from "./react.ts";
 import { NODE } from "./node.ts";
+import { DESIGN } from "./design.ts";
+import { FLOWS } from "./flows.ts";
 
-const SUBJECTS: Subject[] = [OS, DBMS, CN, SQL, OOPS, APTITUDE, SYNTAX, REACT, NODE];
+const SUBJECTS: Subject[] = [OS, DBMS, CN, SQL, OOPS, APTITUDE, SYNTAX, REACT, NODE, DESIGN];
 const text = JSON.stringify(SUBJECTS);
 assert.ok(!text.includes(String.fromCharCode(0x2014)), "no em dashes in Other content");
 
@@ -153,6 +172,7 @@ function runTs(where: string, src: string, tsx = false) {
 
 let sqlRun = 0;
 for (const s of SUBJECTS) for (const ch of s.chapters) {
+  if (ch.anim) assert.ok(FLOWS[ch.anim], `${s.id}/${ch.id}: unknown animation ${ch.anim}`);
   const codes: [string, Code | undefined][] = [[`${s.id}/${ch.id}`, ch.code], ...ch.cards.map((c) => [`${s.id}/${ch.id}/${c.id}`, c.code] as [string, Code | undefined])];
   for (const [where, code] of codes) {
     if (!code) continue;

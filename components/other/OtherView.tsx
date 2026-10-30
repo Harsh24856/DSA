@@ -1,6 +1,7 @@
 "use client";
 // One subject page of the "Other" section: header with progress and contents, then chapters. Each chapter has
 // notes, a diagram, code, an optional lab and interview questions whose answers open on demand.
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
@@ -14,6 +15,7 @@ import { Bar, Seg } from "../ui";
 import { ProblemRow } from "../ProblemRow";
 import { useMermaid } from "../useMermaid";
 import { Rich, inline } from "./Rich";
+const FlowPlayer = dynamic(() => import("./FlowPlayer"), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
 import { OtherLab } from "./OtherLab";
 
 type Lang = "cpp" | "java" | "python" | "js" | "ts";
@@ -107,6 +109,7 @@ function ChapterView({ subject, ch, n, lang, setLang }: { subject: string; ch: C
       {ch.diagram && <Mermaid src={ch.diagram} caption={ch.caption} />}
       {ch.table && <TableView t={ch.table} />}
       {ch.code && <CodeBlock code={ch.code} lang={lang} setLang={setLang} />}
+      {ch.anim && <FlowPlayer id={ch.anim} />}
       {ch.lab && <OtherLab kind={ch.lab} />}
       {ch.cards.length > 0 && (
         <>

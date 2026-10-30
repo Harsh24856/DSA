@@ -4,7 +4,7 @@
 
 export type Table = { head: string[]; rows: string[][] };
 
-export type OtherLab = "paging" | "scheduling" | "banker" | "tcp" | "subnet" | "btree" | "sqlorder" | "normalize" | "vtable" | "aptitude" | "eventloop";
+export type OtherLab = "paging" | "scheduling" | "banker" | "tcp" | "subnet" | "btree" | "sqlorder" | "normalize" | "vtable" | "aptitude" | "eventloop" | "hashring" | "ratelimit";
 
 /** Code in one or more languages; two or more of cpp, java, python, js, ts show a language switch. check:other runs
  *  every one: SQL in SQLite (rows compared with `result`), Java and C++ compiled and run, Python and JavaScript run,
@@ -31,6 +31,7 @@ export type Chapter = {
   table?: Table;
   code?: Code;
   lab?: OtherLab;
+  anim?: string;       // id of an animated walk-through in lib/other/flows.ts
   cards: Card[];
 };
 

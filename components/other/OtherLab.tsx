@@ -5,10 +5,12 @@ import { SubnetLab, TcpLab } from "./labs-net";
 import { BTreeLab, NormalizeLab, SqlOrderLab } from "./labs-db";
 import { AptitudeLab, VtableLab } from "./labs-misc";
 import { EventLoopLab } from "./labs-js";
+import { HashRingLab, RateLimitLab } from "./labs-design";
 
 const LAB: Record<Kind, () => React.JSX.Element> = {
   paging: PagingLab, scheduling: SchedulingLab, banker: BankerLab, tcp: TcpLab, subnet: SubnetLab,
   btree: BTreeLab, sqlorder: SqlOrderLab, normalize: NormalizeLab, vtable: VtableLab, aptitude: AptitudeLab, eventloop: EventLoopLab,
+  hashring: HashRingLab, ratelimit: RateLimitLab,
 };
 
 export function OtherLab({ kind }: { kind: Kind }) {

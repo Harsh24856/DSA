@@ -2,7 +2,7 @@
 // the page that shows it (server side), so no page ships every subject's text.
 import type { Subject } from "./types";
 
-export const SUBJECT_IDS = ["os", "dbms", "cn", "sql", "oops", "aptitude", "syntax", "react", "node"] as const;
+export const SUBJECT_IDS = ["os", "dbms", "cn", "sql", "oops", "aptitude", "syntax", "react", "node", "design"] as const;
 export type SubjectId = (typeof SUBJECT_IDS)[number];
 
 export const loadSubject = async (id: SubjectId): Promise<Subject> => {
@@ -16,6 +16,7 @@ export const loadSubject = async (id: SubjectId): Promise<Subject> => {
     case "syntax": return (await import("./syntax")).SYNTAX;
     case "react": return (await import("./react")).REACT;
     case "node": return (await import("./node")).NODE;
+    case "design": return (await import("./design")).DESIGN;
   }
 };
 
