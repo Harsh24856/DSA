@@ -1,6 +1,7 @@
 "use client";
 // Renders one playbook section's HTML (lib/genai/content.ts): draws its mermaid diagrams (useMermaid), wires the code blocks' Copy buttons, mounts the interactive labs
-// (lib/genai/labs.ts) into their slides, and adds a PyTorch / TensorFlow switch to code blocks that have a TF version.
+// (lib/genai/labs.ts) into their slides, adds a PyTorch / TensorFlow switch to code blocks that have a TF version,
+// and a Run button (Pyodide, components/runPython.ts) under the deep-dive scripts that need only stdlib, numpy or pydantic.
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LabKind } from "@/lib/genai/labs";
@@ -8,10 +9,36 @@ import { TF } from "@/lib/genai/tensorflow";
 import { GenaiLab } from "./labs";
 import { Seg } from "./ui";
 import { useMermaid } from "./useMermaid";
+import { runPython } from "./runPython";
 
 type Fw = "torch" | "tf";
 const FW_KEY = "dsa-genai-fw";
-type Mount = { node: HTMLElement; lab?: LabKind; code?: { el: HTMLElement; key: string } };
+type Mount = { node: HTMLElement; lab?: LabKind; code?: { el: HTMLElement; key: string }; run?: { src: string } };
+
+// Deep-dive scripts that need only the standard library, numpy or pydantic, so they run in the browser.
+const RUNNABLE = new Set(["backprop_by_hand.py", "param_count.py", "online_softmax.py", "attention_by_hand.py", "rope_relative.py",
+  "context_budget.py", "rrf_hybrid.py", "lora_memory.py", "batching_sim.py", "vision_tokens.py", "capacity.py", "structured_retry.py",
+  "judge_calibration.py", "ab_significance.py", "self_consistency.py", "constrained_decode.py", "kv_paging.py", "quantize.py"]);
+
+function RunPanel({ src }: { src: string }) {
+  const [lines, setLines] = useState<string[]>([]);
+  const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+  const [status, setStatus] = useState("");
+  const run = async () => {
+    setLines([]); setState("busy");
+    try { await runPython(src, (l) => setLines((x) => [...x, l]), setStatus); setState("done"); }
+    catch (e) { setLines((x) => [...x, String((e as Error).message ?? e)]); setState("error"); }
+  };
+  return (
+    <div className="grid gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="btn btn-sm btn-primary" onClick={() => void run()} disabled={state === "busy"}>{state === "busy" ? "Running..." : state === "idle" ? "Run in browser" : "Run again"}</button>
+        <span className="text-[12px] text-muted" role="status">{state === "busy" ? status : state === "done" ? "Finished. The asserts at the end passed." : state === "error" ? "Stopped with an error." : "Runs this script with Python in your browser; nothing is sent to a server."}</span>
+      </div>
+      {lines.length > 0 && <pre className={`code max-h-[260px] overflow-auto text-[12px] ${state === "error" ? "text-hard" : ""}`} aria-label="Output">{lines.join("\n")}</pre>}
+    </div>
+  );
+}
 
 function CodeTabs({ el, file, code, fw, setFw }: { el: HTMLElement; file: string; code: string; fw: Fw; setFw(f: Fw): void }) {
   const [copied, setCopied] = useState(false);
@@ -50,6 +77,7 @@ export function GenaiDoc({ html, labs = NO_LABS }: { html: string; labs?: [strin
     }
     for (const el of root.querySelectorAll<HTMLElement>(".gx-code")) {
       const key = el.querySelector(".gx-code-head span")?.textContent?.split(" ")[0] ?? "";
+      if (RUNNABLE.has(key)) { const node = document.createElement("div"); el.after(node); made.push({ node, run: { src: el.querySelector("code")?.textContent ?? "" } }); }
       if (!TF[key]) continue;
       const node = document.createElement("div"); el.before(node); made.push({ node, code: { el, key } });
     }
@@ -77,8 +105,8 @@ export function GenaiDoc({ html, labs = NO_LABS }: { html: string; labs?: [strin
     <>
       <div ref={ref} className="gx" dangerouslySetInnerHTML={{ __html: html }} />
       {mounts.map((m, i) => createPortal(
-        m.lab ? <GenaiLab kind={m.lab} /> : <CodeTabs el={m.code!.el} file={TF[m.code!.key].file} code={TF[m.code!.key].code} fw={fw} setFw={setFw} />,
-        m.node, `${m.lab ?? m.code!.key}-${i}`,
+        m.lab ? <GenaiLab kind={m.lab} /> : m.run ? <RunPanel src={m.run.src} /> : <CodeTabs el={m.code!.el} file={TF[m.code!.key].file} code={TF[m.code!.key].code} fw={fw} setFw={setFw} />,
+        m.node, `${m.lab ?? m.code?.key ?? "run"}-${i}`,
       ))}
     </>
   );

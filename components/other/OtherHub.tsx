@@ -6,6 +6,7 @@ import { ArrowRight, Calculator, Cpu, Cube, Database, Globe, Table, type Icon } 
 import { chapterKey } from "@/lib/other";
 import { usePatterns } from "@/lib/patternStore";
 import { Bar, Count } from "../ui";
+import { ProgressCard } from "../ProgressCard";
 
 export type SubjectSummary = { id: string; name: string; short: string; blurb: string; chapters: string[]; cards: number; labs: number };
 const ICON: Record<string, Icon> = { os: Cpu, dbms: Database, cn: Globe, sql: Table, oops: Cube, aptitude: Calculator };
@@ -21,6 +22,7 @@ export function OtherHub({ subjects }: { subjects: SubjectSummary[] }) {
         <div className="max-w-[62ch]">
           <h2 className="t-h2">CS core subjects</h2>
           <p className="mt-1 text-[14px] text-muted">Operating systems, DBMS, networks, SQL, OOP in Java and C++, and aptitude: the theory rounds of a placement. Each chapter has short notes, diagrams, interactive labs and interview questions with answers you open after trying.</p>
+          <div className="mt-3"><ProgressCard otherTotal={total} /></div>
         </div>
         <div className="flex shrink-0 gap-6">
           <div><span className="num text-[26px] font-semibold"><Count value={finished} /><span className="text-[13px] font-normal text-muted"> / {total}</span></span><div className="text-[12px] text-muted">chapters done</div></div>
