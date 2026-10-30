@@ -103,3 +103,16 @@ CASES.update({
  "count-good-numbers": [("countGoodNumbers", (1,), 5), ("countGoodNumbers", (4,), 400), ("countGoodNumbers", (50,), 564908303)],
  "palindrome-number": [("isPalindrome", (121,), True), ("isPalindrome", (-121,), False), ("isPalindrome", (10,), False), ("isPalindrome", (0,), True)],
 })
+
+CASES.update({
+ "reverse-integer": [("reverse", (123,), 321), ("reverse", (-123,), -321), ("reverse", (120,), 21), ("reverse", (1534236469,), 0)],
+ "excel-sheet-column-title": [("convertToTitle", (1,), "A"), ("convertToTitle", (28,), "AB"), ("convertToTitle", (701,), "ZY"), ("convertToTitle", (52,), "AZ")],
+ "excel-sheet-column-number": [("titleToNumber", ("A",), 1), ("titleToNumber", ("AB",), 28), ("titleToNumber", ("ZY",), 701)],
+ "string-to-integer-atoi": [("myAtoi", ("42",), 42), ("myAtoi", ("   -042",), -42), ("myAtoi", ("1337c0d3",), 1337), ("myAtoi", ("0-1",), 0), ("myAtoi", ("words and 987",), 0), ("myAtoi", ("-91283472332",), -2147483648), ("myAtoi", ("",), 0)],
+ "add-strings": [("addStrings", ("11","123"), "134"), ("addStrings", ("456","77"), "533"), ("addStrings", ("0","0"), "0"), ("addStrings", ("9","99"), "108")],
+ "happy-number": [("isHappy", (19,), True), ("isHappy", (2,), False)],
+ "ugly-number": [("isUgly", (6,), True), ("isUgly", (1,), True), ("isUgly", (14,), False), ("isUgly", (0,), False)],
+ "ugly-number-ii": [("nthUglyNumber", (10,), 12), ("nthUglyNumber", (1,), 1)],
+ "add-digits": [("addDigits", (38,), 2), ("addDigits", (0,), 0), ("addDigits", (18,), 9)],
+ "climbing-stairs": [("climbStairs", (2,), 2), ("climbStairs", (3,), 3), ("climbStairs", (1,), 1)],
+})

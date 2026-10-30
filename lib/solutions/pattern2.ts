@@ -1144,4 +1144,206 @@ def gcdOfStrings(str1, str2):
       return table("Is 12321 a palindrome? true", rows.map((_, i) => `step ${i + 1}`), ["digit", "x", "rev"], frames);
     },
   },
+  "reverse-integer": {
+    approach: "Pop the last digit with % 10 and push it onto the result with * 10; restore the sign and return 0 if it leaves the 32-bit range.",
+    idea: ["Work on |x| and remember the sign.", "rev = rev * 10 + x % 10, then x //= 10, until x is 0.", "If the reversed value is outside [-2^31, 2^31 - 1], return 0."],
+    code: `def reverse(x):
+    sign, x, rev = (-1 if x < 0 else 1), abs(x), 0
+    while x:
+        rev = rev * 10 + x % 10
+        x //= 10
+    rev *= sign
+    return rev if -2**31 <= rev < 2**31 else 0`,
+    lang: "python", time: "O(log x)", space: "O(1)",
+    viz: () => {
+      const x0 = -1230, rows: (string | number)[][] = [], frames: TableFrame[] = []; let x = Math.abs(x0), rev = 0;
+      while (x) { const d = x % 10; rev = rev * 10 + d; x = Math.floor(x / 10); rows.push([d, x, rev]); frames.push({ note: `pop ${d}: rev = rev * 10 + ${d} = ${rev}, x left ${x}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); }
+      frames.push({ note: `restore the sign → ${-rev}; it fits in 32 bits, so return it (the trailing 0 became a leading 0 and vanished)`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:2`]: "found" } });
+      return table(`reverse(${x0}) = ${-rev}`, rows.map((_, i) => `step ${i + 1}`), ["digit", "x left", "rev"], frames);
+    },
+  },
+
+  "excel-sheet-column-title": {
+    approach: "Base 26 with digits 1..26 instead of 0..25: subtract 1 before taking n % 26 for each letter, from the right.",
+    idea: ["A..Z stand for 1..26, so there is no zero digit.", "Subtracting 1 shifts to 0..25: the last letter is chr(65 + (n - 1) % 26).", "Then n = (n - 1) // 26 and repeat; reverse the letters at the end."],
+    code: `def convertToTitle(columnNumber):
+    n, out = columnNumber, []
+    while n:
+        n -= 1
+        out.append(chr(65 + n % 26))
+        n //= 26
+    return "".join(reversed(out))`,
+    lang: "python", time: "O(log n)", space: "O(log n)",
+    viz: () => {
+      let n = 701; const rows: (string | number)[][] = [], frames: TableFrame[] = [], out: string[] = [];
+      while (n) { const m = n - 1, ch = String.fromCharCode(65 + (m % 26)); out.unshift(ch); rows.push([n, m % 26, ch, Math.floor(m / 26)]); frames.push({ note: `n = ${n}: (n - 1) % 26 = ${m % 26} → '${ch}'; n = (n - 1) // 26 = ${Math.floor(m / 26)} → "${out.join("")}"`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); n = Math.floor(m / 26); }
+      return table(`701 → "${out.join("")}"`, rows.map((_, i) => `step ${i + 1}`), ["n", "(n-1) % 26", "letter", "next n"], frames);
+    },
+  },
+
+  "excel-sheet-column-number": {
+    approach: "Read the title as a base-26 number with A = 1 ... Z = 26: result = result * 26 + value.",
+    idea: ["Each letter shifts the previous value one base-26 place left.", "Add the letter's value ord(ch) - 64."],
+    code: `def titleToNumber(columnTitle):
+    n = 0
+    for ch in columnTitle:
+        n = n * 26 + ord(ch) - 64
+    return n`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const t = "ZY", frames: CellsFrame[] = []; let n = 0;
+      [...t].forEach((ch, i) => { const v = ch.charCodeAt(0) - 64, prev = n; n = n * 26 + v; frames.push({ note: `'${ch}' = ${v}: ${prev} * 26 + ${v} = ${n}`, rows: [[...t], [...t].map((c, j) => (j <= i ? c.charCodeAt(0) - 64 : ""))], tones: { [`0:${i}`]: "active", [`1:${i}`]: "found" } }); });
+      return cells(`"${t}" = ${n}`, [[...t], [...t].map(() => "")], frames, ["letter", "value"]);
+    },
+  },
+
+  "string-to-integer-atoi": {
+    approach: "Skip leading spaces, read an optional sign, read digits until the first non-digit, then clamp to 32 bits.",
+    idea: ["Leading spaces are ignored.", "One '+' or '-' may follow.", "Digits are read until something else appears; everything after is ignored.", "Clamp the result to [-2^31, 2^31 - 1]."],
+    code: `def myAtoi(s):
+    i, n = 0, len(s)
+    while i < n and s[i] == " ":
+        i += 1
+    sign = 1
+    if i < n and s[i] in "+-":
+        sign = -1 if s[i] == "-" else 1
+        i += 1
+    num = 0
+    while i < n and s[i].isdigit():
+        num = num * 10 + int(s[i])
+        i += 1
+    return max(-2**31, min(2**31 - 1, sign * num))`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const s = "  -042a7", ch = [...s].map((c) => (c === " " ? "␣" : c)), frames: CellsFrame[] = []; let i = 0, sign = 1, num = 0;
+      while (s[i] === " ") { frames.push({ note: `index ${i}: space, skip`, rows: [ch], tones: { [`0:${i}`]: "muted" } }); i++; }
+      if (s[i] === "+" || s[i] === "-") { sign = s[i] === "-" ? -1 : 1; frames.push({ note: `index ${i}: sign '${s[i]}'`, rows: [ch], tones: { [`0:${i}`]: "active" } }); i++; }
+      while (i < s.length && /\d/.test(s[i])) { num = num * 10 + +s[i]; frames.push({ note: `index ${i}: digit ${s[i]} → num = ${num}`, rows: [ch], tones: { [`0:${i}`]: "found" } }); i++; }
+      frames.push({ note: `index ${i}: '${s[i]}' is not a digit, stop. Result ${sign * num} (inside 32-bit range)`, rows: [ch], tones: { [`0:${i}`]: "bad" } });
+      return cells(`myAtoi("${s}") = ${sign * num}`, [ch], frames);
+    },
+  },
+
+  "add-strings": {
+    approach: "Add digit by digit from the right with a carry, as on paper, without converting the whole strings to integers.",
+    idea: ["Two indices start at the last digit of each string.", "Column sum = digit + digit + carry; write sum % 10, carry sum // 10.", "Keep going while either string has digits or a carry is left; reverse at the end."],
+    code: `def addStrings(num1, num2):
+    i, j, carry, out = len(num1) - 1, len(num2) - 1, 0, []
+    while i >= 0 or j >= 0 or carry:
+        s = carry
+        if i >= 0:
+            s += ord(num1[i]) - 48
+            i -= 1
+        if j >= 0:
+            s += ord(num2[j]) - 48
+            j -= 1
+        out.append(str(s % 10))
+        carry = s // 10
+    return "".join(reversed(out))`,
+    lang: "python", time: "O(max(m, n))", space: "O(max(m, n))",
+    viz: () => {
+      const a = "456", b = "77", W = 4, A = a.padStart(W, " ").split(""), B = b.padStart(W, " ").split(""), S: string[] = Array(W).fill(""), frames: CellsFrame[] = []; let carry = 0;
+      for (let c = W - 1; c >= 0; c--) { const x = A[c] === " " ? 0 : +A[c], y = B[c] === " " ? 0 : +B[c], s = x + y + carry; if (!s && c < W - Math.max(a.length, b.length)) break; S[c] = String(s % 10); frames.push({ note: `${x} + ${y} + carry ${carry} = ${s} → write ${s % 10}, carry ${Math.floor(s / 10)}`, rows: [A, B, [...S]], tones: { [`0:${c}`]: "active", [`1:${c}`]: "active", [`2:${c}`]: "found" } }); carry = Math.floor(s / 10); }
+      const r = S.join("").trim();
+      return cells(`"${a}" + "${b}" = "${r}"`, [A, B, S], frames, ["num1", "num2", "sum"]);
+    },
+  },
+
+  "happy-number": {
+    approach: "Keep replacing n by the sum of the squares of its digits; stop at 1 (happy) or when a value repeats (a cycle that never reaches 1).",
+    idea: ["The sequence either reaches 1 or falls into a loop, because the values quickly drop below a few hundred.", "Remember every value seen in a set.", "A repeat means a cycle without 1, so n is not happy."],
+    code: `def isHappy(n):
+    seen = set()
+    while n != 1 and n not in seen:
+        seen.add(n)
+        n = sum(int(d) ** 2 for d in str(n))
+    return n == 1`,
+    lang: "python", time: "O(log n) per step", space: "O(number of steps)",
+    viz: () => {
+      const f = (x: number) => String(x).split("").reduce((s, d) => s + (+d) ** 2, 0), seq: number[] = []; let n = 19;
+      while (n !== 1 && !seq.includes(n)) { seq.push(n); n = f(n); }
+      seq.push(n);
+      const frames: CellsFrame[] = seq.slice(0, -1).map((v, i) => ({ note: `${v} → ${String(v).split("").map((d) => `${d}²`).join(" + ")} = ${f(v)}`, tones: { ...range(0, i - 1, 0, "done"), [`0:${i}`]: "active" } }));
+      frames.push({ note: "reached 1 → 19 is happy", tones: { ...range(0, seq.length - 2, 0, "done"), [`0:${seq.length - 1}`]: "found" } });
+      return cells("19 is happy", [seq], frames);
+    },
+  },
+
+  "ugly-number": {
+    approach: "Divide out every factor 2, 3 and 5; the number is ugly exactly when 1 is left.",
+    idea: ["Ugly numbers have no prime factors other than 2, 3 and 5.", "Remove each of those as many times as it divides.", "Anything other than 1 left over is another prime factor. n ≤ 0 is never ugly."],
+    code: `def isUgly(n):
+    if n <= 0:
+        return False
+    for p in (2, 3, 5):
+        while n % p == 0:
+            n //= p
+    return n == 1`,
+    lang: "python", time: "O(log n)", space: "O(1)",
+    viz: () => {
+      const rows: (string | number)[][] = [], frames: TableFrame[] = [];
+      for (const start of [60, 14]) { let n = start; for (const p of [2, 3, 5]) while (n % p === 0) { rows.push([start, p, n / p]); frames.push({ note: `${n} / ${p} = ${n / p}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); n /= p; } rows.push([start, "left", n]); frames.push({ note: `${start}: ${n === 1 ? "1 left → ugly" : `${n} left, a prime other than 2, 3, 5 → not ugly`}`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:2`]: n === 1 ? "found" : "bad" } }); }
+      return table("Ugly check for 60 and 14", nums(rows.length), ["n", "divide by", "result"], frames.map((f) => ({ ...f, cells: [...f.cells, ...Array(rows.length - f.cells.length).fill([null, null, null])] })));
+    },
+  },
+
+  "ugly-number-ii": {
+    approach: "Build ugly numbers in order with three pointers: the next one is the smallest of ugly[i2]·2, ugly[i3]·3, ugly[i5]·5.",
+    idea: ["Every ugly number after 1 is a smaller ugly number times 2, 3 or 5.", "Each pointer marks the smallest ugly number not yet multiplied by its factor.", "Take the minimum candidate and advance every pointer that produced it, so duplicates like 6 = 2·3 = 3·2 appear once."],
+    code: `def nthUglyNumber(n):
+    ugly = [1]
+    i2 = i3 = i5 = 0
+    while len(ugly) < n:
+        a, b, c = ugly[i2] * 2, ugly[i3] * 3, ugly[i5] * 5
+        nxt = min(a, b, c)
+        ugly.append(nxt)
+        if nxt == a:
+            i2 += 1
+        if nxt == b:
+            i3 += 1
+        if nxt == c:
+            i5 += 1
+    return ugly[-1]`,
+    lang: "python", time: "O(n)", space: "O(n)",
+    viz: () => {
+      const n = 10, ugly = [1], frames: CellsFrame[] = [], pad = () => [...ugly, ...Array(n - ugly.length).fill("")]; let i2 = 0, i3 = 0, i5 = 0;
+      while (ugly.length < n) {
+        const a = ugly[i2] * 2, b = ugly[i3] * 3, c = ugly[i5] * 5, nx = Math.min(a, b, c); ugly.push(nx);
+        frames.push({ note: `candidates ${a}, ${b}, ${c} → next ${nx}`, rows: [pad()], tones: { [`0:${ugly.length - 1}`]: "found" }, marks: [{ i: i2, label: "x2" }, { i: i3, label: "x3" }, { i: i5, label: "x5" }] });
+        if (nx === a) i2++; if (nx === b) i3++; if (nx === c) i5++;
+      }
+      return cells(`10th ugly number: ${ugly[n - 1]}`, [pad()], frames);
+    },
+  },
+
+  "add-digits": {
+    approach: "The repeated digit sum is the digital root: 0 for 0, otherwise 1 + (n - 1) % 9.",
+    idea: ["10 ≡ 1 (mod 9), so a number and its digit sum leave the same remainder mod 9.", "Repeating the sum keeps that remainder until one digit is left.", "That digit is n % 9, except a multiple of 9 gives 9: written as 1 + (n - 1) % 9."],
+    code: `def addDigits(num):
+    return 0 if num == 0 else 1 + (num - 1) % 9`,
+    lang: "python", time: "O(1)", space: "O(1)",
+    viz: () => {
+      const seq = [38], frames: CellsFrame[] = []; let n = 38;
+      while (n >= 10) { const s = String(n).split("").reduce((x, d) => x + +d, 0); frames.push({ note: `${n} → ${String(n).split("").join(" + ")} = ${s} (the remainder mod 9 stays ${n % 9})`, rows: [[...seq, s]], tones: { [`0:${seq.length}`]: "active" } }); seq.push(s); n = s; }
+      frames.push({ note: `formula: 1 + (38 - 1) % 9 = ${1 + (37 % 9)}, the same single digit with no loop`, rows: [seq], tones: { [`0:${seq.length - 1}`]: "found" } });
+      return cells(`Digital root of 38: ${n}`, [seq], frames);
+    },
+  },
+
+  "climbing-stairs": {
+    approach: "ways(n) = ways(n - 1) + ways(n - 2): the last move was either 1 step or 2 steps.",
+    idea: ["To stand on step i you came from step i - 1 or step i - 2.", "So the counts add, which is the Fibonacci recurrence.", "Keep only the last two values."],
+    code: `def climbStairs(n):
+    a, b = 1, 1
+    for _ in range(n - 1):
+        a, b = b, a + b
+    return b`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const n = 6, idx = Array.from({ length: n + 1 }, (_, i) => i), dp: (string | number)[] = idx.map(() => ""), frames: CellsFrame[] = [];
+      dp[0] = 1; dp[1] = 1; frames.push({ note: "ways(0) = 1 (stand still), ways(1) = 1", rows: [idx, [...dp]], tones: { "1:0": "found", "1:1": "found" } });
+      for (let i = 2; i <= n; i++) { dp[i] = +dp[i - 1] + +dp[i - 2]; frames.push({ note: `ways(${i}) = ways(${i - 1}) + ways(${i - 2}) = ${dp[i - 1]} + ${dp[i - 2]} = ${dp[i]}`, rows: [idx, [...dp]], tones: { [`1:${i - 1}`]: "window", [`1:${i - 2}`]: "window", [`1:${i}`]: "found" } }); }
+      return cells(`Ways to climb ${n} stairs: ${dp[n]}`, [idx, idx.map(() => "")], frames, ["step", "ways"]);
+    },
+  },
 };
