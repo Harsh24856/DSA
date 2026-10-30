@@ -16,8 +16,10 @@ import { useMermaid } from "../useMermaid";
 import { Rich, inline } from "./Rich";
 import { OtherLab } from "./OtherLab";
 
-type Lang = "java" | "cpp";
+type Lang = "cpp" | "java" | "python" | "js" | "ts";
 const LANG_KEY = "dsa-other-lang";
+const LANGS: (readonly [Lang, string])[] = [["cpp", "C++"], ["java", "Java"], ["python", "Python"], ["js", "JavaScript"], ["ts", "TypeScript"]];
+const langsIn = (c?: Code) => (c ? LANGS.filter(([k]) => c[k]) : []);
 
 function Mermaid({ src, caption }: { src: string; caption?: string }) {
   const ref = useRef<HTMLElement>(null);
@@ -43,13 +45,14 @@ function TableView({ t }: { t: Table }) {
 
 function CodeBlock({ code, lang, setLang }: { code: Code; lang: Lang; setLang(l: Lang): void }) {
   const [copied, setCopied] = useState(false);
-  const both = !!(code.java && code.cpp);
-  const [label, body] = both ? (lang === "java" ? ["Java", code.java!] : ["C++", code.cpp!])
-    : code.java ? ["Java", code.java] : code.cpp ? ["C++", code.cpp] : code.sql ? ["SQL", code.sql] : code.python ? ["Python", code.python] : ["", code.text ?? ""];
+  const present = langsIn(code);
+  const pick = present.find(([k]) => k === lang) ?? present[0];
+  const [label, body] = pick ? [pick[1], code[pick[0]]!]
+    : code.tsx ? ["React (TSX)", code.tsx] : code.sql ? ["SQL", code.sql] : ["", code.text ?? ""];
   const copy = () => void navigator.clipboard?.writeText(body).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1400); });
   return (
     <div className="grid gap-2">
-      {both && <Seg<Lang> label="Language" value={lang} onChange={setLang} className="w-fit" options={[["java", "Java"], ["cpp", "C++"]]} />}
+      {present.length > 1 && <Seg<Lang> label="Language" value={pick![0]} onChange={setLang} className="flex w-fit flex-wrap" options={present} />}
       <div className="gx-code">
         <div className="gx-code-head"><span>{code.file ?? label}</span><button type="button" className="gx-copy" onClick={copy}>{copied ? "Copied" : "Copy"}</button></div>
         <AnimatePresence mode="wait" initial={false}>
@@ -134,11 +137,12 @@ function SqlPractice() {
 export function OtherView({ subject }: { subject: Subject }) {
   const { done } = usePatterns();
   const [lang, setLangRaw] = useState<Lang>("java");
-  useEffect(() => { try { if (localStorage.getItem(LANG_KEY) === "cpp") setLangRaw("cpp"); } catch {} }, []);
+  useEffect(() => { try { const l = localStorage.getItem(LANG_KEY); if (LANGS.some(([k]) => k === l)) setLangRaw(l as Lang); } catch {} }, []);
   const setLang = (l: Lang) => { setLangRaw(l); try { localStorage.setItem(LANG_KEY, l); } catch {} };
   const n = subject.chapters.filter((c) => done[chapterKey(subject.id, c.id)]).length;
   const cards = subject.chapters.reduce((s, c) => s + c.cards.length, 0);
-  const hasBoth = subject.chapters.some((c) => (c.code?.java && c.code?.cpp) || c.cards.some((k) => k.code?.java && k.code?.cpp));
+  // languages that appear together anywhere on this page: offer one switch at the top for all of them
+  const pageLangs = LANGS.filter(([k]) => subject.chapters.some((c) => (langsIn(c.code).length > 1 && c.code?.[k]) || c.cards.some((x) => langsIn(x.code).length > 1 && x.code?.[k])));
 
   return (
     <div className="gx flex flex-col gap-5">
@@ -148,7 +152,7 @@ export function OtherView({ subject }: { subject: Subject }) {
         <h2 id="sub-title" className="t-title">{subject.name}</h2>
         <p className="max-w-[72ch] text-[15px] leading-relaxed text-muted">{subject.blurb}</p>
         <div className="flex items-center gap-3"><Bar value={n} max={subject.chapters.length} className="flex-1" /><span className="num text-[12px] text-muted">{n} / {subject.chapters.length} done</span></div>
-        {hasBoth && <div className="flex flex-wrap items-center gap-2 text-[13px]"><span className="text-muted">Code in</span><Seg<Lang> label="Language" value={lang} onChange={setLang} options={[["java", "Java"], ["cpp", "C++"]]} /></div>}
+        {pageLangs.length > 1 && <div className="flex flex-wrap items-center gap-2 text-[13px]"><span className="text-muted">Code in</span><Seg<Lang> label="Language" value={pageLangs.some(([k]) => k === lang) ? lang : pageLangs[0][0]} onChange={setLang} className="flex flex-wrap" options={pageLangs} /></div>}
         <nav aria-label="Chapters" className="mt-1 border-t border-line pt-3">
           <ol className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
             {subject.chapters.map((c, k) => (

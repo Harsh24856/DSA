@@ -1,8 +1,8 @@
-// The six subjects of the "Other" section. Each subject lives in its own file and is imported only by
+// The subjects of the "Other" section. Each subject lives in its own file and is imported only by
 // the page that shows it (server side), so no page ships every subject's text.
 import type { Subject } from "./types";
 
-export const SUBJECT_IDS = ["os", "dbms", "cn", "sql", "oops", "aptitude"] as const;
+export const SUBJECT_IDS = ["os", "dbms", "cn", "sql", "oops", "aptitude", "syntax", "react", "node"] as const;
 export type SubjectId = (typeof SUBJECT_IDS)[number];
 
 export const loadSubject = async (id: SubjectId): Promise<Subject> => {
@@ -13,6 +13,9 @@ export const loadSubject = async (id: SubjectId): Promise<Subject> => {
     case "sql": return (await import("./sql")).SQL;
     case "oops": return (await import("./oops")).OOPS;
     case "aptitude": return (await import("./aptitude")).APTITUDE;
+    case "syntax": return (await import("./syntax")).SYNTAX;
+    case "react": return (await import("./react")).REACT;
+    case "node": return (await import("./node")).NODE;
   }
 };
 

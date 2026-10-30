@@ -71,7 +71,7 @@ console.log("simulators ok");
 /* ---------- content ---------- */
 import { DatabaseSync } from "node:sqlite";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Code, Subject } from "./types.ts";
@@ -81,9 +81,12 @@ import { CN } from "./cn.ts";
 import { SQL } from "./sql.ts";
 import { OOPS } from "./oops.ts";
 import { APTITUDE } from "./aptitude.ts";
-import { ORDER_SETUP, ORDER_SQL, orderSteps, NF_STAGES } from "./labdata.ts";
+import { ORDER_SETUP, ORDER_SQL, orderSteps, NF_STAGES, LOOP_SCENARIOS } from "./labdata.ts";
+import { SYNTAX } from "./syntax.ts";
+import { REACT } from "./react.ts";
+import { NODE } from "./node.ts";
 
-const SUBJECTS: Subject[] = [OS, DBMS, CN, SQL, OOPS, APTITUDE];
+const SUBJECTS: Subject[] = [OS, DBMS, CN, SQL, OOPS, APTITUDE, SYNTAX, REACT, NODE];
 const text = JSON.stringify(SUBJECTS);
 assert.ok(!text.includes(String.fromCharCode(0x2014)), "no em dashes in Other content");
 
@@ -122,6 +125,32 @@ function runCpp(where: string, src: string) {
   compiled++;
 }
 
+// Python, JavaScript and TypeScript run directly; TS and TSX are also type-checked in one tsc pass below.
+// tsc needs node_modules (react types), so those files go in a folder inside the repo, deleted at the end.
+const tsDir = join(process.cwd(), ".other-check");
+rmSync(tsDir, { recursive: true, force: true }); mkdirSync(tsDir);
+let tsFiles = 0;
+function runPython(where: string, src: string) {
+  const f = join(mkdtempSync(join(dir, "p-")), "main.py");
+  writeFileSync(f, src);
+  execFileSync("python3", ["-I", f], { stdio: "pipe", timeout: 20000 });
+  compiled++;
+}
+function runJs(where: string, src: string) {
+  const f = join(mkdtempSync(join(dir, "n-")), "main.mjs");
+  writeFileSync(f, src);
+  const local = /from "express"/.test(src) ? join(tsDir, `x${compiled}.mjs`) : f;   // express resolves from this repo's node_modules
+  if (local !== f) writeFileSync(local, src);
+  const serves = /\.listen\([1-9]/.test(src);          // a fixed-port server would block: the preload answers one request and closes it
+  execFileSync("node", [...(serves ? ["--import", join(process.cwd(), "lib/other/express-preload.mjs")] : []), local], { stdio: "pipe", timeout: 20000 });
+  compiled++;
+}
+function runTs(where: string, src: string, tsx = false) {
+  const f = join(tsDir, `t${tsFiles++}.${tsx ? "tsx" : "ts"}`);
+  writeFileSync(f, src);
+  if (!tsx) { execFileSync("node", ["--disable-warning=ExperimentalWarning", f], { stdio: "pipe", timeout: 20000 }); compiled++; }
+}
+
 let sqlRun = 0;
 for (const s of SUBJECTS) for (const ch of s.chapters) {
   const codes: [string, Code | undefined][] = [[`${s.id}/${ch.id}`, ch.code], ...ch.cards.map((c) => [`${s.id}/${ch.id}/${c.id}`, c.code] as [string, Code | undefined])];
@@ -131,6 +160,10 @@ for (const s of SUBJECTS) for (const ch of s.chapters) {
       if (code.sql) { runSql(where, code); sqlRun++; }
       if (code.java) runJava(where, code.java);
       if (code.cpp) runCpp(where, code.cpp);
+      if (code.python) runPython(where, code.python);
+      if (code.js) runJs(where, code.js);
+      if (code.ts) runTs(where, code.ts);
+      if (code.tsx) runTs(where, code.tsx, true);
     } catch (e) {
       const err = e as { stderr?: Buffer; message: string };
       console.error(`FAIL ${where}\n${err.stderr?.toString() ?? err.message}`);
@@ -141,6 +174,27 @@ for (const s of SUBJECTS) for (const ch of s.chapters) {
   for (const c of ch.cards) { assert.ok(!ids.has(c.id), `${s.id}/${ch.id}: duplicate card id ${c.id}`); ids.add(c.id); }
 }
 
+// one strict type-check over every TypeScript and TSX example
+if (tsFiles) {
+  try {
+    execFileSync("npx", ["tsc", "--noEmit", "--strict", "--skipLibCheck", "--target", "es2022", "--module", "esnext", "--moduleResolution", "bundler",
+      "--jsx", "react-jsx", "--moduleDetection", "force", "--allowImportingTsExtensions", "--types", "node", ...Array.from({ length: tsFiles }, (_, i) => join(tsDir, `t${i}.${existsTsx(i) ? "tsx" : "ts"}`))], { stdio: "pipe" });
+  } catch (e) {
+    const err = e as { stdout?: Buffer; message: string };
+    console.error(`FAIL tsc\n${err.stdout?.toString() ?? err.message}`); process.exitCode = 1;
+  }
+}
+function existsTsx(i: number) { try { return statSync(join(tsDir, `t${i}.tsx`)).isFile(); } catch { return false; } }
+if (!process.exitCode) rmSync(tsDir, { recursive: true, force: true });
+
+// event-loop lab: the last frame's output must match what Node really prints
+for (const sc of LOOP_SCENARIOS) {
+  const f = join(mkdtempSync(join(dir, "e-")), "loop.mjs");
+  writeFileSync(f, sc.code);
+  const out = execFileSync("node", [f], { encoding: "utf8" }).trim().split("\n");
+  assert.deepEqual(out, sc.frames.at(-1)!.out, `event loop: ${sc.name}`);
+}
+
 // the SQL-order lab's last step must match what SQLite returns for the same query
 const db = new DatabaseSync(":memory:");
 db.exec(ORDER_SETUP);
@@ -149,4 +203,4 @@ assert.deepEqual(orderSteps().at(-1)!.rows.map((r) => r.map(cell)), real, "SQL o
 // every 3NF table's key determines the table's columns
 for (const tb of NF_STAGES[3].tables) assert.ok(tb.cols.every((c) => closure(tb.key, FDS).includes(c)), `3NF ${tb.name}: key covers columns`);
 
-console.log(`content ok: ${SUBJECTS.length} subjects, ${SUBJECTS.reduce((n, s) => n + s.chapters.reduce((m, c) => m + c.cards.length, 0), 0)} questions, ${sqlRun} SQL runs, ${compiled} Java/C++ programs`);
+console.log(`content ok: ${SUBJECTS.length} subjects, ${SUBJECTS.reduce((n, s) => n + s.chapters.reduce((m, c) => m + c.cards.length, 0), 0)} questions, ${sqlRun} SQL runs, ${compiled} programs run, ${tsFiles} TypeScript files type-checked`);

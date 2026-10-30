@@ -4,11 +4,12 @@
 
 export type Table = { head: string[]; rows: string[][] };
 
-export type OtherLab = "paging" | "scheduling" | "banker" | "tcp" | "subnet" | "btree" | "sqlorder" | "normalize" | "vtable" | "aptitude";
+export type OtherLab = "paging" | "scheduling" | "banker" | "tcp" | "subnet" | "btree" | "sqlorder" | "normalize" | "vtable" | "aptitude" | "eventloop";
 
-/** Code in one or more languages. java + cpp show a Java / C++ switch. `sqlSetup` + `sql` are run by check:other,
- *  which also compares the last statement's rows with `result` (shown under the code). Java and C++ must compile and run. */
-export type Code = { java?: string; cpp?: string; sql?: string; sqlSetup?: string; python?: string; text?: string; file?: string; result?: Table };
+/** Code in one or more languages; two or more of cpp, java, python, js, ts show a language switch. check:other runs
+ *  every one: SQL in SQLite (rows compared with `result`), Java and C++ compiled and run, Python and JavaScript run,
+ *  TypeScript run with Node's type stripping, TSX type-checked, and Express apps started and stopped. */
+export type Code = { cpp?: string; java?: string; python?: string; js?: string; ts?: string; tsx?: string; sql?: string; sqlSetup?: string; text?: string; file?: string; result?: Table };
 
 export type Card = {
   id: string;

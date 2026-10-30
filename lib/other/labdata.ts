@@ -79,3 +79,52 @@ export const NF_STAGES: NfStage[] = [
   { name: "3NF", why: "Every non-key column depends on the key, the whole key, and nothing but the key. Each fact lives in exactly one place.",
     tables: [t("Student", ["StudentId"], ["StudentId", "StudentName"]), t("Course", ["CourseId"], ["CourseId", "CourseName", "Instructor"]), t("Instructor", ["Instructor"], ["Instructor", "InstructorPhone"]), t("Enrollment", ["StudentId", "CourseId"], ["StudentId", "CourseId", "Grade"])] },
 ];
+
+/* ---------- JavaScript event loop ---------- */
+export type LoopFrame = { line: number | null; stack: string[]; micro: string[]; macro: string[]; out: string[]; note: string };
+export type LoopScenario = { name: string; code: string; frames: LoopFrame[] };
+
+export const LOOP_SCENARIOS: LoopScenario[] = [
+  {
+    name: "Timers vs promises",
+    code: `console.log("A");
+setTimeout(() => console.log("B"), 0);
+Promise.resolve().then(() => console.log("C"));
+queueMicrotask(() => console.log("D"));
+console.log("E");`,
+    frames: [
+      { line: 0, stack: ["main script", "console.log(\"A\")"], micro: [], macro: [], out: ["A"], note: "Synchronous code runs first, top to bottom, on the call stack." },
+      { line: 1, stack: ["main script", "setTimeout"], micro: [], macro: ["log B (timer, 0 ms)"], out: ["A"], note: "setTimeout hands the callback to the timer system. Even with 0 ms it waits in the macrotask (task) queue." },
+      { line: 2, stack: ["main script", "Promise.then"], micro: ["log C"], macro: ["log B (timer, 0 ms)"], out: ["A"], note: "A resolved promise's .then callback goes to the microtask queue." },
+      { line: 3, stack: ["main script", "queueMicrotask"], micro: ["log C", "log D"], macro: ["log B (timer, 0 ms)"], out: ["A"], note: "queueMicrotask adds directly to the microtask queue, behind C." },
+      { line: 4, stack: ["main script", "console.log(\"E\")"], micro: ["log C", "log D"], macro: ["log B (timer, 0 ms)"], out: ["A", "E"], note: "Still synchronous: E prints before any callback." },
+      { line: null, stack: ["log C"], micro: ["log D"], macro: ["log B (timer, 0 ms)"], out: ["A", "E", "C"], note: "The stack is empty, so the loop drains the WHOLE microtask queue first." },
+      { line: null, stack: ["log D"], micro: [], macro: ["log B (timer, 0 ms)"], out: ["A", "E", "C", "D"], note: "Microtasks keep running until the queue is empty." },
+      { line: null, stack: ["log B"], micro: [], macro: [], out: ["A", "E", "C", "D", "B"], note: "Only now does the loop take one macrotask: the timer callback. Order: A E C D B." },
+    ],
+  },
+  {
+    name: "async / await",
+    code: `async function f() {
+  console.log("1");
+  await null;
+  console.log("3");
+}
+console.log("0");
+f();
+setTimeout(() => console.log("5"));
+Promise.resolve().then(() => console.log("4"));
+console.log("2");`,
+    frames: [
+      { line: 5, stack: ["main script"], micro: [], macro: [], out: ["0"], note: "Function declarations do nothing yet; the first log prints 0." },
+      { line: 1, stack: ["main script", "f()"], micro: [], macro: [], out: ["0", "1"], note: "Calling an async function runs its body synchronously up to the first await." },
+      { line: 2, stack: ["main script", "f()"], micro: ["rest of f (log 3)"], macro: [], out: ["0", "1"], note: "await pauses f and queues the rest of f as a microtask; control returns to the caller." },
+      { line: 7, stack: ["main script", "setTimeout"], micro: ["rest of f (log 3)"], macro: ["log 5"], out: ["0", "1"], note: "The timer callback waits in the macrotask queue." },
+      { line: 8, stack: ["main script", "Promise.then"], micro: ["rest of f (log 3)", "log 4"], macro: ["log 5"], out: ["0", "1"], note: "The .then callback queues behind the rest of f." },
+      { line: 9, stack: ["main script"], micro: ["rest of f (log 3)", "log 4"], macro: ["log 5"], out: ["0", "1", "2"], note: "Last synchronous line." },
+      { line: 3, stack: ["rest of f"], micro: ["log 4"], macro: ["log 5"], out: ["0", "1", "2", "3"], note: "Microtasks first: f resumes after its await." },
+      { line: null, stack: ["log 4"], micro: [], macro: ["log 5"], out: ["0", "1", "2", "3", "4"], note: "Then the .then callback." },
+      { line: null, stack: ["log 5"], micro: [], macro: [], out: ["0", "1", "2", "3", "4", "5"], note: "Finally the timer. Order: 0 1 2 3 4 5." },
+    ],
+  },
+];
