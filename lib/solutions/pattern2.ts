@@ -755,4 +755,204 @@ export const PATTERN2: Record<string, Solution> = {
       return table(`Split into ${k} equal-sum subsets: ${ok}`, nums(k).map((r) => `bucket ${r}`), ["items", "sum"], frames);
     },
   },
+  "repeated-dna-sequences": {
+    approach: "Slide a 10-letter window over the string, counting each window in a dictionary; report a window the moment its count reaches 2.",
+    idea: ["Every 10-letter substring is one window start, so there are n - 9 of them.", "Count them in a hash map.", "Record a sequence exactly once, when it is seen for the second time."],
+    code: `def findRepeatedDnaSequences(s):
+    seen, out = {}, []
+    for i in range(len(s) - 9):
+        w = s[i:i + 10]
+        seen[w] = seen.get(w, 0) + 1
+        if seen[w] == 2:
+            out.append(w)
+    return out`,
+    lang: "python", time: "O(n · 10)", space: "O(n)",
+    viz: () => {
+      const s = "ACGTACGTAC", L = 4, seen = new Map<string, number>(), out: string[] = [], frames: CellsFrame[] = [];
+      for (let i = 0; i + L <= s.length; i++) { const w = s.slice(i, i + L), c = (seen.get(w) || 0) + 1; seen.set(w, c); if (c === 2) out.push(w); frames.push({ note: `window ${i}: "${w}" seen ${c} time${c === 1 ? "" : "s"}${c === 2 ? " → repeated, record it" : ""}`, tones: range(i, i + L - 1, 0, c >= 2 ? "found" : "window") }); }
+      frames.push({ note: `repeated: ${out.map((w) => `"${w}"`).join(", ")}. The real problem uses windows of 10; 4 keeps the demo short.`, tones: {} });
+      return cells(`Repeated windows of length ${L}`, [[...s]], frames);
+    },
+  },
+
+  "maximum-length-of-a-concatenated-string-with-unique-characters": {
+    approach: "Turn each word into a 26-bit letter mask (skip words with repeats); grow a list of reachable masks, adding a word only when it shares no letter.",
+    idea: ["A word with a repeated letter can never be used.", "Two masks can be combined when mask1 & mask2 == 0 (no shared letter).", "Like building subsets: for each word, extend every compatible combination found so far. The longest one is the answer."],
+    code: `def maxLength(arr):
+    combos = [(0, 0)]
+    for w in arr:
+        m = 0
+        for ch in w:
+            b = 1 << (ord(ch) - 97)
+            if m & b:
+                break
+            m |= b
+        else:
+            combos += [(c | m, n + len(w)) for c, n in combos if not c & m]
+    return max(n for _, n in combos)`,
+    lang: "python", time: "O(2^n)", space: "O(2^n)",
+    viz: () => {
+      const arr = ["un", "iq", "ue"], combos: string[] = [""], frames: TableFrame[] = [], view = () => [...combos.map((c) => [c || "(empty)", c.length]), ...Array(6 - combos.length).fill([null, null])];
+      frames.push({ note: "start with the empty combination", cells: view() });
+      for (const w of arr) {
+        const add: string[] = [], clash: string[] = [];
+        for (const c of combos) ([...w].some((ch) => c.includes(ch)) ? clash : add).push(c);
+        const n = combos.length; combos.push(...add.map((c) => c + w));
+        frames.push({ note: `"${w}": join with ${add.map((c) => `"${c}"`).join(", ")}${clash.length ? `; ${clash.map((c) => `"${c}"`).join(", ")} share a letter, skip` : ""}`, cells: view(), tones: Object.fromEntries(add.map((_, k) => [`${n + k}:0`, "found"])) as Record<string, Tone> });
+      }
+      const best = Math.max(...combos.map((c) => c.length));
+      frames.push({ note: `longest combination has ${best} letters`, cells: view(), tones: Object.fromEntries(combos.map((c, i) => [`${i}:1`, c.length === best ? "found" : "muted"])) as Record<string, Tone> });
+      return table(`Longest unique concatenation: ${best}`, nums(6), ["combination", "length"], frames);
+    },
+  },
+
+  "power-of-two": {
+    approach: "A power of two has exactly one set bit, so n > 0 and n & (n - 1) == 0.",
+    idea: ["n - 1 turns the lowest set bit off and every bit below it on.", "If that was the only set bit, n & (n - 1) is 0.", "Zero and negatives are never powers of two."],
+    code: `def isPowerOfTwo(n):
+    return n > 0 and n & (n - 1) == 0`,
+    lang: "python", time: "O(1)", space: "O(1)",
+    viz: () => {
+      const xs = [1, 16, 3, 24], frames: CellsFrame[] = xs.map((x) => { const ok = (x & (x - 1)) === 0; return { note: `${x} & ${x - 1} = ${x & (x - 1)} → ${ok ? "one set bit, power of two" : "more than one set bit, not a power of two"}`, rows: [bin(x), bin(x - 1), bin(x & (x - 1))], tones: range(0, 7, 2, ok ? "found" : "bad") }; });
+      return cells("n & (n - 1) clears the only set bit", [bin(1), bin(0), bin(0)], frames, ["n", "n - 1", "n & (n-1)"]);
+    },
+  },
+
+  "power-of-four": {
+    approach: "Power of two (one set bit) whose set bit sits at an even position: n & 0x55555555 keeps only those positions.",
+    idea: ["Powers of four are 1, 4, 16, 64: one set bit at position 0, 2, 4, 6.", "n > 0 and n & (n - 1) == 0 checks there is exactly one set bit.", "0x55555555 is 0101...01, so n & mask is non-zero only if that bit is at an even position."],
+    code: `def isPowerOfFour(n):
+    return n > 0 and n & (n - 1) == 0 and n & 0x55555555 != 0`,
+    lang: "python", time: "O(1)", space: "O(1)",
+    viz: () => {
+      const mask = 0x55, xs = [16, 8, 5], frames: CellsFrame[] = xs.map((x) => { const one = (x & (x - 1)) === 0, even = (x & mask) !== 0, ok = one && even; return { note: `${x}: ${one ? "one set bit" : "more than one set bit"}${one ? (even ? ", at an even position (mask keeps it) → power of four" : ", at an odd position (mask clears it) → not a power of four") : " → not a power of four"}`, rows: [bin(x), bin(mask), bin(x & mask)], tones: range(0, 7, 2, ok ? "found" : "bad") }; });
+      return cells("Power of four: one bit, at an even position", [bin(16), bin(mask), bin(0)], frames, ["n", "0x55 mask", "n & mask"]);
+    },
+  },
+
+  "sum-of-two-integers": {
+    approach: "a ^ b adds without carries and (a & b) << 1 is the carry; repeat until the carry is 0, masking to 32 bits in Python.",
+    idea: ["XOR adds each column but drops the carry.", "AND finds the columns where both bits are 1; shifting left moves each carry to the next column.", "Add the carry the same way until nothing carries. Python integers are unbounded, so mask to 32 bits and convert back for negative results."],
+    code: `def getSum(a, b):
+    mask = 0xFFFFFFFF
+    while b & mask:
+        a, b = a ^ b, (a & b) << 1
+    return a & mask if b > 0 else a`,
+    lang: "python", time: "O(32)", space: "O(1)",
+    viz: () => {
+      let a = 11, b = 5; const frames: CellsFrame[] = [{ note: `a = ${a}, b = ${b}`, rows: [bin(a), bin(b)] }];
+      while (b) { const x = a ^ b, c = (a & b) << 1; frames.push({ note: `sum without carry a ^ b = ${x}; carry (a & b) << 1 = ${c}`, rows: [bin(x), bin(c)], tones: all(bin(c).map((v, i) => (v === "1" ? `1:${i}` : "")).filter(Boolean), "active") }); a = x; b = c; }
+      frames.push({ note: `carry is 0 → 11 + 5 = ${a}`, rows: [bin(a), bin(0)], tones: range(0, 7, 0, "found") });
+      return cells(`11 + 5 without + : ${a}`, [bin(11), bin(5)], frames, ["a", "b (carry)"]);
+    },
+  },
+
+  "power-of-three": {
+    approach: "Divide by 3 while it divides evenly; a power of three ends at exactly 1.",
+    idea: ["3^k divided by 3 k times is 1.", "Any other prime factor stays behind, so the loop stops at something other than 1.", "Numbers below 1 are never powers of three."],
+    code: `def isPowerOfThree(n):
+    if n < 1:
+        return False
+    while n % 3 == 0:
+        n //= 3
+    return n == 1`,
+    lang: "python", time: "O(log n)", space: "O(1)",
+    viz: () => {
+      const rows: (string | number)[][] = [], frames: TableFrame[] = [];
+      for (const start of [27, 45]) { let n = start; while (n % 3 === 0) { rows.push([start, n, n / 3]); frames.push({ note: `${n} % 3 = 0 → ${n} / 3 = ${n / 3}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); n /= 3; } rows.push([start, n, n === 1 ? "yes" : "no"]); frames.push({ note: `${n} is not divisible by 3: ${start} ${n === 1 ? "ended at 1 → power of three" : `left ${n} → not a power of three`}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2], tones: { [`${rows.length - 1}:2`]: n === 1 ? "found" : "bad" } }); }
+      return table("Divide out every 3", nums(rows.length), ["start", "n", "n / 3"], frames.map((f) => ({ ...f, cells: [...f.cells, ...Array(rows.length - f.cells.length).fill([null, null, null])] })));
+    },
+  },
+
+  "divide-two-integers": {
+    approach: "Subtract the largest doubled copy of the divisor (b, 2b, 4b, ...) that still fits, adding the matching power of two to the quotient.",
+    idea: ["Work with absolute values and fix the sign at the end.", "Double the divisor with shifts until the next doubling would exceed what is left.", "Subtract it and add its multiple to the quotient; repeat. Each round is O(log n), so the whole thing is O(log² n).", "The only overflow is -2^31 / -1, which is clamped to 2^31 - 1."],
+    code: `def divide(dividend, divisor):
+    if dividend == -2**31 and divisor == -1:
+        return 2**31 - 1
+    neg = (dividend < 0) != (divisor < 0)
+    a, b, q = abs(dividend), abs(divisor), 0
+    while a >= b:
+        t, m = b, 1
+        while a >= t << 1:
+            t <<= 1
+            m <<= 1
+        a -= t
+        q += m
+    return -q if neg else q`,
+    lang: "python", time: "O(log² n)", space: "O(1)",
+    viz: () => {
+      let a = 100, q = 0; const b = 7, rows: (string | number)[][] = [], frames: TableFrame[] = [];
+      while (a >= b) { let t = b, m = 1; while (a >= t << 1) { t <<= 1; m <<= 1; } rows.push([a, `${t} (= ${m} x ${b})`, a - t, q + m]); frames.push({ note: `${a} left: biggest doubled divisor that fits is ${t} = ${m} x ${b}; subtract → ${a - t}, quotient ${q + m}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 1] }); a -= t; q += m; }
+      frames.push({ note: `${a} < ${b}: stop. 100 / 7 = ${q} (remainder ${a})`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:3`]: "found" } });
+      return table(`100 / 7 = ${q} with shifts`, rows.map((_, i) => `round ${i + 1}`), ["left", "subtract", "after", "quotient"], frames);
+    },
+  },
+
+  "xor-queries-of-a-subarray": {
+    approach: "Prefix XOR X[i] = arr[0] ^ ... ^ arr[i - 1]; the XOR of arr[l..r] is X[r + 1] ^ X[l].",
+    idea: ["XOR is its own inverse: x ^ x = 0.", "X[r + 1] covers arr[0..r] and X[l] covers arr[0..l - 1]; XORing them cancels the shared prefix.", "Build X once in O(n), then answer each query in O(1)."],
+    code: `def xorQueries(arr, queries):
+    X = [0]
+    for v in arr:
+        X.append(X[-1] ^ v)
+    return [X[r + 1] ^ X[l] for l, r in queries]`,
+    lang: "python", time: "O(n + q)", space: "O(n)",
+    viz: () => {
+      const a = [1, 3, 4, 8], Q = [[0, 1], [1, 2], [0, 3], [3, 3]], X = [0], frames: CellsFrame[] = [], pad = (r: (string | number)[]) => [...r, ...Array(X.length - r.length).fill("")];
+      a.forEach((v) => X.push(X[X.length - 1] ^ v));
+      frames.push({ note: `prefix XOR X = [${X.join(", ")}]`, rows: [pad(a), X] });
+      const out: number[] = [];
+      for (const [l, r] of Q) { out.push(X[r + 1] ^ X[l]); frames.push({ note: `query [${l}, ${r}]: X[${r + 1}] ^ X[${l}] = ${X[r + 1]} ^ ${X[l]} = ${out[out.length - 1]}`, rows: [pad(a), X], tones: { ...range(l, r, 0), [`1:${r + 1}`]: "found", [`1:${l}`]: "bad" } }); }
+      return cells(`Answers: [${out.join(", ")}]`, [pad(a), X], frames, ["arr", "X"]);
+    },
+  },
+
+  "decode-xored-permutation": {
+    approach: "XOR of 1..n is the XOR of the whole permutation; XOR of encoded[1], encoded[3], ... is the XOR of every element except perm[0], so perm[0] falls out.",
+    idea: ["perm is a permutation of 1..n with n odd, so XOR(1..n) = XOR of all of perm.", "encoded[1] ^ encoded[3] ^ ... = perm[1] ^ perm[2] ^ ... ^ perm[n - 1].", "XOR those two to get perm[0], then perm[i + 1] = perm[i] ^ encoded[i]."],
+    code: `def decode(encoded):
+    n = len(encoded) + 1
+    total = 0
+    for i in range(1, n + 1):
+        total ^= i
+    rest = 0
+    for i in range(1, n - 1, 2):
+        rest ^= encoded[i]
+    perm = [total ^ rest]
+    for e in encoded:
+        perm.append(perm[-1] ^ e)
+    return perm`,
+    lang: "python", time: "O(n)", space: "O(n)",
+    viz: () => {
+      const enc = [6, 5, 4, 6], n = enc.length + 1, frames: CellsFrame[] = []; let total = 0, rest = 0;
+      for (let i = 1; i <= n; i++) total ^= i;
+      const perm: (string | number)[] = Array(n).fill(""), E = [...enc, ""];
+      frames.push({ note: `XOR of 1..${n} = ${total}: the XOR of the whole permutation`, rows: [E, [...perm]] });
+      for (let i = 1; i < n - 1; i += 2) rest ^= enc[i];
+      frames.push({ note: `encoded[1] ^ encoded[3] = ${enc[1]} ^ ${enc[3]} = ${rest}: that is perm[1] ^ ... ^ perm[4]`, rows: [E, [...perm]], tones: { "0:1": "active", "0:3": "active" } });
+      perm[0] = total ^ rest; frames.push({ note: `perm[0] = ${total} ^ ${rest} = ${perm[0]}`, rows: [E, [...perm]], tones: { "1:0": "found" } });
+      for (let i = 0; i < enc.length; i++) { perm[i + 1] = +perm[i] ^ enc[i]; frames.push({ note: `perm[${i + 1}] = perm[${i}] ^ encoded[${i}] = ${perm[i]} ^ ${enc[i]} = ${perm[i + 1]}`, rows: [E, [...perm]], tones: { [`0:${i}`]: "active", [`1:${i + 1}`]: "found" } }); }
+      return cells(`Decoded: [${perm.join(", ")}]`, [E, perm.map(() => "")], frames, ["encoded", "perm"]);
+    },
+  },
+
+  "find-greatest-common-divisor-of-array": {
+    approach: "Find the smallest and largest numbers and return their gcd with Euclid's algorithm.",
+    idea: ["Only min and max matter, so one pass finds them.", "gcd(a, b) = gcd(b, a mod b) until the remainder is 0."],
+    code: `def findGCD(nums):
+    a, b = max(nums), min(nums)
+    while b:
+        a, b = b, a % b
+    return a`,
+    lang: "python", time: "O(n + log m)", space: "O(1)",
+    viz: () => {
+      const arr = [12, 30, 18, 42], hi = Math.max(...arr), lo = Math.min(...arr), rows: (string | number)[][] = [], frames: TableFrame[] = [];
+      frames.push({ note: `[${arr.join(", ")}]: max ${hi}, min ${lo}`, cells: [] });
+      let a = hi, b = lo;
+      while (b) { rows.push([a, b, a % b]); frames.push({ note: `gcd(${a}, ${b}) = gcd(${b}, ${a} mod ${b} = ${a % b})`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); [a, b] = [b, a % b]; }
+      frames.push({ note: `remainder 0 → gcd = ${a}`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:1`]: "found" } });
+      return table(`gcd(${lo}, ${hi}) = ${a}`, rows.map((_, i) => `step ${i + 1}`), ["a", "b", "a mod b"], frames.map((f) => ({ ...f, cells: [...f.cells, ...Array(rows.length - f.cells.length).fill([null, null, null])] })));
+    },
+  },
 };

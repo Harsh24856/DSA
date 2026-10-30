@@ -77,3 +77,16 @@ CASES.update({
  "subsets": [("subsets", ([1,2,3],), [[],[1],[2],[1,2],[3],[1,3],[2,3],[1,2,3]]), ("subsets", ([0],), [[],[0]])],
  "partition-to-k-equal-sum-subsets": [("canPartitionKSubsets", ([4,3,2,3,5,2,1],4), True), ("canPartitionKSubsets", ([1,2,3,4],3), False), ("canPartitionKSubsets", ([2,2,2,2,3,4,5],4), False)],
 })
+
+CASES.update({
+ "repeated-dna-sequences": [("findRepeatedDnaSequences", ("AAAAACCCCCAAAAACCCCCCAAAAAGGGTTT",), ["AAAAACCCCC","CCCCCAAAAA"]), ("findRepeatedDnaSequences", ("AAAAAAAAAAAAA",), ["AAAAAAAAAA"])],
+ "maximum-length-of-a-concatenated-string-with-unique-characters": [("maxLength", (["un","iq","ue"],), 4), ("maxLength", (["cha","r","act","ers"],), 6), ("maxLength", (["abcdefghijklmnopqrstuvwxyz"],), 26), ("maxLength", (["aa","bb"],), 0)],
+ "power-of-two": [("isPowerOfTwo", (1,), True), ("isPowerOfTwo", (16,), True), ("isPowerOfTwo", (3,), False), ("isPowerOfTwo", (0,), False)],
+ "power-of-four": [("isPowerOfFour", (16,), True), ("isPowerOfFour", (5,), False), ("isPowerOfFour", (1,), True), ("isPowerOfFour", (8,), False)],
+ "sum-of-two-integers": [("getSum", (1,2), 3), ("getSum", (2,3), 5), ("getSum", (-1,1), 0), ("getSum", (-2,-3), -5), ("getSum", (-12,5), -7)],
+ "power-of-three": [("isPowerOfThree", (27,), True), ("isPowerOfThree", (0,), False), ("isPowerOfThree", (-1,), False), ("isPowerOfThree", (45,), False)],
+ "divide-two-integers": [("divide", (10,3), 3), ("divide", (7,-3), -2), ("divide", (-2147483648,-1), 2147483647), ("divide", (-2147483648,1), -2147483648)],
+ "xor-queries-of-a-subarray": [("xorQueries", ([1,3,4,8],[[0,1],[1,2],[0,3],[3,3]]), [2,7,14,8]), ("xorQueries", ([4,8,2,10],[[2,3],[1,3],[0,0],[0,3]]), [8,0,4,4])],
+ "decode-xored-permutation": [("decode", ([3,1],), [1,2,3]), ("decode", ([6,5,4,6],), [2,4,1,5,3])],
+ "find-greatest-common-divisor-of-array": [("findGCD", ([2,5,6,9,10],), 2), ("findGCD", ([7,5,6,8,3],), 1), ("findGCD", ([3,3],), 3)],
+})
