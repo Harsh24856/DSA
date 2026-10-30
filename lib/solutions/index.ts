@@ -7,7 +7,11 @@ import { BATCH2 } from "./batch2.ts";
 import { BATCH3 } from "./batch3.ts";
 import { BATCH4 } from "./batch4.ts";
 import { SQL2 } from "./sql2.ts";
+import { PATTERN1 } from "./pattern1.ts";
+import { PATTERN2 } from "./pattern2.ts";
+import { PATTERN3 } from "./pattern3.ts";
+import { PATTERN4 } from "./pattern4.ts";
 import type { Solution } from "./types";
 
-export const SOLUTIONS: Record<string, Solution> = { ...ARRAY_SOLUTIONS, ...STRUCT_SOLUTIONS, ...SQL_SOLUTIONS, ...BATCH1, ...BATCH2, ...BATCH3, ...BATCH4, ...SQL2 };
+export const SOLUTIONS: Record<string, Solution> = { ...ARRAY_SOLUTIONS, ...STRUCT_SOLUTIONS, ...SQL_SOLUTIONS, ...BATCH1, ...BATCH2, ...BATCH3, ...BATCH4, ...SQL2, ...PATTERN1, ...PATTERN2, ...PATTERN3, ...PATTERN4 };
 export type { Solution };
