@@ -1,6 +1,7 @@
 // Where each interactive lab (components/GenaiLabs.tsx) sits: section id → [slide id, lab] pairs.
 // The lab is appended to the end of that slide, after the notes it illustrates.
-export type LabKind = "activation" | "descent" | "conv" | "noise" | "attention" | "sampling" | "bpe" | "cost" | "chunk" | "vector" | "agent" | "lora" | "memory";
+export type LabKind = "activation" | "descent" | "conv" | "noise" | "attention" | "sampling" | "bpe" | "cost" | "chunk" | "vector" | "agent" | "lora" | "memory"
+  | "significance" | "voting" | "paging" | "speculative";
 
 export const LABS: Record<string, [string, LabKind][]> = {
   m0: [["s-1", "activation"], ["s-2", "descent"]],
@@ -11,4 +12,7 @@ export const LABS: Record<string, [string, LabKind][]> = {
   m5: [["s-2", "agent"]],
   m6: [["s-2", "lora"]],
   m7: [["s-1", "memory"]],
+  m10: [["s-3", "significance"]],
+  m11: [["s-2", "voting"]],
+  m12: [["s-2", "paging"], ["s-4", "speculative"]],
 };

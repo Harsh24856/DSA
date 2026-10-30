@@ -6,6 +6,7 @@ import { ArrowRight, Atom, Calculator, Code, Cpu, Cube, Database, Globe, HardDri
 import { chapterKey } from "@/lib/other";
 import { usePatterns } from "@/lib/patternStore";
 import { Bar, Count } from "../ui";
+import { ProgressCard } from "../ProgressCard";
 
 export type SubjectSummary = { id: string; name: string; short: string; blurb: string; chapters: string[]; cards: number; labs: number };
 const ICON: Record<string, Icon> = { os: Cpu, dbms: Database, cn: Globe, sql: Table, oops: Cube, aptitude: Calculator, syntax: Code, react: Atom, node: HardDrives };
@@ -21,6 +22,7 @@ export function OtherHub({ subjects }: { subjects: SubjectSummary[] }) {
         <div className="max-w-[62ch]">
           <h2 className="t-h2">CS core subjects</h2>
           <p className="mt-1 text-[14px] text-muted">Operating systems, DBMS, networks, SQL, OOP, aptitude, and the languages and frameworks you will code in: C++, Java, Python, JavaScript, TypeScript, React, Node and Express. Each chapter has short notes, diagrams, interactive labs and interview questions with answers you open after trying.</p>
+          <div className="mt-3"><ProgressCard otherTotal={total} /></div>
         </div>
         <div className="flex shrink-0 gap-6">
           <div><span className="num text-[26px] font-semibold"><Count value={finished} /><span className="text-[13px] font-normal text-muted"> / {total}</span></span><div className="text-[12px] text-muted">chapters done</div></div>
@@ -32,7 +34,7 @@ export function OtherHub({ subjects }: { subjects: SubjectSummary[] }) {
         {subjects.map((s, k) => {
           const I = ICON[s.id] ?? Cube, dn = doneIn(s);
           return (
-            <motion.div key={s.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: k * 0.04, ease: [0.16, 1, 0.3, 1] }}>
+            <motion.div key={s.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: Math.min(k, 4) * 0.04, ease: [0.16, 1, 0.3, 1] }}>
               <Link href={`/other/${s.id}`} className="card group flex h-full flex-col gap-3 p-5 transition hover:-translate-y-0.5 hover:border-accent/60 active:scale-[0.99]">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3"><span className="badge-icon size-9"><I size={18} aria-hidden /></span><h3 className="t-h3">{s.name}</h3></div>

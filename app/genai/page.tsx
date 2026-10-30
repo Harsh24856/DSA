@@ -5,6 +5,7 @@ import { ArrowRight, BookOpen, ChatsCircle, Check, Compass, ListBullets, TreeStr
 import { usePatterns } from "@/lib/patternStore";
 import { GENAI } from "@/lib/genai/content";
 import { Bar, Count } from "@/components/ui";
+import { ProgressCard } from "@/components/ProgressCard";
 
 const MODULES = GENAI.filter((s) => s.module);
 const REFS: [string, Icon, string][] = [["start", Compass, "Roadmap, setup, and what matters vs hype"], ["interview", ChatsCircle, "40 questions with short answers"], ["design", TreeStructure, "Eight-step framework for design rounds"], ["glossary", ListBullets, "Terms you will hear every day"], ["resources", BookOpen, "Where to go deeper, by module"]];
@@ -25,6 +26,7 @@ export default function GenAI() {
           <div><span className="num text-[26px] font-semibold"><Count value={n} /><span className="text-[13px] font-normal text-muted"> / {MODULES.length}</span></span><div className="text-[12px] text-muted">modules done</div></div>
           <Bar value={n} max={MODULES.length} />
           <Link href={`/genai/${n ? nextUp?.id ?? "m9" : "start"}`} className="btn btn-primary btn-sm">{n ? (nextUp ? `Continue: ${nextUp.nav}` : "Review the capstone") : "Start here"}<ArrowRight size={14} aria-hidden /></Link>
+          <ProgressCard />
         </div>
       </section>
 

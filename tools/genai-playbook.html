@@ -251,7 +251,7 @@ html.present .deckbar {
 <main>
 <section class="module" id="start">
   <div class="hero">
-    <span class="eyebrow">Theory → implementation · 10 modules</span>
+    <span class="eyebrow">Theory → implementation · 13 modules</span>
     <h1>Gen AI Engineer Playbook</h1>
     <p class="lede">From neural network basics to production agents. Every module has plain-language notes, a diagram, runnable code, practice questions with answers, and one project to build.</p>
     <div class="actions">
@@ -276,7 +276,13 @@ html.present .deckbar {
   M6 --> M7
   M1 --> M8["8 · Multimodal"]
   M7 --> M9["9 · Capstone"]
-  M8 --> M9</pre>
+  M8 --> M9
+  M4 --> M10["10 · Evals + monitoring"]
+  M10 --> M9
+  M2 --> M11["11 · Reasoning models"]
+  M11 --> M5
+  M7 --> M12["12 · Faster inference"]
+  M12 --> M9</pre>
       <figcaption>Modules 0–2 are "how models work". Modules 3–5 are "how to build with models". Modules 6–9 are "how to customise, ship and prove it".</figcaption>
     </figure>
     <div class="two">
