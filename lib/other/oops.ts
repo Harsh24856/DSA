@@ -65,6 +65,11 @@ int main() {
       id: "encapsulation",
       title: "Encapsulation and access modifiers",
       summary: "Encapsulation keeps an object's state private and exposes methods that enforce its rules (invariants). Access modifiers decide who can see a member.",
+      diagram: `flowchart TB
+  C["caller: account.deposit(50)"] --> M["public method checks the rule"]:::hot
+  M -->|"positive"| F[("private balance updated")]:::ok
+  M -->|"zero or less"| E["throw: the rule still holds"]:::warn`,
+      caption: "Outside code reaches the state only through methods, and the methods keep the rule true.",
       table: { head: ["Modifier", "Java: visible to", "C++: visible to"], rows: [
         ["private", "the class only", "the class (and its friends)"],
         ["(default / package-private)", "classes in the same package", "no such level"],
@@ -305,6 +310,12 @@ int main() {
       id: "abstraction",
       title: "Abstract classes and interfaces",
       summary: "Both describe what a type can do without fixing how. An **abstract class** can hold state and partial implementation; an **interface** is a pure contract a class promises to fulfil.",
+      diagram: `flowchart TB
+  U["caller: Shape s = new Circle(2)"] -->|"knows only"| I["interface Shape: area()"]:::hot
+  I -.->|"implemented by"| A["abstract class Base: name field, describe() done, area() left abstract"]
+  A --> C["Circle: area() is pi r squared"]:::ok
+  A --> S["Square: area() is side squared"]:::ok`,
+      caption: "The interface is the promise, the abstract class shares code, the concrete classes fill in the rest. Callers depend only on the interface.",
       table: { head: ["", "Abstract class", "Interface (Java)"], rows: [
         ["State (fields)", "yes", "only constants"],
         ["Constructors", "yes", "no"],
@@ -373,6 +384,15 @@ int main() {
       id: "static",
       title: "Static members, final and const, binding",
       summary: "**Static** members belong to the class, not to any object: one shared copy. **Final** (Java) and **const** (C++) prevent change. **Static binding** decides the call at compile time; **dynamic binding** at run time.",
+      diagram: `flowchart TB
+  K["class Counter: static count = 2"]:::hot
+  K --- O1["object a: own id = 1"]
+  K --- O2["object b: own id = 2"]
+  O1 ~~~ Q{"which method runs?"}
+  O2 ~~~ Q
+  Q --> SB["overloaded, static, private, final: fixed at compile time"]:::ok
+  Q --> DB["overridden, called via a base reference: chosen at run time"]:::warn`,
+      caption: "Static data is one copy shared by every object. Which method runs is fixed at compile time, except for overridden methods called through a base reference.",
       code: {
         file: "A static counter shared by every object",
         java: `public class Statics {
@@ -432,6 +452,12 @@ int main() {
       id: "solid",
       title: "SOLID and common design patterns",
       summary: "SOLID is five rules for classes that stay easy to change. Design patterns are named, reusable solutions to recurring design problems.",
+      diagram: `flowchart TB
+  O["OrderService"] -->|"depends on"| P["interface PaymentGateway"]:::hot
+  N["new wallet? add one class"]:::ok -.->|"service unchanged"| P
+  P -.->|"implemented by"| C["CardGateway, UpiGateway"]
+  P -.->|"implemented by"| F["FakeGateway in tests"]:::ok`,
+      caption: "Dependency inversion and open/closed in one picture: the service depends on an interface, so new gateways and test fakes plug in without editing it. This is also the Strategy pattern.",
       table: { head: ["Principle", "Means", "Violation looks like"], rows: [
         ["Single responsibility", "one reason to change", "a User class that also writes to the database and sends emails"],
         ["Open/closed", "extend by adding code, not editing it", "a switch on type that grows with every new shape"],
@@ -480,13 +506,11 @@ int main() {
       title: "Exceptions and memory management",
       summary: "Exceptions separate error handling from normal flow. Java has checked exceptions (must be declared or caught) and a garbage collector; C++ has only unchecked exceptions and deterministic destructors, which is what makes RAII work.",
       diagram: `flowchart TB
-  T["Throwable"] --> E["Exception: recoverable"]
-  T --> ER["Error: do not catch (OutOfMemoryError)"]
-  E --> C["checked: IOException, SQLException"]
-  E --> R["RuntimeException: unchecked"]
-  R --> R1["NullPointerException"]
-  R --> R2["IllegalArgumentException"]`,
-      caption: "The Java exception hierarchy. C++ can throw any type; std::exception is the usual base.",
+  T["Throwable"] --> ER["Error: never catch"]:::bad
+  T --> E["Exception"]
+  E --> C["checked: IOException"]:::warn
+  E --> R["unchecked: RuntimeException"]:::ok`,
+      caption: "The Java exception hierarchy. Errors such as OutOfMemoryError are not meant to be caught; checked exceptions must be caught or declared; unchecked ones (RuntimeException and its subclasses) need not be. C++ can throw any type; std::exception is the usual base.",
       code: {
         file: "Cleanup that runs even when an exception is thrown",
         java: `public class Cleanup {

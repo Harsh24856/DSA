@@ -81,6 +81,13 @@ readFile(fileURLToPath(import.meta.url), () => {    // inside an I/O callback (p
       id: "fs-streams",
       title: "Files, buffers and streams",
       summary: "Read and write files with `node:fs/promises`. For anything large, use **streams**: data flows in chunks, so memory stays flat no matter the file size, and `pipeline` handles backpressure and errors.",
+      diagram: `flowchart TB
+  F[("10 GB log file")] -->|"64 KB chunks"| R["createReadStream"]
+  F -.->|"readFile instead"| X["whole file in memory: crash"]:::bad
+  R --> T["transform: gzip"]
+  T --> W["createWriteStream: when its buffer fills, the reader pauses"]
+  W --> O[("log.gz")]:::ok`,
+      caption: "A stream moves the file in small chunks, so memory stays flat. When the writer falls behind, backpressure pauses the reader.",
       code: {
         file: "streams.mjs",
         js: `import { mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -115,6 +122,13 @@ console.log(users.length, text.trim().split("\\n"), Buffer.from("hi").toString("
       id: "http",
       title: "HTTP from scratch, then Express",
       summary: "Node's `node:http` module gives you a raw request and response. **Express** wraps it with routing, middleware, and helpers like `res.json`. Express 5 is the current major version: it forwards errors from async handlers automatically.",
+      diagram: `flowchart TB
+  N["node:http request"] --> M1["middleware: express.json, cors, logger"]
+  M1 --> RT{"router: method + path"}
+  RT -->|"GET /users/:id"| H1["handler: res.json(user)"]:::ok
+  RT -->|"no match"| NF["404"]:::warn
+  H1 -->|"throws or rejects"| EH["error handler: 500 + JSON"]:::bad`,
+      caption: "Express sits on top of node:http: middleware first, then the router picks one handler, and errors jump to the error handler.",
       code: {
         file: "server.mjs",
         js: `import express from "express";
@@ -156,13 +170,19 @@ server.listen(3000, () => console.log("raw server up"));` } },
       id: "middleware",
       title: "Middleware: the request pipeline",
       summary: "Express is a chain of middleware functions `(req, res, next)`. Each can read or change the request, end the response, or call `next()` to pass control on. Order matters: they run in the order you register them. An **error middleware** has four arguments and catches anything passed to `next(err)` or thrown.",
-      diagram: `flowchart LR
-  R["request"] --> L["logger"] --> J["express.json()"] --> A{"auth"}
-  A -->|"no token"| E401["401 response"]
-  A -->|"next()"| H["route handler"]
-  H -->|"throws / next(err)"| EH["error handler (err, req, res, next)"]
-  H --> OK["200 response"]
-  EH --> E500["500 response"]`,
+      diagram: `flowchart TB
+  H0["request, then logger, then express.json()"]
+  subgraph R1[" "]
+    direction LR
+    Q1(["auth: token ok?"]) --> A1["no: 401"]:::bad
+  end
+  subgraph R2[" "]
+    direction LR
+    Q2(["handler throws?"]) --> A2["yes: error handler sends 500"]:::bad
+  end
+  H0 --> R1
+  R1 -->|"next()"| R2
+  R2 -->|"no"| T0["200 response"]:::ok`,
       caption: "Each middleware either responds or calls next(). Errors skip ahead to the error handler.",
       code: {
         file: "middleware.mjs",
@@ -205,6 +225,25 @@ app.listen(3000);`,
       id: "rest",
       title: "Designing a REST API",
       summary: "Resources are nouns in the URL, actions are HTTP methods, and status codes tell the client what happened. Group routes with `express.Router()`, validate input at the edge, and return consistent JSON errors.",
+      diagram: `flowchart TB
+  H0["POST /users"]:::hot
+  subgraph R1[" "]
+    direction LR
+    Q1(["authenticated?"]) --> A1["no: 401 Unauthorized"]:::bad
+  end
+  subgraph R2[" "]
+    direction LR
+    Q2(["body valid?"]) --> A2["no: 400 + error JSON"]:::bad
+  end
+  subgraph R3[" "]
+    direction LR
+    Q3(["email free?"]) --> A3["no: 409 Conflict"]:::warn
+  end
+  H0 --> R1
+  R1 -->|"yes"| R2
+  R2 -->|"yes"| R3
+  R3 --> T0["201 Created + Location: /users/8"]:::ok`,
+      caption: "One POST request, and the status code each exit returns.",
       table: { head: ["Action", "Method and path", "Success", "Common errors"], rows: [
         ["List", "GET /api/notes?page=2", "200", "400 bad query"],
         ["Read one", "GET /api/notes/:id", "200", "404"],
@@ -310,6 +349,16 @@ console.log(stored.length, await verifyPassword("correct horse", stored), await 
       id: "data",
       title: "Configuration, databases and async patterns",
       summary: "Production apps read configuration from environment variables, open one database connection pool at startup, and keep handlers thin: validate, call a service function, return a response.",
+      diagram: `flowchart TB
+  S["startup"] --> CFG["config: read env vars, validate once"]:::hot
+  CFG --> POOL[("one database pool")]
+  POOL --> L["listen: requests arrive"]
+  L --> H["handler: validate input"]
+  H --> SV["service: business rules"]
+  SV --> RP["repository: SQL"]
+  RP -.->|"borrows a connection"| POOL
+  RP --> RES["response"]:::ok`,
+      caption: "Config is read and checked once at startup; handlers stay thin and pass work down the layers.",
       points: [
         "Use a **connection pool** (pg's Pool, Prisma, Drizzle, Mongoose). Opening a connection per request is slow and exhausts the database.",
         "Always use **parameterised queries** (`$1`, `?`) or an ORM; never build SQL with string concatenation.",
@@ -349,6 +398,15 @@ console.log(loadConfig({ PORT: "4000" }), await withRetry(flaky), "after", calls
       id: "security",
       title: "Security and production readiness",
       summary: "Most Express incidents come from a short list: missing input validation, overly open CORS, no rate limits, leaked error details, outdated dependencies and secrets in code. Each has a standard fix.",
+      diagram: `flowchart TB
+  I["internet"] --> RL["rate limit: slow down brute force"]:::hot
+  RL --> CO["CORS: only your own origins"]
+  CO --> HE["helmet: security headers"]
+  HE --> AU["auth: verify the token"]
+  AU --> V["validate input"]
+  V --> H["handler: parameterized SQL, secrets from env"]:::ok
+  H -.->|"on error"| EH["client gets a generic message, logs get the details"]:::warn`,
+      caption: "Each layer blocks one common attack before the request reaches your code.",
       table: { head: ["Risk", "Fix"], rows: [
         ["Missing security headers", "helmet() middleware"],
         ["Any site can call your API from a browser", "cors({ origin: [your domains], credentials: true })"],
@@ -386,6 +444,15 @@ process.on("SIGINT", shutdown);`,
       id: "testing",
       title: "Testing an Express API",
       summary: "Start the app on a random port (`listen(0)`) inside the test, call it with `fetch`, and assert on status codes and JSON. Node ships a test runner (`node:test`), so a small API needs no extra libraries.",
+      diagram: `flowchart TB
+  B["before: app.listen(0)"] --> P["the OS picks a free port"]
+  P --> T1["test: POST /sum with a = 2, b = 3"]
+  P --> T2["test: POST /sum with a = '2'"]
+  T1 --> A1["assert 200 and sum 5"]:::ok
+  T2 --> A2["assert 400"]:::ok
+  A1 --> AF["after: server.close()"]
+  A2 --> AF`,
+      caption: "Each test file owns its server: a free port before, real HTTP calls in the tests, close after.",
       code: {
         file: "api.test.mjs",
         js: `import assert from "node:assert/strict";

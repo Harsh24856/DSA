@@ -53,6 +53,14 @@ export function App() {
       id: "state",
       title: "State and events",
       summary: "**State** is data a component remembers between renders. Calling the setter schedules a re-render with the new value. State updates are asynchronous and batched, so use the updater form when the new value depends on the old one.",
+      diagram: `flowchart TB
+  E["click"] --> H["handler: setCount(c => c + 1)"]
+  H --> Q["React queues the update and batches it"]:::warn
+  Q --> R["re-render: Counter runs again, count is 1"]:::hot
+  R --> D["React compares the output and patches the DOM"]
+  D --> S["screen shows 1"]:::ok
+  S -.->|"next click"| E`,
+      caption: "Setting state does not change the variable now: it schedules a render that runs the component again with the new value.",
       code: {
         file: "Counter.tsx",
         tsx: `import { useState } from "react";
@@ -92,6 +100,12 @@ export function Counter() {
       id: "lists",
       title: "Lists, keys and conditional rendering",
       summary: "Render lists with `map`. Each item needs a stable, unique **key** so React can tell which item moved, was added or was removed between renders.",
+      diagram: `flowchart TB
+  O["before: Asha, Ben"] --> I["insert Chen at the top"]
+  I --> K{"what is the key?"}
+  K -->|"key = item.id"| G["React keeps Asha and Ben, creates only Chen"]:::ok
+  K -->|"key = index"| B["key 0 was Asha, now Chen: every row updates, and typed input sticks to the wrong row"]:::bad`,
+      caption: "Keys tell React which item is which. With index keys, inserting at the top shifts every key.",
       code: {
         file: "TodoList.tsx",
         tsx: `import { useState } from "react";
@@ -177,6 +191,16 @@ export function UserCard({ userId }: { userId: number }) {
       id: "forms",
       title: "Forms: controlled inputs and React 19 actions",
       summary: "A **controlled** input takes its value from state and reports every change, so React is the single source of truth. React 19 adds **actions**: pass an async function to a form and use `useActionState` for its pending state and result.",
+      diagram: `flowchart TB
+  T["user types"] --> C["onChange: setName(value)"]
+  C --> S[("state: name")]:::hot
+  S --> I["input shows value = name"]
+  I -.->|"next key"| T
+  I --> F["submit"]
+  F --> A["form action runs, via useActionState"]
+  A --> P["isPending: button disabled"]:::warn
+  P --> R["result or error shown"]:::ok`,
+      caption: "Controlled input: state is the source of truth and the input only displays it. A form action handles the submit, with its pending state.",
       code: {
         file: "SignupForm.tsx",
         tsx: `import { useActionState, useState } from "react";
@@ -212,6 +236,12 @@ export function SignupForm() {
       id: "context",
       title: "Context and reducers",
       summary: "**Context** passes a value to any depth without threading props through every level (theme, current user, locale). **useReducer** moves complex state transitions into one pure function: (state, action) => new state.",
+      diagram: `flowchart TB
+  P["ThemeContext provider: value dark"]:::hot --> L["Layout"]
+  L --> S["Sidebar"]
+  S --> B["Button: useContext(ThemeContext) gives dark"]:::ok
+  P -.->|"no props in between"| B`,
+      caption: "The provider's value reaches any component below it that asks; the components in between pass nothing.",
       code: {
         file: "Cart.tsx",
         tsx: `import { createContext, useContext, useReducer, type Dispatch, type ReactNode } from "react";
@@ -260,11 +290,9 @@ export function CartTotal() {
       title: "Refs and performance",
       summary: "A component re-renders when its state changes, when its parent re-renders, or when a context it reads changes. Most re-renders are cheap. When one is not, `memo`, `useMemo` and `useCallback` let React skip work. `useRef` holds a value or DOM node that survives renders without causing them.",
       diagram: `flowchart TB
-  A["App (state changes)"] --> B["Header"]
-  A --> C["ProductList (memo, same props)"]
-  A --> D["Cart"]
-  C --> E["ProductRow x 500"]
-  style C stroke-dasharray: 5 5`,
+  A["App: state changes"]:::hot --> B["Header and Cart re-render"]:::warn
+  A --> C["ProductList: memo, same props, skipped"]:::ok
+  C --> E["500 ProductRows: skipped too"]:::ok`,
       caption: "memo lets ProductList skip re-rendering (and its 500 rows) when its props are unchanged.",
       code: {
         file: "SearchList.tsx",
@@ -304,6 +332,13 @@ export function SearchList({ items }: { items: string[] }) {
       id: "hooks",
       title: "Custom hooks",
       summary: "A custom hook is a function whose name starts with `use` and that calls other hooks. It lets components share stateful logic (not state itself): each component that calls it gets its own copy.",
+      diagram: `flowchart TB
+  H["useOnline(): useState + useEffect, written once"]:::hot
+  H -->|"called in"| A["Navbar"]
+  H -->|"called in"| B["Editor"]
+  A --> SA["its own online flag and listener"]:::ok
+  B --> SB["its own online flag and listener"]:::ok`,
+      caption: "Hooks share logic, not state: every component that calls one gets its own copy.",
       points: [
         "Rules of hooks: call them only at the top level of a component or another hook, never inside conditions, loops or after an early return. React relies on the call order to match state to hooks.",
       ],

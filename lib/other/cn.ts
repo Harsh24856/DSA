@@ -95,6 +95,15 @@ export const CN: Subject = {
       id: "http",
       title: "HTTP and HTTPS",
       summary: "HTTP is a request-response protocol: method, path and headers go in; a status code, headers and a body come back. It is stateless, so cookies or tokens carry identity between requests.",
+      diagram: `flowchart TB
+  U["browser: GET /cart"] --> D["DNS: name to IP address"]
+  D --> T["TCP handshake: SYN, SYN-ACK, ACK"]
+  T --> S["TLS handshake: check the certificate, agree on keys"]:::hot
+  S --> R["encrypted request: method, path, headers, cookie"]
+  R --> V["server: route, check the cookie, build the page"]
+  V --> A["status, headers, body"]:::ok
+  A -.->|"keep-alive"| R`,
+      caption: "HTTPS is HTTP inside a TLS tunnel. DNS, TCP and TLS happen once per connection; later requests reuse it.",
       table: { head: ["Version", "Key change"], rows: [
         ["HTTP/1.1", "persistent connections, but one request at a time per connection (head-of-line blocking)"],
         ["HTTP/2", "binary framing, many parallel streams on one TCP connection, header compression"],

@@ -345,6 +345,15 @@ export ANTHROPIC_API_KEY="..."   # keep keys in env vars or a .env file that git
   <article class="slide">
     <div class="slide-tag"><b>Notes</b> · 0.1</div>
     <h3>Neurons, layers and the forward pass</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  X["input x: 784 pixels"] --> L1["Linear: x W1 + b1"]
+  L1 --> A1["ReLU: the bend"]:::hot
+  A1 --> L2["Linear: h W2 + b2"]
+  L2 --> S["softmax: 10 probabilities"]
+  S --> P["prediction: digit 7, p = 0.93"]:::ok</pre>
+      <figcaption>A forward pass is: matrix multiply, nonlinearity, repeat. Take out the ReLU and the two Linear layers collapse into one.</figcaption>
+    </figure>
     <div class="formula">neuron:  y = σ(w · x + b)
 layer:   H = σ(X W + b)        X: (batch, d_in)  W: (d_in, d_out)
 MLP:     ŷ = W₃ σ(W₂ σ(W₁ x))</div>
@@ -418,6 +427,15 @@ MLP:     ŷ = W₃ σ(W₂ σ(W₁ x))</div>
   <article class="slide">
     <div class="slide-tag"><b>Notes</b> · 0.3</div>
     <h3>Making deep networks train</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  X["x"] --> N["RMSNorm or LayerNorm"]
+  N --> F["layer: attention or MLP"]
+  F --> ADD(("+")):::hot
+  X -->|"skip: gradient flows straight back"| ADD
+  ADD --> Y["x + F(norm(x))"]:::ok</pre>
+      <figcaption>The pre-norm residual block inside every modern transformer. The skip path gives gradients a direct route back, which is why networks with a hundred layers still train.</figcaption>
+    </figure>
     <div class="two">
       <div>
         <h4>Normalization</h4>
@@ -1421,6 +1439,18 @@ print("written to cache:", r.usage.cache_creation_input_tokens,
   <article class="slide">
     <div class="slide-tag"><b>Notes</b> · 3.4 prompting that works</div>
     <h3>Prompt patterns</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  Q["user request"] --> R{"router: a cheap model classifies"}:::hot
+  R -->|"simple FAQ"| S["small model + FAQ prompt"]:::ok
+  R -->|"needs analysis"| E["step 1: extract facts"]
+  E --> A["step 2: analyse"]
+  A --> W["step 3: write the answer"]
+  W --> C{"evaluator: meets the rubric?"}
+  C -->|"no: critique"| W
+  C -->|"yes"| OUT["answer"]:::ok</pre>
+      <figcaption>Routing sends easy requests down a cheap path. Chaining splits a hard request into steps you can test one at a time. An evaluator loop revises until the rubric passes.</figcaption>
+    </figure>
     <div class="two">
       <div>
         <h4>A solid prompt has</h4>
@@ -2264,6 +2294,34 @@ if __name__ == "__main__":
   <article class="slide">
     <div class="slide-tag"><b>Notes</b> · 6.1 decide first</div>
     <h3>Prompt, RAG or fine-tune?</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  subgraph R1[" "]
+    direction LR
+    Q1(["Needs private or changing facts?"]) --> A1["RAG: re-index to update, cite sources"]:::ok
+  end
+  subgraph R2[" "]
+    direction LR
+    Q2(["Only format or tone?"]) --> A2["prompt first, then SFT"]:::ok
+  end
+  subgraph R3[" "]
+    direction LR
+    Q3(["Narrow task at high volume?"]) --> A3["fine-tune a small model"]:::ok
+  end
+  subgraph R4[" "]
+    direction LR
+    Q4(["Checkable answers, like math or code?"]) --> A4["RL with verifiable rewards (GRPO)"]:::ok
+  end
+  subgraph R5[" "]
+    direction LR
+    Q5(["Human preference or safe refusals?"]) --> A5["DPO or RLHF"]:::ok
+  end
+  R1 -->|"no"| R2
+  R2 -->|"no"| R3
+  R3 -->|"no"| R4
+  R4 -->|"no"| R5</pre>
+      <figcaption>Ask the questions in order. Prompting and RAG come first because they are cheap to change; train only when they fall short.</figcaption>
+    </figure>
     <div class="table-wrap"><table>
       <thead><tr><th>Goal</th><th>Best tool</th><th>Why</th></tr></thead>
       <tbody>

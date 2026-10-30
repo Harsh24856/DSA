@@ -56,6 +56,15 @@
   <article class="slide">
     <div class="slide-tag"><b>Notes</b> · 10.2 LLM-as-judge you can trust</div>
     <h3>Calibrate the judge before you believe it</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  H["people label 100 to 200 items"] --> J["LLM judge scores the same items, reason first"]
+  J --> K{"Cohen's kappa above 0.6?"}:::hot
+  K -->|"no"| F["fix the rubric: binary criteria, swapped order, a reference answer"]:::warn
+  F --> J
+  K -->|"yes"| U["use the judge on new data; re-check a sample every month"]:::ok</pre>
+      <figcaption>Treat the judge like any other model: measure it against people first, and fix the rubric until they agree.</figcaption>
+    </figure>
     <div class="two">
       <div>
         <h4>Write a rubric a person could apply</h4>
@@ -219,6 +228,18 @@ difference of two independent accuracies:
   <article class="slide">
     <div class="slide-tag"><b>Notes + code</b> · 11.2 more samples, better answers?</div>
     <h3>Self-consistency, best-of-n and verifiers</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  P["one prompt, temperature above 0"] --> S1["sample 1: 42"]
+  P --> S2["sample 2: 42"]
+  P --> S3["sample 3: 17"]
+  S1 --> V{"choose"}
+  S2 --> V
+  S3 --> V
+  V -->|"vote"| A["self-consistency: 42 wins 2 to 1"]:::ok
+  V -->|"checker"| B["best-of-n: the top-scored answer"]:::hot</pre>
+      <figcaption>Same samples, two ways to choose. Voting needs no checker; best-of-n needs one but can pick a right answer that only one sample found.</figcaption>
+    </figure>
     <div class="two">
       <div>
         <h4>Three ways to spend compute at answer time</h4>
@@ -396,6 +417,14 @@ GPU balance point: compute / bandwidth
   <article class="slide">
     <div class="slide-tag"><b>Notes + code</b> · 12.3 quantization in practice</div>
     <h3>Scales, zero points and outliers</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  W["weights with one outlier: 50.0"] --> T["per-tensor scale: s = 50 / 127"]:::bad
+  T --> TE["small weights like 0.01 round to 0"]:::bad
+  W --> R["per-row or per-group scales"]:::ok
+  R --> RE["the outlier stretches only its own group"]:::ok</pre>
+      <figcaption>One large weight stretches a shared scale so far that small weights round to zero. Smaller groups keep the damage local.</figcaption>
+    </figure>
     <div class="two">
       <div>
         <div class="formula">symmetric:   q = round(x / s),       s = max|x| / 127
@@ -420,6 +449,16 @@ granularity: per tensor → per channel / row → per group of 64 or 128</div>
   <article class="slide">
     <div class="slide-tag"><b>Notes</b> · 12.4 speculative decoding and distillation</div>
     <h3>Fewer expensive steps, or a cheaper model</h3>
+    <figure class="diagram">
+<pre class="mermaid">flowchart TB
+  D["draft model guesses 4 tokens, cheap"] --> V["target model checks all 4 in one pass"]:::hot
+  V --> A{"guesses match the target?"}
+  A -->|"first 3 match"| K["keep those 3"]:::ok
+  A -->|"4th differs"| X["use the target's own token instead"]:::warn
+  K --> N["4 tokens for one expensive step"]:::ok
+  X --> N</pre>
+      <figcaption>Speculative decoding: the output is exactly what the target model alone would produce. The draft only saves target steps.</figcaption>
+    </figure>
     <div class="two">
       <div>
         <h4>Speculative decoding, with costs</h4>

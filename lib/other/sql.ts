@@ -128,16 +128,12 @@ WHERE NOT EXISTS (SELECT 1 FROM employees e WHERE e.dept_id = d.id);`, sqlSetup:
       id: "grouping",
       title: "Aggregation and GROUP BY",
       summary: "GROUP BY collapses rows that share values into one row per group; aggregates (COUNT, SUM, AVG, MIN, MAX) summarise each group. Every selected column must be grouped or aggregated.",
-      diagram: `flowchart LR
-  R["7 employee rows"] --> G["GROUP BY dept_id"]
-  G --> G1["dept 1: 3 rows"]
-  G --> G2["dept 2: 2 rows"]
-  G --> G3["dept 3: 1 row"]
-  G --> G4["NULL dept: 1 row"]
-  G1 --> O["one output row per group:<br/>COUNT, SUM, AVG"]
-  G2 --> O
-  G3 --> O
-  G4 --> O`,
+      diagram: `flowchart TB
+  R["7 employee rows"] --> G["GROUP BY dept_id"]:::hot
+  G --> G1["dept 1: 3 rows, dept 2: 2 rows"]
+  G --> G2["dept 3: 1 row, NULL dept: 1 row"]
+  G1 --> O["one output row per group: COUNT, SUM, AVG"]:::ok
+  G2 --> O`,
       caption: "GROUP BY collapses rows; NULL keys form their own group.",
       cards: [
         { id: "conditional-agg", q: "Count several conditions in one pass over the table.", a: "Put CASE inside SUM (or COUNT). This is conditional aggregation, the standard way to pivot rows into columns.",
@@ -188,14 +184,15 @@ SELECT name, depth FROM chain ORDER BY depth, name;`, sqlSetup: SETUP, result: {
       title: "Window functions",
       summary: "A window function computes a value for each row from a set of related rows (its window) without collapsing them like GROUP BY does. `PARTITION BY` splits rows into groups, `ORDER BY` orders them inside each group.",
       diagram: `flowchart TB
-  subgraph P1["PARTITION dept 1, ORDER BY salary DESC"]
+  subgraph P1["dept 1, by salary DESC"]
     direction LR
     a["Asha 90000: 1"] --> b["Ben 70000: 2"] --> c["Chen 70000: 2"]
   end
-  subgraph P2["PARTITION dept 2"]
+  subgraph P2["dept 2: numbering restarts"]
     direction LR
-    d["Dia 65000: 1"] --> e["Eli 48000: 2"]
-  end`,
+    d["Dia 65000: 1"]:::hot --> e["Eli 48000: 2"]
+  end
+  P1 ~~~ P2`,
       caption: "Window functions rank rows inside each partition but keep every row (DENSE_RANK shown).",
       table: { head: ["Function", "Ties at the same value", "Example for salaries 90, 70, 70, 65"], rows: [
         ["ROW_NUMBER()", "different numbers (arbitrary unless you add a tie-break)", "1, 2, 3, 4"],
@@ -232,6 +229,37 @@ ORDER BY day, id;`, sqlSetup: SETUP, result: { head: ["day", "amount", "running_
       id: "patterns",
       title: "Patterns interviewers reuse",
       summary: "A handful of shapes cover most interview questions: Nth highest, top-N per group, running totals, gaps and islands (consecutive streaks), duplicates, and set comparisons.",
+      diagram: `flowchart TB
+  subgraph R1[" "]
+    direction LR
+    Q1(["Nth highest value?"]) --> A1["DENSE_RANK() OVER (ORDER BY x DESC) = N"]:::ok
+  end
+  subgraph R2[" "]
+    direction LR
+    Q2(["Top N in each group?"]) --> A2["ROW_NUMBER() OVER (PARTITION BY g ORDER BY x DESC), keep 1 to N"]:::ok
+  end
+  subgraph R3[" "]
+    direction LR
+    Q3(["Running total?"]) --> A3["SUM(x) OVER (ORDER BY day)"]:::ok
+  end
+  subgraph R4[" "]
+    direction LR
+    Q4(["Consecutive streak?"]) --> A4["day minus ROW_NUMBER() is constant within a streak"]:::ok
+  end
+  subgraph R5[" "]
+    direction LR
+    Q5(["Duplicates?"]) --> A5["GROUP BY key HAVING COUNT(*) more than 1"]:::ok
+  end
+  subgraph R6[" "]
+    direction LR
+    Q6(["In A but not in B?"]) --> A6["LEFT JOIN, WHERE b.key IS NULL"]:::ok
+  end
+  R1 -->|"no"| R2
+  R2 -->|"no"| R3
+  R3 -->|"no"| R4
+  R4 -->|"no"| R5
+  R5 -->|"no"| R6`,
+      caption: "Walk down the questions; the first yes names the pattern to write.",
       cards: [
         { id: "islands", q: "Find streaks of consecutive order days per customer (gaps and islands).", a: "Within a streak, the date minus the row number is constant, so that difference labels each island. Group by it and keep islands of two or more days.",
           code: { sql: `WITH d AS (
@@ -263,11 +291,26 @@ ORDER BY customer;`, sqlSetup: SETUP, result: { head: ["customer"], rows: [["mee
       id: "ddl",
       title: "DDL, DML, transactions and performance",
       summary: "SQL has sub-languages: **DDL** defines structure (CREATE, ALTER, DROP), **DML** changes data (INSERT, UPDATE, DELETE), **DCL** controls access (GRANT, REVOKE), **TCL** controls transactions (COMMIT, ROLLBACK, SAVEPOINT).",
-      diagram: `flowchart LR
-  SQL["SQL"] --> DDL["DDL: CREATE, ALTER, DROP"]
-  SQL --> DML["DML: INSERT, UPDATE, DELETE, SELECT"]
-  SQL --> DCL["DCL: GRANT, REVOKE"]
-  SQL --> TCL["TCL: COMMIT, ROLLBACK, SAVEPOINT"]`,
+      diagram: `flowchart TB
+  subgraph R1[" "]
+    direction LR
+    Q1(["DDL: structure"]):::hot --> A1["CREATE, ALTER, DROP"]:::ok
+  end
+  subgraph R2[" "]
+    direction LR
+    Q2(["DML: data"]):::hot --> A2["INSERT, UPDATE, DELETE, SELECT"]:::ok
+  end
+  subgraph R3[" "]
+    direction LR
+    Q3(["DCL: access"]):::hot --> A3["GRANT, REVOKE"]:::ok
+  end
+  subgraph R4[" "]
+    direction LR
+    Q4(["TCL: transactions"]):::hot --> A4["COMMIT, ROLLBACK, SAVEPOINT"]:::ok
+  end
+  R1 ~~~ R2
+  R2 ~~~ R3
+  R3 ~~~ R4`,
       caption: "The four sub-languages.",
       table: { head: ["", "DELETE", "TRUNCATE", "DROP"], rows: [
         ["Removes", "chosen rows (WHERE)", "all rows", "the whole table"],

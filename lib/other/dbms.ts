@@ -15,10 +15,9 @@ export const DBMS: Subject = {
         "**Logical data independence**: change the conceptual schema without breaking views. **Physical data independence**: change storage or indexes without changing the schema.",
       ],
       diagram: `flowchart TB
-  U1["App A's view"] --> C["Conceptual schema<br/>tables, keys, constraints"]
-  U2["App B's view"] --> C
-  U3["Analyst's view"] --> C
-  C --> I["Internal schema<br/>files, pages, B+ trees"]
+  U1["App A's view"] --> C["conceptual schema: tables, keys, constraints"]:::hot
+  U2["analyst's view"] --> C
+  C --> I["internal schema: files, pages, B+ trees"]
   I --> D[("disk")]`,
       caption: "Each level can change without forcing changes above it.",
       cards: [

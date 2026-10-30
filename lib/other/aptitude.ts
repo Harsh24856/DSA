@@ -19,6 +19,14 @@ export const APTITUDE: Subject = {
       id: "numbers",
       title: "Number system",
       summary: "Divisibility, factors, HCF and LCM, remainders and unit digits. Most questions reduce to prime factorisation or a repeating cycle.",
+      diagram: `flowchart TB
+  N1["12 = 2 x 2 x 3"] --> H["HCF: shared primes, lowest power: 2 x 3 = 6"]:::ok
+  N2["18 = 2 x 3 x 3"] --> H
+  N1 --> L["LCM: every prime, highest power: 4 x 9 = 36"]:::hot
+  N2 --> L
+  H --> P["check: 6 x 36 = 216 = 12 x 18"]
+  L --> P`,
+      caption: "Factorise once and both answers fall out. Check: HCF times LCM equals the product of the two numbers.",
       table: { head: ["Divisible by", "Rule"], rows: [
         ["2, 5, 10", "last digit"], ["3, 9", "sum of digits divisible by 3 or 9"], ["4", "last two digits divisible by 4"],
         ["8", "last three digits divisible by 8"], ["6", "divisible by both 2 and 3"], ["11", "alternating digit sum (odd places − even places) divisible by 11"],
@@ -167,6 +175,14 @@ export const APTITUDE: Subject = {
       id: "di",
       title: "Data interpretation and estimation",
       summary: "DI sets give a table or chart and several questions. Read the units and the base year first, then estimate: the options are usually far enough apart.",
+      diagram: `flowchart TB
+  R["read title, units, base year"] --> Q["read the question: which rows, which years?"]
+  Q --> A{"options far apart?"}
+  A -->|"yes"| E["estimate: round to 2 significant figures"]:::ok
+  A -->|"no"| X["compute exactly, only the cells you need"]:::warn
+  E --> C["pick, then sanity-check size and sign"]
+  X --> C`,
+      caption: "Read the frame before the numbers, and estimate unless the options are close.",
       points: [
         "Percentage growth = (new − old) / old × 100.",
         "Compare fractions by cross-multiplying instead of dividing.",

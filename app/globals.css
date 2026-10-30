@@ -186,8 +186,14 @@
   .gx th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--surface-2)}
   .gx tr:last-child td{border-bottom:0}
   .gx td:first-child{font-weight:600}
-  .gx-diagram{display:grid;gap:8px;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:16px;overflow-x:auto}
+  .gx-diagram{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:16px;overflow-x:auto}
   .gx-diagram figcaption{font-size:13px;color:var(--muted)}
+  .gx-expand{justify-self:end;margin:-8px -8px -4px 0}
+  @media (max-width:520px){.gx-diagram{padding:12px 10px}.gx-expand{margin:-4px -2px -4px 0}}
+  .gx-zoom{width:min(96vw,1400px);max-width:none;max-height:92dvh;padding:0;border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--ink)}
+  .gx-zoom>button{position:sticky;top:8px;float:right;margin:8px 8px 0 0;z-index:1}
+  .gx-zoom>div{padding:16px 20px 20px;overflow:auto;max-height:calc(92dvh - 48px)}
+  .gx-zoom svg{display:block;height:auto;margin-inline:auto}
   .gx .mermaid{margin:0;text-align:center;font-family:var(--body);white-space:pre-wrap;font-size:12px;color:var(--muted)}
   .gx .mermaid:not([data-done]){min-height:120px;color:transparent}
   .gx .mermaid svg{display:block;height:auto;margin-inline:auto} /* natural size; wide ones scroll inside .gx-diagram */

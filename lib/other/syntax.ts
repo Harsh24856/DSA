@@ -10,6 +10,19 @@ export const SYNTAX: Subject = {
       id: "basics",
       title: "Variables, types and constants",
       summary: "C++ and Java are **statically typed** and compiled: every variable has a fixed type checked before the program runs. Python and JavaScript are **dynamically typed**: values carry types, variables do not. TypeScript adds static types on top of JavaScript and erases them when it runs.",
+      diagram: `flowchart TB
+  subgraph ST["C++, Java, TypeScript: static"]
+    direction TB
+    S1["int x = 5"] --> S2["compiler checks every type"]:::hot
+    S2 -->|"x = 'hi' rejected here"| S3["program runs"]:::ok
+  end
+  subgraph DY["Python, JavaScript: dynamic"]
+    direction TB
+    D1["x = 5"] --> D2["program runs; the value carries the type"]
+    D2 -->|"bad use found only on that line"| D3["TypeError at run time"]:::bad
+  end
+  ST ~~~ DY`,
+      caption: "Static languages reject a type mistake before the program runs; dynamic languages find it only when that line runs.",
       table: { head: ["", "C++", "Java", "Python", "JavaScript / TypeScript"], rows: [
         ["Integer size", "int usually 32-bit, long long 64-bit", "int 32-bit, long 64-bit", "unbounded", "number is a 64-bit float; BigInt for big integers"],
         ["Overflow", "signed overflow is undefined behaviour", "wraps around silently", "never", "loses precision above 2^53"],
@@ -82,6 +95,15 @@ console.log(name, count, total, ok, tags, point, id);`,
       id: "control",
       title: "Control flow",
       summary: "If, loops and switch look alike in all five languages. The differences are in the details: Python uses indentation instead of braces, Java and Python have expression-style switch/match, and JavaScript has two different for-loops for values and keys.",
+      diagram: `flowchart TB
+  I["init: i = 0"] --> C{"condition: i less than n?"}
+  C -->|"true"| B["body"]
+  B --> U["update: i += 1"]
+  U --> C
+  B -->|"continue"| U
+  B -->|"break"| X["code after the loop"]:::ok
+  C -->|"false"| X`,
+      caption: "Every loop is this shape. break leaves it, continue jumps to the update.",
       code: {
         cpp: `#include <iostream>
 using namespace std;
@@ -178,6 +200,13 @@ console.log(kind("sat"), sum);   // weekend 30`,
       id: "functions",
       title: "Functions, lambdas and closures",
       summary: "Every language here treats functions as values you can pass around. The differences are in defaults, variadic arguments, how arguments are passed, and how closures capture variables.",
+      diagram: `flowchart TB
+  M["counter = makeCounter()"] --> R["inner function returned"]
+  R -->|"keeps a reference to"| V[("captured: count = 0")]:::hot
+  V --> C1["counter() gives 1"]
+  C1 --> C2["counter() gives 2: same count, still alive"]:::ok
+  C2 --> N["other = makeCounter() gets its own count = 0"]:::warn`,
+      caption: "A closure is a function plus the variables it captured. Each call to the outer function makes a fresh set.",
       code: {
         cpp: `#include <functional>
 #include <iostream>
@@ -265,6 +294,11 @@ console.log(fast(9), fast(9), calls);            // 81 81 1` } },
       id: "strings",
       title: "Strings",
       summary: "Strings are immutable in Java, Python and JavaScript: every change makes a new string, so build long strings with StringBuilder, a list joined at the end, or join(). C++'s std::string is mutable.",
+      diagram: `flowchart TB
+  L["build a string from n pieces"] --> P{"how?"}
+  P --> Q["s = s + piece in a loop: each + copies everything so far, O(n squared)"]:::bad
+  P --> O["StringBuilder, list then join, std::string +=: one buffer, O(n)"]:::ok`,
+      caption: "Java, Python and JavaScript strings never change in place, so repeated + copies everything built so far.",
       code: {
         cpp: `#include <algorithm>
 #include <cctype>
@@ -325,6 +359,27 @@ console.log(capitalized, counts["o"], s.padStart(13, "*"));`,
       id: "collections",
       title: "Collections: lists, maps and sets",
       summary: "Every language has a growable array, a hash map and a set. Know which one is ordered, what lookups cost, and how to count things in one line: this is half of every coding round.",
+      diagram: `flowchart TB
+  subgraph R1[" "]
+    direction LR
+    Q1(["Items by position?"]) --> A1["list: vector, ArrayList, list, Array. Index O(1)"]:::ok
+  end
+  subgraph R2[" "]
+    direction LR
+    Q2(["A value per key?"]) --> A2["hash map: unordered_map, HashMap, dict, Map. O(1) average"]:::ok
+  end
+  subgraph R3[" "]
+    direction LR
+    Q3(["Only: is x present?"]) --> A3["hash set: unordered_set, HashSet, set, Set. O(1) average"]:::ok
+  end
+  subgraph R4[" "]
+    direction LR
+    Q4(["Keys in sorted order?"]) --> A4["tree: map, TreeMap, sorted list + bisect. O(log n)"]:::warn
+  end
+  R1 -->|"no"| R2
+  R2 -->|"no"| R3
+  R3 -->|"no"| R4`,
+      caption: "Walk down the questions to pick the container; the names are C++, Java, Python, JavaScript.",
       table: { head: ["", "C++", "Java", "Python", "JavaScript"], rows: [
         ["Dynamic array", "vector", "ArrayList", "list", "Array"],
         ["Hash map (O(1) avg)", "unordered_map", "HashMap", "dict", "Map (or object)"],
@@ -402,6 +457,13 @@ console.log(v.length, freq.get("a"), byLetter, seen.size);`,
       id: "classes",
       title: "Classes, interfaces and inheritance",
       summary: "The same idea in five dialects: a base type with an abstract method, two subclasses, and a loop that calls each one through the base type. See the OOP subject for the theory; this chapter is the syntax.",
+      diagram: `flowchart TB
+  L["for each shape in shapes: shape.area()"] -->|"calls through"| S["abstract Shape: area()"]:::hot
+  S --> C["Circle: pi r squared"]
+  S --> Q["Square: side squared"]
+  C --> R["each object answers with its own formula"]:::ok
+  Q --> R`,
+      caption: "The loop knows only the base type; each object runs its own override.",
       code: {
         cpp: `#include <iostream>
 #include <memory>
@@ -521,6 +583,13 @@ for (const p of pets) console.log(p.intro());`,
       id: "errors",
       title: "Errors and exceptions",
       summary: "All five throw and catch exceptions. Java alone forces you to declare or handle checked exceptions; TypeScript code often returns errors as values instead, and async code needs its own handling.",
+      diagram: `flowchart TB
+  T["try: code that may fail"] -->|"throws"| M{"a catch matches?"}
+  M -->|"yes"| H["catch: handle, or wrap and rethrow"]:::ok
+  M -->|"no"| U["goes up to the caller"]:::bad
+  H --> F["finally: runs on every path, even with no error"]
+  U --> F`,
+      caption: "finally runs on every path. An exception no catch matches keeps climbing the call stack.",
       code: {
         cpp: `#include <iostream>
 #include <stdexcept>
@@ -630,6 +699,13 @@ try { throw new InsufficientFunds("x"); } catch (e: unknown) {          // catch
       id: "generics",
       title: "Generics and templates",
       summary: "Write code once for many types. C++ templates generate a copy per type at compile time; Java generics are checked at compile time and erased at run time; TypeScript generics exist only for the type checker; Python has type hints; JavaScript simply accepts anything.",
+      diagram: `flowchart TB
+  G["one generic max(a, b) for any type T"] --> C["C++ template: one compiled copy per type used"]:::hot
+  C --> J["Java: checked at compile time, erased at run time, no primitives"]
+  J --> T["TypeScript: checked, then erased to plain JavaScript"]
+  T --> P["Python TypeVar: hints for mypy, ignored at run time"]:::warn
+  P --> JS["JavaScript: no types, accepts anything"]:::bad`,
+      caption: "One generic function, five meanings. Going down, less is enforced while the program runs.",
       code: {
         cpp: `#include <iostream>
 #include <string>
@@ -712,6 +788,11 @@ console.log(update(u, { name: "Asha R" }).name, index[1].name);` } },
       id: "functional",
       title: "Map, filter, reduce, streams and comprehensions",
       summary: "Transform collections declaratively: keep the even numbers, square them, add them up. C++ uses algorithm functions, Java uses streams, Python uses comprehensions and generator expressions, JavaScript and TypeScript chain array methods.",
+      diagram: `flowchart TB
+  A["1 2 3 4 5 6"] -->|"filter: keep even"| B["2 4 6"]
+  B -->|"map: square"| C["4 16 36"]
+  C -->|"reduce: add"| D["56"]:::ok`,
+      caption: "Keep the even numbers, square them, add them up: one pipeline, written in each language's style.",
       code: {
         cpp: `#include <algorithm>
 #include <iostream>
@@ -781,6 +862,27 @@ print([next(gen) for _ in range(10)])   # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]` } }
       id: "dsa-toolkit",
       title: "The coding-round toolkit: sort, heap, deque, binary search",
       summary: "The standard-library pieces you reach for in almost every DSA problem, in each language. Knowing these by heart saves minutes in every round.",
+      diagram: `flowchart TB
+  subgraph R1[" "]
+    direction LR
+    Q1(["Min or max, again and again?"]) --> A1["heap: priority_queue, PriorityQueue, heapq. O(log n)"]:::ok
+  end
+  subgraph R2[" "]
+    direction LR
+    Q2(["Push or pop at both ends?"]) --> A2["deque: deque, ArrayDeque, collections.deque. O(1)"]:::ok
+  end
+  subgraph R3[" "]
+    direction LR
+    Q3(["Search a sorted array?"]) --> A3["binary search: lower_bound, Arrays.binarySearch, bisect"]:::ok
+  end
+  subgraph R4[" "]
+    direction LR
+    Q4(["Would sorting first help?"]) --> A4["sort, Arrays.sort, sorted. O(n log n)"]:::warn
+  end
+  R1 -->|"no"| R2
+  R2 -->|"no"| R3
+  R3 -->|"no"| R4`,
+      caption: "Pick the tool from the question; the names are C++, Java, Python.",
       table: { head: ["Need", "C++", "Java", "Python", "JavaScript"], rows: [
         ["Min-heap", "priority_queue<int, vector<int>, greater<int>>", "PriorityQueue<>()", "heapq", "write one (no built-in)"],
         ["Max-heap", "priority_queue<int>", "PriorityQueue<>(reverseOrder())", "heapq with negated values", "write one"],
@@ -986,21 +1088,10 @@ main();`,
       id: "memory",
       title: "Memory, references and mutability",
       summary: "Most bugs that make no sense come from two names pointing at the same object. C++ gives you values, references and pointers explicitly; Java, Python and JavaScript hand you references to objects and garbage-collect them.",
-      diagram: `flowchart LR
-  subgraph S["stack"]
-    direction TB
-    a["a"]
-    b["b"]
-    c["c"]
-  end
-  subgraph H["heap"]
-    direction TB
-    L1["list [1, 2, 3]"]
-    L2["list [1, 2, 3, 4] (copy)"]
-  end
-  a --> L1
-  b --> L1
-  c --> L2`,
+      diagram: `flowchart TB
+  a["a (stack)"] --> L1["heap: list [1, 2, 3]"]:::hot
+  b["b (stack)"] --> L1
+  c["c (stack)"] --> L2["heap: copy, list [1, 2, 3, 4]"]:::ok`,
       caption: "b = a copies the reference, not the list. A copy is a new object on the heap.",
       code: {
         cpp: `#include <iostream>

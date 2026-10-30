@@ -192,15 +192,23 @@ int main() {
       title: "Virtual memory and page replacement",
       summary: "With **demand paging**, a page is loaded only when first used. Touching a page that is not in memory causes a **page fault**; if no frame is free, the OS must evict a page, and the replacement policy decides which.",
       diagram: `flowchart TB
-  A["CPU touches page 5"] --> B{"in memory?"}
-  B -->|"yes"| C["read via TLB / page table"]
-  B -->|"no: page fault"| D["OS: is the address valid?"]
-  D -->|"no"| X["segmentation fault"]
-  D -->|"yes"| E{"free frame?"}
-  E -->|"no"| F["pick victim (FIFO / LRU / clock),<br/>write back if dirty"]
-  E -->|"yes"| G["read page from disk"]
-  F --> G
-  G --> H["update page table, restart instruction"]`,
+  H0["CPU touches page 5"]
+  subgraph R1[" "]
+    direction LR
+    Q1(["in memory?"]) --> A1["yes: read via TLB / page table"]:::ok
+  end
+  subgraph R2[" "]
+    direction LR
+    Q2(["address valid?"]):::warn --> A2["no: segmentation fault"]:::bad
+  end
+  subgraph R3[" "]
+    direction LR
+    Q3(["free frame?"]) --> A3["no: evict a victim (FIFO, LRU, clock), write back if dirty"]:::warn
+  end
+  H0 --> R1
+  R1 -->|"no: page fault"| R2
+  R2 -->|"yes"| R3
+  R3 -->|"frame ready"| T0["read page from disk, update page table, restart the instruction"]:::ok`,
       caption: "What the OS does on a page fault.",
       points: [
         "Page fault steps: trap to the OS, check the access is valid, find a free frame (evicting if needed, writing it back if dirty), read the page from disk, update the page table, restart the instruction.",
@@ -218,14 +226,10 @@ int main() {
       id: "storage",
       title: "File systems and disk scheduling",
       summary: "A file system maps names to data blocks on disk. On Unix, a file's metadata and block pointers live in an **inode**; a directory is just a table of (name → inode number).",
-      diagram: `flowchart LR
-  D["directory entry<br/>'notes.txt' → inode 42"] --> I["inode 42<br/>size, owner, permissions,<br/>timestamps, link count"]
-  I --> B1["direct block pointers"]
-  I --> B2["single indirect"]
-  I --> B3["double indirect"]
-  B1 --> DATA["data blocks"]
-  B2 --> DATA
-  B3 --> DATA`,
+      diagram: `flowchart TB
+  D["directory entry: 'notes.txt' → inode 42"] --> I["inode 42: size, owner, permissions, timestamps, link count"]:::hot
+  I --> P["block pointers: 12 direct, then single, double, triple indirect"]
+  P --> DATA[("data blocks")]:::ok`,
       caption: "Names live in directories; everything else about a file lives in its inode.",
       table: { head: ["Disk scheduling", "How it moves the head", "Note"], rows: [
         ["FCFS", "in request order", "fair, lots of seeking"],
@@ -244,17 +248,18 @@ int main() {
       id: "ipc",
       title: "Inter-process communication",
       summary: "Processes are isolated, so they need the kernel's help to talk. The two families are **shared memory** (fast, needs synchronization) and **message passing** (simpler, more copying).",
-      diagram: `flowchart LR
-  subgraph SM["Shared memory"]
+      diagram: `flowchart TB
+  subgraph SM["Shared memory: fast, needs locks"]
     direction LR
-    A1["process A"] -->|"write"| M[("shared pages")]
+    A1["process A"] -->|"write"| M[("shared pages")]:::hot
     M -->|"read"| B1["process B"]
   end
-  subgraph MP["Message passing"]
+  subgraph MP["Message passing: simpler, kernel copies"]
     direction LR
     A2["process A"] -->|"send()"| K["kernel queue"]
     K -->|"receive()"| B2["process B"]
-  end`,
+  end
+  SM ~~~ MP`,
       caption: "Shared memory skips the kernel after setup; message passing copies through it every time.",
       table: { head: ["Mechanism", "Shape", "Typical use"], rows: [
         ["Pipe", "one-way byte stream between related processes", "shell pipelines: ls | grep"],
