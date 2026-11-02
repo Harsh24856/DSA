@@ -17,6 +17,7 @@ export const APTITUDE: Subject = {
     },
     {
       id: "numbers",
+      anim: "apt-euclid",
       title: "Number system",
       summary: "Divisibility, factors, HCF and LCM, remainders and unit digits. Most questions reduce to prime factorisation or a repeating cycle.",
       diagram: `flowchart TB

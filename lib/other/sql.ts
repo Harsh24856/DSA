@@ -80,6 +80,7 @@ ORDER BY id;`, sqlSetup: SETUP, result: { head: ["name", "band"], rows: [["Asha"
     },
     {
       id: "joins",
+      anim: "sql-join",
       title: "Joins",
       summary: "A join combines rows from two tables where a condition matches. The join type decides what happens to rows that find no partner.",
       real: [
@@ -136,6 +137,7 @@ WHERE NOT EXISTS (SELECT 1 FROM employees e WHERE e.dept_id = d.id);`, sqlSetup:
     },
     {
       id: "grouping",
+      anim: "sql-group",
       title: "Aggregation and GROUP BY",
       summary: "GROUP BY collapses rows that share values into one row per group; aggregates (COUNT, SUM, AVG, MIN, MAX) summarise each group. Every selected column must be grouped or aggregated.",
       diagram: `flowchart TB
@@ -191,6 +193,7 @@ SELECT name, depth FROM chain ORDER BY depth, name;`, sqlSetup: SETUP, result: {
     },
     {
       id: "windows",
+      anim: "sql-window",
       title: "Window functions",
       summary: "A window function computes a value for each row from a set of related rows (its window) without collapsing them like GROUP BY does. `PARTITION BY` splits rows into groups, `ORDER BY` orders them inside each group.",
       diagram: `flowchart TB

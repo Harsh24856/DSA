@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, Flask } from "@phosphor-icons/react";
 import { GENAI } from "@/lib/genai/content";
-import { LABS } from "@/lib/genai/labs";
+import { FLOW_SLOTS, LABS } from "@/lib/genai/labs";
 import { usePatterns } from "@/lib/patternStore";
 import { GenaiDoc } from "./GenaiDoc";
 
@@ -45,7 +45,7 @@ export function GenaiView({ id }: { id: string }) {
         )}
       </section>
 
-      <GenaiDoc html={s.html} labs={LABS[id]} />
+      <GenaiDoc html={s.html} labs={LABS[id]} flows={FLOW_SLOTS[id]} />
 
       <nav className="grid gap-3 sm:grid-cols-2" aria-label="Playbook pages">
         {prev ? <Link href={`/genai/${prev.id}`} className="btn btn-nav justify-start gap-3"><ArrowLeft size={16} aria-hidden /><span><span className="block text-xs font-normal text-muted">Previous</span>{prev.nav}</span></Link> : <span />}

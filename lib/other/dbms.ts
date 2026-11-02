@@ -99,6 +99,7 @@ export const DBMS: Subject = {
     },
     {
       id: "acid",
+      anim: "dbms-wal",
       title: "Transactions and ACID",
       summary: "A transaction is a group of operations that must succeed or fail as one unit, like moving money between two accounts.",
       real: [
@@ -137,6 +138,7 @@ export const DBMS: Subject = {
     },
     {
       id: "concurrency",
+      anim: "dbms-dirty",
       title: "Schedules, serializability and concurrency control",
       summary: "A schedule interleaves operations of several transactions. It is **conflict serializable** if swapping non-conflicting operations can turn it into some serial order. Two operations conflict if they belong to different transactions, touch the same item, and at least one is a write.",
       real: [

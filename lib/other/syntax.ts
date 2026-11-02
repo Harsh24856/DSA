@@ -214,6 +214,7 @@ console.log(kind("sat"), sum);   // weekend 30`,
     },
     {
       id: "functions",
+      anim: "syn-stack",
       title: "Functions, lambdas and closures",
       summary: "Every language here treats functions as values you can pass around. The differences are in defaults, variadic arguments, how arguments are passed, and how closures capture variables.",
       diagram: `flowchart TB
@@ -373,6 +374,7 @@ console.log(capitalized, counts["o"], s.padStart(13, "*"));`,
     },
     {
       id: "collections",
+      anim: "syn-hash",
       title: "Collections: lists, maps and sets",
       summary: "Every language has a growable array, a hash map and a set. Know which one is ordered, what lookups cost, and how to count things in one line: this is half of every coding round.",
       diagram: `flowchart TB
@@ -894,6 +896,7 @@ print([next(gen) for _ in range(10)])   # [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]` } }
     },
     {
       id: "dsa-toolkit",
+      anim: "syn-binary",
       title: "The coding-round toolkit: sort, heap, deque, binary search",
       summary: "The standard-library pieces you reach for in almost every DSA problem, in each language. Knowing these by heart saves minutes in every round.",
       diagram: `flowchart TB
@@ -1120,6 +1123,7 @@ main();`,
     },
     {
       id: "memory",
+      anim: "syn-refs",
       title: "Memory, references and mutability",
       summary: "Most bugs that make no sense come from two names pointing at the same object. C++ gives you values, references and pointers explicitly; Java, Python and JavaScript hand you references to objects and garbage-collect them.",
       diagram: `flowchart TB

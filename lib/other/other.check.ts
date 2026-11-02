@@ -103,7 +103,8 @@ import { SYNTAX } from "./syntax.ts";
 import { REACT } from "./react.ts";
 import { NODE } from "./node.ts";
 import { DESIGN } from "./design.ts";
-import { FLOWS } from "./flows.ts";
+import { FLOWS, type BarStep, type GridStep, type LaneStep } from "./flows.ts";
+import { FLOW_SLOTS } from "../genai/labs.ts";
 import { FACTS } from "../landingFacts.ts";
 import { compile, type PlayMode } from "./playground/compile.ts";
 import { STARTERS } from "./playground/starters.ts";
@@ -326,6 +327,49 @@ globalThis.__server.close(); process.exit(0);`);
   const count = (f: (c: (typeof SUBJECTS)[number]["chapters"][number]) => number) => SUBJECTS.reduce((n, s) => n + s.chapters.reduce((m, c) => m + f(c), 0), 0);
   assert.deepEqual({ subjects: SUBJECTS.length, chapters: count(() => 1), questions: count((c) => c.cards.length), stories: count((c) => c.real?.length ?? 0) },
     { subjects: FACTS.subjects, chapters: FACTS.chapters, questions: FACTS.questions, stories: FACTS.stories }, "lib/landingFacts.ts is out of date");
+}
+
+// every animated walk-through: well formed, placed somewhere real, and showing numbers that make sense
+{
+  const used = new Set<string>();
+  for (const s of SUBJECTS) for (const c of s.chapters) if (c.anim) used.add(c.anim);
+  const source = readFileSync(join(process.cwd(), "lib/genai/content.ts"), "utf8");
+  const G = JSON.parse(source.slice(source.indexOf("= [") + 2).replace(/;\s*$/, "")) as { id: string; html: string }[];
+  for (const [sec, list] of Object.entries(FLOW_SLOTS)) for (const [slide, flow] of list) {
+    assert.ok(FLOWS[flow], `Gen AI slot ${sec}: unknown flow ${flow}`);
+    assert.ok(G.find((g) => g.id === sec)?.html.includes(`id="${slide}"`), `Gen AI slot ${sec}/${slide}: no such slide`);
+    used.add(flow);
+  }
+  for (const [id, f] of Object.entries(FLOWS)) {
+    assert.ok(used.has(id), `flow ${id} is not shown anywhere`);
+    assert.ok(f.steps.length >= 2 && f.title, `flow ${id}`);
+    const text = JSON.stringify(f);
+    const bad = /NaN|(?<!is )undefined|Infinity|[:,[]null/;      // JSON turns NaN into null
+    assert.ok(!bad.test(text), `flow ${id} has a bad value: ${text.match(new RegExp(`.{0,40}(${bad.source}).{0,20}`))?.[0]}`);
+    for (const st of f.steps) {
+      assert.ok(st.note.length > 10, `flow ${id}: step needs a caption`);
+      if (f.kind === "lanes") { const l = st as LaneStep; assert.ok(l.from in f.lanes && l.to in f.lanes && l.label, `flow ${id}: bad lane`); assert.ok(l.label.length <= 26, `flow ${id}: label too long: ${l.label}`); }
+    }
+    if (f.kind === "bars") for (const st of f.steps) assert.equal((st as BarStep).bars.length, f.steps[0].bars.length, `flow ${id}: bar count changes`);
+  }
+  const noteHas = (id: string, s: string) => assert.ok(FLOWS[id].steps.some((x) => x.note.includes(s)), `flow ${id} should say ${s}`);
+  // spot checks against values worked out independently
+  noteHas("apt-euclid", "HCF is 21"); noteHas("apt-euclid", "= 1260");
+  noteHas("os-translate", "= 29092");
+  noteHas("g-backprop", "from 9 to 5.76");
+  noteHas("g-kappa", "= 0.38");
+  noteHas("g-lora", "65,536");
+  noteHas("g-batching", "against 9 for static");
+  noteHas("syn-stack", "fact(4) = 24");
+  // the window example must match what SQLite really computes
+  const wdb = new DatabaseSync(":memory:");
+  wdb.exec("CREATE TABLE e (name TEXT, dept INT, pay INT); INSERT INTO e VALUES ('Asha',1,90),('Ben',1,70),('Chen',2,50),('Dia',2,65),('Eli',NULL,40);");
+  const real2 = (wdb.prepare("SELECT name, dept, pay, ROW_NUMBER() OVER w AS rk, SUM(pay) OVER w AS run FROM e WHERE dept IS NOT NULL WINDOW w AS (PARTITION BY dept ORDER BY pay DESC) ORDER BY dept, pay DESC").all() as Record<string, unknown>[]).map((r) => Object.values(r).map(cell));
+  const shown = (FLOWS["sql-window"].steps.at(-1) as GridStep).tables[0].rows.map((r) => r.map(cell));
+  assert.deepEqual(shown, real2, "SQL window flow matches SQLite");
+  const join2 = (wdb.exec("CREATE TABLE d (id INT, name TEXT); INSERT INTO d VALUES (1,'Eng'),(2,'Sales'),(3,'Legal');"), wdb.prepare("SELECT e.name, COALESCE(d.name,'NULL') FROM e LEFT JOIN d ON e.dept = d.id").all() as Record<string, unknown>[]).map((r) => Object.values(r).map(cell));
+  assert.deepEqual((FLOWS["sql-join"].steps[2] as GridStep).tables[0].rows.map((r) => r.map(cell)), join2, "SQL join flow matches SQLite");
+  console.log(`flows ok: ${Object.keys(FLOWS).length} animated walk-throughs`);
 }
 
 console.log(`content ok: ${SUBJECTS.length} subjects, ${SUBJECTS.reduce((n, s) => n + s.chapters.reduce((m, c) => m + c.cards.length, 0), 0)} questions, ${sqlRun} SQL runs, ${compiled} programs run, ${tsFiles} TypeScript files type-checked`);

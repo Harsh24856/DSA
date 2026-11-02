@@ -2,6 +2,7 @@
 // Renders one playbook section's HTML (lib/genai/content.ts): draws its mermaid diagrams (useMermaid), wires the code blocks' Copy buttons, mounts the interactive labs
 // (lib/genai/labs.ts) into their slides, adds a PyTorch / TensorFlow switch to code blocks that have a TF version,
 // and a Run button (Pyodide, components/runPython.ts) under the deep-dive scripts that need only stdlib, numpy or pydantic.
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { LabKind } from "@/lib/genai/labs";
@@ -13,7 +14,9 @@ import { runPython } from "./runPython";
 
 type Fw = "torch" | "tf";
 const FW_KEY = "dsa-genai-fw";
-type Mount = { node: HTMLElement; lab?: LabKind; code?: { el: HTMLElement; key: string }; run?: { src: string } };
+const FlowPlayer = dynamic(() => import("./other/FlowPlayer"), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
+
+type Mount = { node: HTMLElement; lab?: LabKind; flow?: string; code?: { el: HTMLElement; key: string }; run?: { src: string } };
 
 // Deep-dive scripts that need only the standard library, numpy or pydantic, so they run in the browser.
 const RUNNABLE = new Set(["backprop_by_hand.py", "param_count.py", "online_softmax.py", "attention_by_hand.py", "rope_relative.py",
@@ -56,9 +59,9 @@ function CodeTabs({ el, file, code, fw, setFw }: { el: HTMLElement; file: string
   );
 }
 
-const NO_LABS: [string, LabKind][] = [];
+const NO_LABS: [string, LabKind][] = [], NO_FLOWS: [string, string][] = [];
 
-export function GenaiDoc({ html, labs = NO_LABS }: { html: string; labs?: [string, LabKind][] }) {
+export function GenaiDoc({ html, labs = NO_LABS, flows = NO_FLOWS }: { html: string; labs?: [string, LabKind][]; flows?: [string, string][] }) {
   const ref = useRef<HTMLDivElement>(null);
   const [mounts, setMounts] = useState<Mount[]>([]);
   const [fw, setFwRaw] = useState<Fw>("torch");
@@ -75,6 +78,11 @@ export function GenaiDoc({ html, labs = NO_LABS }: { html: string; labs?: [strin
       if (!host) continue;
       const node = document.createElement("div"); host.append(node); made.push({ node, lab });
     }
+    for (const [slide, flow] of flows) {
+      const host = root.querySelector<HTMLElement>(`#${slide}`);
+      if (!host) continue;
+      const node = document.createElement("div"); host.append(node); made.push({ node, flow });
+    }
     for (const el of root.querySelectorAll<HTMLElement>(".gx-code")) {
       const key = el.querySelector(".gx-code-head span")?.textContent?.split(" ")[0] ?? "";
       if (RUNNABLE.has(key)) { const node = document.createElement("div"); el.after(node); made.push({ node, run: { src: el.querySelector("code")?.textContent ?? "" } }); }
@@ -83,7 +91,7 @@ export function GenaiDoc({ html, labs = NO_LABS }: { html: string; labs?: [strin
     }
     setMounts(made);
     return () => { made.forEach((m) => m.node.remove()); setMounts([]); };
-  }, [html, labs]);
+  }, [html, labs, flows]);
 
   useEffect(() => {
     const root = ref.current;
@@ -105,8 +113,8 @@ export function GenaiDoc({ html, labs = NO_LABS }: { html: string; labs?: [strin
     <>
       <div ref={ref} className="gx" dangerouslySetInnerHTML={{ __html: html }} />
       {mounts.map((m, i) => createPortal(
-        m.lab ? <GenaiLab kind={m.lab} /> : m.run ? <RunPanel src={m.run.src} /> : <CodeTabs el={m.code!.el} file={TF[m.code!.key].file} code={TF[m.code!.key].code} fw={fw} setFw={setFw} />,
-        m.node, `${m.lab ?? m.code?.key ?? "run"}-${i}`,
+        m.flow ? <FlowPlayer id={m.flow} /> : m.lab ? <GenaiLab kind={m.lab} /> : m.run ? <RunPanel src={m.run.src} /> : <CodeTabs el={m.code!.el} file={TF[m.code!.key].file} code={TF[m.code!.key].code} fw={fw} setFw={setFw} />,
+        m.node, `${m.flow ?? m.lab ?? m.code?.key ?? "run"}-${i}`,
       ))}
     </>
   );

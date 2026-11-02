@@ -67,6 +67,7 @@ export const CN: Subject = {
     },
     {
       id: "dns",
+      anim: "cn-dns",
       title: "DNS",
       summary: "DNS turns names into IP addresses using a distributed, cached hierarchy. Your computer asks a recursive resolver, which walks the hierarchy for you and caches the answers for their TTL.",
       real: [
@@ -103,6 +104,7 @@ export const CN: Subject = {
     },
     {
       id: "http",
+      anim: "cn-tls",
       title: "HTTP and HTTPS",
       summary: "HTTP is a request-response protocol: method, path and headers go in; a status code, headers and a body come back. It is stateless, so cookies or tokens carry identity between requests.",
       diagram: `flowchart TB
@@ -137,6 +139,7 @@ export const CN: Subject = {
     },
     {
       id: "url",
+      anim: "cn-url",
       title: "What happens when you type a URL",
       summary: "The classic question that tests whether you can connect every layer. Tell it as one story, top to bottom.",
       diagram: `flowchart TB
@@ -156,6 +159,7 @@ export const CN: Subject = {
     },
     {
       id: "routing",
+      anim: "cn-lpm",
       title: "Routing and error reporting",
       summary: "Routers forward each packet using the longest matching prefix in their routing table. Routing protocols build those tables.",
       real: [

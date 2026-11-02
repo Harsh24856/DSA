@@ -244,6 +244,11 @@
   .pg-table{width:100%;border-collapse:collapse;font-size:14px}
   .pg-table th,.pg-table td{padding:4px 12px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
   .pg-table th{font-weight:600;color:var(--muted)}
+  .flow-note{min-height:80px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);max-width:560px}
+  .flow-note b{font-weight:600;color:var(--accent)}
+  .flow-note[data-tone="bad"] b{color:var(--hard)}
+  .flow-note[data-tone="warn"] b{color:var(--medium)}
+  .flow-note[data-tone="ok"] b{color:var(--easy)}
   .gx-code{border:1px solid var(--line);background:var(--bg);border-radius:12px;overflow:hidden;min-width:0}
   .gx-code-head{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;border-bottom:1px solid var(--line)}
   .gx-code-head span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--mono);font-size:12px;color:var(--muted)}

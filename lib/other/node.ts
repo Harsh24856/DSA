@@ -88,6 +88,7 @@ readFile(fileURLToPath(import.meta.url), () => {    // inside an I/O callback (p
     },
     {
       id: "fs-streams",
+      anim: "node-backpressure",
       title: "Files, buffers and streams",
       summary: "Read and write files with `node:fs/promises`. For anything large, use **streams**: data flows in chunks, so memory stays flat no matter the file size, and `pipeline` handles backpressure and errors.",
       diagram: `flowchart TB
@@ -177,6 +178,7 @@ server.listen(3000, () => console.log("raw server up"));` } },
     },
     {
       id: "middleware",
+      anim: "node-mw",
       title: "Middleware: the request pipeline",
       summary: "Express is a chain of middleware functions `(req, res, next)`. Each can read or change the request, end the response, or call `next()` to pass control on. Order matters: they run in the order you register them. An **error middleware** has four arguments and catches anything passed to `next(err)` or thrown.",
       diagram: `flowchart TB
@@ -313,6 +315,7 @@ app.listen(3000);`,
     },
     {
       id: "auth",
+      anim: "node-jwt",
       title: "Authentication: passwords, sessions and JWTs",
       summary: "Never store passwords: store a slow, salted hash (scrypt, bcrypt or argon2). After login, the server either keeps a **session** and gives the browser a cookie with its id, or issues a signed **JWT** that the client sends back on each request.",
       diagram: `sequenceDiagram

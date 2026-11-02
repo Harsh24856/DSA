@@ -51,6 +51,7 @@ export function App() {
     },
     {
       id: "state",
+      anim: "react-batch",
       title: "State and events",
       summary: "**State** is data a component remembers between renders. Calling the setter schedules a re-render with the new value. State updates are asynchronous and batched, so use the updater form when the new value depends on the old one.",
       diagram: `flowchart TB
@@ -98,6 +99,7 @@ export function Counter() {
     },
     {
       id: "lists",
+      anim: "react-keys",
       title: "Lists, keys and conditional rendering",
       summary: "Render lists with `map`. Each item needs a stable, unique **key** so React can tell which item moved, was added or was removed between renders.",
       diagram: `flowchart TB
@@ -147,6 +149,7 @@ export function TodoList() {
     },
     {
       id: "effects",
+      anim: "react-effect",
       title: "Effects and data fetching",
       summary: "`useEffect` runs code **after** React has updated the screen, to synchronise with something outside React: a network request, a subscription, a timer, the document title. Its dependency array says when to re-run, and its cleanup function undoes the previous run.",
       real: [
@@ -484,6 +487,7 @@ export function AddToCart({ id }: { id: string }) {
     },
     {
       id: "internals",
+      anim: "react-render",
       title: "How React renders: reconciliation, batching and Fiber",
       summary: "On each update React calls your components to get a new element tree, **reconciles** it with the previous tree to find the minimal changes, then **commits** them to the DOM. The Fiber architecture splits this work into small units so urgent updates (typing) can interrupt less urgent ones (a big list).",
       diagram: `flowchart LR

@@ -8,6 +8,7 @@ export const OS: Subject = {
   chapters: [
     {
       id: "process",
+      anim: "os-switch",
       title: "Programs, processes and threads",
       summary: "A **program** is a file on disk. A **process** is that program running: it has its own memory, open files and at least one thread. A **thread** is one path of execution inside a process; threads of the same process share its memory.",
       real: [
@@ -89,6 +90,7 @@ export const OS: Subject = {
     },
     {
       id: "sync",
+      anim: "os-race",
       title: "Synchronization",
       summary: "When threads share data, the result can depend on timing: a **race condition**. The code that touches shared data is the **critical section**, and only one thread may be inside it at a time.",
       real: [
@@ -161,6 +163,7 @@ int main() {
     },
     {
       id: "deadlock",
+      anim: "os-deadlock",
       title: "Deadlock",
       summary: "A set of processes is deadlocked when each holds a resource and waits for one held by another in the set, so none can proceed.",
       points: [
@@ -184,6 +187,7 @@ int main() {
     },
     {
       id: "memory",
+      anim: "os-translate",
       title: "Memory management: paging and segmentation",
       summary: "The OS gives every process the illusion of its own contiguous memory. **Paging** cuts virtual memory into fixed-size pages and physical memory into frames of the same size; a page table maps one to the other.",
       points: [

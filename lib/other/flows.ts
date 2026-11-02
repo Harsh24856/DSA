@@ -1,12 +1,30 @@
-// Animated walk-throughs for the System Design chapters: one request (or one event) travelling through the
-// system, a step at a time. Played by components/other/FlowPlayer.tsx (Remotion Player); a chapter opts in
-// with `anim: "<id>"`. Each step is one box in a top-to-bottom chain and one caption.
+// Animated walk-throughs: one request, one algorithm or one idea, a step at a time. Played by
+// components/other/FlowPlayer.tsx (Remotion Player). A CS chapter opts in with `anim: "<id>"`; a Gen AI slide is listed in
+// FLOW_SLOTS (lib/genai/labs.ts). Numbers in grids and bars are computed from real code wherever an algorithm is shown.
+import { CS_FLOWS } from "./flows-cs.ts";
+import { GENAI_FLOWS } from "./flows-genai.ts";
 
 export type FlowTone = "ok" | "bad" | "warn" | "hot";
-export type FlowStep = { node: string; note: string; tone?: FlowTone };
-export type Flow = { title: string; steps: FlowStep[] };
+export type ChainStep = { node: string; note: string; tone?: FlowTone };
+export type LaneStep = { from: number; to: number; label: string; note: string; tone?: FlowTone };   // from === to is an action on that lane
+/** tones: "r:c" colours a cell, "r" a whole row, ":c" a whole column. */
+export type GridTable = { label?: string; head?: string[]; rowHead?: string[]; rows: (string | number)[][]; tones?: Record<string, FlowTone> };
+export type GridStep = { note: string; tone?: FlowTone; tables: GridTable[] };
+export type Bar = { label: string; value: number; tone?: FlowTone };
+export type BarStep = { note: string; tone?: FlowTone; bars: Bar[] };
+
+export type ChainFlow = { kind?: "chain"; title: string; steps: ChainStep[] };
+export type LaneFlow = { kind: "lanes"; title: string; lanes: string[]; steps: LaneStep[] };
+export type GridFlow = { kind: "grid"; title: string; steps: GridStep[] };
+export type BarFlow = { kind: "bars"; title: string; max?: number; format?: (v: number) => string; steps: BarStep[] };
+export type Flow = ChainFlow | LaneFlow | GridFlow | BarFlow;
+
+/** The plain-text caption of one step. */
+export const stepNote = (f: Flow, i: number) => f.steps[i].note;
 
 export const FLOWS: Record<string, Flow> = {
+  ...CS_FLOWS,
+  ...GENAI_FLOWS,
   caching: {
     title: "A read with cache-aside",
     steps: [

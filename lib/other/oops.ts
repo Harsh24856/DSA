@@ -132,6 +132,7 @@ int main() {
     },
     {
       id: "ctors",
+      anim: "oop-ctor",
       title: "Constructors, destructors and copying",
       summary: "A constructor puts a new object into a valid state; a destructor (C++) releases what it holds. Copying an object that owns resources raises the classic **shallow vs deep copy** question.",
       diagram: `sequenceDiagram
@@ -512,6 +513,7 @@ int main() {
     },
     {
       id: "exceptions",
+      anim: "oop-unwind",
       title: "Exceptions and memory management",
       summary: "Exceptions separate error handling from normal flow. Java has checked exceptions (must be declared or caught) and a garbage collector; C++ has only unchecked exceptions and deterministic destructors, which is what makes RAII work.",
       real: [
