@@ -1,6 +1,6 @@
 // Hand-written solutions for the slugs listed under "pattern3" in batches.json (questions from the pattern practice lists). See arrays.ts for the style.
 import type { CellsFrame, Diagram, GraphFrame, IntervalsFrame, ListFrame, StackFrame, TableFrame, Tone, TreeFrame } from "../diagram";
-import { levelTree, range, stateMachine, type TNode } from "../sim.ts";
+import { levelTree, mergeLists, range, stateMachine, twoHeaps, type TNode } from "../sim.ts";
 import type { Solution } from "./types";
 
 type Cell = string | number | null;
@@ -2123,6 +2123,214 @@ def isNStraightHand(hand, groupSize):
       }
       frames.push({ note: `${boats} boats`, tones: gone });
       return cells(`Limit ${limit}: ${boats} boats`, [p], frames);
+    },
+  },
+  "maximum-units-on-a-truck": {
+    approach: "Greedy: load box types in order of most units per box until the truck is full.",
+    idea: ["Every box takes one slot, so a slot is worth the units of the box in it.", "Sort box types by units per box, highest first.", "Take as many of each as fit; the last type may be taken partly."],
+    code: `def maximumUnits(boxTypes, truckSize):
+    total = 0
+    for boxes, units in sorted(boxTypes, key=lambda b: -b[1]):
+        take = min(boxes, truckSize)
+        total += take * units
+        truckSize -= take
+        if not truckSize:
+            break
+    return total`,
+    lang: "python", time: "O(n log n)", space: "O(1) extra",
+    viz: () => {
+      const B = [[5, 10], [2, 5], [4, 7], [3, 9]].sort((x, y) => y[1] - x[1]), rows: Cell[][] = B.map(([b, u]) => [b, u, null]), frames: TableFrame[] = [];
+      let room = 10, total = 0;
+      frames.push({ note: `truck holds ${room} boxes; best units per box first`, cells: copy(rows) });
+      for (let i = 0; i < B.length && room; i++) { const take = Math.min(B[i][0], room); total += take * B[i][1]; room -= take; rows[i][2] = take; frames.push({ note: `take ${take} of ${B[i][0]} boxes with ${B[i][1]} units → +${take * B[i][1]}, total ${total}, room ${room}`, cells: copy(rows), active: [i, 2] }); }
+      frames.push({ note: `truck full: ${total} units`, cells: copy(rows), tones: tn(rows.flatMap((r, i) => (r[2] ? [`${i}:2`] : [])), "found") });
+      return table(`Units loaded: ${total}`, heads(B.length, "type "), ["boxes", "units", "taken"], frames);
+    },
+  },
+
+  "lemonade-change": {
+    approach: "Count $5 and $10 bills; for a $20 give $10 + $5 when possible (keeping fives, which are more flexible), else three $5.",
+    idea: ["A $5 needs no change; a $10 needs one $5.", "A $20 needs $15: prefer $10 + $5 because a $5 can make change for both $10 and $20 later.", "If the needed bills are missing at any step, return False."],
+    code: `def lemonadeChange(bills):
+    five = ten = 0
+    for b in bills:
+        if b == 5:
+            five += 1
+        elif b == 10:
+            if not five:
+                return False
+            five -= 1
+            ten += 1
+        elif ten and five:
+            ten -= 1
+            five -= 1
+        elif five >= 3:
+            five -= 3
+        else:
+            return False
+    return True`,
+    lang: "python", time: "O(n)", space: "O(1)",
+    viz: () => {
+      const bills = [5, 5, 10, 5, 20, 20], F: (string | number)[] = Array(bills.length).fill(""), T: (string | number)[] = Array(bills.length).fill(""), frames: CellsFrame[] = []; let five = 0, ten = 0, ok = true;
+      for (let i = 0; i < bills.length && ok; i++) {
+        const b = bills[i]; let note: string;
+        if (b === 5) { five++; note = "$5: keep it"; }
+        else if (b === 10) { if (five) { five--; ten++; note = "$10: give back a $5"; } else { ok = false; note = "$10 but no $5 to give back → false"; } }
+        else if (ten && five) { ten--; five--; note = "$20: give back $10 + $5 (save the fives)"; }
+        else if (five >= 3) { five -= 3; note = "$20: no $10, give back three $5"; }
+        else { ok = false; note = "$20 but not enough change → false"; }
+        F[i] = five; T[i] = ten;
+        frames.push({ note: `${note}; now ${five} × $5, ${ten} × $10`, rows: [bills, [...F], [...T]], tones: { [`0:${i}`]: ok ? "active" : "bad" } });
+      }
+      if (ok) frames.push({ note: "everyone got correct change → true", rows: [bills, [...F], [...T]] });
+      return cells(`Lemonade [${bills.join(",")}]: ${ok}`, [bills, F.map(() => ""), T.map(() => "")], frames, ["bill", "$5s", "$10s"]);
+    },
+  },
+
+  "kth-largest-element-in-a-stream": {
+    approach: "Keep a min-heap of the k largest values seen; its top is the k-th largest.",
+    idea: ["Only the k largest values can ever matter.", "Push each new value; if the heap grows past k, pop the smallest.", "The heap's minimum is then exactly the k-th largest so far."],
+    code: `import heapq
+class KthLargest:
+    def __init__(self, k, nums):
+        self.k = k
+        self.heap = heapq.nlargest(k, nums)
+        heapq.heapify(self.heap)
+
+    def add(self, val):
+        heapq.heappush(self.heap, val)
+        if len(self.heap) > self.k:
+            heapq.heappop(self.heap)
+        return self.heap[0]`,
+    lang: "python", time: "O(log k) per add", space: "O(k)",
+    viz: () => {
+      const k = 3, h = [4, 5, 8, 2].sort((a, b) => b - a).slice(0, k).sort((a, b) => a - b), frames: StackFrame[] = [{ note: `start with nums [4, 5, 8, 2]: keep the ${k} largest`, items: [...h], side: `k-th largest ${h[0]}` }];
+      for (const v of [3, 5, 10, 9, 4]) {
+        h.push(v); h.sort((a, b) => a - b); const out = h.length > k ? h.shift()! : null;
+        frames.push({ note: `add ${v}: ${out === v ? `${v} is too small, it leaves at once` : out != null ? `push ${v}, pop the smallest ${out}` : `push ${v}`} → k-th largest ${h[0]}`, items: [...h], incoming: v, popped: out != null ? [out] : [], side: `k-th largest ${h[0]}` });
+      }
+      return { kind: "stack", title: `KthLargest(k = ${k}): heap holds the top ${k}, smallest on the left`, frames };
+    },
+  },
+
+  "merge-two-sorted-lists": {
+    approach: "Walk both lists with a dummy head, always linking the smaller current node, then attach whatever remains.",
+    idea: ["A dummy node avoids a special case for the first link.", "Compare the two heads; link the smaller one and advance in that list.", "When one list runs out, the rest of the other is already sorted, so link it whole."],
+    code: `def mergeTwoLists(list1, list2):
+    dummy = tail = ListNode()
+    while list1 and list2:
+        if list1.val <= list2.val:
+            tail.next, list1 = list1, list1.next
+        else:
+            tail.next, list2 = list2, list2.next
+        tail = tail.next
+    tail.next = list1 or list2
+    return dummy.next`,
+    lang: "python", time: "O(m + n)", space: "O(1)",
+    viz: () => mergeLists([1, 2, 4], [1, 3, 4]),
+  },
+
+  "merge-k-sorted-lists": {
+    approach: "Min-heap of the current head of each list: pop the smallest, link it, and push that list's next node.",
+    idea: ["The next node of the answer is always the smallest of the k heads.", "A heap gives that in O(log k); store (value, list index, node) so ties never compare nodes.", "Each of the N nodes is pushed and popped once."],
+    code: `import heapq
+def mergeKLists(lists):
+    heap = [(node.val, i, node) for i, node in enumerate(lists) if node]
+    heapq.heapify(heap)
+    dummy = tail = ListNode()
+    while heap:
+        _, i, node = heapq.heappop(heap)
+        tail.next = tail = node
+        if node.next:
+            heapq.heappush(heap, (node.next.val, i, node.next))
+    return dummy.next`,
+    lang: "python", time: "O(N log k)", space: "O(k)",
+    viz: () => {
+      const L = [[1, 4, 5], [1, 3, 4], [2, 6]], N = 8, idx = [0, 0, 0], out: number[] = [], frames: CellsFrame[] = [];
+      const rows = () => [...L, [...out, ...Array(N - out.length).fill("")]], heap: number[][] = L.map((l, i) => [l[0], i]);
+      while (heap.length) {
+        const heads = heap.map(([v]) => v).sort((a, b) => a - b).join(", "), [v, i] = popMin(heap); out.push(v); idx[i]++;
+        if (idx[i] < L[i].length) heap.push([L[i][idx[i]], i]);
+        frames.push({ note: `heap of heads [${heads}] → pop ${v} from list ${i + 1}${idx[i] < L[i].length ? `, push its next ${L[i][idx[i]]}` : ", that list is empty"}`, rows: rows(), tones: { ...Object.assign({}, ...L.map((_, r) => range(0, idx[r] - 1, r, "done"))), [`${i}:${idx[i] - 1}`]: "active", [`3:${out.length - 1}`]: "found" } });
+      }
+      frames.push({ note: `merged [${out.join(", ")}]`, rows: rows(), tones: range(0, N - 1, 3, "found") });
+      return cells("Merge [1,4,5], [1,3,4], [2,6]", rows().map((r, k) => (k === 3 ? Array(N).fill("") : r)), frames, ["L1", "L2", "L3", "out"]);
+    },
+  },
+
+  "find-median-from-data-stream": {
+    approach: "Two heaps: a max-heap for the lower half and a min-heap for the upper half, kept equal in size or with one extra in the lower half.",
+    idea: ["The median sits at the boundary of the two halves.", "Push each number into the lower half, move the lower half's max to the upper half, then move one back if the upper half got bigger.", "Median = top of the lower half (odd count) or the average of both tops (even count)."],
+    code: `import heapq
+class MedianFinder:
+    def __init__(self):
+        self.lo, self.hi = [], []
+
+    def addNum(self, num):
+        heapq.heappush(self.lo, -num)
+        heapq.heappush(self.hi, -heapq.heappop(self.lo))
+        if len(self.hi) > len(self.lo):
+            heapq.heappush(self.lo, -heapq.heappop(self.hi))
+
+    def findMedian(self):
+        if len(self.lo) > len(self.hi):
+            return float(-self.lo[0])
+        return (-self.lo[0] + self.hi[0]) / 2`,
+    lang: "python", time: "O(log n) add, O(1) median", space: "O(n)",
+    viz: () => twoHeaps([6, 10, 2, 6, 5, 0]),
+  },
+
+  "last-stone-weight": {
+    approach: "Max-heap simulation: smash the two heaviest stones and push back the difference until at most one stone is left.",
+    idea: ["Each turn needs the two largest stones, which a max-heap gives in O(log n).", "Equal stones both vanish; otherwise the difference goes back in.", "Python's heapq is a min-heap, so store negated weights."],
+    code: `import heapq
+def lastStoneWeight(stones):
+    heap = [-s for s in stones]
+    heapq.heapify(heap)
+    while len(heap) > 1:
+        y, x = -heapq.heappop(heap), -heapq.heappop(heap)
+        if y != x:
+            heapq.heappush(heap, -(y - x))
+    return -heap[0] if heap else 0`,
+    lang: "python", time: "O(n log n)", space: "O(n)",
+    viz: () => {
+      const h = [2, 7, 4, 1, 8, 1].sort((a, b) => a - b), frames: StackFrame[] = [{ note: "stones sorted, heaviest on the right (the heap top)", items: [...h] }];
+      while (h.length > 1) { const y = h.pop()!, x = h.pop()!; if (y !== x) { h.push(y - x); h.sort((a, b) => a - b); } frames.push({ note: y === x ? `smash ${y} and ${x}: equal, both gone` : `smash ${y} and ${x} → ${y - x} goes back`, items: [...h], popped: [y, x], incoming: y === x ? undefined : y - x }); }
+      frames.push({ note: `last stone weighs ${h[0] ?? 0}`, items: [...h], side: `answer ${h[0] ?? 0}` });
+      return { kind: "stack", title: `Last stone: ${h[0] ?? 0}`, frames };
+    },
+  },
+
+  "minimum-cost-to-hire-k-workers": {
+    approach: "Everyone is paid at the group's highest wage/quality ratio; sort by ratio and, for each worker as the ratio-setter, keep the k smallest qualities in a max-heap.",
+    idea: ["In a fair group every worker gets ratio × quality, and the ratio must be the largest wage/quality in the group.", "Scan workers by increasing ratio; the current one sets the ratio for any group of workers seen so far.", "Cost = ratio × total quality, so keep the k smallest qualities (pop the largest from a max-heap) and track the minimum cost."],
+    code: `import heapq
+def mincostToHireWorkers(quality, wage, k):
+    workers = sorted((w / q, q) for q, w in zip(quality, wage))
+    heap, total, best = [], 0, float("inf")
+    for ratio, q in workers:
+        heapq.heappush(heap, -q)
+        total += q
+        if len(heap) > k:
+            total += heapq.heappop(heap)
+        if len(heap) == k:
+            best = min(best, ratio * total)
+    return best`,
+    lang: "python", time: "O(n log n)", space: "O(n)",
+    viz: () => {
+      const quality = [3, 1, 10, 10, 1], wage = [4, 8, 2, 2, 7], k = 3, f2 = (x: number) => String(Math.round(x * 100) / 100);
+      const W = quality.map((q, i) => [wage[i] / q, q, i]).sort((a, b) => a[0] - b[0]), rows: Cell[][] = W.map(([r, q, i]) => [`w${i}`, f2(r), q, null]), frames: TableFrame[] = [];
+      let group: number[] = [], best = -1;
+      frames.push({ note: "workers sorted by wage / quality; each in turn sets the pay ratio", cells: copy(rows) });
+      W.forEach(([r, q], j) => {
+        group.push(j); let dropped = "";
+        if (group.length > k) { const big = group.reduce((a, b) => (W[b][1] > W[a][1] ? b : a)); group = group.filter((x) => x !== big); dropped = `; drop the largest quality ${W[big][1]}`; }
+        const tot = group.reduce((a, b) => a + W[b][1], 0); rows.forEach((row, x) => (row[3] = group.includes(x) ? "in" : null));
+        if (group.length === k) { const cost = r * tot; if (best < 0 || cost < best) best = cost; frames.push({ note: `ratio ${f2(r)} (quality ${q})${dropped}: group quality ${tot} → cost ${f2(cost)}, best ${f2(best)}`, cells: copy(rows), active: [j, 1] }); }
+        else frames.push({ note: `ratio ${f2(r)} (quality ${q}): only ${group.length} of ${k} workers so far`, cells: copy(rows), active: [j, 1] });
+      });
+      frames.push({ note: `minimum cost ${f2(best)}`, cells: copy(rows) });
+      return table(`Hire ${k}: ${f2(best)}`, heads(W.length, "#"), ["worker", "ratio", "quality", "group"], frames);
     },
   },
 };

@@ -130,3 +130,26 @@ def _reorganize(load, check, h):
     check("reorganizeString aaab", f("aaab"), "")
 
 CUSTOM += [_reorganize]
+CASES.update({
+ "maximum-units-on-a-truck": [("maximumUnits", ([[1,3],[2,2],[3,1]],4), 8), ("maximumUnits", ([[5,10],[2,5],[4,7],[3,9]],10), 91)],
+ "lemonade-change": [("lemonadeChange", ([5,5,5,10,20],), True), ("lemonadeChange", ([5,5,10,10,20],), False)],
+ "last-stone-weight": [("lastStoneWeight", ([2,7,4,1,8,1],), 1), ("lastStoneWeight", ([1],), 1), ("lastStoneWeight", ([2,2],), 0)],
+ "minimum-cost-to-hire-k-workers": [("mincostToHireWorkers", ([10,20,5],[70,50,30],2), 105.0), ("mincostToHireWorkers", ([3,1,10,10,1],[4,8,2,2,7],3), 30.66667)],
+})
+
+def _streams(load, check, h):
+    K = load("kth-largest-element-in-a-stream")["KthLargest"]
+    a = K(3, [4,5,8,2]); check("KthLargest a", [a.add(v) for v in (3,5,10,9,4)], [4,5,5,8,8])
+    b = K(4, [7,7,7,7,8,3]); check("KthLargest b", [b.add(v) for v in (2,10,9,9)], [7,7,7,8])
+    M = load("find-median-from-data-stream")["MedianFinder"]()
+    M.addNum(1); M.addNum(2); r1 = M.findMedian(); M.addNum(3); check("MedianFinder", [r1, M.findMedian()], [1.5, 2.0])
+
+def _merge(load, check, h):
+    f = load("merge-two-sorted-lists")["mergeTwoLists"]
+    for a, b, exp in [([1,2,4],[1,3,4],[1,1,2,3,4,4]), ([],[],[]), ([],[0],[0])]:
+        check("mergeTwoLists", h.arr(f(h.lst(a), h.lst(b))), exp)
+    g = load("merge-k-sorted-lists")
+    for ls, exp in [([[1,4,5],[1,3,4],[2,6]], [1,1,2,3,4,4,5,6]), ([], []), ([[]], [])]:
+        check("mergeKLists", h.arr(g["mergeKLists"]([h.lst(x) for x in ls])), exp)
+
+CUSTOM += [_streams, _merge]
