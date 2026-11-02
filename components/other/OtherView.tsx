@@ -3,9 +3,9 @@
 // notes, a diagram, code, an optional lab and interview questions whose answers open on demand.
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, CaretDown, Check, Flask, WarningCircle } from "@phosphor-icons/react";
+import { ArrowLeft, CaretDown, Check, Code as CodeIcon, Flask, WarningCircle } from "@phosphor-icons/react";
 import type { Card, Chapter, Code, Subject, Table } from "@/lib/other/types";
 import { chapterKey } from "@/lib/other";
 import { usePatterns } from "@/lib/patternStore";
@@ -15,10 +15,15 @@ import { Bar, Seg } from "../ui";
 import { ProblemRow } from "../ProblemRow";
 import { useMermaid } from "../useMermaid";
 import { Rich, inline } from "./Rich";
-const FlowPlayer = dynamic(() => import("./FlowPlayer"), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
 import { OtherLab } from "./OtherLab";
+import type { PlayMode } from "@/lib/other/playground/compile";
+import { STARTERS, type Starter } from "@/lib/other/playground/starters";
+
+const Playground = dynamic(() => import("./playground/Playground"), { ssr: false, loading: () => <div className="pg h-[300px]" aria-hidden /> });
+const FlowPlayer = dynamic(() => import("./FlowPlayer"), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
 
 type Lang = "cpp" | "java" | "python" | "js" | "ts";
+const SubjectCtx = createContext("");
 const LANG_KEY = "dsa-other-lang";
 const LANGS: (readonly [Lang, string])[] = [["cpp", "C++"], ["java", "Java"], ["python", "Python"], ["js", "JavaScript"], ["ts", "TypeScript"]];
 const langsIn = (c?: Code) => (c ? LANGS.filter(([k]) => c[k]) : []);
@@ -45,23 +50,38 @@ function TableView({ t }: { t: Table }) {
   );
 }
 
+/** Which playground can run this language, if any. Java and C++ need a compiler, so they have none. */
+function playMode(key: string, body: string, subject: string): PlayMode | null {
+  if (key === "tsx") return "react";
+  if (key === "sql") return "sql";
+  if (key === "python") return "python";
+  if (key === "ts") return "ts";
+  if (key === "js") return subject === "node" || /from "(node:|express)|require\(/.test(body) ? "node" : "js";
+  return null;
+}
+
 function CodeBlock({ code, lang, setLang }: { code: Code; lang: Lang; setLang(l: Lang): void }) {
+  const subject = useContext(SubjectCtx);
+  const [trying, setTrying] = useState(false);
   const [copied, setCopied] = useState(false);
   const present = langsIn(code);
   const pick = present.find(([k]) => k === lang) ?? present[0];
   const [label, body] = pick ? [pick[1], code[pick[0]]!]
     : code.tsx ? ["React (TSX)", code.tsx] : code.sql ? ["SQL", code.sql] : ["", code.text ?? ""];
   const copy = () => void navigator.clipboard?.writeText(body).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1400); });
+  const key = pick ? pick[0] : code.tsx ? "tsx" : code.sql ? "sql" : "";
+  const mode = playMode(key, body, subject);
   return (
     <div className="grid gap-2">
       {present.length > 1 && <Seg<Lang> label="Language" value={pick![0]} onChange={setLang} className="flex w-fit flex-wrap" options={present} />}
       <div className="gx-code">
-        <div className="gx-code-head"><span>{code.file ?? label}</span><button type="button" className="gx-copy" onClick={copy}>{copied ? "Copied" : "Copy"}</button></div>
+        <div className="gx-code-head"><span>{code.file ?? label}</span>{mode && <button type="button" className="gx-copy gx-try" aria-expanded={trying} onClick={() => setTrying((t) => !t)}><CodeIcon size={13} aria-hidden />{trying ? "Close" : "Try it"}</button>}<button type="button" className="gx-copy" onClick={copy}>{copied ? "Copied" : "Copy"}</button></div>
         <AnimatePresence mode="wait" initial={false}>
           <motion.pre key={label} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}><code>{body}</code></motion.pre>
         </AnimatePresence>
       </div>
       {code.result && <div className="grid gap-1"><span className="t-eyebrow text-[12px]">Result</span><TableView t={code.result} /></div>}
+      {trying && mode && <Playground key={`${mode}-${label}`} mode={mode} code={key === "tsx" && code.demo ? `${body}\n\n${code.demo}` : body} setup={code.sqlSetup} title={`Edit and run: ${code.file ?? label}`} onClose={() => setTrying(false)} />}
     </div>
   );
 }
@@ -137,6 +157,26 @@ function SqlPractice() {
   );
 }
 
+function SubjectPlayground({ starters }: { starters: Starter[] }) {
+  const [open, setOpen] = useState(false);
+  const [i, setI] = useState("0");
+  const st = starters[+i];
+  return (
+    <section className="card flex flex-col gap-3 p-5" aria-labelledby="pg-title">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="badge-icon"><CodeIcon size={16} weight="bold" aria-hidden /></span>
+        <div className="min-w-0 flex-1">
+          <h3 id="pg-title" className="t-h3">Playground</h3>
+          <p className="text-[13px] text-muted">Write {starters.map((s) => s.label).join(", ")} here and see the result as you type. Every example below also has a Try it button.</p>
+        </div>
+        <button type="button" className={`btn btn-sm ${open ? "" : "btn-primary"}`} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{open ? "Close" : "Start coding"}</button>
+      </div>
+      {open && starters.length > 1 && <Seg<string> label="Language" value={i} onChange={setI} className="flex w-fit flex-wrap" options={starters.map((s, k) => [String(k), s.label] as const)} />}
+      {open && <Playground key={st.mode} mode={st.mode} code={st.code} setup={st.setup} />}
+    </section>
+  );
+}
+
 export function OtherView({ subject }: { subject: Subject }) {
   const { done } = usePatterns();
   const [lang, setLangRaw] = useState<Lang>("java");
@@ -169,7 +209,10 @@ export function OtherView({ subject }: { subject: Subject }) {
           </ol>
         </nav>
       </section>
-      {subject.chapters.map((c, k) => <ChapterView key={c.id} subject={subject.id} ch={c} n={k + 1} lang={lang} setLang={setLang} />)}
+      {STARTERS[subject.id] && <SubjectPlayground starters={STARTERS[subject.id]} />}
+      <SubjectCtx.Provider value={subject.id}>
+        {subject.chapters.map((c, k) => <ChapterView key={c.id} subject={subject.id} ch={c} n={k + 1} lang={lang} setLang={setLang} />)}
+      </SubjectCtx.Provider>
       {subject.id === "sql" && <SqlPractice />}
     </div>
   );

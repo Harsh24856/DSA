@@ -63,8 +63,8 @@ console.log({
 import { fileURLToPath } from "node:url";
 
 console.log("1 sync");
-process.nextTick(() => console.log("3 nextTick"));
-Promise.resolve().then(() => console.log("4 promise"));
+process.nextTick(() => console.log("4 nextTick"));
+Promise.resolve().then(() => console.log("3 promise"));   // top level of an ES module: promises first
 console.log("2 sync");
 
 readFile(fileURLToPath(import.meta.url), () => {    // inside an I/O callback (poll phase)
@@ -73,7 +73,7 @@ readFile(fileURLToPath(import.meta.url), () => {    // inside an I/O callback (p
 });`,
       },
       cards: [
-        { id: "nexttick-promise", q: "process.nextTick vs Promise.then vs setImmediate?", a: "`nextTick` callbacks run first, before promise microtasks, as soon as the current operation finishes. Promise callbacks run next. `setImmediate` runs in the check phase of the next loop iteration. Recursive nextTick calls can starve I/O, so prefer queueMicrotask or setImmediate for deferring work." },
+        { id: "nexttick-promise", q: "process.nextTick vs Promise.then vs setImmediate?", a: "Inside a callback or a CommonJS file, `nextTick` callbacks run first, before promise microtasks, as soon as the current operation finishes. The exception is the top level of an ES module, which is itself running inside a promise job, so promises go first there (the sample above prints 3 before 4). Promise callbacks run next. `setImmediate` runs in the check phase of the next loop iteration. Recursive nextTick calls can starve I/O, so prefer queueMicrotask or setImmediate for deferring work." },
         { id: "block-loop", q: "How do you detect that something is blocking the event loop?", a: "Measure event-loop delay (`perf_hooks.monitorEventLoopDelay`, or APM tools), watch p99 latency rise under load, and profile with `--cpu-prof` or clinic.js. Typical culprits: synchronous fs or crypto calls, huge JSON.parse, regex backtracking, and big loops." },
       ],
     },

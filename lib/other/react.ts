@@ -156,6 +156,18 @@ export function TodoList() {
   E -->|"setState inside the effect"| R`,
       caption: "Effects run after paint. Cleanup runs before the effect re-runs and when the component unmounts.",
       code: {
+        demo: `// A stand-in server, so this works with no backend. Change the name, or return a 404 to see the error path.
+const fetch = async (url: string, _init?: RequestInit) => new Response(JSON.stringify({ id: Number(url.split("/").pop()), name: "User " + url.split("/").pop() }));
+
+export function App() {
+  const [id, setId] = useState(1);
+  return (
+    <div>
+      <button onClick={() => setId(id + 1)}>Next user</button>
+      <UserCard userId={id} />
+    </div>
+  );
+}`,
         file: "UserCard.tsx",
         tsx: `import { useEffect, useState } from "react";
 
@@ -243,6 +255,19 @@ export function SignupForm() {
   P -.->|"no props in between"| B`,
       caption: "The provider's value reaches any component below it that asks; the components in between pass nothing.",
       code: {
+        demo: `function AddBook() {
+  const { dispatch } = useCart();
+  return <button onClick={() => dispatch({ type: "add", item: { id: "book", price: 250 } })}>Add book (250)</button>;
+}
+
+export function App() {
+  return (
+    <CartProvider>
+      <AddBook />
+      <CartTotal />
+    </CartProvider>
+  );
+}`,
         file: "Cart.tsx",
         tsx: `import { createContext, useContext, useReducer, type Dispatch, type ReactNode } from "react";
 
@@ -295,6 +320,9 @@ export function CartTotal() {
   C --> E["500 ProductRows: skipped too"]:::ok`,
       caption: "memo lets ProductList skip re-rendering (and its 500 rows) when its props are unchanged.",
       code: {
+        demo: `export function App() {
+  return <SearchList items={["Arrays", "Graphs", "Greedy", "Heaps", "Stacks", "Tries"]} />;
+}`,
         file: "SearchList.tsx",
         tsx: `import { memo, useCallback, useMemo, useRef, useState } from "react";
 
@@ -343,6 +371,18 @@ export function SearchList({ items }: { items: string[] }) {
         "Rules of hooks: call them only at the top level of a component or another hook, never inside conditions, loops or after an early return. React relies on the call order to match state to hooks.",
       ],
       code: {
+        demo: `export function App() {
+  const [text, setText] = useLocalStorage("draft", "");
+  const debounced = useDebounce(text, 500);
+  const online = useOnline();
+  return (
+    <div>
+      <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Type something" />
+      <p>Debounced after 500 ms: {debounced}</p>
+      <p>{online ? "Online" : "Offline"}</p>
+    </div>
+  );
+}`,
         file: "hooks.ts",
         tsx: `import { useEffect, useState } from "react";
 

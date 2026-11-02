@@ -88,7 +88,7 @@ console.log("simulators ok");
 /* ---------- content ---------- */
 import { DatabaseSync } from "node:sqlite";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Code, Subject } from "./types.ts";
@@ -104,6 +104,8 @@ import { REACT } from "./react.ts";
 import { NODE } from "./node.ts";
 import { DESIGN } from "./design.ts";
 import { FLOWS } from "./flows.ts";
+import { compile, type PlayMode } from "./playground/compile.ts";
+import { STARTERS } from "./playground/starters.ts";
 
 const SUBJECTS: Subject[] = [OS, DBMS, CN, SQL, OOPS, APTITUDE, SYNTAX, REACT, NODE, DESIGN];
 const text = JSON.stringify(SUBJECTS);
@@ -183,7 +185,7 @@ for (const s of SUBJECTS) for (const ch of s.chapters) {
       if (code.python) runPython(where, code.python);
       if (code.js) runJs(where, code.js);
       if (code.ts) runTs(where, code.ts);
-      if (code.tsx) runTs(where, code.tsx, true);
+      if (code.tsx) runTs(where, code.demo ? `${code.tsx}\n\n${code.demo}` : code.tsx, true);
     } catch (e) {
       const err = e as { stderr?: Buffer; message: string };
       console.error(`FAIL ${where}\n${err.stderr?.toString() ?? err.message}`);
@@ -222,5 +224,99 @@ const real = (db.prepare(ORDER_SQL.replace(/;$/, "")).all() as Record<string, un
 assert.deepEqual(orderSteps().at(-1)!.rows.map((r) => r.map(cell)), real, "SQL order lab matches SQLite");
 // every 3NF table's key determines the table's columns
 for (const tb of NF_STAGES[3].tables) assert.ok(tb.cols.every((c) => closure(tb.key, FDS).includes(c)), `3NF ${tb.name}: key covers columns`);
+
+/* ---------- playground: the browser emulation of Node against the real thing ---------- */
+{
+  // the sandbox runtime is a plain script for the iframe; load it the same way here
+  new Function(readFileSync(join(process.cwd(), "public/playground/runtime.js"), "utf8"))();
+  const pg = (globalThis as unknown as { __pg: { run(js: string, write: (k: string, t: string) => void, src?: string): { node: { dispatch(port: number, m: string, u: string, h: object, b?: string): Promise<{ status: number; headers: Record<string, string>; body: { toString(): string } }>; busy(): boolean }; done: Promise<void> } } }).__pg;
+  const norm = (t: string) => t.replace(/\s+/g, " ").trim();
+  async function emulate(code: string, mode: PlayMode, wait = 1500) {
+    const c = compile(code, mode);
+    assert.ok(c.js !== undefined, `compile: ${c.error}`);
+    const lines: string[] = [], errors: string[] = [];
+    const r = pg.run(c.js!, (k, t) => { if (k === "log" || k === "raw") lines.push(t); else if (k === "error" || k === "warn" || k === "rawerr") errors.push(t); }, code);
+    await r.done;
+    const t0 = Date.now();
+    while (r.node.busy() && Date.now() - t0 < wait) await new Promise((res) => setTimeout(res, 10));
+    return { out: lines.join("\n"), errors, node: r.node };
+  }
+  // anything that runs under real Node with the same output each time must print the same here
+  let same = 0, ran = 0;
+  for (const s of [NODE, SYNTAX]) for (const ch of s.chapters) for (const code of [ch.code, ...ch.cards.map((x) => x.code)]) {
+    for (const [src, mode] of [[code?.js, "node"], [code?.ts, "ts"]] as const) {
+      if (!src) continue;
+      const where = `${s.id}/${ch.id}`;
+      const em = await emulate(src, mode);
+      assert.deepEqual(em.errors, [], `playground ${where}: ${em.errors[0]}`);
+      ran++;
+      if (/\.listen\(|node:test|node:os|tmpdir/.test(src)) continue;       // servers, test reporters and machine details differ by design
+      const f = join(tsDir, `pg${ran}.${mode === "ts" ? "ts" : "mjs"}`);
+      mkdirSync(tsDir, { recursive: true }); writeFileSync(f, src);
+      const realRun = () => execFileSync("node", ["--disable-warning=ExperimentalWarning", f], { encoding: "utf8", timeout: 20000, cwd: process.cwd() });
+      const a = realRun(), b = realRun();
+      rmSync(f);
+      if (a !== b) continue;                                                 // random or timed output
+      assert.equal(norm(em.out), norm(a), `playground output differs from Node: ${where}`);
+      same++;
+    }
+  }
+  // scrypt, SHA-256 and HMAC are real implementations: same bytes as Node's crypto
+  const cr = await emulate(`import { scryptSync, createHash, createHmac, pbkdf2Sync } from "node:crypto";
+console.log(scryptSync("pw", "salt", 32).toString("hex"));
+console.log(createHash("sha256").update("abc").digest("hex"));
+console.log(createHmac("sha256", "key").update("abc").digest("base64"));
+console.log(pbkdf2Sync("pw", "salt", 10, 40, "sha256").toString("hex"));`, "node");
+  const nc = await import("node:crypto");
+  assert.equal(cr.out, [nc.scryptSync("pw", "salt", 32).toString("hex"), nc.createHash("sha256").update("abc").digest("hex"), nc.createHmac("sha256", "key").update("abc").digest("base64"), nc.pbkdf2Sync("pw", "salt", 10, 40, "sha256").toString("hex")].join("\n"), "emulated crypto matches Node");
+  // the same Express app, real and emulated, must answer every request the same way
+  const APP = `import express from "express";
+const app = express();
+app.use(express.json());
+app.use((req, res, next) => { res.set("x-seen", req.method + " " + req.url); next(); });
+const api = express.Router();
+api.get("/items/:id", (req, res) => res.json({ id: req.params.id, q: req.query, base: req.baseUrl, url: req.url }));
+api.post("/items", (req, res) => (req.body?.name ? res.status(201).location("/api/items/9").json(req.body) : res.status(400).json({ error: "name is required" })));
+api.delete("/items/:id", (req, res) => res.status(204).end());
+app.use("/api", api);
+app.get("/", (req, res) => res.send("ok"));
+app.get("/text", (req, res) => res.type("text").send("plain"));
+app.get("/status", (req, res) => res.sendStatus(418 - 15));
+app.get("/redirect", (req, res) => res.redirect("/"));
+app.get("/boom", async () => { throw Object.assign(new Error("db down"), { status: 503 }); });
+app.get("/caught", () => { throw new Error("oops"); });
+app.use("/caught", (err, req, res, next) => res.status(500).json({ error: err.message }));
+app.use((req, res) => res.status(404).json({ error: "not found", path: req.path }));
+app.use((err, req, res, next) => res.status(err.status ?? 500).json({ error: err.message }));
+globalThis.__server = app.listen(PORT);`;
+  const REQUESTS: [string, string, string?][] = [["GET", "/"], ["GET", "/text"], ["GET", "/status"], ["GET", "/redirect"], ["GET", "/api/items/7?a=1&a=2&b=x"], ["POST", "/api/items", '{"name":"x"}'], ["POST", "/api/items", "{}"], ["POST", "/api/items", "{bad json"], ["DELETE", "/api/items/3"], ["GET", "/missing"], ["GET", "/boom"], ["GET", "/caught"], ["PUT", "/"], ["GET", "/api/items/"]];
+  const shape = (status: number, ct: string | null | undefined, xs: string | null | undefined, loc: string | null | undefined, body: string) => JSON.stringify({ status, type: (ct ?? "").split(";")[0], xs: xs ?? null, loc: loc ?? null, body: /^</.test(body) ? "(html)" : body });
+  const realFile = join(tsDir, "express-real.mjs");
+  mkdirSync(tsDir, { recursive: true });
+  writeFileSync(realFile, `${APP.replace("PORT", "0")}
+await new Promise((r) => setTimeout(r, 100));
+const base = "http://127.0.0.1:" + globalThis.__server.address().port, out = [];
+for (const [m, u, b] of ${JSON.stringify(REQUESTS)}) {
+  const r = await fetch(base + u, { method: m, redirect: "manual", headers: b ? { "content-type": "application/json" } : {}, body: b });
+  out.push([r.status, r.headers.get("content-type"), r.headers.get("x-seen"), r.headers.get("location"), await r.text()]);
+}
+console.log(JSON.stringify(out));
+globalThis.__server.close(); process.exit(0);`);
+  const realOut = JSON.parse(execFileSync("node", [realFile], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })) as [number, string, string, string, string][];
+  rmSync(realFile);
+  const em = await emulate(APP.replace("PORT", "3000"), "node");
+  for (const [i, [m, u, b]] of REQUESTS.entries()) {
+    const r = await em.node.dispatch(3000, m, u, b ? { "content-type": "application/json" } : {}, b);
+    const [st, ct, xs, loc, body] = realOut[i];
+    assert.equal(shape(r.status, r.headers["content-type"], r.headers["x-seen"], r.headers.location, r.body.toString()), shape(st, ct, xs, loc, body), `emulated Express: ${m} ${u}`);
+  }
+  // an endless loop is stopped, and every starter compiles and runs
+  const hang = await emulate("while (true) {}", "js");
+  assert.ok(hang.errors.some((e) => e.includes("Stopped")), "endless loop is stopped");
+  for (const list of Object.values(STARTERS)) for (const st of list) if (st.mode === "node" || st.mode === "js" || st.mode === "ts") assert.deepEqual((await emulate(st.code, st.mode)).errors, [], `starter ${st.label}`);
+  for (const list of Object.values(STARTERS)) for (const st of list) if (st.mode === "react") assert.ok(compile(st.code, "react").js, "React starter compiles");
+  console.log(`playground ok: ${ran} samples ran on the emulation, ${same} match real Node output, ${REQUESTS.length} requests match real Express`);
+  if (!process.exitCode) rmSync(tsDir, { recursive: true, force: true });
+}
 
 console.log(`content ok: ${SUBJECTS.length} subjects, ${SUBJECTS.reduce((n, s) => n + s.chapters.reduce((m, c) => m + c.cards.length, 0), 0)} questions, ${sqlRun} SQL runs, ${compiled} programs run, ${tsFiles} TypeScript files type-checked`);
