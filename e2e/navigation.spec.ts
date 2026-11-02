@@ -21,20 +21,24 @@ async function visible(page: Page) {
 }
 
 test("every page shows its content right after a nav click", async ({ page }) => {
-  // the Next dev-tools badge sits over the mobile "Today" tab
+  // keep the Next dev-tools badge out of the way of the page
   await page.addInitScript(() => addEventListener("DOMContentLoaded", () => document.head.append(Object.assign(document.createElement("style"), { textContent: "nextjs-portal{display:none}" }))));
   // compile every route once so dev-server compile time does not count against the 500 ms budget
   for (const r of ROUTES) await page.goto(r);
   await page.goto("/");
   await expect.poll(() => visible(page)).toBe("ok");
 
-  const nav = page.getByRole("navigation", { name: "Sections" }).filter({ visible: true });
   for (let round = 0; round < 4; round++) {
     for (const r of ROUTES) {
       // half the time leave the old page scrolled down, which is when blank pages showed up
       if (round % 2) await page.mouse.wheel(0, 3000);
       if (r === "/patterns/array" || r === "/other/os") await page.locator(`main a[href="${r}"]`).click();   // reached from its hub page
-      else await nav.locator(`a[href="${r}"]`).click();
+      else {
+        // phones keep the links behind the menu button in the floating bar
+        const menu = page.getByRole("button", { name: "Open menu" });
+        if (await menu.isVisible()) await menu.click();
+        await page.getByRole("navigation", { name: "Sections" }).filter({ visible: true }).locator(`a[href="${r}"]`).click();
+      }
       await expect(page).toHaveURL(r);
       await expect.poll(() => visible(page), { timeout: Number(process.env.NAV_BUDGET ?? 500), intervals: [50] }).toBe("ok");
     }

@@ -10,10 +10,13 @@ const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono"
 const archivo = Archivo({ subsets: ["latin"], weight: "900", variable: "--font-archivo", display: "swap" }); // logo letters only
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://dsa-visualizer-ashy-omega.vercel.app"),
   title: "DSA Daily",
-  description: "Daily LeetCode, SQL and Codeforces practice for placements, with an auto-shifting schedule, spaced revisits and progress analytics.",
+  description: "A free daily plan for LeetCode, SQL and Codeforces, with step by step visualisers, live code in the browser, and CS core subjects taught through real outages.",
   icons: { icon: "/favicon.svg" },
   manifest: "/manifest.webmanifest",
+  openGraph: { title: "DSA Daily", description: "Know what to solve today, and see exactly why it works. A free daily placement plan with a visualiser for every LeetCode question.", type: "website", url: "/welcome" },
+  twitter: { card: "summary_large_image" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 

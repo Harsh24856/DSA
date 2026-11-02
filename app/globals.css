@@ -74,6 +74,26 @@
   --radius-control:8px; /* buttons, fields, segmented controls */
 }
 
+/* named text styles: every step is on Tailwind's scale; @utility so sm: and lg: variants work */
+@utility heading-1{font-size:60px;line-height:60px;font-weight:600;letter-spacing:-.03em}
+@utility heading-2{font-size:48px;line-height:48px;font-weight:600;letter-spacing:-.025em}
+@utility heading-3{font-size:36px;line-height:40px;font-weight:600;letter-spacing:-.02em}
+@utility heading-4{font-size:30px;line-height:36px;font-weight:600;letter-spacing:-.02em}
+@utility heading-5{font-size:24px;line-height:32px;font-weight:600;letter-spacing:-.015em}
+@utility heading-6{font-size:20px;line-height:28px;font-weight:600;letter-spacing:-.01em}
+@utility title-1{font-size:20px;line-height:28px;font-weight:500}
+@utility title-2{font-size:18px;line-height:28px;font-weight:500}
+@utility title-3{font-size:16px;line-height:24px;font-weight:500}
+@utility title-4{font-size:14px;line-height:20px;font-weight:500}
+@utility title-5{font-size:12px;line-height:16px;font-weight:500}
+@utility body-3{font-size:16px;line-height:24px;font-weight:400}
+@utility body-6{font-size:14px;line-height:20px;font-weight:400}
+@utility body-5{font-size:14px;line-height:20px;font-weight:500}
+@utility caption-2{font-size:14px;line-height:20px;font-weight:400}
+@utility caption-1{font-size:14px;line-height:20px;font-weight:500}
+@utility caption-3{font-size:12px;line-height:16px;font-weight:600}
+@utility caption-5{font-size:12px;line-height:16px;font-weight:400}
+
 @layer base{
   html{background:var(--bg);color:var(--ink);-webkit-tap-highlight-color:transparent;scroll-padding-top:96px}
   body{font-family:var(--body);font-size:16px;line-height:24px;min-height:100dvh;-webkit-font-smoothing:antialiased;text-wrap:pretty}
@@ -86,32 +106,19 @@
 
 /* shared component classes: every page and panel builds on these, so sizes, radii and states stay the same */
 @layer components{
-  /* named text styles: every step is on Tailwind's scale */
-  .heading-1{font-size:60px;line-height:60px;font-weight:600;letter-spacing:-.03em}
-  .heading-2{font-size:48px;line-height:48px;font-weight:600;letter-spacing:-.025em}
-  .heading-3{font-size:36px;line-height:40px;font-weight:600;letter-spacing:-.02em}
-  .heading-4{font-size:30px;line-height:36px;font-weight:600;letter-spacing:-.02em}
-  .heading-5{font-size:24px;line-height:32px;font-weight:600;letter-spacing:-.015em}
-  .heading-6{font-size:20px;line-height:28px;font-weight:600;letter-spacing:-.01em}
-  .title-1{font-size:20px;line-height:28px;font-weight:500}
-  .title-2{font-size:18px;line-height:28px;font-weight:500}
-  .title-3{font-size:16px;line-height:24px;font-weight:500}
-  .title-4{font-size:14px;line-height:20px;font-weight:500}
-  .title-5{font-size:12px;line-height:16px;font-weight:500}
-  .body-3{font-size:16px;line-height:24px;font-weight:400}
-  .body-6{font-size:14px;line-height:20px;font-weight:400}
-  .caption-1{font-size:14px;line-height:20px;font-weight:500}
-  .caption-3{font-size:12px;line-height:16px;font-weight:600}
-  .caption-5{font-size:12px;line-height:16px;font-weight:400}
   .t-title{font-size:30px;line-height:36px;font-weight:600;letter-spacing:-.02em}
   .t-h2{font-size:20px;line-height:28px;font-weight:600;letter-spacing:-.01em}
   .t-h3{font-size:16px;line-height:24px;font-weight:600}
   .t-eyebrow{font-size:14px;line-height:20px;font-weight:500;color:var(--muted)}
 
   /* the one navigation: a compact bar floating off the top edge */
-  .top-nav{background:color-mix(in oklab,var(--surface) 72%,transparent);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);border:1px solid var(--line);border-radius:16px}
+  .top-nav{background:color-mix(in oklab,var(--surface) 82%,transparent);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);border:1px solid var(--line);border-radius:16px}
   .nav-panel{background:color-mix(in oklab,var(--bg) 92%,transparent);-webkit-backdrop-filter:blur(24px);backdrop-filter:blur(24px)}
   @media (prefers-reduced-transparency:reduce){.top-nav,.nav-panel{background:var(--surface);backdrop-filter:none;-webkit-backdrop-filter:none}}
+
+  /* hero headings only: text gradient, left to right */
+  .hero-text{background:linear-gradient(90deg,light-dark(#000000,#FFFFFF),light-dark(#666666,#9B9B9B));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .legal h2{font-size:18px;line-height:28px;font-weight:500;color:var(--ink);margin-top:8px}
 
   /* surfaces */
   .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}

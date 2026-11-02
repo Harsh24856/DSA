@@ -104,6 +104,7 @@ import { REACT } from "./react.ts";
 import { NODE } from "./node.ts";
 import { DESIGN } from "./design.ts";
 import { FLOWS } from "./flows.ts";
+import { FACTS } from "../landingFacts.ts";
 import { compile, type PlayMode } from "./playground/compile.ts";
 import { STARTERS } from "./playground/starters.ts";
 
@@ -318,6 +319,13 @@ globalThis.__server.close(); process.exit(0);`);
   for (const list of Object.values(STARTERS)) for (const st of list) if (st.mode === "react") assert.ok(compile(st.code, "react").js, "React starter compiles");
   console.log(`playground ok: ${ran} samples ran on the emulation, ${same} match real Node output, ${REQUESTS.length} requests match real Express`);
   if (!process.exitCode) rmSync(tsDir, { recursive: true, force: true });
+}
+
+// the landing page states these numbers publicly
+{
+  const count = (f: (c: (typeof SUBJECTS)[number]["chapters"][number]) => number) => SUBJECTS.reduce((n, s) => n + s.chapters.reduce((m, c) => m + f(c), 0), 0);
+  assert.deepEqual({ subjects: SUBJECTS.length, chapters: count(() => 1), questions: count((c) => c.cards.length), stories: count((c) => c.real?.length ?? 0) },
+    { subjects: FACTS.subjects, chapters: FACTS.chapters, questions: FACTS.questions, stories: FACTS.stories }, "lib/landingFacts.ts is out of date");
 }
 
 console.log(`content ok: ${SUBJECTS.length} subjects, ${SUBJECTS.reduce((n, s) => n + s.chapters.reduce((m, c) => m + c.cards.length, 0), 0)} questions, ${sqlRun} SQL runs, ${compiled} programs run, ${tsFiles} TypeScript files type-checked`);

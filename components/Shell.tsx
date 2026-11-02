@@ -24,6 +24,7 @@ const NAV = [
 ];
 // pages that stand on their own, without the app's navigation
 const STANDALONE = ["/auth", "/welcome", "/privacy", "/terms"];
+const isAppPath = (p: string) => p === "/" || ["/analytics", "/patterns", "/problems", "/genai", "/other"].some((a) => p === a || p.startsWith(a + "/"));
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -45,7 +46,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     return () => { removeEventListener("keydown", onKey); document.documentElement.style.overflow = ""; };
   }, [menu]);
 
-  if (STANDALONE.some((p) => path.startsWith(p))) return <MotionConfig reducedMotion="user">{children}</MotionConfig>;
+  if (STANDALONE.some((p) => path.startsWith(p)) || !isAppPath(path)) return <MotionConfig reducedMotion="user">{children}</MotionConfig>;   // includes the 404
   if (authChecked && !email) return <MotionConfig reducedMotion="user"><Landing /></MotionConfig>;   // the session ended while the app was open
 
   return (

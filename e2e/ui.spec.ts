@@ -12,6 +12,8 @@ const THEMES = [
 ] as const;
 const WIDTHS = [1280, 375] as const;
 const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void> }[] = [
+  { name: "landing", path: "/welcome" },
+  { name: "privacy", path: "/privacy" },
   { name: "today", path: "/" },
   { name: "analytics", path: "/analytics" },
   { name: "patterns", path: "/patterns" },
