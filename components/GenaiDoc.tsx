@@ -33,9 +33,9 @@ function RunPanel({ src }: { src: string }) {
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-sm btn-primary" onClick={() => void run()} disabled={state === "busy"}>{state === "busy" ? "Running..." : state === "idle" ? "Run in browser" : "Run again"}</button>
-        <span className="text-[12px] text-muted" role="status">{state === "busy" ? status : state === "done" ? "Finished. The asserts at the end passed." : state === "error" ? "Stopped with an error." : "Runs this script with Python in your browser; nothing is sent to a server."}</span>
+        <span className="text-xs text-muted" role="status">{state === "busy" ? status : state === "done" ? "Finished. The asserts at the end passed." : state === "error" ? "Stopped with an error." : "Runs this script with Python in your browser; nothing is sent to a server."}</span>
       </div>
-      {lines.length > 0 && <pre className={`code max-h-[260px] overflow-auto text-[12px] ${state === "error" ? "text-hard" : ""}`} aria-label="Output">{lines.join("\n")}</pre>}
+      {lines.length > 0 && <pre className={`code max-h-[260px] overflow-auto text-xs ${state === "error" ? "text-hard" : ""}`} aria-label="Output">{lines.join("\n")}</pre>}
     </div>
   );
 }

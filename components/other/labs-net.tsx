@@ -25,23 +25,23 @@ function Handshake() {
   const cur = TCP[n - 1];
   return (
     <>
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] items-start gap-2 text-center text-[12px]">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] items-start gap-2 text-center text-xs">
         <div><div className="font-semibold">Client</div><motion.div key={cur.c} className="pill pill-muted mt-1" initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={spring}>{cur.c}</motion.div></div>
         <div />
         <div><div className="font-semibold">Server</div><motion.div key={cur.s} className="pill pill-muted mt-1" initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={spring}>{cur.s}</motion.div></div>
       </div>
-      <ol className="relative grid gap-1.5 border-x-2 border-line-strong px-2 py-2">
+      <ol className="relative grid gap-2 border-x-2 border-line-strong px-2 py-2">
         <AnimatePresence initial={false}>
           {TCP.slice(0, n).map((m, i) => (
-            <motion.li key={i} className={`flex ${m.from === "C" ? "justify-start" : "justify-end"}`} initial={{ opacity: 0, x: m.from === "C" ? -40 : 40 }} animate={{ opacity: i === n - 1 ? 1 : 0.55, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}>
-              <span className={`inline-flex w-[78%] items-center gap-2 rounded-control border px-2 py-1 text-[12px] ${m.from === "C" ? "border-accent bg-accent-soft" : "flex-row-reverse border-line-strong bg-surface-2"}`}>
+            <motion.li key={i} className={`flex ${m.from === "C" ? "justify-start" : "justify-end"}`} initial={{ opacity: 0, x: m.from === "C" ? -40 : 40 }} animate={{ opacity: i === n - 1 ? 1 : 0.55, x: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
+              <span className={`inline-flex w-[78%] items-center gap-2 rounded-control border px-2 py-1 text-xs ${m.from === "C" ? "border-accent bg-accent-soft" : "flex-row-reverse border-line-strong bg-surface-2"}`}>
                 <b className="whitespace-nowrap">{m.label}</b><span className="num min-w-0 flex-1 truncate text-muted">{m.detail}</span><span aria-hidden>{m.from === "C" ? "→" : "←"}</span>
               </span>
             </motion.li>
           ))}
         </AnimatePresence>
       </ol>
-      <p className="callout text-[13px]" role="status">{cur.note}</p>
+      <p className="callout text-sm" role="status">{cur.note}</p>
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-sm" onClick={() => setN((v) => Math.max(1, v - 1))} disabled={n === 1}>Back</button>
         <button type="button" className="btn btn-sm btn-primary" onClick={() => setN((v) => Math.min(TCP.length, v + 1))} disabled={n === TCP.length}>Next message</button>
@@ -63,22 +63,22 @@ function Window() {
         <Seg<"gbn" | "sr"> label="Protocol" value={mode} onChange={setMode} options={[["gbn", "Go-Back-N"], ["sr", "Selective Repeat"]]} />
         <div className="min-w-[160px] flex-1"><Slider label="window size" value={w} min={1} max={6} onChange={setW} /></div>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Lose the first copy of these packets">
-        <span className="text-[13px] text-muted">Lose packet:</span>
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Lose the first copy of these packets">
+        <span className="text-sm text-muted">Lose packet:</span>
         {Array.from({ length: 8 }, (_, s) => <button key={s} type="button" className="chip" aria-pressed={lost.includes(s)} onClick={() => toggle(s)}>{s}</button>)}
       </div>
-      <ol className="grid gap-1.5">
+      <ol className="grid gap-2">
         {res.rounds.map((round, r) => (
-          <motion.li key={`${mode}-${w}-${lost.join()}-${r}`} className="flex flex-wrap items-center gap-1.5" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: r * 0.12, duration: 0.3 }}>
-            <span className="num w-16 text-[12px] text-muted">round {r + 1}</span>
+          <motion.li key={`${mode}-${w}-${lost.join()}-${r}`} className="flex flex-wrap items-center gap-2" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: r * 0.12, duration: 0.3 }}>
+            <span className="num w-16 text-xs text-muted">round {r + 1}</span>
             {round.map((tx) => (
-              <span key={tx.seq} className="num grid size-8 place-items-center rounded-[8px] text-[13px] font-semibold"
+              <span key={tx.seq} className="num grid size-8 place-items-center rounded-[8px] text-sm font-semibold"
                 style={{ background: tx.ok ? tint(30, "var(--easy)") : tint(30, "var(--hard)"), textDecoration: tx.ok ? undefined : "line-through" }} title={tx.ok ? "delivered" : "lost"}>{tx.seq}</span>
             ))}
           </motion.li>
         ))}
       </ol>
-      <p className="text-[13px]" role="status"><b className="num">{res.sent}</b> transmissions for 8 packets. {mode === "gbn" ? "Go-Back-N's receiver keeps no buffer, so after a loss it discards everything that follows and the sender resends the whole window." : "Selective Repeat buffers out-of-order packets, so only the lost one is resent. The cost is a buffer and an ACK per packet."}</p>
+      <p className="text-sm" role="status"><b className="num">{res.sent}</b> transmissions for 8 packets. {mode === "gbn" ? "Go-Back-N's receiver keeps no buffer, so after a loss it discards everything that follows and the sender resends the whole window." : "Selective Repeat buffers out-of-order packets, so only the lost one is resent. The cost is a buffer and an ACK per packet."}</p>
     </>
   );
 }
@@ -104,28 +104,28 @@ export function SubnetLab() {
   return (
     <Lab title="Subnet calculator" hint="The prefix says how many leading bits are the network. The rest are host bits: 2^(host bits) addresses, minus the network and broadcast addresses.">
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="grid gap-1 text-[13px]"><span className="text-muted">IPv4 address</span>
+        <label className="grid gap-1 text-sm"><span className="text-muted">IPv4 address</span>
           <input className="field num" value={ip} onChange={(e) => setIp(e.target.value.trim())} aria-invalid={!ok} /></label>
         <Slider label="prefix length" value={prefix} min={8} max={30} onChange={(v) => { setPrefix(v); setSplit((x) => Math.max(x, v)); }} show={`/${prefix}`} />
       </div>
-      {!s ? <p className="text-[13px] text-hard" role="alert">Enter four numbers from 0 to 255, like 10.0.4.17.</p> : (
+      {!s ? <p className="text-sm text-hard" role="alert">Enter four numbers from 0 to 255, like 10.0.4.17.</p> : (
         <>
           <div className="overflow-x-auto" aria-label={`Address in binary, first ${prefix} bits are the network`}>
-            <div className="num flex w-max gap-[3px] text-[12px]">
+            <div className="num flex w-max gap-[3px] text-xs">
               {s.bits.split("").map((b, i) => (
-                <span key={i} className={`grid h-7 w-[18px] place-items-center rounded-[4px] ${i % 8 === 7 && i < 31 ? "mr-1.5" : ""}`} style={{ background: i < prefix ? tint(35) : "var(--surface-2)" }}>{b}</span>
+                <span key={i} className={`grid h-7 w-[18px] place-items-center rounded-[4px] ${i % 8 === 7 && i < 31 ? "mr-2" : ""}`} style={{ background: i < prefix ? tint(35) : "var(--surface-2)" }}>{b}</span>
               ))}
             </div>
           </div>
-          <p className="text-[12px] text-muted">Shaded: {prefix} network bits. Plain: {32 - prefix} host bits.</p>
+          <p className="text-xs text-muted">Shaded: {prefix} network bits. Plain: {32 - prefix} host bits.</p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[["network", s.network], ["broadcast", s.broadcast], ["first host", s.first], ["last host", s.last], ["usable hosts", s.hosts.toLocaleString()], ["subnet mask", s.mask], ["class", s.cls], ["private?", s.isPrivate ? "yes (RFC 1918)" : "no"]].map(([l, v]) => (
-              <div key={l} className="tile min-w-0"><div className="text-[12px] text-muted">{l}</div><div className="num truncate text-[14px] font-semibold">{v}</div></div>
+              <div key={l} className="tile min-w-0"><div className="text-xs text-muted">{l}</div><div className="num truncate text-sm font-semibold">{v}</div></div>
             ))}
           </div>
           <Slider label="split into smaller subnets of size" value={split} min={prefix} max={30} onChange={setSplit} show={`/${split} → ${2 ** (split - prefix)} subnets`} />
           {subs.length > 0 && (
-            <ul className="grid max-h-[220px] gap-1 overflow-y-auto text-[12px]">
+            <ul className="grid max-h-[220px] gap-1 overflow-y-auto text-xs">
               {subs.map((x) => <li key={x.network} className="num grid grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-2 rounded-control bg-surface-2 px-2 py-1"><b>{x.network}</b><span className="text-muted">{x.range}</span></li>)}
             </ul>
           )}

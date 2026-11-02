@@ -47,24 +47,24 @@ export function HashRingLab() {
             );
           })}
         </svg>
-        <div className="grid gap-2 text-[13px]">
+        <div className="grid gap-2 text-sm">
           <div className="grid grid-cols-2 gap-2">
-            <div className="inset p-2.5"><div className="t-eyebrow text-[12px]">ring: keys moved</div><div className="num text-[20px] font-semibold">{moved.length} / {KEYS.length}</div></div>
-            <div className="inset p-2.5"><div className="t-eyebrow text-[12px]">hash mod N: moved</div><div className="num text-[20px] font-semibold">{n === "5" ? modMoved : 0} / {KEYS.length}</div></div>
+            <div className="inset p-3"><div className="t-eyebrow text-xs">ring: keys moved</div><div className="num text-xl font-semibold">{moved.length} / {KEYS.length}</div></div>
+            <div className="inset p-3"><div className="t-eyebrow text-xs">hash mod N: moved</div><div className="num text-xl font-semibold">{n === "5" ? modMoved : 0} / {KEYS.length}</div></div>
           </div>
-          <div className="flex flex-wrap gap-1.5" aria-label="Keys per server">
+          <div className="flex flex-wrap gap-2" aria-label="Keys per server">
             {servers.map((s) => <span key={s} className="pill num" style={{ background: tint(22, COLOR[s]) }}>{s}: {load[s]} keys</span>)}
           </div>
           <ul className="flex flex-wrap gap-1" aria-label="Which server owns each key">
             {KEYS.map((k) => (
-              <li key={k} className="num rounded-[6px] px-1.5 py-0.5 text-[12px]" style={{ background: tint(moved.includes(k) ? 40 : 14, COLOR[ring.owner[k]]) }}>
+              <li key={k} className="num rounded-md px-2 py-0.5 text-xs" style={{ background: tint(moved.includes(k) ? 40 : 14, COLOR[ring.owner[k]]) }}>
                 {k} → {ring.owner[k]}{moved.includes(k) ? " (moved)" : ""}
               </li>
             ))}
           </ul>
         </div>
       </div>
-      <p className="callout text-[13px]" role="status">
+      <p className="callout text-sm" role="status">
         {n === "5"
           ? `E took ${moved.length} keys, all from its clockwise neighbour; the other ${KEYS.length - moved.length} stayed put. Mod N would have moved ${modMoved}.`
           : v === 1 ? "With one point per server the arcs are uneven, so some servers own far more keys. Try 3 virtual points." : "Virtual points cut the ring into more, smaller arcs, so load evens out. Now add E."}
@@ -98,11 +98,11 @@ export function RateLimitLab() {
       <div className="inset relative h-[132px] overflow-hidden p-0" role="img" aria-label={`${ok} of ${steps.length} requests allowed, ${steps.length - ok} rejected with 429.`}>
         {Array.from({ length: SPAN + 1 }, (_, s) => (
           <div key={s} className="absolute bottom-0 top-0 border-l border-dashed border-line" style={{ left: `${4 + (s / SPAN) * 92}%` }}>
-            <span className="num absolute bottom-1 left-1 text-[11px] text-muted">{s}s</span>
+            <span className="num absolute bottom-1 left-1 text-xs text-muted">{s}s</span>
           </div>
         ))}
         {steps.map((s, i) => (
-          <motion.div key={`${pat}-${i}`} className="num absolute grid size-6 place-items-center rounded-full text-[12px] font-bold"
+          <motion.div key={`${pat}-${i}`} className="num absolute grid size-6 place-items-center rounded-full text-xs font-bold"
             style={{ left: `calc(${4 + (s.t / SPAN) * 92}% - 12px)`, top: 12 + row(s.t, i) * 26, background: tint(s.ok ? 55 : 40, s.ok ? "var(--easy)" : "var(--hard)"), color: "var(--ink)" }}
             initial={reduce ? false : { opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} transition={{ ...spring, delay: reduce ? 0 : i * 0.04 }}
             title={`${s.t.toFixed(2)}s ${s.ok ? "allowed" : "429"}`}>
@@ -112,12 +112,12 @@ export function RateLimitLab() {
       </div>
       <ol className="flex flex-wrap gap-1" aria-label="Each request">
         {steps.map((s, i) => (
-          <li key={i} className="num rounded-[6px] px-1.5 py-0.5 text-[12px]" style={{ background: tint(18, s.ok ? "var(--easy)" : "var(--hard)") }}>
+          <li key={i} className="num rounded-md px-2 py-0.5 text-xs" style={{ background: tint(18, s.ok ? "var(--easy)" : "var(--hard)") }}>
             {s.t.toFixed(2)}s {s.ok ? "ok" : "429"} · {algo === "token" ? `${s.level} tokens left` : `${s.level} in window`}
           </li>
         ))}
       </ol>
-      <p className="callout text-[13px]" role="status">
+      <p className="callout text-sm" role="status">
         {ok} of {steps.length} allowed, {steps.length - ok} rejected. {algo === "fixed" && pat === "boundary"
           ? "Both windows were empty when their burst arrived, so all 6 got through in 0.3 s: double the intended rate."
           : algo === "token" ? "The bucket starts full, so a burst of 3 passes at once; after that it refills one token every third of a second."

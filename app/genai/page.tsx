@@ -16,14 +16,14 @@ export default function GenAI() {
   const n = MODULES.filter((m) => isDone(m.id)).length, nextUp = MODULES.find((m) => !isDone(m.id));
 
   return (
-    <div className="flex flex-col gap-5">
-      <section className="card flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-6">
+      <section className="card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
         <div className="max-w-[62ch]">
           <h2 className="t-h2">Gen AI Engineer Playbook</h2>
-          <p className="mt-1 text-[14px] text-muted">From neural network basics to production agents. Each module has notes, diagrams, runnable code, practice questions with answers and one project to build. Ticks sync to your account and never change your daily plan.</p>
+          <p className="mt-1 text-sm text-muted">From neural network basics to production agents. Each module has notes, diagrams, runnable code, practice questions with answers and one project to build. Ticks sync to your account and never change your daily plan.</p>
         </div>
         <div className="flex shrink-0 flex-col gap-3 md:w-[220px]">
-          <div><span className="num text-[26px] font-semibold"><Count value={n} /><span className="text-[13px] font-normal text-muted"> / {MODULES.length}</span></span><div className="text-[12px] text-muted">modules done</div></div>
+          <div><span className="num text-2xl font-semibold"><Count value={n} /><span className="text-sm font-normal text-muted"> / {MODULES.length}</span></span><div className="text-xs text-muted">modules done</div></div>
           <Bar value={n} max={MODULES.length} />
           <Link href={`/genai/${n ? nextUp?.id ?? "m9" : "start"}`} className="btn btn-primary btn-sm">{n ? (nextUp ? `Continue: ${nextUp.nav}` : "Review the capstone") : "Start here"}<ArrowRight size={14} aria-hidden /></Link>
           <ProgressCard />
@@ -34,8 +34,8 @@ export default function GenAI() {
         {MODULES.map((m, k) => {
           const ok = isDone(m.id);
           return (
-            <motion.div key={m.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: k * 0.03, ease: [0.16, 1, 0.3, 1] }}>
-              <Link href={`/genai/${m.id}`} className="card group flex h-full flex-col gap-3 p-5 transition hover:-translate-y-0.5 hover:border-accent/60 active:scale-[0.99]">
+            <motion.div key={m.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: k * 0.03, ease: [0.22, 1, 0.36, 1] }}>
+              <Link href={`/genai/${m.id}`} className="card group flex h-full flex-col gap-3 p-6 transition hover:border-line-strong hover:bg-surface-2 active:scale-[0.99]">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="t-eyebrow">{m.eyebrow}</div>
@@ -44,8 +44,8 @@ export default function GenAI() {
                   {ok ? <span className="tick pointer-events-none mt-0.5" data-on aria-label="Done"><Check size={14} weight="bold" aria-hidden /></span>
                     : <ArrowRight size={18} className="mt-0.5 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent" aria-hidden />}
                 </div>
-                <p className="line-clamp-3 flex-1 text-[13px] text-muted">{m.lede}</p>
-                <div className="flex flex-wrap gap-1.5">
+                <p className="line-clamp-3 flex-1 text-sm text-muted">{m.lede}</p>
+                <div className="flex flex-wrap gap-2">
                   {m.chips.slice(0, 3).map((c) => <span key={c} className="pill pill-muted">{c}</span>)}
                   {m.chips.length > 3 && <span className="pill pill-muted">+{m.chips.length - 3} more</span>}
                 </div>
@@ -61,9 +61,9 @@ export default function GenAI() {
           {REFS.map(([id, I, blurb]) => {
             const s = GENAI.find((x) => x.id === id)!;
             return (
-              <Link key={id} href={`/genai/${id}`} className="card flex items-start gap-3 p-4 transition hover:border-accent/60 active:scale-[0.99]">
+              <Link key={id} href={`/genai/${id}`} className="card flex items-start gap-3 p-4 transition hover:border-line-strong hover:bg-surface-2 active:scale-[0.99]">
                 <span className="badge-icon"><I size={16} aria-hidden /></span>
-                <span className="min-w-0"><span className="block text-[14px] font-semibold">{s.nav}</span><span className="block text-[12px] text-muted">{blurb}</span></span>
+                <span className="min-w-0"><span className="block text-sm font-semibold">{s.nav}</span><span className="block text-xs text-muted">{blurb}</span></span>
               </Link>
             );
           })}

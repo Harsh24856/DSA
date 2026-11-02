@@ -10,13 +10,13 @@ import { animate, motion, useInView, useReducedMotion } from "motion/react";
 export function Card({ title, sub, aside, children, className = "", delay = 0 }: { title: string; sub?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string; delay?: number }) {
   const id = "h-" + title.toLowerCase().replace(/\W+/g, "-");
   return (
-    <motion.section aria-labelledby={id} className={`card p-5 ${className}`}
+    <motion.section aria-labelledby={id} className={`card p-4 sm:p-6 ${className}`}
       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay, ease: [0.16, 1, 0.3, 1] }}>
+      transition={{ duration: 0.3, delay, ease: [0.22, 1, 0.36, 1] }}>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id={id} className="text-[16px] font-semibold">{title}</h2>
-          {sub && <p className="mt-0.5 text-[13px] text-muted">{sub}</p>}
+          <h2 id={id} className="t-h3">{title}</h2>
+          {sub && <p className="mt-0.5 text-sm text-muted">{sub}</p>}
         </div>
         {aside}
       </div>
@@ -36,7 +36,7 @@ export function Count({ value, className = "" }: { value: number; className?: st
     if (!el || !inView) return;
     // prev tracks what is on screen, so an interrupted count resumes from where it stopped
     if (reduce || prev.current === value) { el.textContent = String(value); prev.current = value; return; }
-    const c = animate(prev.current, value, { duration: 0.8, ease: [0.16, 1, 0.3, 1], onUpdate: (v) => { prev.current = v; el.textContent = String(Math.round(v)); }, onComplete: () => { prev.current = value; } });
+    const c = animate(prev.current, value, { duration: 0.8, ease: [0.22, 1, 0.36, 1], onUpdate: (v) => { prev.current = v; el.textContent = String(Math.round(v)); }, onComplete: () => { prev.current = value; } });
     return () => c.stop();
   }, [value, inView, reduce]);
   return <span ref={ref} className={`num ${className}`}>0</span>;
@@ -46,7 +46,7 @@ export function Bar({ value, max, className = "" }: { value: number; max: number
   return (
     <div className={`h-1.5 overflow-hidden rounded-full bg-surface-2 ${className}`}>
       <motion.div className="h-full origin-left rounded-full bg-accent" initial={{ scaleX: 0 }}
-        animate={{ scaleX: max ? value / max : 0 }} transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }} />
+        animate={{ scaleX: max ? value / max : 0 }} transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }} />
     </div>
   );
 }
@@ -64,13 +64,13 @@ export function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`skeleton ${className}`} aria-hidden />;
 }
 
-/** Key number tile (Today and Analytics): icon + label, big number, one-line note. Fades up as the page arrives. */
-export function Stat({ icon, label, children, note }: { icon: ReactNode; label: string; children: ReactNode; note: string }) {
+/** Key number (Today and Analytics): label, big number, one-line note. */
+export function Stat({ label, children, note }: { icon?: ReactNode; label: string; children: ReactNode; note: string }) {
   return (
-    <motion.div className="card flex min-w-0 flex-col gap-2 p-4" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}>
-      <div className="flex items-center gap-2 text-[13px] font-medium text-muted"><span className="badge-icon">{icon}</span>{label}</div>
-      <div className="flex min-w-0 items-baseline gap-1.5 text-[26px] font-semibold leading-none">{children}</div>
-      <p className="line-clamp-2 text-[12px] text-muted">{note}</p>
+    <motion.div className="card flex min-w-0 flex-col gap-2 p-4" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
+      <div className="caption-1 text-muted">{label}</div>
+      <div className="flex min-w-0 items-baseline gap-1 text-3xl font-semibold tracking-tight">{children}</div>
+      <p className="line-clamp-2 caption-5 text-muted">{note}</p>
     </motion.div>
   );
 }

@@ -1,6 +1,5 @@
 "use client";
 import { useMemo, useState } from "react";
-import { CalendarCheck, Gauge, Lightning, TrendUp } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import { addDays, bestStreak, byHow, byLevel, diffDays, fmtDay, parse, pace, perDay, topics, ymd } from "@/lib/logic";
 import { P } from "@/lib/problems";
@@ -14,7 +13,7 @@ export default function Analytics() {
   const [range, setRange] = useState<Range>("30");
   const days = useMemo(() => perDay(state), [state]);
   const rows = useMemo(() => pace(state, now), [state, now]);
-  if (!ready) return <div className="grid gap-5" aria-busy="true"><div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[112px]" />)}</div><Skeleton className="h-56" /><Skeleton className="h-72" /></div>;
+  if (!ready) return <div className="grid gap-6" aria-busy="true"><div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[112px]" />)}</div><Skeleton className="h-56" /><Skeleton className="h-72" /></div>;
 
   const total = Object.keys(state.done).length;
   const placement = parse(state.quota.placement), by = fmtDay(placement);
@@ -35,12 +34,12 @@ export default function Analytics() {
   const lv = byLevel(state), how = byHow(state);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Insights">
-        <Stat icon={<Gauge size={16} aria-hidden />} label="Needed per day" note={`to finish all ${P.length} by ${by}`}><span className="num">{need.toFixed(1)}</span></Stat>
-        <Stat icon={<TrendUp size={16} aria-hidden />} label="Your 30-day average" note={avg >= need ? "On pace" : `${(need - avg).toFixed(1)} a day short of pace`}><span className="num">{avg.toFixed(1)}</span></Stat>
-        <Stat icon={<Lightning size={16} weight="fill" aria-hidden />} label="Best streak" note="Longest run of active days"><Count value={bestStreak(state)} /></Stat>
-        <Stat icon={<CalendarCheck size={16} aria-hidden />} label="Most active on" note={`${days.size} active ${days.size === 1 ? "day" : "days"} so far`}><span className="num truncate">{bestDow}</span></Stat>
+        <Stat label="Needed per day" note={`to finish all ${P.length} by ${by}`}><span className="num">{need.toFixed(1)}</span></Stat>
+        <Stat label="Your 30-day average" note={avg >= need ? "On pace" : `${(need - avg).toFixed(1)} a day short of pace`}><span className="num">{avg.toFixed(1)}</span></Stat>
+        <Stat label="Best streak" note="Longest run of active days"><Count value={bestStreak(state)} /></Stat>
+        <Stat label="Most active on" note={`${days.size} active ${days.size === 1 ? "day" : "days"} so far`}><span className="num truncate">{bestDow}</span></Stat>
       </section>
 
       <Card title="Activity" sub="Problems solved per day, last 26 weeks">
@@ -50,13 +49,13 @@ export default function Analytics() {
       <Card title="Pace to placements" sub={`${Math.abs(ahead)} ${ahead >= 0 ? "ahead of" : "behind"} the pace that finishes every problem by ${by}`}
         aside={<Seg<Range> label="Range" value={range} onChange={setRange} options={[["30", "30 days"], ["90", "90 days"], ["all", "All"]]} />}>
         <PaceChart rows={shown} />
-        <div className="mt-3 flex gap-5 text-[12px] text-muted" aria-hidden>
+        <div className="mt-3 flex gap-6 text-xs text-muted" aria-hidden>
           <span className="flex items-center gap-2"><i className="h-0.5 w-5 rounded bg-accent" />Solved</span>
           <span className="flex items-center gap-2"><i className="h-0 w-5 border-t-2 border-dashed border-muted" />Needed</span>
         </div>
       </Card>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card title="By difficulty" sub="Solved LeetCode and SQL">
           <Donut center="solved" data={[{ name: "Easy", value: lv.Easy, color: "var(--easy)" }, { name: "Medium", value: lv.Medium, color: "var(--medium)" }, { name: "Hard", value: lv.Hard, color: "var(--hard)" }]} />
         </Card>

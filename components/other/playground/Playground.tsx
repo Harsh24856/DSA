@@ -166,8 +166,8 @@ export default function Playground({ mode, code, setup, title, onClose }: { mode
   return (
     <section className="pg" aria-label={`${LABEL[mode]} playground`}>
       <header className="pg-head">
-        <div className="min-w-0 flex-1"><div className="truncate text-[13px] font-semibold">{title ?? `${LABEL[mode]} playground`}</div></div>
-        <span className="pill pill-muted num text-[11px]" role="status">{status}</span>
+        <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{title ?? `${LABEL[mode]} playground`}</div></div>
+        <span className="pill pill-muted num text-xs" role="status">{status}</span>
         {mode === "python" && <button type="button" className="btn btn-sm btn-primary" onClick={() => { if (armed) run(source); else setArmed(true); }}><Play size={14} weight="fill" aria-hidden />Run</button>}
         <button type="button" className="btn btn-sm btn-icon" aria-label="Reset to the original code" title="Reset" onClick={reset}><ArrowCounterClockwise size={15} aria-hidden /></button>
         {onClose && <button type="button" className="btn btn-sm btn-icon" aria-label="Close the playground" title="Close" onClick={onClose}><X size={15} aria-hidden /></button>}
@@ -183,7 +183,7 @@ export default function Playground({ mode, code, setup, title, onClose }: { mode
           {mode === "react" && (
             <div className="pg-pane">
               <div className="pg-pane-title">Preview{component ? `: <${component} />` : ""}</div>
-              {noComponent && <p className="px-3 py-2 text-[13px] text-muted">No component to show yet. Add <code>export function App() {"{ ... }"}</code> and it appears here.</p>}
+              {noComponent && <p className="px-3 py-2 text-sm text-muted">No component to show yet. Add <code>export function App() {"{ ... }"}</code> and it appears here.</p>}
               {frame && <iframe ref={iframe} key={frame.id} title="Preview of your component" sandbox="allow-scripts allow-forms" srcDoc={frame.doc} className="pg-frame" style={{ height: noComponent ? 0 : Math.max(height, 90) }} />}
             </div>
           )}
@@ -196,11 +196,11 @@ export default function Playground({ mode, code, setup, title, onClose }: { mode
                 <select aria-label="HTTP method" className="field w-auto" value={method} onChange={(e) => setMethod(e.target.value)}>{["GET", "POST", "PUT", "PATCH", "DELETE"].map((m) => <option key={m}>{m}</option>)}</select>
                 <input aria-label="Path" className="field order-3 min-w-0 flex-1 basis-full font-mono sm:order-none sm:basis-0" value={path} onChange={(e) => setPath(e.target.value)} />
                 <button className="btn btn-primary"><Play size={14} weight="fill" aria-hidden />Send</button>
-                <textarea aria-label="Request headers, one per line" className="field w-full font-mono text-[13px]" rows={1} placeholder="Headers, e.g. authorization: Bearer secret-demo-token" value={headers} onChange={(e) => setHeaders(e.target.value)} />
-                {method !== "GET" && <textarea aria-label="JSON request body" className="field w-full font-mono text-[13px]" rows={3} placeholder='Body, e.g. {"text": "hello"}' value={body} onChange={(e) => setBody(e.target.value)} />}
+                <textarea aria-label="Request headers, one per line" className="field w-full font-mono text-sm" rows={1} placeholder="Headers, e.g. authorization: Bearer secret-demo-token" value={headers} onChange={(e) => setHeaders(e.target.value)} />
+                {method !== "GET" && <textarea aria-label="JSON request body" className="field w-full font-mono text-sm" rows={3} placeholder='Body, e.g. {"text": "hello"}' value={body} onChange={(e) => setBody(e.target.value)} />}
               </div>
               {reply && (
-                <div className="border-t border-line p-3 text-[13px]" role="status">
+                <div className="border-t border-line p-3 text-sm" role="status">
                   {reply.error ? <p className="text-hard">{reply.error}</p> : <>
                     <div className="num mb-1 font-semibold">{reply.status} {reply.statusText}{reply.headers?.["content-type"] ? <span className="font-normal text-muted"> · {reply.headers["content-type"]}</span> : null}{reply.headers?.location ? <span className="font-normal text-muted"> · location: {reply.headers.location}</span> : null}</div>
                     {reply.body ? <pre className="pg-log whitespace-pre-wrap">{prettyBody(reply.body)}</pre> : <span className="text-muted">(empty body)</span>}
@@ -223,7 +223,7 @@ export default function Playground({ mode, code, setup, title, onClose }: { mode
                 : <span className="text-muted">{mode === "sql" ? (tables.length ? "No messages." : "Nothing yet.") : mode === "react" ? "console.log output appears here." : "Nothing printed yet."}</span>}
             </div>
           </div>
-          {NOTE[mode] && <p className="px-1 text-[12px] text-muted">{NOTE[mode]}</p>}
+          {NOTE[mode] && <p className="px-1 text-xs text-muted">{NOTE[mode]}</p>}
         </div>
       </div>
     </section>

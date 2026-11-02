@@ -1,13 +1,12 @@
 "use client";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowClockwise, CheckCircle, Code, Database, Fire, Lightning, Plus, Target, Trophy, type Icon } from "@phosphor-icons/react";
+import { CheckCircle, Plus } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import { addDays, isWeekend, level, perDay, queue, revisitsDue, streak, title, todayPlan, TRACK, TRACKS, trackTotals, upcoming, url, weekStart, windowInfo, ymd } from "@/lib/logic";
 import type { Track } from "@/lib/problems";
 import { P } from "@/lib/problems";
 
-const TRACK_ICON: Record<Track, Icon> = { L: Code, S: Database, C: Lightning };
 import { ProblemRow } from "@/components/ProblemRow";
 import { WeekBars } from "@/components/charts";
 import { Bar, Card, Count, Skeleton, Stat } from "@/components/ui";
@@ -42,40 +41,39 @@ export default function Today() {
   const weekTotal = week.reduce((a, b) => a + b.solved, 0);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
 
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Key numbers">
-        <Stat icon={<Target size={16} aria-hidden />} label="Today" note={left ? `${left} left in today's plan` : "Today's plan is done"}><Count value={plan.main.length - left} /><Unit>/ {plan.main.length}</Unit></Stat>
-        <Stat icon={<Fire size={16} weight="fill" aria-hidden />} label="Streak" note={st ? "Keep it going today" : "Solve one to start"}><Count value={st} /><Unit>{st === 1 ? "day" : "days"}</Unit></Stat>
-        <Stat icon={<Trophy size={16} aria-hidden />} label="Solved" note={`${solvedToday} today, ${weekTotal} this week`}><Count value={total} /><Unit>/ {P.length}</Unit></Stat>
-        <Stat icon={<ArrowClockwise size={16} aria-hidden />} label="Revisits due" note={rev.length ? "Re-solve without looking" : "Nothing due"}><Count value={rev.length} /></Stat>
+        <Stat label="Today" note={left ? `${left} left in today's plan` : "Today's plan is done"}><Count value={plan.main.length - left} /><Unit>/ {plan.main.length}</Unit></Stat>
+        <Stat label="Streak" note={st ? "Keep it going today" : "Solve one to start"}><Count value={st} /><Unit>{st === 1 ? "day" : "days"}</Unit></Stat>
+        <Stat label="Solved" note={`${solvedToday} today, ${weekTotal} this week`}><Count value={total} /><Unit>/ {P.length}</Unit></Stat>
+        <Stat label="Revisits due" note={rev.length ? "Re-solve without looking" : "Nothing due"}><Count value={rev.length} /></Stat>
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col gap-5">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-6">
           <Card title="Do these today" aside={<Ring done={plan.main.length - left} total={plan.main.length} />}
             sub={(isWeekend(now) ? "Weekend plan: " : "Weekday plan: ") + summary}>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-8">
               {TRACKS.map((tr) => {
-                const I = TRACK_ICON[tr], ids = plan.byTrack[tr], extras = extraIds.filter((i) => P[i][0] === tr);
+                const ids = plan.byTrack[tr], extras = extraIds.filter((i) => P[i][0] === tr);
                 const dn = ids.filter((i) => state.done[i]).length;
                 const w = windowInfo(state, now, tr, ids);
                 return (
-                  <section key={tr} aria-labelledby={"tr-" + tr} className="inset bg-surface-2/40 px-4 pb-1 pt-3.5">
+                  <section key={tr} aria-labelledby={"tr-" + tr} className="grid gap-2">
                     <div className="flex items-center gap-3">
-                      <span className="badge-icon size-8"><I size={16} weight="bold" aria-hidden /></span>
                       <div className="min-w-0 flex-1">
                         <h3 id={"tr-" + tr} className="t-h3">{TRACK[tr]}</h3>
                         {ids.length > 0 && (
-                          <p className="num text-[12px] text-muted">
+                          <p className="num text-xs text-muted">
                             {w.from === w.to ? `#${w.from}` : `#${w.from} to ${w.to}`} of {w.total}
                             {w.carried > 0 && <span className="pill lv-Medium ml-2 font-sans">{w.carried} carried over</span>}
                           </p>
                         )}
                       </div>
-                      {ids.length > 0 && <span className="num text-[13px] text-muted"><span className="font-semibold text-ink">{dn}</span> / {ids.length}</span>}
+                      {ids.length > 0 && <span className="num text-sm text-muted"><span className="font-semibold text-ink">{dn}</span> / {ids.length}</span>}
                     </div>
-                    {ids.length > 0 && <Bar value={dn} max={ids.length} className="mt-3" />}
+                    {ids.length > 0 && <Bar value={dn} max={ids.length} />}
                     {ids.length === 0 && extras.length === 0 ? (
                       <p className="empty py-4">{q[tr] === 0 ? (tr === "C" ? "Codeforces is on Saturday and Sunday, 2 a day." : "Nothing planned today.") : "Every problem in this list is solved."}</p>
                     ) : (
@@ -85,8 +83,8 @@ export default function Today() {
                       </div>
                     )}
                     {queue(state, tr).some((i) => !plan.main.includes(i)) && (
-                      <div className="flex justify-center border-t border-line py-3">
-                        <button className="btn btn-sm" type="button" onClick={() => setExtra((e) => ({ ...e, [tr]: e[tr] + 1 }))}>
+                      <div className="flex border-t border-line pt-3">
+                        <button className="btn btn-sm btn-ghost" type="button" onClick={() => setExtra((e) => ({ ...e, [tr]: e[tr] + 1 }))}>
                           <Plus size={14} aria-hidden />{extra[tr] ? `Add another ${TRACK[tr]}` : `Add a ${TRACK[tr]} problem`}
                         </button>
                       </div>
@@ -96,7 +94,7 @@ export default function Today() {
               })}
             </div>
             {plan.main.length > 0 && left === 0 && (
-              <motion.p initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="callout mt-3 flex items-center gap-2 text-[14px] font-medium text-accent">
+              <motion.p initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="callout mt-3 flex items-center gap-2 text-sm font-medium text-accent">
                 <CheckCircle size={18} weight="fill" aria-hidden />Today&apos;s plan is done. Anything extra moves tomorrow&apos;s problems up.
               </motion.p>
             )}
@@ -109,7 +107,7 @@ export default function Today() {
           )}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-5">
+        <div className="flex min-w-0 flex-col gap-6">
           <Card title="This week" sub={st ? `${st}-day streak` : "Start your streak today"} delay={0.05}>
             <WeekBars data={week} />
           </Card>
@@ -117,7 +115,7 @@ export default function Today() {
             <ul className="flex flex-col gap-4">
               {trackTotals(state).map((tr) => (
                 <li key={tr.tr}>
-                  <div className="mb-1.5 flex items-baseline justify-between text-[14px]">
+                  <div className="mb-2 flex items-baseline justify-between text-sm">
                     <span className="font-medium">{tr.name}</span>
                     <span className="num text-muted"><span className="font-semibold text-ink">{tr.done}</span> / {tr.total}</span>
                   </div>
@@ -130,10 +128,10 @@ export default function Today() {
             <div className="flex max-h-[360px] flex-col gap-4 overflow-y-auto pr-1">
               {upcoming(state, now, plan.main).map(({ date, items }) => (
                 <div key={ymd(date)}>
-                  <div className="t-eyebrow mb-1.5 text-[12px]">{date.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}</div>
-                  <ul className="flex flex-col gap-1.5">
+                  <div className="t-eyebrow mb-2 text-xs">{date.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}</div>
+                  <ul className="flex flex-col gap-2">
                     {items.map((i) => (
-                      <li key={i} className="flex min-w-0 items-center gap-2 text-[14px]">
+                      <li key={i} className="flex min-w-0 items-center gap-2 text-sm">
                         <span className={`pill lv-${level(i)} shrink-0`}>{level(i)}</span>
                         <a href={url(i)} target="_blank" rel="noopener" className="truncate hover:text-accent">{title(i)}</a>
                       </li>
@@ -149,7 +147,7 @@ export default function Today() {
   );
 }
 
-const Unit = ({ children }: { children: React.ReactNode }) => <span className="text-[13px] font-normal text-muted">{children}</span>;
+const Unit = ({ children }: { children: React.ReactNode }) => <span className="text-sm font-normal text-muted">{children}</span>;
 
 function Ring({ done, total }: { done: number; total: number }) {
   const reduce = useReducedMotion();
@@ -158,18 +156,18 @@ function Ring({ done, total }: { done: number; total: number }) {
     <div className="relative size-12" role="img" aria-label={`${done} of ${total} done today`}>
       <svg viewBox="0 0 48 48" className="size-12 -rotate-90" aria-hidden>
         <circle cx="24" cy="24" r="20" fill="none" stroke="var(--surface-2)" strokeWidth="5" />
-        <motion.circle cx="24" cy="24" r="20" fill="none" stroke="var(--accent)" strokeWidth="5" strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: f }} transition={{ duration: reduce ? 0 : 0.8, ease: [0.16, 1, 0.3, 1] }} />
+        <motion.circle cx="24" cy="24" r="20" fill="none" stroke="var(--accent)" strokeWidth="5" strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: f }} transition={{ duration: reduce ? 0 : 0.8, ease: [0.22, 1, 0.36, 1] }} />
       </svg>
-      <span className="num absolute inset-0 grid place-items-center text-[12px] font-semibold">{Math.round(f * 100)}%</span>
+      <span className="num absolute inset-0 grid place-items-center text-xs font-semibold">{Math.round(f * 100)}%</span>
     </div>
   );
 }
 
 function TodaySkeleton() {
   return (
-    <div className="flex flex-col gap-5" aria-busy="true" aria-label="Loading">
+    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Loading">
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-[112px]" />)}</div>
-      <div className="grid gap-5 xl:grid-cols-[1.7fr_1fr]"><Skeleton className="h-[360px]" /><Skeleton className="h-[360px]" /></div>
+      <div className="grid gap-6 xl:grid-cols-[1.7fr_1fr]"><Skeleton className="h-[360px]" /><Skeleton className="h-[360px]" /></div>
     </div>
   );
 }

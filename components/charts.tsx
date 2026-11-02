@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { Area, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, type TooltipContentProps } from "recharts";
 import { addDays, parse, ymd } from "@/lib/logic";
 
-const tipBox = "rounded-control border border-line bg-surface px-3 py-2 text-[12px] shadow-card";
+const tipBox = "rounded-control border border-line bg-surface px-3 py-2 text-xs shadow-card";
 
 function Tip({ active, payload, label }: Partial<TooltipContentProps<number, string>>) {
   if (!active || !payload?.length) return null;
@@ -74,7 +74,7 @@ export function Heatmap({ days, now }: { days: Map<string, number>; now: Date })
           ))}
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[12px] text-muted">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
         <span aria-live="polite" className="num">
           {hover ? `${parse(hover.key).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}: ${hover.n} solved` : "Hover a day to see its count"}
         </span>
@@ -126,18 +126,18 @@ export function Donut({ data, center }: { data: { name: string; value: number; c
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
           <div>
-            <div className="num text-[26px] font-semibold leading-none">{hi != null && total ? data[hi].value : total}</div>
-            <div className="mt-1 text-[12px] text-muted">{hi != null && total ? data[hi].name : center}</div>
+            <div className="num text-2xl font-semibold leading-none">{hi != null && total ? data[hi].value : total}</div>
+            <div className="mt-1 text-xs text-muted">{hi != null && total ? data[hi].name : center}</div>
           </div>
         </div>
       </div>
-      <ul className="flex min-w-[140px] flex-1 flex-col gap-2.5">
+      <ul className="flex min-w-[140px] flex-1 flex-col gap-3">
         {data.map((d, i) => (
-          <li key={d.name} onMouseEnter={() => setHi(i)} onMouseLeave={() => setHi(null)} className="flex items-center gap-2.5 text-[14px]">
+          <li key={d.name} onMouseEnter={() => setHi(i)} onMouseLeave={() => setHi(null)} className="flex items-center gap-3 text-sm">
             <span className="size-2.5 rounded-full" style={{ background: d.color }} aria-hidden />
             <span className="flex-1 text-muted">{d.name}</span>
             <span className="num font-semibold">{d.value}</span>
-            <span className="num w-10 text-right text-[12px] text-muted">{total ? Math.round((100 * d.value) / total) : 0}%</span>
+            <span className="num w-10 text-right text-xs text-muted">{total ? Math.round((100 * d.value) / total) : 0}%</span>
           </li>
         ))}
       </ul>
@@ -153,13 +153,13 @@ export function TopicBars({ rows }: { rows: { tag: string; total: number; done: 
     <ul className="grid gap-x-8 gap-y-3 md:grid-cols-2">
       {rows.map((r, i) => (
         <li key={r.tag} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1">
-          <span className="truncate text-[14px]">{r.tag}</span>
-          <span className="num text-[12px] text-muted">{r.done}/{r.total}</span>
+          <span className="truncate text-sm">{r.tag}</span>
+          <span className="num text-xs text-muted">{r.done}/{r.total}</span>
           <div className="relative col-span-2 h-2 overflow-hidden rounded-full bg-surface-2">
             <motion.div className="absolute inset-y-0 left-0 origin-left rounded-full" style={{ width: `${(100 * r.total) / max}%`, background: "var(--heat-1)" }}
-              initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 0.7, delay: i * 0.04, ease: [0.16, 1, 0.3, 1] }} />
+              initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 0.7, delay: i * 0.04, ease: [0.22, 1, 0.36, 1] }} />
             <motion.div className="absolute inset-y-0 left-0 origin-left rounded-full bg-accent" style={{ width: `${(100 * r.done) / max}%` }}
-              initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 0.9, delay: 0.2 + i * 0.04, ease: [0.16, 1, 0.3, 1] }} />
+              initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 0.9, delay: 0.2 + i * 0.04, ease: [0.22, 1, 0.36, 1] }} />
           </div>
         </li>
       ))}

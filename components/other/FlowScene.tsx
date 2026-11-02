@@ -11,7 +11,7 @@ export const flowFrames = (n: number) => n * STEP + HOLD;
 
 const TONE: Record<FlowTone | "none", string> = { ok: "var(--easy)", bad: "var(--hard)", warn: "var(--medium)", hot: "var(--accent)", none: "var(--accent)" };
 const mix = (pct: number, c: string) => `color-mix(in oklab, ${c} ${pct}%, var(--surface))`;
-const ease = Easing.bezier(0.16, 1, 0.3, 1);
+const ease = Easing.bezier(0.22, 1, 0.36, 1);
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
 export function FlowScene({ flow }: { flow: Flow }) {

@@ -14,13 +14,12 @@ const baseKey = (email: string) => `dsa-daily-base:${email}`;
 // Playwright runs: pretend a user is signed in and never talk to Supabase
 const E2E = process.env.NEXT_PUBLIC_E2E === "1";
 export const PALETTES = {
-  midnight: ["Midnight", "#1D4ED8", "#5B9BFF"], galaxy: ["Galaxy", "#4A4E8F", "#A3A7F2"], ocean: ["Ocean", "#0F766E", "#4FD1C5"],
+  midnight: ["Neutral", "#4D7C0F", "#C6F135"], galaxy: ["Galaxy", "#4A4E8F", "#A3A7F2"], ocean: ["Ocean", "#0F766E", "#4FD1C5"],
   forest: ["Forest", "#3F6B3A", "#8CC77F"], sunset: ["Sunset", "#C2410C", "#FB923C"], rose: ["Rose", "#BE185D", "#F472B6"], mono: ["Mono", "#111111", "#F2F2F2"],
 } as const;
 export type Palette = keyof typeof PALETTES;
 export type Mode = "auto" | "light" | "dark";
 /** Desktop sidebar layout: full (labels), rail (icons only), top (bar across the top). Phones always use the tab bar. */
-export type NavLayout = "full" | "rail" | "top";
 
 const read = <T,>(k: string, fallback: T): T => { try { const v = localStorage.getItem(k); return v == null ? fallback : (JSON.parse(v) as T); } catch { return fallback; } };
 const write = (k: string, v: unknown) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, typeof v === "string" ? v : JSON.stringify(v)); } catch {} };
@@ -29,7 +28,7 @@ type Ctx = {
   ready: boolean; state: State; now: Date; status: string; synced: boolean; connected: boolean; email: string | null; authChecked: boolean; signOut(): Promise<void>;
   toggle(i: number, on: boolean): void; setHow(i: number, h: How): void; setNote(i: number, n: string): void;
   revisitDone(i: number): void; setQuota(k: Count, v: number): void; setDate(k: "start" | "placement", v: string): void; importState(s: State): void;
-  palette: Palette; mode: Mode; look: string; setPalette(p: Palette): void; setMode(m: Mode): void; setLook(l: string): void; nav: NavLayout; setNav(n: NavLayout): void; toast: string | null; say(msg: string): void;
+  palette: Palette; mode: Mode; look: string; setPalette(p: Palette): void; setMode(m: Mode): void; setLook(l: string): void; toast: string | null; say(msg: string): void;
 };
 const Store = createContext<Ctx | null>(null);
 export const useStore = () => { const c = useContext(Store); if (!c) throw new Error("useStore outside StoreProvider"); return c; };
@@ -43,9 +42,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [palette, setPaletteRaw] = useState<Palette>("midnight");
-  const [mode, setModeRaw] = useState<Mode>("auto");
+  const [mode, setModeRaw] = useState<Mode>("dark");
   const [look, setLookRaw] = useState("classic");
-  const [nav, setNavRaw] = useState<NavLayout>("full");
   const [toast, setToast] = useState<string | null>(null);
 
   const cur = useRef(state), base = useRef<State | null>(null), key = useRef<string | null>(null); // key = signed-in email
@@ -95,9 +93,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try {
       const p = localStorage.getItem("dsa-daily-palette") as Palette | null, m = localStorage.getItem("dsa-daily-theme") as Mode | null;
       if (p && p in PALETTES) setPaletteRaw(p);
-      if (m === "light" || m === "dark") setModeRaw(m);
+      if (m === "light" || m === "dark" || m === "auto") setModeRaw(m);
       setLookRaw(lookById(localStorage.getItem("dsa-daily-look") ?? "classic").id);
-      const n = localStorage.getItem("dsa-daily-nav"); if (n === "rail" || n === "top") setNavRaw(n);
     } catch {}
     setStatus("Syncing…");
     setReady(true);
@@ -128,14 +125,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const L = lookById(look);
     if (L.id === "classic") { delete r.dataset.look; delete r.dataset.kind; } else { r.dataset.look = L.id; r.dataset.kind = L.photo ? "photo" : "drawn"; }
     if (L.light) r.dataset.light = ""; else delete r.dataset.light;
-    if (nav === "full") delete r.dataset.nav; else r.dataset.nav = nav;
-    write("dsa-daily-palette", palette); write("dsa-daily-theme", mode); write("dsa-daily-look", L.id); write("dsa-daily-nav", nav);
-  }, [palette, mode, look, nav, ready]);
+    write("dsa-daily-palette", palette); write("dsa-daily-theme", mode); write("dsa-daily-look", L.id);
+  }, [palette, mode, look, ready]);
 
   const value = useMemo<Ctx>(() => ({
     ready, state, now, status, synced, connected: !!email, email, authChecked, palette, mode, toast, say,
     signOut: async () => { await supabase().auth.signOut(); clearLocal(LS_KEY, "dsa-patterns-v1"); location.href = "/"; },
-    look, nav, setPalette: setPaletteRaw, setMode: setModeRaw, setLook: setLookRaw, setNav: setNavRaw,
+    look, setPalette: setPaletteRaw, setMode: setModeRaw, setLook: setLookRaw,
     toggle: (i, on) => commit((s) => {
       const done = { ...s.done };
       if (on) done[i] = { d: ymd(new Date()), h: "s", r: 0, t: Date.now() }; else delete done[i];
@@ -147,7 +143,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setQuota: (k, v) => commit((s) => ({ ...s, quota: { ...s.quota, [k]: Math.max(0, Math.min(10, v || 0)) } })),
     setDate: (k, v) => { const q = { ...cur.current.quota, [k]: v }; if (validDates(q.start, q.placement)) commit((s) => ({ ...s, quota: q })); },
     importState: (imp) => commit(() => ({ done: imp.done, quota: normQuota(imp.quota) })),
-  }), [ready, state, now, status, synced, email, authChecked, palette, mode, look, nav, toast, say, commit, sync]);
+  }), [ready, state, now, status, synced, email, authChecked, palette, mode, look, toast, say, commit, sync]);
 
   return <Store.Provider value={value}>{children}</Store.Provider>;
 }

@@ -6,14 +6,14 @@ import { Flask } from "@phosphor-icons/react";
 export function Lab({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
     <section className="gx-lab" aria-label={`Interactive lab: ${title}`}>
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-3">
         <span className="badge-icon"><Flask size={16} weight="fill" aria-hidden /></span>
         <div className="min-w-0">
           <div className="gx-lab-tag">Try it</div>
-          <div className="text-[15px] font-semibold leading-tight">{title}</div>
+          <div className="text-sm font-semibold leading-tight">{title}</div>
         </div>
       </div>
-      {hint && <p className="text-[13px] text-muted">{hint}</p>}
+      {hint && <p className="text-sm text-muted">{hint}</p>}
       {children}
     </section>
   );
@@ -22,7 +22,7 @@ export function Lab({ title, hint, children }: { title: string; hint?: string; c
 export function Slider({ label, value, min, max, step = 1, onChange, show }: { label: string; value: number; min: number; max: number; step?: number; onChange(v: number): void; show?: string }) {
   const id = useId();
   return (
-    <label htmlFor={id} className="grid gap-1 text-[13px]">
+    <label htmlFor={id} className="grid gap-1 text-sm">
       <span className="flex justify-between gap-2"><span className="text-muted">{label}</span><span className="num font-semibold">{show ?? value}</span></span>
       <input id={id} type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} className="gx-range" />
     </label>

@@ -50,7 +50,7 @@ export function Visualizer({ diagram, input }: { diagram: Diagram; input?: React
       onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); by(1); } if (e.key === "ArrowLeft") { e.preventDefault(); by(-1); } if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); } }}
       className="inset bg-surface-2/50 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-[14px] font-semibold">{diagram.title}</h4>
+        <h4 className="text-sm font-semibold">{diagram.title}</h4>
         {input}
       </div>
       <div className="overflow-x-auto pb-2">
@@ -65,15 +65,15 @@ export function Visualizer({ diagram, input }: { diagram: Diagram; input?: React
           {diagram.kind === "tables" && <Tables f={frame as never} />}
         </div>
       </div>
-      <div className="mt-2 min-h-[44px] overflow-hidden rounded-control bg-surface px-3 py-2.5 text-[14px] leading-snug" aria-live="polite">
+      <div className="mt-2 min-h-[44px] overflow-hidden rounded-control bg-surface px-3 py-3 text-sm leading-snug" aria-live="polite">
         <AnimatePresence mode="wait" initial={false}>
           <motion.p key={step} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
-            <span className="num mr-2 text-[12px] font-semibold text-accent">{step + 1}/{n}</span>{frame.note}
+            <span className="num mr-2 text-xs font-semibold text-accent">{step + 1}/{n}</span>{frame.note}
           </motion.p>
         </AnimatePresence>
       </div>
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-        <motion.div className="h-full origin-left rounded-full bg-accent" animate={{ scaleX: (step + 1) / n }} transition={{ duration: reduce ? 0 : 0.35, ease: [0.16, 1, 0.3, 1] }} />
+        <motion.div className="h-full origin-left rounded-full bg-accent" animate={{ scaleX: (step + 1) / n }} transition={{ duration: reduce ? 0 : 0.35, ease: [0.22, 1, 0.36, 1] }} />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-sm btn-icon" onClick={() => go(0)} aria-label="Restart"><ArrowCounterClockwise size={14} aria-hidden /></button>
@@ -106,18 +106,18 @@ function Cells({ d, f }: { d: Extract<Diagram, { kind: "cells" }>; f: Extract<Di
         const lanes = ms.length ? Math.max(...ms.map(slot)) + 1 : 0;
         return (
           <div key={r} className="flex items-start gap-2">
-            {d.rowLabels && <span className="num w-16 shrink-0 pt-2.5 text-right text-[11px] text-muted">{d.rowLabels[r]}</span>}
+            {d.rowLabels && <span className="num w-16 shrink-0 pt-3 text-right text-xs text-muted">{d.rowLabels[r]}</span>}
             <div>
-              <div className="flex gap-1.5">
+              <div className="flex gap-2">
                 {row.map((v, i) => {
                   const t = f.tones?.[`${r}:${i}`] ?? "none";
                   return (
                     <div key={i} className="flex w-10 flex-col items-center gap-1">
                       <motion.div animate={{ y: t === "active" ? -3 : 0, scale: t === "found" ? 1.06 : 1 }} transition={spring}
-                        className={`num grid h-10 w-10 place-items-center overflow-hidden rounded-lg text-[14px] font-semibold ring-1 ring-inset transition-colors duration-300 ${CELL[t]} ${t === "active" ? "shadow-card" : ""}`}>
+                        className={`num grid h-10 w-10 place-items-center overflow-hidden rounded-lg text-sm font-semibold ring-1 ring-inset transition-colors duration-300 ${CELL[t]} ${t === "active" ? "shadow-card" : ""}`}>
                         <motion.span key={String(v)} initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={spring}>{String(v)}</motion.span>
                       </motion.div>
-                      {r === 0 && !d.rowLabels && <span className="num text-[10px] text-muted">{i}</span>}
+                      {r === 0 && !d.rowLabels && <span className="num text-xs text-muted">{i}</span>}
                     </div>
                   );
                 })}
@@ -126,7 +126,7 @@ function Cells({ d, f }: { d: Extract<Diagram, { kind: "cells" }>; f: Extract<Di
                 <div className="relative mt-1" style={{ height: lanes * 18, width: row.length * STEP - 6 }}>
                   {ms.map((m) => (
                     <motion.div key={m.label} className="absolute left-0 top-0 flex w-10 justify-center" initial={false} animate={{ x: m.i * STEP, y: slot(m) * 18 }} transition={spring}>
-                      <span className="num whitespace-nowrap rounded bg-ink px-1 text-[10px] font-semibold text-bg">{m.label}</span>
+                      <span className="num whitespace-nowrap rounded bg-ink px-1 text-xs font-semibold text-bg">{m.label}</span>
                     </motion.div>
                   ))}
                 </div>
@@ -218,12 +218,12 @@ function Graph({ d, f }: { d: Extract<Diagram, { kind: "graph" }>; f: Extract<Di
 function Table({ d, f }: { d: Extract<Diagram, { kind: "table" }>; f: Extract<Diagram, { kind: "table" }>["frames"][number] }) {
   const isDep = (r: number, c: number) => f.deps?.some(([a, b]) => a === r && b === c);
   return (
-    <table className="num mx-auto border-separate border-spacing-1 text-[13px]">
-      <thead><tr><th />{d.colHead.map((h, c) => <th key={c} className="px-1 text-[11px] font-medium text-muted">{h}</th>)}</tr></thead>
+    <table className="num mx-auto border-separate border-spacing-1 text-sm">
+      <thead><tr><th />{d.colHead.map((h, c) => <th key={c} className="px-1 text-xs font-medium text-muted">{h}</th>)}</tr></thead>
       <tbody>
         {f.cells.map((row, r) => (
           <tr key={r}>
-            <th className="pr-1 text-right text-[11px] font-medium text-muted">{d.rowHead[r]}</th>
+            <th className="pr-1 text-right text-xs font-medium text-muted">{d.rowHead[r]}</th>
             {row.map((v, c) => {
               const act = f.active?.[0] === r && f.active?.[1] === c, t = f.tones?.[`${r}:${c}`];
               const cls = act ? CELL.active : isDep(r, c) ? CELL.window : t ? CELL[t] : v == null ? "bg-transparent ring-line/60 text-muted" : CELL.none;
@@ -240,21 +240,21 @@ function Table({ d, f }: { d: Extract<Diagram, { kind: "table" }>; f: Extract<Di
 function Stack({ d, f, reduce }: { d: Extract<Diagram, { kind: "stack" }>; f: Extract<Diagram, { kind: "stack" }>["frames"][number]; reduce: boolean }) {
   return (
     <div className="flex flex-wrap items-end justify-center gap-6">
-      {d.input && <div className="flex flex-col items-center gap-1"><span className="text-[11px] text-muted">input</span><div className="flex gap-1">{d.input.map((x, i) => <span key={i} className={`num grid h-8 min-w-8 place-items-center rounded-lg px-1.5 text-[13px] font-semibold ring-1 ring-inset ${String(x) === String(f.incoming) ? CELL.active : CELL.none}`}>{x}</span>)}</div></div>}
+      {d.input && <div className="flex flex-col items-center gap-1"><span className="text-xs text-muted">input</span><div className="flex gap-1">{d.input.map((x, i) => <span key={i} className={`num grid h-8 min-w-8 place-items-center rounded-lg px-2 text-sm font-semibold ring-1 ring-inset ${String(x) === String(f.incoming) ? CELL.active : CELL.none}`}>{x}</span>)}</div></div>}
       <div className="flex flex-col items-center gap-1">
-        <div className="flex min-h-[176px] w-36 flex-col-reverse items-stretch gap-1 rounded-b-[12px] border-x-2 border-b-2 border-line-strong p-1.5">
+        <div className="flex min-h-[176px] w-36 flex-col-reverse items-stretch gap-1 rounded-b-[12px] border-x-2 border-b-2 border-line-strong p-2">
           <AnimatePresence initial={false}>
           {f.items.map((x, i) => (
             <motion.div key={`${i}-${x}`} layout={!reduce} initial={{ opacity: 0, y: -24, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -28, scale: 0.9 }} transition={{ type: "spring", stiffness: 420, damping: 30 }}
-              className={`num rounded-lg px-2 py-1.5 text-center text-[13px] font-semibold ring-1 ring-inset ${i === f.items.length - 1 ? CELL.window : CELL.none}`}>{x}</motion.div>
+              className={`num rounded-lg px-2 py-2 text-center text-sm font-semibold ring-1 ring-inset ${i === f.items.length - 1 ? CELL.window : CELL.none}`}>{x}</motion.div>
           ))}
           </AnimatePresence>
         </div>
-        <span className="text-[11px] text-muted">{f.items.length ? "top ↑" : "empty"}</span>
+        <span className="text-xs text-muted">{f.items.length ? "top ↑" : "empty"}</span>
       </div>
       {(f.popped?.length || f.side) && (
-        <div className="flex flex-col gap-2 text-[12px]">
-          {!!f.popped?.length && <div><span className="text-muted">popped </span>{f.popped.map((p, i) => <span key={i} className={`num ml-1 inline-block rounded-md px-1.5 py-0.5 font-semibold ring-1 ring-inset ${CELL.bad}`}>{p}</span>)}</div>}
+        <div className="flex flex-col gap-2 text-xs">
+          {!!f.popped?.length && <div><span className="text-muted">popped </span>{f.popped.map((p, i) => <span key={i} className={`num ml-1 inline-block rounded-md px-2 py-0.5 font-semibold ring-1 ring-inset ${CELL.bad}`}>{p}</span>)}</div>}
           {f.side && <div className="num text-muted">{f.side}</div>}
         </div>
       )}
@@ -308,13 +308,13 @@ function Tables({ f }: { f: Extract<Diagram, { kind: "tables" }>["frames"][numbe
     <div className="flex flex-wrap items-start gap-4">
       {f.tables.map((t) => (
         <motion.div key={t.name} layout className="min-w-0" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-          <div className={`mb-1 text-[12px] font-semibold ${t.tone === "found" ? "text-easy" : "text-muted"}`}>{t.name}</div>
-          <table className="num border-separate border-spacing-0 overflow-hidden rounded-control border border-line text-[12.5px]">
-            <thead><tr>{t.cols.map((c) => <th key={c} className="border-b border-line bg-surface-2 px-2.5 py-1.5 text-left font-semibold">{c}</th>)}</tr></thead>
+          <div className={`mb-1 text-xs font-semibold ${t.tone === "found" ? "text-easy" : "text-muted"}`}>{t.name}</div>
+          <table className="num border-separate border-spacing-0 overflow-hidden rounded-control border border-line text-xs">
+            <thead><tr>{t.cols.map((c) => <th key={c} className="border-b border-line bg-surface-2 px-3 py-2 text-left font-semibold">{c}</th>)}</tr></thead>
             <tbody>
               {t.rows.map((r, i) => {
                 const on = t.hl?.includes(i);
-                return <tr key={i} className={`transition-colors duration-300 ${on ? (t.tone === "bad" ? "bg-hard/15 text-hard" : t.tone === "found" ? "bg-easy/15" : "bg-accent-soft") : ""}`}>{r.map((v, j) => <td key={j} className="border-t border-line px-2.5 py-1.5 first:border-t-0">{v == null ? <span className="text-muted">null</span> : String(v)}</td>)}</tr>;
+                return <tr key={i} className={`transition-colors duration-300 ${on ? (t.tone === "bad" ? "bg-hard/15 text-hard" : t.tone === "found" ? "bg-easy/15" : "bg-accent-soft") : ""}`}>{r.map((v, j) => <td key={j} className="border-t border-line px-3 py-2 first:border-t-0">{v == null ? <span className="text-muted">null</span> : String(v)}</td>)}</tr>;
               })}
             </tbody>
           </table>

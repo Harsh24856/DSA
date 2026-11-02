@@ -84,11 +84,11 @@ export function ProgressCard({ otherTotal }: { otherTotal?: number }) {
       <button type="button" className="btn btn-sm" onClick={() => setOpen(true)}><ShareNetwork size={14} aria-hidden />Share progress</button>
       <dialog ref={ref} onClose={() => setOpen(false)} onClick={(e) => { if (e.target === ref.current) setOpen(false); }} aria-labelledby="share-title"
         className="m-auto w-[min(640px,calc(100vw-32px))] rounded-card border border-line bg-surface p-0 text-ink">
-        <div className="flex items-center justify-between border-b border-line px-5 py-3">
+        <div className="flex items-center justify-between border-b border-line px-6 py-3">
           <h2 id="share-title" className="t-h2">Share your progress</h2>
           <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="btn btn-ghost btn-icon -mr-2"><X size={18} aria-hidden /></button>
         </div>
-        <div className="grid gap-3 p-5">
+        <div className="grid gap-3 p-6">
           {/* only while open: the locale date would differ between server and client render */}
           {open && <canvas ref={canvas} className="h-auto w-full rounded-tile border border-line" role="img" aria-label={text} />}
           <div className="flex flex-wrap gap-2">
@@ -96,7 +96,7 @@ export function ProgressCard({ otherTotal }: { otherTotal?: number }) {
             <button type="button" className="btn btn-sm" onClick={() => void navigator.clipboard?.writeText(text).then(() => setMsg("Copied the text."))}>Copy text</button>
             {canShare && <button type="button" className="btn btn-sm" onClick={() => void share()}>Share</button>}
           </div>
-          {msg && <p className="text-[13px] text-muted" role="status">{msg}</p>}
+          {msg && <p className="text-sm text-muted" role="status">{msg}</p>}
         </div>
       </dialog>
     </>

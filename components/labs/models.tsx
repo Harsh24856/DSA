@@ -42,7 +42,7 @@ export function ActivationLab() {
         <Slider label="bias b" value={b} min={-3} max={3} step={0.1} onChange={setB} />
         <Slider label="input x" value={x0} min={-4} max={4} step={0.1} onChange={setX0} />
       </div>
-      <p className="num rounded-tile bg-surface-2 px-3 py-2 text-[13px]">z = {w}·{x0} + {b} = {z.toFixed(2)}, then {name}(z) = {y.toFixed(3)}</p>
+      <p className="num rounded-tile bg-surface-2 px-3 py-2 text-sm">z = {w}·{x0} + {b} = {z.toFixed(2)}, then {name}(z) = {y.toFixed(3)}</p>
     </Lab>
   );
 }
@@ -92,7 +92,7 @@ export function DescentLab() {
         <button type="button" className="btn btn-sm" onClick={step} disabled={run.state !== "run"}>Step</button>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => reset()}>Reset</button>
       </div>
-      <p className="text-[13px]" role="status"><span className="num font-semibold">step {run.n} · θ = {run.x.toFixed(3)} · loss = {loss(run.x).toFixed(3)}</span><br /><span className="text-muted">{msg}</span></p>
+      <p className="text-sm" role="status"><span className="num font-semibold">step {run.n} · θ = {run.x.toFixed(3)} · loss = {loss(run.x).toFixed(3)}</span><br /><span className="text-muted">{msg}</span></p>
     </Lab>
   );
 }
@@ -113,9 +113,9 @@ const r1 = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
 
 function Grid({ rows, cell, label }: { rows: { v: number | null; bg: string; fg?: string; hl?: boolean }[][]; cell: number; label: string }) {
   return (
-    <div className="grid w-fit gap-px rounded-[6px] bg-line p-px" style={{ gridTemplateColumns: `repeat(${rows[0].length}, ${cell}px)` }} role="img" aria-label={label}>
+    <div className="grid w-fit gap-px rounded-md bg-line p-px" style={{ gridTemplateColumns: `repeat(${rows[0].length}, ${cell}px)` }} role="img" aria-label={label}>
       {rows.flat().map((c, i) => (
-        <div key={i} className="num grid place-items-center text-[10px] font-semibold transition-colors" style={{ height: cell, background: c.bg, color: c.fg ?? "var(--ink)", outline: c.hl ? "2px solid var(--accent)" : undefined, outlineOffset: -2 }}>{c.v === null ? "" : r1(c.v)}</div>
+        <div key={i} className="num grid place-items-center text-xs font-semibold transition-colors" style={{ height: cell, background: c.bg, color: c.fg ?? "var(--ink)", outline: c.hl ? "2px solid var(--accent)" : undefined, outlineOffset: -2 }}>{c.v === null ? "" : r1(c.v)}</div>
       ))}
     </div>
   );
@@ -135,11 +135,11 @@ export function ConvLab() {
     <Lab title="A 3×3 kernel sliding over an image" hint="A convolution multiplies the kernel with each 3×3 window and adds the 9 products into one output pixel. Edge kernels light up where brightness changes.">
       <Seg<Kern> label="Kernel" value={k} onChange={(v) => { setK(v); setPos(0); }} className="flex flex-wrap" options={(Object.keys(KERNELS) as Kern[]).map((x) => [x, KERNELS[x][0]] as const)} />
       <div className="flex flex-wrap items-start gap-4">
-        <div className="grid gap-1"><span className="t-eyebrow text-[12px]">Input 7×7</span>
+        <div className="grid gap-1"><span className="t-eyebrow text-xs">Input 7×7</span>
           <Grid cell={26} label="Input image of the digit 7" rows={IMG.map((row, r) => row.map((v, c) => ({ v, bg: tint(v ? 70 : 0, "var(--ink)"), fg: v ? "var(--surface)" : "var(--muted)", hl: r >= R && r < R + 3 && c >= C && c < C + 3 })))} /></div>
-        <div className="grid gap-1"><span className="t-eyebrow text-[12px]">Kernel</span>
+        <div className="grid gap-1"><span className="t-eyebrow text-xs">Kernel</span>
           <Grid cell={26} label={`${KERNELS[k][0]} kernel`} rows={K.map((row) => row.map((v) => ({ v, bg: v > 0 ? tint(30) : v < 0 ? tint(30, "var(--hard)") : "var(--surface)" })))} /></div>
-        <div className="grid gap-1"><span className="t-eyebrow text-[12px]">Output 5×5</span>
+        <div className="grid gap-1"><span className="t-eyebrow text-xs">Output 5×5</span>
           <Grid cell={26} label="Feature map so far" rows={out.map((row, r) => row.map((v, c) => {
             const i = r * 5 + c, shown = i <= pos, p = (Math.abs(v) / max) * 40;   // tints stay light enough for ink text in every theme
             return { v: shown ? v : null, bg: shown ? tint(p, v < 0 ? "var(--hard)" : "var(--accent)") : "var(--surface)", hl: i === pos };
@@ -149,7 +149,7 @@ export function ConvLab() {
         <button type="button" className="btn btn-sm btn-primary" onClick={() => { if (pos >= 24) setPos(0); setPlaying((p) => !p); }}>{playing ? "Pause" : "Slide"}</button>
         <button type="button" className="btn btn-sm" onClick={() => setPos((p) => Math.min(24, p + 1))}>Step</button>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => { setPlaying(false); setPos(0); }}>Reset</button>
-        <span className="num text-[13px]" role="status">window ({R}, {C}): sum of window × kernel = <b>{r1(out[R][C])}</b></span>
+        <span className="num text-sm" role="status">window ({R}, {C}): sum of window × kernel = <b>{r1(out[R][C])}</b></span>
       </div>
     </Lab>
   );
@@ -173,13 +173,13 @@ export function NoiseLab() {
     <Lab title="Forward diffusion: adding noise" hint="x_t = √ᾱ_t · x₀ + √(1 − ᾱ_t) · ε. Training picks a random t, makes x_t in one jump like this, and teaches the network to predict ε. Generation runs it backwards, one small step at a time.">
       <div className="flex flex-wrap gap-4">
         {[["Clean image x₀", FACE.map((r) => r.map((v) => px(v)))], [`Noisy x_t at t = ${t}`, FACE.map((r, y) => r.map((v, x) => px(sig * v + nz * NOISE[y][x])))], ["Noise ε", NOISE.map((r) => r.map((v) => px(v)))]].map(([label, rows]) => (
-          <div key={label as string} className="grid gap-1"><span className="t-eyebrow text-[12px]">{label as string}</span><Grid cell={9} label={label as string} rows={rows as { v: null; bg: string }[][]} /></div>
+          <div key={label as string} className="grid gap-1"><span className="t-eyebrow text-xs">{label as string}</span><Grid cell={9} label={label as string} rows={rows as { v: null; bg: string }[][]} /></div>
         ))}
       </div>
       <Slider label="timestep t" value={t} min={0} max={STEPS - 1} onChange={setT} />
-      <div className="grid grid-cols-2 gap-2 text-[13px]">
-        <div className="tile"><div className="text-muted">signal kept √ᾱ</div><div className="num text-[16px] font-semibold">{sig.toFixed(3)}</div></div>
-        <div className="tile"><div className="text-muted">noise weight √(1−ᾱ)</div><div className="num text-[16px] font-semibold">{nz.toFixed(3)}</div></div>
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <div className="tile"><div className="text-muted">signal kept √ᾱ</div><div className="num text-base font-semibold">{sig.toFixed(3)}</div></div>
+        <div className="tile"><div className="text-muted">noise weight √(1−ᾱ)</div><div className="num text-base font-semibold">{nz.toFixed(3)}</div></div>
       </div>
     </Lab>
   );
@@ -197,7 +197,7 @@ export function AttentionLab() {
   const row = W[q], top = row.map((w, j) => [w, j]).sort((a, b) => b[0] - a[0]).slice(0, 3);
   return (
     <Lab title="Who does each word attend to?" hint="Pick a query word. Its row of the attention matrix says how much of every other word's value vector it mixes in. Turn off the √d scaling to see softmax collapse onto one word.">
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Query word">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Query word">
         {TOKENS.map((t, i) => <button key={i} type="button" className="chip" aria-pressed={q === i} onClick={() => setQ(i)}>{t}</button>)}
       </div>
       <div className="flex flex-wrap gap-2">
@@ -213,15 +213,15 @@ export function AttentionLab() {
             ))}</tbody>
           </table>
         </div>
-        <div className="grid content-start gap-1.5">
+        <div className="grid content-start gap-2">
           {row.map((w, j) => (
-            <div key={j} className="grid grid-cols-[44px_minmax(0,1fr)_40px] items-center gap-2 text-[13px]">
+            <div key={j} className="grid grid-cols-[44px_minmax(0,1fr)_40px] items-center gap-2 text-sm">
               <span className="font-medium">{TOKENS[j]}</span>
               <div className="h-3 overflow-hidden rounded-full bg-surface-2"><motion.div className="h-full origin-left rounded-full bg-accent" initial={false} animate={{ scaleX: w }} transition={spring} /></div>
               <span className="num text-right">{Math.round(w * 100)}%</span>
             </div>
           ))}
-          <p className="mt-1 text-[13px] text-muted">output(“{TOKENS[q]}”) ≈ {top.filter(([w]) => w > 0.005).map(([w, j]) => `${w.toFixed(2)}·v(${TOKENS[j]})`).join(" + ")}</p>
+          <p className="mt-1 text-sm text-muted">output(“{TOKENS[q]}”) ≈ {top.filter(([w]) => w > 0.005).map(([w, j]) => `${w.toFixed(2)}·v(${TOKENS[j]})`).join(" + ")}</p>
         </div>
       </div>
     </Lab>
@@ -247,9 +247,9 @@ export function SamplingLab() {
         <Slider label="top-k" value={k} min={1} max={8} onChange={setK} />
         <Slider label="top-p" value={p} min={0.1} max={1} step={0.05} onChange={setP} show={p.toFixed(2)} />
       </div>
-      <div className="grid gap-1.5">
+      <div className="grid gap-2">
         {NEXT.map(([t], i) => (
-          <div key={t} className={`grid grid-cols-[56px_minmax(0,1fr)_88px] items-center gap-2 text-[13px] transition-opacity ${keep[i] ? "" : "opacity-45"}`}>
+          <div key={t} className={`grid grid-cols-[56px_minmax(0,1fr)_88px] items-center gap-2 text-sm transition-opacity ${keep[i] ? "" : "opacity-45"}`}>
             <span className="font-medium">{t}</span>
             <div className="relative h-4 overflow-hidden rounded-full bg-surface-2">
               <motion.div className="absolute inset-y-0 left-0 w-full origin-left rounded-full bg-line-strong" initial={false} animate={{ scaleX: probs[i] }} transition={spring} />
@@ -261,7 +261,7 @@ export function SamplingLab() {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-sm btn-primary" onClick={draw}>Sample 100 times</button>
-        <span className="text-[13px] text-muted">Grey bar: probability after temperature. Blue: after cutting and renormalising. Counts show how often each word was picked.</span>
+        <span className="text-sm text-muted">Grey bar: probability after temperature. Blue: after cutting and renormalising. Counts show how often each word was picked.</span>
       </div>
     </Lab>
   );
@@ -302,25 +302,25 @@ export function BpeLab() {
   const total = f.words.reduce((s, w) => s + w.n * w.toks.length, 0);
   return (
     <Lab title="Byte-pair encoding, merge by merge" hint="BPE starts from single characters (_ marks a word end) and keeps merging the most frequent neighbouring pair. Frequent words end up as one token; rare words stay split into pieces.">
-      <label className="grid gap-1 text-[13px]"><span className="text-muted">Training text</span>
+      <label className="grid gap-1 text-sm"><span className="text-muted">Training text</span>
         <input className="field" value={text} maxLength={80} onChange={(e) => setText(e.target.value)} /></label>
       <div className="flex flex-wrap gap-3">
         {f.words.map((wd) => (
-          <div key={wd.w} className="flex items-center gap-1 rounded-tile border border-line bg-surface px-2 py-1.5">
+          <div key={wd.w} className="flex items-center gap-1 rounded-tile border border-line bg-surface px-2 py-2">
             <AnimatePresence initial={false} mode="popLayout">
               {wd.toks.map((t) => (
                 <motion.span key={t.at} layout initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} transition={spring}
-                  className={`num rounded-[6px] px-1.5 py-0.5 text-[13px] font-semibold ${t.s.length > 1 ? "bg-accent text-accent-ink" : "bg-surface-2"}`}>{t.s}</motion.span>
+                  className={`num rounded-md px-2 py-0.5 text-sm font-semibold ${t.s.length > 1 ? "bg-accent text-accent-ink" : "bg-surface-2"}`}>{t.s}</motion.span>
               ))}
             </AnimatePresence>
-            {wd.n > 1 && <span className="ml-1 text-[11px] text-muted">×{wd.n}</span>}
+            {wd.n > 1 && <span className="ml-1 text-xs text-muted">×{wd.n}</span>}
           </div>
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-sm" onClick={() => setI((v) => Math.max(0, v - 1))} disabled={i === 0}>Back</button>
         <button type="button" className="btn btn-sm btn-primary" onClick={() => setI((v) => Math.min(frames.length - 1, v + 1))} disabled={i >= frames.length - 1}>Next merge</button>
-        <span className="num text-[13px]" role="status">merge {i} of {frames.length - 1} · {total} tokens{f.merge && <span className="text-muted"> · {f.merge}</span>}</span>
+        <span className="num text-sm" role="status">merge {i} of {frames.length - 1} · {total} tokens{f.merge && <span className="text-muted"> · {f.merge}</span>}</span>
       </div>
     </Lab>
   );

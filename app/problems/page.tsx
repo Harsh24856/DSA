@@ -37,7 +37,7 @@ export default function Problems() {
         <label className="relative">
           <span className="sr-only">Search problems by name</span>
           <MagnifyingGlass size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
-          <input className="field w-full pl-9" type="search" placeholder="Search by name" value={q} onChange={filter(setQ)} />
+          <input className="field w-full pl-10" type="search" placeholder="Search by name" value={q} onChange={filter(setQ)} />
         </label>
         <select className="field" aria-label="Track" value={tr} onChange={filter(setTr)}><option value="">All tracks</option><option value="L">LeetCode</option><option value="S">SQL</option><option value="C">Codeforces</option></select>
         <select className="field" aria-label="Status" value={st} onChange={filter(setSt)}><option value="">Any status</option><option value="todo">Not solved</option><option value="done">Solved</option><option value="help">Needed help</option></select>

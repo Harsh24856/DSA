@@ -24,18 +24,18 @@ export function SignificanceLab() {
       </div>
       <div className="relative h-14 rounded-tile bg-surface" role="img" aria-label={`Difference ${pct(d)} with 95% interval from ${pct(lo)} to ${pct(hi)}`}>
         <div className="absolute inset-y-2 w-0.5 bg-ink" style={{ left: "50%" }} aria-hidden />
-        <span className="absolute bottom-0.5 -translate-x-1/2 text-[11px] text-muted" style={{ left: "50%" }}>0</span>
+        <span className="absolute bottom-0.5 -translate-x-1/2 text-xs text-muted" style={{ left: "50%" }}>0</span>
         <motion.div className="absolute top-4 h-4 rounded-full" style={{ background: lo > 0 ? "var(--easy)" : hi < 0 ? "var(--hard)" : "var(--medium)" }}
           initial={false} animate={{ left: x(lo), width: `calc(${x(hi)} - ${x(lo)})` }} transition={spring} />
         <motion.div className="absolute top-3 h-6 w-1 -translate-x-1/2 rounded bg-ink" initial={false} animate={{ left: x(d) }} transition={spring} aria-hidden />
-        <span className="absolute bottom-0.5 left-1 text-[11px] text-muted">-20 pts</span><span className="absolute bottom-0.5 right-1 text-[11px] text-muted">+20 pts</span>
+        <span className="absolute bottom-0.5 left-1 text-xs text-muted">-20 pts</span><span className="absolute bottom-0.5 right-1 text-xs text-muted">+20 pts</span>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <div className="tile"><div className="text-[12px] text-muted">difference</div><div className="num text-[15px] font-semibold">{d >= 0 ? "+" : ""}{pct(d)}</div></div>
-        <div className="tile"><div className="text-[12px] text-muted">95% interval</div><div className="num text-[15px] font-semibold">{pct(lo)} to {pct(hi)}</div></div>
-        <div className="tile"><div className="text-[12px] text-muted">items needed</div><div className="num text-[15px] font-semibold">{Number.isFinite(need) ? need.toLocaleString() : "∞"}</div></div>
+        <div className="tile"><div className="text-xs text-muted">difference</div><div className="num text-sm font-semibold">{d >= 0 ? "+" : ""}{pct(d)}</div></div>
+        <div className="tile"><div className="text-xs text-muted">95% interval</div><div className="num text-sm font-semibold">{pct(lo)} to {pct(hi)}</div></div>
+        <div className="tile"><div className="text-xs text-muted">items needed</div><div className="num text-sm font-semibold">{Number.isFinite(need) ? need.toLocaleString() : "∞"}</div></div>
       </div>
-      <p className={`rounded-tile px-3 py-2 text-[13px] ${lo > 0 ? "bg-accent-soft" : "bg-surface-2"}`} role="status">{verdict} A paired comparison on the same items usually needs far fewer items than this unpaired estimate.</p>
+      <p className={`rounded-tile px-3 py-2 text-sm ${lo > 0 ? "bg-accent-soft" : "bg-surface-2"}`} role="status">{verdict} A paired comparison on the same items usually needs far fewer items than this unpaired estimate.</p>
     </Lab>
   );
 }
@@ -66,15 +66,15 @@ export function SelfConsistencyLab() {
         <motion.circle r={6} fill="var(--accent)" stroke="var(--surface)" strokeWidth={2} initial={false} animate={{ cx: px(n), cy: py(majority(p, n)) }} transition={spring} />
         <text x={W - 12} y={py(p) + (p > 0.5 ? 12 : -4)} textAnchor="end" fontSize={10} fill="var(--muted)">one sample</text>
       </svg>
-      <p className="num text-[13px]" role="status">n = {n}: majority right {pct(majority(p, n))} vs one sample {pct(p, 0)}{p < 0.5 ? ". Below 50%, a strict majority vote makes it worse." : "."}</p>
+      <p className="num text-sm" role="status">n = {n}: majority right {pct(majority(p, n))} vs one sample {pct(p, 0)}{p < 0.5 ? ". Below 50%, a strict majority vote makes it worse." : "."}</p>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-sm btn-primary" onClick={run}>Draw {n} samples</button>
-        {winner && <span className="text-[13px]" role="status">plurality answer: <b className="num">{winner[0]}</b> ({winner[1]} of {n} votes) {winner[0] === "24" ? "correct" : "wrong"}</span>}
+        {winner && <span className="text-sm" role="status">plurality answer: <b className="num">{winner[0]}</b> ({winner[1]} of {n} votes) {winner[0] === "24" ? "correct" : "wrong"}</span>}
       </div>
-      <div className="flex flex-wrap gap-1.5" aria-label="Votes">
+      <div className="flex flex-wrap gap-2" aria-label="Votes">
         <AnimatePresence>
           {votes.map((v, i) => (
-            <motion.span key={`${i}-${v}-${votes.length}`} className="num grid h-7 min-w-9 place-items-center rounded-[8px] px-1.5 text-[12px] font-semibold"
+            <motion.span key={`${i}-${v}-${votes.length}`} className="num grid h-7 min-w-9 place-items-center rounded-[8px] px-2 text-xs font-semibold"
               style={{ background: v === "24" ? tint(30, "var(--easy)") : tint(25, "var(--hard)") }}
               initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ ...spring, delay: i * 0.04 }}>{v}</motion.span>
           ))}
@@ -95,7 +95,7 @@ export function KvPagingLab() {
   const used = lens.reduce((a, b) => a + b, 0);
   const contiguous = count * max, paged = lens.reduce((a, l) => a + Math.ceil(l / block) * block, 0);
   const bar = (label: string, reserved: number) => (
-    <div className="grid gap-1 text-[13px]">
+    <div className="grid gap-1 text-sm">
       <div className="flex justify-between gap-2"><span className="font-medium">{label}</span><span className="num text-muted">{reserved.toLocaleString()} slots reserved, {pct(1 - used / reserved)} wasted</span></div>
       <div className="relative h-5 overflow-hidden rounded-full bg-surface-2">
         <motion.div className="absolute inset-y-0 left-0 rounded-full" style={{ background: tint(30, "var(--medium)") }} initial={false} animate={{ width: `${(reserved / contiguous) * 100}%` }} transition={spring} />
@@ -116,7 +116,7 @@ export function KvPagingLab() {
         {lens.slice(0, 3).map((l, r) => {
           const nb = Math.ceil(l / block), shown = Math.min(nb, 48);
           return (
-            <div key={r} className="flex flex-wrap items-center gap-[3px] text-[11px]">
+            <div key={r} className="flex flex-wrap items-center gap-[3px] text-xs">
               <span className="num w-20 text-muted">req {r + 1}: {l}</span>
               {Array.from({ length: shown }, (_, b) => {
                 const fill = Math.min(1, (l - b * block) / block);
@@ -127,7 +127,7 @@ export function KvPagingLab() {
           );
         })}
       </div>
-      <p className="text-[13px]" role="status">Same memory fits about <b className="num">{(contiguous / paged).toFixed(1)}×</b> as many requests with paging. Tiny blocks waste least but mean bigger block tables and more scattered reads; 16 is a common choice.</p>
+      <p className="text-sm" role="status">Same memory fits about <b className="num">{(contiguous / paged).toFixed(1)}×</b> as many requests with paging. Tiny blocks waste least but mean bigger block tables and more scattered reads; 16 is a common choice.</p>
     </Lab>
   );
 }
@@ -153,38 +153,38 @@ export function SpeculativeLab() {
         <Slider label="draft length k" value={k} min={1} max={12} onChange={(v) => { setK(v); setRuns([]); }} />
         <Slider label="draft cost c" value={c} min={0.01} max={0.5} step={0.01} onChange={setC} show={c.toFixed(2)} />
       </div>
-      <div className="flex h-28 items-end gap-1.5 rounded-tile bg-surface p-2" role="img" aria-label={`Speedup by draft length; best k is ${best} at ${speedup(a, best, c).toFixed(2)} times`}>
+      <div className="flex h-28 items-end gap-2 rounded-tile bg-surface p-2" role="img" aria-label={`Speedup by draft length; best k is ${best} at ${speedup(a, best, c).toFixed(2)} times`}>
         {Array.from({ length: 12 }, (_, i) => {
           const kk = i + 1, v = speedup(a, kk, c);
           return (
             <div key={kk} className="flex flex-1 flex-col items-center gap-1">
               <motion.div className="w-full rounded-t-[4px]" style={{ background: kk === k ? "var(--accent)" : tint(35, "var(--muted)") }} initial={false} animate={{ height: `${(v / max) * 72}px` }} transition={spring} />
-              <span className={`num text-[10px] ${kk === k ? "font-bold text-ink" : "text-muted"}`}>{kk}</span>
+              <span className={`num text-xs ${kk === k ? "font-bold text-ink" : "text-muted"}`}>{kk}</span>
             </div>
           );
         })}
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <div className="tile"><div className="text-[12px] text-muted">tokens per step</div><div className="num text-[15px] font-semibold">{((1 - a ** (k + 1)) / (1 - a)).toFixed(2)}</div></div>
-        <div className="tile"><div className="text-[12px] text-muted">speedup</div><div className="num text-[15px] font-semibold">{s.toFixed(2)}×</div></div>
-        <div className="tile"><div className="text-[12px] text-muted">best k here</div><div className="num text-[15px] font-semibold">{best}</div></div>
+        <div className="tile"><div className="text-xs text-muted">tokens per step</div><div className="num text-sm font-semibold">{((1 - a ** (k + 1)) / (1 - a)).toFixed(2)}</div></div>
+        <div className="tile"><div className="text-xs text-muted">speedup</div><div className="num text-sm font-semibold">{s.toFixed(2)}×</div></div>
+        <div className="tile"><div className="text-xs text-muted">best k here</div><div className="num text-sm font-semibold">{best}</div></div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-sm btn-primary" onClick={draft}>Draft and verify</button>
-        <span className="text-[12px] text-muted">green accepted · red rejected (everything after it is thrown away) · blue the big model&apos;s own token</span>
+        <span className="text-xs text-muted">green accepted · red rejected (everything after it is thrown away) · blue the big model&apos;s own token</span>
       </div>
-      <ol className="grid gap-1.5" aria-label="Recent verification steps">
+      <ol className="grid gap-2" aria-label="Recent verification steps">
         <AnimatePresence initial={false}>
           {runs.map((r, i) => (
             <motion.li key={`${runs.length - i}`} className="flex flex-wrap items-center gap-1" layout initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
               {r.map((t, j) => (
-                <motion.span key={j} className="num grid h-6 min-w-8 place-items-center rounded-[6px] px-1 text-[11px] font-semibold"
+                <motion.span key={j} className="num grid h-6 min-w-8 place-items-center rounded-md px-1 text-xs font-semibold"
                   style={{ background: t === "ok" ? tint(30, "var(--easy)") : t === "no" ? tint(25, "var(--hard)") : tint(30) }}
                   initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ ...spring, delay: j * 0.06 }}>
                   {t === "ok" ? "ok" : t === "no" ? "x" : "+1"}
                 </motion.span>
               ))}
-              <span className="num ml-1 text-[12px] text-muted">{r.filter((t) => t !== "no").length} tokens this step</span>
+              <span className="num ml-1 text-xs text-muted">{r.filter((t) => t !== "no").length} tokens this step</span>
             </motion.li>
           ))}
         </AnimatePresence>

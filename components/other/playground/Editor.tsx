@@ -19,7 +19,7 @@ const COLORS = HighlightStyle.define([
   { tag: [t.keyword, t.operatorKeyword, t.modifier], color: "var(--accent)", fontWeight: "600" },
   { tag: [t.string, t.special(t.string), t.regexp], color: "var(--easy)" },
   { tag: [t.number, t.bool, t.null, t.atom], color: "var(--medium)" },
-  { tag: [t.comment, t.lineComment, t.blockComment], color: "var(--muted)", fontStyle: "italic" },
+  { tag: [t.comment, t.lineComment, t.blockComment], color: "var(--muted)" },
   { tag: [t.typeName, t.className, t.tagName], color: "var(--hard)" },
   { tag: [t.function(t.variableName), t.function(t.propertyName)], color: "var(--accent)" },
 ]);

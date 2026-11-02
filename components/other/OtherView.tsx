@@ -80,7 +80,7 @@ function CodeBlock({ code, lang, setLang }: { code: Code; lang: Lang; setLang(l:
           <motion.pre key={label} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}><code>{body}</code></motion.pre>
         </AnimatePresence>
       </div>
-      {code.result && <div className="grid gap-1"><span className="t-eyebrow text-[12px]">Result</span><TableView t={code.result} /></div>}
+      {code.result && <div className="grid gap-1"><span className="t-eyebrow text-xs">Result</span><TableView t={code.result} /></div>}
       {trying && mode && <Playground key={`${mode}-${label}`} mode={mode} code={key === "tsx" && code.demo ? `${body}\n\n${code.demo}` : body} setup={code.sqlSetup} title={`Edit and run: ${code.file ?? label}`} onClose={() => setTrying(false)} />}
     </div>
   );
@@ -90,15 +90,15 @@ function QA({ card, n, lang, setLang }: { card: Card; n: number; lang: Lang; set
   const [open, setOpen] = useState(false);
   return (
     <li className="max-w-none overflow-hidden rounded-tile border border-line bg-bg">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex w-full cursor-pointer items-start gap-3 px-3.5 py-3 text-left text-[14.5px] font-medium transition-colors hover:bg-surface-2">
-        <span className="num pt-0.5 text-[12px] text-accent">{String(n).padStart(2, "0")}</span>
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left text-sm font-medium transition-colors hover:bg-surface-2">
+        <span className="num pt-0.5 text-xs text-accent">{String(n).padStart(2, "0")}</span>
         <span className="min-w-0 flex-1">{card.q}</span>
         <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.25 }} className="mt-0.5 text-muted"><CaretDown size={16} aria-hidden /></motion.span>
       </button>
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}>
-            <div className="grid gap-3 border-t border-line px-3.5 py-3">
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
+            <div className="grid gap-3 border-t border-line px-4 py-3">
               <Rich text={card.a} />
               {card.diagram && <Mermaid src={card.diagram} />}
               {card.table && <TableView t={card.table} />}
@@ -117,20 +117,20 @@ function RealWorld({ ch }: { ch: Chapter }) {
     <>
       {ch.real && ch.real.length > 0 && (
         <div className="grid gap-2">
-          <h4 className="flex items-center gap-1.5"><Buildings size={16} className="text-accent" aria-hidden />In the real world</h4>
+          <h4 className="flex items-center gap-2"><Buildings size={16} className="text-accent" aria-hidden />In the real world</h4>
           {ch.real.map((s) => (
-            <article key={s.who + s.when} className="inset grid gap-1.5 p-3.5 text-[14px]">
-              <div className="flex flex-wrap items-center gap-2"><b>{s.who}</b><span className="pill pill-muted num text-[11px]">{s.when}</span></div>
+            <article key={s.who + s.when} className="inset grid gap-2 p-4 text-sm">
+              <div className="flex flex-wrap items-center gap-2"><b>{s.who}</b><span className="pill pill-muted num text-xs">{s.when}</span></div>
               <p className="m-0">{inline(s.what)}</p>
               <p className="m-0"><b>Takeaway:</b> {inline(s.lesson)}</p>
-              <a href={s.url} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1 text-[12.5px] text-muted hover:text-accent">Read the source<ArrowSquareOut size={12} aria-hidden /><span className="sr-only"> (opens in a new tab)</span></a>
+              <a href={s.url} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1 text-xs text-muted hover:text-accent">Read the source<ArrowSquareOut size={12} aria-hidden /><span className="sr-only"> (opens in a new tab)</span></a>
             </article>
           ))}
         </div>
       )}
       {ch.work && ch.work.length > 0 && (
         <div className="grid gap-1">
-          <h4 className="flex items-center gap-1.5"><Briefcase size={16} className="text-accent" aria-hidden />On the job</h4>
+          <h4 className="flex items-center gap-2"><Briefcase size={16} className="text-accent" aria-hidden />On the job</h4>
           <ul>{ch.work.map((w) => <li key={w}>{inline(w)}</li>)}</ul>
         </div>
       )}
@@ -142,7 +142,7 @@ function ChapterView({ subject, ch, n, lang, setLang }: { subject: string; ch: C
   const { done, toggle } = usePatterns();
   const key = chapterKey(subject, ch.id), on = !!done[key];
   return (
-    <motion.article id={ch.id} className="card gx-slide" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(n, 4) * 0.04, ease: [0.16, 1, 0.3, 1] }}>
+    <motion.article id={ch.id} className="card gx-slide" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(n, 4) * 0.04, ease: [0.22, 1, 0.36, 1] }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="gx-slide-tag"><b>Chapter {n}</b>{ch.lab && <span className="ml-2 inline-flex items-center gap-1 text-accent"><Flask size={12} weight="fill" aria-hidden />lab</span>}</div>
         <button type="button" onClick={() => toggle(key, !on)} aria-pressed={on} className="btn btn-sm">
@@ -189,12 +189,12 @@ function SubjectPlayground({ starters }: { starters: Starter[] }) {
   const [i, setI] = useState("0");
   const st = starters[+i];
   return (
-    <section className="card flex flex-col gap-3 p-5" aria-labelledby="pg-title">
+    <section className="card flex flex-col gap-3 p-6" aria-labelledby="pg-title">
       <div className="flex flex-wrap items-center gap-3">
         <span className="badge-icon"><CodeIcon size={16} weight="bold" aria-hidden /></span>
         <div className="min-w-0 flex-1">
           <h3 id="pg-title" className="t-h3">Playground</h3>
-          <p className="text-[13px] text-muted">Write {starters.map((s) => s.label).join(", ")} here and see the result as you type. Every example below also has a Try it button.</p>
+          <p className="text-sm text-muted">Write {starters.map((s) => s.label).join(", ")} here and see the result as you type. Every example below also has a Try it button.</p>
         </div>
         <button type="button" className={`btn btn-sm ${open ? "" : "btn-primary"}`} aria-expanded={open} onClick={() => setOpen((o) => !o)}>{open ? "Close" : "Start coding"}</button>
       </div>
@@ -215,21 +215,21 @@ export function OtherView({ subject }: { subject: Subject }) {
   const pageLangs = LANGS.filter(([k]) => subject.chapters.some((c) => (langsIn(c.code).length > 1 && c.code?.[k]) || c.cards.some((x) => langsIn(x.code).length > 1 && x.code?.[k])));
 
   return (
-    <div className="gx flex flex-col gap-5">
-      <Link href="/other" className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium text-muted no-underline transition-colors hover:text-accent"><ArrowLeft size={14} aria-hidden />All subjects</Link>
-      <section className="card flex flex-col gap-3 p-5" aria-labelledby="sub-title">
+    <div className="gx flex flex-col gap-6">
+      <Link href="/other" className="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted no-underline transition-colors hover:text-accent"><ArrowLeft size={14} aria-hidden />All subjects</Link>
+      <section className="card flex flex-col gap-3 p-6" aria-labelledby="sub-title">
         <span className="t-eyebrow">{subject.chapters.length} chapters · {cards} questions</span>
         <h2 id="sub-title" className="t-title">{subject.name}</h2>
-        <p className="max-w-[72ch] text-[15px] leading-relaxed text-muted">{subject.blurb}</p>
-        <div className="flex items-center gap-3"><Bar value={n} max={subject.chapters.length} className="flex-1" /><span className="num text-[12px] text-muted">{n} / {subject.chapters.length} done</span></div>
-        {pageLangs.length > 1 && <div className="flex flex-wrap items-center gap-2 text-[13px]"><span className="text-muted">Code in</span><Seg<Lang> label="Language" value={pageLangs.some(([k]) => k === lang) ? lang : pageLangs[0][0]} onChange={setLang} className="flex flex-wrap" options={pageLangs} /></div>}
+        <p className="max-w-[72ch] text-sm leading-relaxed text-muted">{subject.blurb}</p>
+        <div className="flex items-center gap-3"><Bar value={n} max={subject.chapters.length} className="flex-1" /><span className="num text-xs text-muted">{n} / {subject.chapters.length} done</span></div>
+        {pageLangs.length > 1 && <div className="flex flex-wrap items-center gap-2 text-sm"><span className="text-muted">Code in</span><Seg<Lang> label="Language" value={pageLangs.some(([k]) => k === lang) ? lang : pageLangs[0][0]} onChange={setLang} className="flex flex-wrap" options={pageLangs} /></div>}
         <nav aria-label="Chapters" className="mt-1 border-t border-line pt-3">
           <ol className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
             {subject.chapters.map((c, k) => (
               <li key={c.id} className="max-w-none">
-                <a href={`#${c.id}`} className="flex gap-2.5 rounded-control py-1 text-[14px] text-ink no-underline transition-colors hover:text-accent">
-                  <span className="num w-5 shrink-0 pt-px text-[12px] text-muted">{String(k + 1).padStart(2, "0")}</span>
-                  <span className="min-w-0 font-medium">{c.title}{c.lab && <Flask size={12} weight="fill" className="ml-1.5 inline text-accent" aria-label="has a lab" />}{done[chapterKey(subject.id, c.id)] && <Check size={12} weight="bold" className="ml-1.5 inline text-easy" aria-label="done" />}</span>
+                <a href={`#${c.id}`} className="flex gap-3 rounded-control py-1 text-sm text-ink no-underline transition-colors hover:text-accent">
+                  <span className="num w-5 shrink-0 pt-px text-xs text-muted">{String(k + 1).padStart(2, "0")}</span>
+                  <span className="min-w-0 font-medium">{c.title}{c.lab && <Flask size={12} weight="fill" className="ml-2 inline text-accent" aria-label="has a lab" />}{done[chapterKey(subject.id, c.id)] && <Check size={12} weight="bold" className="ml-2 inline text-easy" aria-label="done" />}</span>
                 </a>
               </li>
             ))}

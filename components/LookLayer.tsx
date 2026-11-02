@@ -36,7 +36,7 @@ export function LookLayer() {
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
       <AnimatePresence>
         <motion.div key={L.id} className="absolute -inset-6" style={{ x, y }}
-          initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}>
+          initial={{ opacity: 0, scale: 1.04 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}>
           <img src={L.photo.full} srcSet={`${L.photo.small} 1280w, ${L.photo.full} 2560w`} sizes="100vw" alt=""
             className="look-photo h-full w-full object-cover" style={{ objectPosition: L.photo.pos ?? "50% 50%" }} />
         </motion.div>

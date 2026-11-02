@@ -16,9 +16,9 @@ function Stack({ parts, max, marker }: { parts: { label: string; value: number; 
         {parts.map((p) => <motion.div key={p.label} className="h-full" style={{ background: p.color }} initial={false} animate={{ width: `${(p.value / max) * 100}%` }} transition={spring} />)}
         {marker && <motion.div className="absolute inset-y-0 w-0.5 bg-ink" initial={false} animate={{ left: `${(marker.at / max) * 100}%` }} transition={spring} aria-hidden />}
       </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px]">
-        {parts.map((p) => <span key={p.label} className="flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{ background: p.color }} aria-hidden />{p.label}: <b className="num">{p.text}</b></span>)}
-        {marker && <span className="flex items-center gap-1.5"><span className="h-3 w-0.5 bg-ink" aria-hidden />{marker.label}</span>}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+        {parts.map((p) => <span key={p.label} className="flex items-center gap-2"><span className="size-2.5 rounded-full" style={{ background: p.color }} aria-hidden />{p.label}: <b className="num">{p.text}</b></span>)}
+        {marker && <span className="flex items-center gap-2"><span className="h-3 w-0.5 bg-ink" aria-hidden />{marker.label}</span>}
       </div>
     </div>
   );
@@ -40,12 +40,12 @@ export function CostLab() {
         <Slider label="output tokens per request" value={outTok} min={50} max={4000} step={50} onChange={setOut} show={big(outTok)} />
         <Slider label="share of input served from cache" value={cached} min={0} max={90} step={5} onChange={setCached} show={`${cached}%`} />
         <Slider label="requests per day" value={ri} min={0} max={REQS.length - 1} onChange={setRi} show={big(perDay)} />
-        <label className="grid gap-1 text-[13px]"><span className="text-muted">input price, $ per 1M tokens</span><input className="field field-sm num" type="number" min={0} step={0.1} value={pin} onChange={(e) => setPin(Math.max(0, +e.target.value))} /></label>
-        <label className="grid gap-1 text-[13px]"><span className="text-muted">output price, $ per 1M tokens</span><input className="field field-sm num" type="number" min={0} step={0.1} value={pout} onChange={(e) => setPout(Math.max(0, +e.target.value))} /></label>
+        <label className="grid gap-1 text-sm"><span className="text-muted">input price, $ per 1M tokens</span><input className="field field-sm num" type="number" min={0} step={0.1} value={pin} onChange={(e) => setPin(Math.max(0, +e.target.value))} /></label>
+        <label className="grid gap-1 text-sm"><span className="text-muted">output price, $ per 1M tokens</span><input className="field field-sm num" type="number" min={0} step={0.1} value={pout} onChange={(e) => setPout(Math.max(0, +e.target.value))} /></label>
       </div>
       <div className="grid grid-cols-3 gap-2">
         {[["per request", req], ["per day", req * perDay], ["per 30 days", req * perDay * 30]].map(([l, v]) => (
-          <div key={l as string} className="tile"><div className="text-[12px] text-muted">{l}</div><div className="num text-[16px] font-semibold">{money(v as number)}</div></div>
+          <div key={l as string} className="tile"><div className="text-xs text-muted">{l}</div><div className="num text-base font-semibold">{money(v as number)}</div></div>
         ))}
       </div>
       <Stack max={req || 1} parts={[
@@ -72,13 +72,13 @@ export function ChunkLab() {
         <Slider label="chunk size (words)" value={size} min={8} max={60} onChange={setSize} />
         <Slider label="overlap (words)" value={ov} min={0} max={20} onChange={setOverlap} />
       </div>
-      <p className="num text-[13px]" role="status">{chunks.length} chunks from {WORDS.length} words · {chunks.reduce((s, [a, b]) => s + b - a, 0) - WORDS.length} words stored twice</p>
+      <p className="num text-sm" role="status">{chunks.length} chunks from {WORDS.length} words · {chunks.reduce((s, [a, b]) => s + b - a, 0) - WORDS.length} words stored twice</p>
       <ol className="grid max-h-[300px] gap-2 overflow-y-auto pr-1">
         <AnimatePresence initial={false}>
           {chunks.map(([a, b], i) => (
             <motion.li key={`${a}-${b}`} layout initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
-              className="rounded-tile border border-line bg-surface px-3 py-2 text-[13px] leading-relaxed">
-              <span className="num mr-2 text-[11px] font-semibold text-accent">#{i + 1}</span>
+              className="rounded-tile border border-line bg-surface px-3 py-2 text-sm leading-relaxed">
+              <span className="num mr-2 text-xs font-semibold text-accent">#{i + 1}</span>
               {i > 0 && ov > 0 && <mark className="rounded bg-accent-soft px-0.5 text-ink">{WORDS.slice(a, a + ov).join(" ")}</mark>} {WORDS.slice(i > 0 ? a + ov : a, b).join(" ")}
             </motion.li>
           ))}
@@ -111,7 +111,7 @@ export function VectorLab() {
   };
   return (
     <Lab title="Search by meaning: cosine similarity" hint="Each document is an embedding; here they are squashed to 2D. The query is embedded the same way and the closest directions win. Pick a question or click anywhere on the map.">
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Query">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Query">
         {QUERIES.map((qq) => <button key={qq[0]} type="button" className="chip" aria-pressed={qv[0] === qq[0]} onClick={() => setQv(qq)}>{qq[0]}</button>)}
       </div>
       <div className="grid gap-4 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
@@ -130,7 +130,7 @@ export function VectorLab() {
         </svg>
         <div className="grid content-start gap-2">
           <Slider label="top-k" value={k} min={1} max={6} onChange={setK} />
-          <ol className="grid gap-1 text-[13px]">
+          <ol className="grid gap-1 text-sm">
             {ranked.map((r, n) => (
               <motion.li key={r.i} layout transition={spring} className={`flex justify-between gap-2 rounded-control px-2 py-1 ${n < k ? "bg-accent-soft font-medium" : "text-muted"}`}>
                 <span>{n + 1}. {DOCS[r.i][0]}</span><span className="num">{r.s.toFixed(2)}</span>
@@ -160,15 +160,15 @@ export function AgentLab() {
       <ol className="grid gap-2">
         <AnimatePresence initial={false}>
           {TURNS.slice(0, n).map((t, i) => (
-            <motion.li key={i} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: i === n - 1 ? 1 : 0.6, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            <motion.li key={i} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: i === n - 1 ? 1 : 0.6, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className={`grid gap-1 rounded-tile border px-3 py-2 ${i === n - 1 ? "border-accent bg-surface" : "border-line bg-surface"}`}>
               <span className={`pill w-fit ${t.who === "Model" ? "pill-accent" : "pill-muted"}`}>{t.who}</span>
-              <pre className="num whitespace-pre-wrap text-[12.5px]">{t.body}</pre>
+              <pre className="num whitespace-pre-wrap text-xs">{t.body}</pre>
             </motion.li>
           ))}
         </AnimatePresence>
       </ol>
-      <p className="callout text-[13px]" role="status">{TURNS[n - 1].note}</p>
+      <p className="callout text-sm" role="status">{TURNS[n - 1].note}</p>
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-sm" onClick={() => setN((v) => Math.max(1, v - 1))} disabled={n === 1}>Back</button>
         <button type="button" className="btn btn-sm btn-primary" onClick={() => setN((v) => Math.min(TURNS.length, v + 1))} disabled={n === TURNS.length}>Next step</button>
@@ -191,17 +191,17 @@ export function LoraLab() {
         <Slider label="layer width d" value={d} min={512} max={8192} step={512} onChange={setD} show={big(d)} />
         <Slider label="rank r" value={ri} min={0} max={RANKS.length - 1} onChange={setRi} show={String(r)} />
       </div>
-      <div className="flex flex-wrap items-center gap-4 text-[12px]" aria-hidden>
-        <div className="grid justify-items-center gap-1"><div className="rounded-[6px] border border-line-strong" style={{ width: box, height: box, background: tint(18, "var(--muted)") }} /><span>W, frozen</span></div>
-        <span className="text-[20px] text-muted">+</span>
+      <div className="flex flex-wrap items-center gap-4 text-xs" aria-hidden>
+        <div className="grid justify-items-center gap-1"><div className="rounded-md border border-line-strong" style={{ width: box, height: box, background: tint(18, "var(--muted)") }} /><span>W, frozen</span></div>
+        <span className="text-xl text-muted">+</span>
         <div className="grid justify-items-center gap-1"><motion.div className="rounded-[3px] bg-accent" style={{ height: box }} initial={false} animate={{ width: thin }} transition={spring} /><span>B</span></div>
-        <span className="text-[16px] text-muted">×</span>
+        <span className="text-base text-muted">×</span>
         <div className="grid justify-items-center gap-1"><motion.div className="rounded-[3px] bg-accent" style={{ width: box }} initial={false} animate={{ height: thin }} transition={spring} /><span>A</span></div>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <div className="tile"><div className="text-[12px] text-muted">full update</div><div className="num text-[15px] font-semibold">{big(full)}</div></div>
-        <div className="tile"><div className="text-[12px] text-muted">LoRA, one layer</div><div className="num text-[15px] font-semibold">{big(lora)} ({((lora / full) * 100).toFixed(2)}%)</div></div>
-        <div className="tile"><div className="text-[12px] text-muted">32 layers × q,k,v,o</div><div className="num text-[15px] font-semibold">{(model / 1e6).toFixed(1)}M · {((model * 2) / 1e6).toFixed(0)} MB</div></div>
+        <div className="tile"><div className="text-xs text-muted">full update</div><div className="num text-sm font-semibold">{big(full)}</div></div>
+        <div className="tile"><div className="text-xs text-muted">LoRA, one layer</div><div className="num text-sm font-semibold">{big(lora)} ({((lora / full) * 100).toFixed(2)}%)</div></div>
+        <div className="tile"><div className="text-xs text-muted">32 layers × q,k,v,o</div><div className="num text-sm font-semibold">{(model / 1e6).toFixed(1)}M · {((model * 2) / 1e6).toFixed(0)} MB</div></div>
       </div>
     </Lab>
   );
@@ -232,7 +232,7 @@ export function MemoryLab() {
         { label: "weights", value: weights, color: "var(--accent)", text: `${weights.toFixed(1)} GB` },
         { label: "KV cache", value: kv, color: "var(--medium)", text: `${kv.toFixed(1)} GB` },
       ]} />
-      <p className={`rounded-tile px-3 py-2 text-[13px] ${fits ? "bg-accent-soft" : "bg-hard/10 text-hard"}`} role="status">
+      <p className={`rounded-tile px-3 py-2 text-sm ${fits ? "bg-accent-soft" : "bg-hard/10 text-hard"}`} role="status">
         {fits ? `Fits: ${total.toFixed(1)} GB of ${cap} GB, about ${(cap - total).toFixed(1)} GB to spare.`
           : `Needs ${total.toFixed(1)} GB. Try int4 weights, a shorter context, fewer users per GPU, or split the model across GPUs (tensor parallelism).`}
       </p>
