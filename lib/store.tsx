@@ -14,7 +14,7 @@ const baseKey = (email: string) => `dsa-daily-base:${email}`;
 // Playwright runs: pretend a user is signed in and never talk to Supabase
 const E2E = process.env.NEXT_PUBLIC_E2E === "1";
 export const PALETTES = {
-  midnight: ["Neutral", "#4D7C0F", "#C6F135"], galaxy: ["Galaxy", "#4A4E8F", "#A3A7F2"], ocean: ["Ocean", "#0F766E", "#4FD1C5"],
+  midnight: ["Neutral", "#3F6A09", "#C6F135"], galaxy: ["Galaxy", "#4A4E8F", "#A3A7F2"], ocean: ["Ocean", "#0F766E", "#4FD1C5"],
   forest: ["Forest", "#3F6B3A", "#8CC77F"], sunset: ["Sunset", "#C2410C", "#FB923C"], rose: ["Rose", "#BE185D", "#F472B6"], mono: ["Mono", "#111111", "#F2F2F2"],
 } as const;
 export type Palette = keyof typeof PALETTES;

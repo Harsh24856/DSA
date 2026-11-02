@@ -3,8 +3,8 @@
   "short_name": "DSA Daily",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#04060B",
-  "theme_color": "#14284B",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "icons": [
     {
       "src": "/favicon.svg",

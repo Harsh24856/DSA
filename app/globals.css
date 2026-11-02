@@ -4,7 +4,7 @@
    (data-theme on <html>, absent = follow system). Components use only these tokens via Tailwind
    color utilities (bg-surface, text-muted, border-line, ...). Never hardcode hex in components. */
 :root{
-  --bg:#FAFAFA; --surface:#FFFFFF; --ink:#0A0A0A; --muted:#525252; --line:#E5E5E5; --accent:#4D7C0F; --accent-ink:#FFFFFF; --soft:#F1F5E4; --good:#4D7C0F; --good-soft:#F1F5E4; --medium:#92580A; --hard:#B91C1C; --easy:#15703F;
+  --bg:#FAFAFA; --surface:#FFFFFF; --ink:#0A0A0A; --muted:#525252; --line:#E5E5E5; --accent:#3F6A09; --accent-ink:#FFFFFF; --soft:#F1F5E4; --good:#3F6A09; --good-soft:#F1F5E4; --medium:#92580A; --hard:#B91C1C; --easy:#116134;
   --display:var(--font-geist),ui-sans-serif,system-ui,sans-serif;
   --body:var(--font-geist),ui-sans-serif,system-ui,sans-serif;
   --mono:var(--font-geist-mono),ui-monospace,Menlo,monospace;

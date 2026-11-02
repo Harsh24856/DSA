@@ -46,7 +46,7 @@ Source of truth: tokens in `app/globals.css`, mapped to Tailwind colors in `@the
 - Charts: colors from tokens only; each chart has a text alternative (`aria-label` summary or visible numbers) and never relies on color alone.
 
 ### Cannot ship if
-- A component uses a hex/rgb color literal instead of a token (exceptions: palette swatches in `lib/store.tsx`, the dialog scrim in `globals.css`). Check: `grep -rnE "#[0-9a-fA-F]{3,8}\b|rgb\(" app components | grep -v globals.css`
+- A component uses a hex/rgb color literal instead of a token (exceptions: palette swatches in `lib/store.tsx`, the dialog scrim in `globals.css`, `app/opengraph-image.tsx`, which renders a PNG with no CSS variables). Check: `grep -rnE "#[0-9a-fA-F]{3,8}\b|rgb\(" app components | grep -v globals.css`
 - Any visible string contains an em dash. Check: `grep -rn "—" app components lib`
 - An interactive element is a `div` with `onClick`, or an icon-only button lacks `aria-label`.
 - `npm run typecheck` or `npm run build` fails.

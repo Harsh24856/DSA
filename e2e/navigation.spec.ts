@@ -46,7 +46,7 @@ test("every page shows its content right after a nav click", async ({ page }) =>
 });
 
 // Shell and Card are fixed. Still failing: `initial={reduce ? false : ...}` in app/patterns/page.tsx, app/page.tsx,
-// components/{charts,ProblemRow,SignIn,TopicView,Visualizer}.tsx (UI session's files). Remove fixme once those land.
+// components/{charts,ProblemRow,TopicView,Visualizer}.tsx (UI session's files). Remove fixme once those land.
 test.fixme("no hydration mismatch under reduced motion", async ({ page }) => {
   const errors: string[] = [];
   page.on("console", (m) => { if (m.type() === "error" && /hydrat/i.test(m.text())) errors.push(m.text().split("\n").filter((l) => /^\s*[+-]\s{2,}/.test(l)).join(" | ")); });
