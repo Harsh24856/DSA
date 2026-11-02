@@ -10,6 +10,15 @@ export const NODE: Subject = {
       id: "runtime",
       title: "What Node is: runtime, modules and process",
       summary: "Node runs JavaScript outside the browser on Google's V8 engine, with **libuv** providing an event loop and a thread pool for file system, DNS and crypto work. It is single-threaded for your code, which is why it handles many concurrent connections well and CPU-heavy work badly.",
+      real: [
+        {
+                "who": "Cloudflare",
+                "when": "Jul 2019",
+                "what": "One regular expression backtracked enough to pin CPUs near 100% across their network. They were running a Lua firewall, but a regex on Node's single main thread would block every other request in exactly the same way.",
+                "lesson": "Never run an untrusted-input regex without thinking about backtracking. A CPU spike on Node stalls everything.",
+                "url": "https://blog.cloudflare.com/details-of-the-cloudflare-outage-on-july-2-2019/"
+        }
+],
       diagram: `flowchart TB
   JS["your JavaScript"] --> V8["V8: compiles and runs JS"]
   JS --> API["Node APIs: fs, http, crypto, streams"]
@@ -225,6 +234,7 @@ app.listen(3000);`,
       id: "rest",
       title: "Designing a REST API",
       summary: "Resources are nouns in the URL, actions are HTTP methods, and status codes tell the client what happened. Group routes with `express.Router()`, validate input at the edge, and return consistent JSON errors.",
+      work: ["Log a request ID on every line and return it to the client, so one failed request can be traced end to end."],
       diagram: `flowchart TB
   H0["POST /users"]:::hot
   subgraph R1[" "]
@@ -349,6 +359,7 @@ console.log(stored.length, await verifyPassword("correct horse", stored), await 
       id: "data",
       title: "Configuration, databases and async patterns",
       summary: "Production apps read configuration from environment variables, open one database connection pool at startup, and keep handlers thin: validate, call a service function, return a response.",
+      work: ["Use a connection pool and set its size against the database's limit: 20 app servers with 20 connections each is 400 connections.", "Add a timeout to every external call, including to your own database."],
       diagram: `flowchart TB
   S["startup"] --> CFG["config: read env vars, validate once"]:::hot
   CFG --> POOL[("one database pool")]
@@ -398,6 +409,23 @@ console.log(loadConfig({ PORT: "4000" }), await withRetry(flaky), "after", calls
       id: "security",
       title: "Security and production readiness",
       summary: "Most Express incidents come from a short list: missing input validation, overly open CORS, no rate limits, leaked error details, outdated dependencies and secrets in code. Each has a standard fix.",
+      real: [
+        {
+                "who": "left-pad",
+                "when": "Mar 2016",
+                "what": "A developer unpublished about 273 packages, including the 11-line `left-pad`. Thousands of projects depending on it broke for about 2.5 hours, until npm restored it and changed its unpublish rules.",
+                "lesson": "Every dependency is a risk. Commit your lockfile and mirror what your builds depend on.",
+                "url": "https://blog.npmjs.org/post/141577284765/kik-left-pad-and-npm"
+        },
+        {
+                "who": "event-stream",
+                "when": "Nov 2018",
+                "what": "A new maintainer of the popular `event-stream` package added a dependency, `flatmap-stream`, containing malicious code aimed at one specific company's developers. It went unnoticed for over two months.",
+                "lesson": "Supply chain attacks are real. Review dependency changes, and treat an owner change as a warning sign.",
+                "url": "https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident"
+        }
+],
+      work: ["Run `npm audit` in CI, and pin versions with a lockfile.", "Never commit secrets. If one leaks, rotate it: deleting the commit is not enough."],
       diagram: `flowchart TB
   I["internet"] --> RL["rate limit: slow down brute force"]:::hot
   RL --> CO["CORS: only your own origins"]
@@ -444,6 +472,7 @@ process.on("SIGINT", shutdown);`,
       id: "testing",
       title: "Testing an Express API",
       summary: "Start the app on a random port (`listen(0)`) inside the test, call it with `fetch`, and assert on status codes and JSON. Node ships a test runner (`node:test`), so a small API needs no extra libraries.",
+      work: ["A test suite earns trust by catching bugs. When a production bug appears, write the failing test first, then fix it.", "Keep the suite fast, or people will stop running it. Flaky tests should be fixed or deleted the same week."],
       diagram: `flowchart TB
   B["before: app.listen(0)"] --> P["the OS picks a free port"]
   P --> T1["test: POST /sum with a = 2, b = 3"]

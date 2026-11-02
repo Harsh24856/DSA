@@ -22,6 +22,9 @@ export type Card = {
   trap?: string;       // the mistake interviewers wait for
 };
 
+/** Something that really happened, in the company's own words wherever a public write-up exists. */
+export type Story = { who: string; when: string; what: string; lesson: string; url: string };
+
 export type Chapter = {
   id: string;
   title: string;
@@ -32,6 +35,8 @@ export type Chapter = {
   table?: Table;
   code?: Code;
   lab?: OtherLab;
+  real?: Story[];      // real incidents and designs, each with its source
+  work?: string[];     // how this is actually done on the job
   anim?: string;       // id of an animated walk-through in lib/other/flows.ts
   cards: Card[];
 };

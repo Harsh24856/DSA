@@ -69,6 +69,16 @@ export const CN: Subject = {
       id: "dns",
       title: "DNS",
       summary: "DNS turns names into IP addresses using a distributed, cached hierarchy. Your computer asks a recursive resolver, which walks the hierarchy for you and caches the answers for their TTL.",
+      real: [
+        {
+                "who": "AWS DynamoDB",
+                "when": "Oct 2025",
+                "what": "A race in DNS automation left dynamodb.us-east-1.amazonaws.com with an empty DNS record: a delayed process applied an old plan over a newer one, and cleanup then deleted it. Many AWS services depend on DynamoDB, so the disruption ran from 11:48 PM to 2:20 PM the next day.",
+                "lesson": "DNS being wrong looks like the service being down. Check DNS early when many things fail at once.",
+                "url": "https://aws.amazon.com/message/101925/"
+        }
+],
+      work: ["`dig` and `curl -v` are daily tools. They answer most 'is it the network?' questions in a minute."],
       diagram: `sequenceDiagram
   participant B as Browser / OS
   participant R as Recursive resolver
@@ -148,6 +158,22 @@ export const CN: Subject = {
       id: "routing",
       title: "Routing and error reporting",
       summary: "Routers forward each packet using the longest matching prefix in their routing table. Routing protocols build those tables.",
+      real: [
+        {
+                "who": "Pakistan Telecom and YouTube",
+                "when": "Feb 2008",
+                "what": "Pakistan Telecom announced 208.65.153.0/24, part of YouTube's /22. Routers prefer the most specific prefix, so much of the world sent YouTube traffic to Pakistan. It began at 18:47 UTC and ended at 21:01, after YouTube countered with more specific routes and PCCW withdrew the announcements.",
+                "lesson": "Longest prefix match is why this worked. BGP trusts what neighbours say, unless route filtering stops it.",
+                "url": "https://www.ripe.net/publications/news/industry-developments/youtube-hijacking-a-ripe-ncc-ris-case-study"
+        },
+        {
+                "who": "Facebook",
+                "when": "Oct 2021",
+                "what": "A backbone failure made DNS servers withdraw their BGP routes. The servers were running, but nothing on the Internet could reach them.",
+                "lesson": "BGP and DNS are the base of everything. A health check that withdraws routes must not do so for everyone at once.",
+                "url": "https://engineering.fb.com/2021/10/05/networking-traffic/outage-details/"
+        }
+],
       diagram: `flowchart LR
   subgraph AS1["ISP A (autonomous system)"]
     direction LR
@@ -174,6 +200,15 @@ export const CN: Subject = {
       id: "security",
       title: "Network security basics",
       summary: "Interviews usually ask about the common attacks and the standard defence for each.",
+      real: [
+        {
+                "who": "Heartbleed",
+                "when": "Apr 2014",
+                "what": "A missing bounds check in OpenSSL's TLS heartbeat let anyone read a server's memory, including private keys. The bug had been in releases since March 2012.",
+                "lesson": "The library you trust is part of your attack surface. Track dependencies, patch fast, and rotate keys after a leak.",
+                "url": "https://heartbleed.com/"
+        }
+],
       diagram: `sequenceDiagram
   participant C as Client
   participant M as Attacker

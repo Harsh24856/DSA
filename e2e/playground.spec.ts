@@ -45,7 +45,7 @@ test("Node: Express starter answers requests", async ({ page }) => {
   await page.goto("/other/node");
   await page.getByRole("button", { name: "Start coding" }).click();
   const pg = page.locator(".pg").first();
-  await expect(pg.getByText("listening on port 3000")).toBeVisible({ timeout: 20_000 });
+  await expect(pg.locator(".pg-log").getByText("listening on port 3000")).toBeVisible({ timeout: 20_000 });
   await expect(pg.getByText("200 OK")).toBeVisible({ timeout: 10_000 });
   await pg.getByLabel("HTTP method").selectOption("POST");
   await pg.getByLabel("Path").fill("/notes");

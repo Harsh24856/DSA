@@ -452,6 +452,15 @@ int main() {
       id: "solid",
       title: "SOLID and common design patterns",
       summary: "SOLID is five rules for classes that stay easy to change. Design patterns are named, reusable solutions to recurring design problems.",
+      real: [
+        {
+                "who": "Knight Capital",
+                "when": "Aug 2012",
+                "what": "A flag that once enabled old 'Power Peg' code was reused for a new feature. The old code was still there on one server, so turning on the new feature ran the old logic: more than 4 million orders in 45 minutes.",
+                "lesson": "Delete dead code, and do not give an old switch a new meaning. Small classes with one job are easier to remove.",
+                "url": "https://www.sec.gov/news/press-release/2013-222"
+        }
+],
       diagram: `flowchart TB
   O["OrderService"] -->|"depends on"| P["interface PaymentGateway"]:::hot
   N["new wallet? add one class"]:::ok -.->|"service unchanged"| P
@@ -505,6 +514,15 @@ int main() {
       id: "exceptions",
       title: "Exceptions and memory management",
       summary: "Exceptions separate error handling from normal flow. Java has checked exceptions (must be declared or caught) and a garbage collector; C++ has only unchecked exceptions and deterministic destructors, which is what makes RAII work.",
+      real: [
+        {
+                "who": "Ariane 5",
+                "when": "Jun 1996",
+                "what": "About 37 seconds into the first flight, converting a 64-bit float to a 16-bit integer overflowed in a function reused from Ariane 4. The exception was unprotected and shut down the guidance computer and its backup, which ran the same code. That function was not even needed after lift-off.",
+                "lesson": "Handle exceptions at conversions. Reused code carries its old assumptions, and identical backups fail identically.",
+                "url": "https://esamultimedia.esa.int/docs/esa-x-1819eng.pdf"
+        }
+],
       diagram: `flowchart TB
   T["Throwable"] --> ER["Error: never catch"]:::bad
   T --> E["Exception"]

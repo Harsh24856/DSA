@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, CaretDown, Check, Code as CodeIcon, Flask, WarningCircle } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowSquareOut, Briefcase, Buildings, CaretDown, Check, Code as CodeIcon, Flask, WarningCircle } from "@phosphor-icons/react";
 import type { Card, Chapter, Code, Subject, Table } from "@/lib/other/types";
 import { chapterKey } from "@/lib/other";
 import { usePatterns } from "@/lib/patternStore";
@@ -112,6 +112,32 @@ function QA({ card, n, lang, setLang }: { card: Card; n: number; lang: Lang; set
   );
 }
 
+function RealWorld({ ch }: { ch: Chapter }) {
+  return (
+    <>
+      {ch.real && ch.real.length > 0 && (
+        <div className="grid gap-2">
+          <h4 className="flex items-center gap-1.5"><Buildings size={16} className="text-accent" aria-hidden />In the real world</h4>
+          {ch.real.map((s) => (
+            <article key={s.who + s.when} className="inset grid gap-1.5 p-3.5 text-[14px]">
+              <div className="flex flex-wrap items-center gap-2"><b>{s.who}</b><span className="pill pill-muted num text-[11px]">{s.when}</span></div>
+              <p className="m-0">{inline(s.what)}</p>
+              <p className="m-0"><b>Takeaway:</b> {inline(s.lesson)}</p>
+              <a href={s.url} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1 text-[12.5px] text-muted hover:text-accent">Read the source<ArrowSquareOut size={12} aria-hidden /><span className="sr-only"> (opens in a new tab)</span></a>
+            </article>
+          ))}
+        </div>
+      )}
+      {ch.work && ch.work.length > 0 && (
+        <div className="grid gap-1">
+          <h4 className="flex items-center gap-1.5"><Briefcase size={16} className="text-accent" aria-hidden />On the job</h4>
+          <ul>{ch.work.map((w) => <li key={w}>{inline(w)}</li>)}</ul>
+        </div>
+      )}
+    </>
+  );
+}
+
 function ChapterView({ subject, ch, n, lang, setLang }: { subject: string; ch: Chapter; n: number; lang: Lang; setLang(l: Lang): void }) {
   const { done, toggle } = usePatterns();
   const key = chapterKey(subject, ch.id), on = !!done[key];
@@ -131,6 +157,7 @@ function ChapterView({ subject, ch, n, lang, setLang }: { subject: string; ch: C
       {ch.code && <CodeBlock code={ch.code} lang={lang} setLang={setLang} />}
       {ch.anim && <FlowPlayer id={ch.anim} />}
       {ch.lab && <OtherLab kind={ch.lab} />}
+      <RealWorld ch={ch} />
       {ch.cards.length > 0 && (
         <>
           <h4>Interview questions</h4>

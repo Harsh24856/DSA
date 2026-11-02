@@ -101,6 +101,16 @@ export const DBMS: Subject = {
       id: "acid",
       title: "Transactions and ACID",
       summary: "A transaction is a group of operations that must succeed or fail as one unit, like moving money between two accounts.",
+      real: [
+        {
+                "who": "GitLab",
+                "when": "Jan 2017",
+                "what": "While fixing replication under load, an engineer wiped the data directory on the primary rather than the secondary, deleting about 300 GB. Six hours of data was lost. Their pg_dump backups had been silently failing, because the tool version did not match the server, and failure emails were being rejected. Recovery came from a staging snapshot that happened to exist.",
+                "lesson": "Durability needs proof. A backup you have not restored is not a backup, and silent failure is the worst kind.",
+                "url": "https://about.gitlab.com/blog/2017/02/10/postmortem-of-database-outage-of-january-31/"
+        }
+],
+      work: ["Know your recovery point (how much data you can lose) and recovery time (how long you can be down). Test them."],
       table: { head: ["Property", "Means", "How databases provide it"], rows: [
         ["Atomicity", "all or nothing", "undo log: roll back partial work"],
         ["Consistency", "constraints hold before and after", "constraint checks plus correct application logic"],
@@ -129,6 +139,15 @@ export const DBMS: Subject = {
       id: "concurrency",
       title: "Schedules, serializability and concurrency control",
       summary: "A schedule interleaves operations of several transactions. It is **conflict serializable** if swapping non-conflicting operations can turn it into some serial order. Two operations conflict if they belong to different transactions, touch the same item, and at least one is a write.",
+      real: [
+        {
+                "who": "Sentry",
+                "when": "Jul 2015",
+                "what": "Sentry was down for most of a US working day. Postgres transaction IDs are finite, and VACUUM must reclaim them. On a write-heavy database it fell behind, so Postgres stopped accepting writes to protect data. They truncated a large table to recover, then tuned autovacuum to run harder.",
+                "lesson": "MVCC has a housekeeping cost. Monitor transaction ID age on any Postgres database before it becomes an emergency.",
+                "url": "https://blog.sentry.io/transaction-id-wraparound-in-postgres/"
+        }
+],
       diagram: `flowchart LR
   T1(["T1"]) -->|"T1 writes A before T2 reads A"| T2(["T2"])
   T2 -->|"T2 writes B before T1 reads B"| T1`,
@@ -148,6 +167,16 @@ export const DBMS: Subject = {
       id: "indexing",
       title: "Indexing and B+ trees",
       summary: "An index is a separate structure that finds rows without scanning the table. Most databases use **B+ trees**: balanced, wide trees where every lookup takes a few disk reads even with millions of rows.",
+      real: [
+        {
+                "who": "Uber",
+                "when": "2016",
+                "what": "They reported that updating a row in Postgres had to update every index on the table, and those writes also went to replicas. That write amplification was a main reason they gave for moving to MySQL.",
+                "lesson": "Each index speeds reads and taxes every write. Remove indexes nobody uses.",
+                "url": "https://www.infoq.com/news/2016/08/Uber-Engineering-Postgres-MySQL"
+        }
+],
+      work: ["Read the query plan with `EXPLAIN ANALYZE`. Guessing about indexes is how slow queries survive for years.", "Create indexes without locking the table in production: `CREATE INDEX CONCURRENTLY` in Postgres."],
       points: [
         "Internal nodes hold only separator keys; leaves hold every key (with row pointers or the rows themselves) and are linked, so range scans walk the leaves.",
         "**Clustered** index: the table rows are stored in index order (one per table, usually the primary key). **Non-clustered**: a separate structure pointing to rows.",
@@ -165,6 +194,15 @@ export const DBMS: Subject = {
       id: "scale",
       title: "Scaling: replication, sharding and CAP",
       summary: "One database server eventually runs out of capacity. **Replication** copies data to more machines (for reads and availability); **sharding** splits data across machines (for writes and size).",
+      real: [
+        {
+                "who": "Notion",
+                "when": "2021",
+                "what": "480 logical shards across 32 physical databases, by workspace ID, after VACUUM stalled on one giant database.",
+                "lesson": "Logical shards let you move data later without changing the app.",
+                "url": "https://www.notion.com/blog/sharding-postgres-at-notion"
+        }
+],
       diagram: `flowchart LR
   App["application"] -->|"writes"| P[("primary")]
   P -->|"replicates"| R1[("replica 1")]

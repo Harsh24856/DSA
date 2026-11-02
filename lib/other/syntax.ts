@@ -10,6 +10,22 @@ export const SYNTAX: Subject = {
       id: "basics",
       title: "Variables, types and constants",
       summary: "C++ and Java are **statically typed** and compiled: every variable has a fixed type checked before the program runs. Python and JavaScript are **dynamically typed**: values carry types, variables do not. TypeScript adds static types on top of JavaScript and erases them when it runs.",
+      real: [
+        {
+                "who": "Boeing 787",
+                "when": "2015",
+                "what": "An FAA directive said a software counter in the generator control units would overflow after 248 days of continuous power, which could shut down all AC electrical power. Operators had to power-cycle the planes until new software came.",
+                "lesson": "Integer sizes have physical consequences: 248 days is about what a signed 32-bit counter of hundredths of a second can hold.",
+                "url": "https://www.govinfo.gov/content/pkg/FR-2018-10-16/html/2018-22152.htm"
+        },
+        {
+                "who": "Mars Climate Orbiter",
+                "when": "1999",
+                "what": "One piece of ground software reported thruster data in pound-force seconds, and the navigation team's software read it as newton-seconds. The orbiter came in too low and was lost.",
+                "lesson": "Bare numbers lose their meaning at boundaries. Put units in names or in types: `delayMs`, not `delay`.",
+                "url": "https://homepages.uc.edu/~thomam/Implications_IT/pdf/ch8/mars_orbiter_failure.pdf"
+        }
+],
       diagram: `flowchart TB
   subgraph ST["C++, Java, TypeScript: static"]
     direction TB
@@ -583,6 +599,15 @@ for (const p of pets) console.log(p.intro());`,
       id: "errors",
       title: "Errors and exceptions",
       summary: "All five throw and catch exceptions. Java alone forces you to declare or handle checked exceptions; TypeScript code often returns errors as values instead, and async code needs its own handling.",
+      real: [
+        {
+                "who": "Cloudflare DNS",
+                "when": "Jan 2017",
+                "what": "During a leap second the clock moved backwards, so a duration in their Go DNS software went negative. That value later reached a function that panicked. About 0.2% of DNS queries and under 1% of HTTP requests were affected at peak.",
+                "lesson": "Never assume time only moves forward. Use a monotonic clock for durations, and validate values before they reach code that can crash.",
+                "url": "https://blog.cloudflare.com/how-and-why-the-leap-second-affected-cloudflare-dns/"
+        }
+],
       diagram: `flowchart TB
   T["try: code that may fail"] -->|"throws"| M{"a catch matches?"}
   M -->|"yes"| H["catch: handle, or wrap and rethrow"]:::ok
@@ -699,6 +724,15 @@ try { throw new InsufficientFunds("x"); } catch (e: unknown) {          // catch
       id: "generics",
       title: "Generics and templates",
       summary: "Write code once for many types. C++ templates generate a copy per type at compile time; Java generics are checked at compile time and erased at run time; TypeScript generics exist only for the type checker; Python has type hints; JavaScript simply accepts anything.",
+      real: [
+        {
+                "who": "Dropbox",
+                "when": "2019",
+                "what": "Dropbox gradually added types to its Python with mypy, reaching almost 4 million lines over about three years. They caught bugs such as unhandled `None`, made refactoring easier and gave annotations that act as checked documentation.",
+                "lesson": "Types pay off as code and teams grow, and you can add them gradually.",
+                "url": "https://dropbox.tech/application/our-journey-to-type-checking-4-million-lines-of-python"
+        }
+],
       diagram: `flowchart TB
   G["one generic max(a, b) for any type T"] --> C["C++ template: one compiled copy per type used"]:::hot
   C --> J["Java: checked at compile time, erased at run time, no primitives"]

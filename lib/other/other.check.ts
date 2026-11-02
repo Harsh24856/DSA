@@ -175,6 +175,7 @@ function runTs(where: string, src: string, tsx = false) {
 let sqlRun = 0;
 for (const s of SUBJECTS) for (const ch of s.chapters) {
   if (ch.anim) assert.ok(FLOWS[ch.anim], `${s.id}/${ch.id}: unknown animation ${ch.anim}`);
+  for (const r of ch.real ?? []) assert.ok(/^https:\/\//.test(r.url) && r.what && r.lesson, `${s.id}/${ch.id}: story ${r.who} needs a source and a takeaway`);
   const codes: [string, Code | undefined][] = [[`${s.id}/${ch.id}`, ch.code], ...ch.cards.map((c) => [`${s.id}/${ch.id}/${c.id}`, c.code] as [string, Code | undefined])];
   for (const [where, code] of codes) {
     if (!code) continue;

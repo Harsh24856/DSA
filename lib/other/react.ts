@@ -149,6 +149,16 @@ export function TodoList() {
       id: "effects",
       title: "Effects and data fetching",
       summary: "`useEffect` runs code **after** React has updated the screen, to synchronise with something outside React: a network request, a subscription, a timer, the document title. Its dependency array says when to re-run, and its cleanup function undoes the previous run.",
+      real: [
+        {
+                "who": "Cloudflare",
+                "when": "Sep 2025",
+                "what": "A dashboard bug put an object in a `useEffect` dependency array. It was recreated on each render, so React treated it as always new and re-ran the effect, calling an API over and over. Together with a service update, that overwhelmed the service, which was part of API authorization, so other APIs failed too.",
+                "lesson": "This is a real outage from a beginner mistake. Depend on primitive values, or memoize the object.",
+                "url": "https://blog.cloudflare.com/deep-dive-into-cloudflares-sept-12-dashboard-and-api-outage/"
+        }
+],
+      work: ["Open the Network tab while building. A repeating request is obvious there and invisible in a code review.", "In real apps, a data library such as TanStack Query handles caching, dedupe and retries that most hand-written effects get wrong."],
       diagram: `flowchart LR
   R["render: call the component"] --> C["commit: update the DOM"]
   C --> E["run effects whose dependencies changed"]
@@ -203,6 +213,7 @@ export function UserCard({ userId }: { userId: number }) {
       id: "forms",
       title: "Forms: controlled inputs and React 19 actions",
       summary: "A **controlled** input takes its value from state and reports every change, so React is the single source of truth. React 19 adds **actions**: pass an async function to a form and use `useActionState` for its pending state and result.",
+      work: ["Validate on the server even if you validate in the browser: client checks are for users, server checks are for security.", "Real forms need disabled states, error messages tied to fields, and protection against double submit."],
       diagram: `flowchart TB
   T["user types"] --> C["onChange: setName(value)"]
   C --> S[("state: name")]:::hot
@@ -314,6 +325,7 @@ export function CartTotal() {
       id: "perf",
       title: "Refs and performance",
       summary: "A component re-renders when its state changes, when its parent re-renders, or when a context it reads changes. Most re-renders are cheap. When one is not, `memo`, `useMemo` and `useCallback` let React skip work. `useRef` holds a value or DOM node that survives renders without causing them.",
+      work: ["Profile before optimizing: the React DevTools Profiler shows which components actually re-rendered and why.", "Most slowness in production is bundle size and network, not re-renders. Check those first."],
       diagram: `flowchart TB
   A["App: state changes"]:::hot --> B["Header and Cart re-render"]:::warn
   A --> C["ProductList: memo, same props, skipped"]:::ok

@@ -10,6 +10,15 @@ export const OS: Subject = {
       id: "process",
       title: "Programs, processes and threads",
       summary: "A **program** is a file on disk. A **process** is that program running: it has its own memory, open files and at least one thread. A **thread** is one path of execution inside a process; threads of the same process share its memory.",
+      real: [
+        {
+                "who": "Slack",
+                "when": "Jan 2021",
+                "what": "While recovering from an outage, their provisioning service hit the Linux open files limit, so many new servers never came up.",
+                "lesson": "File descriptor limits are a real production failure. Every socket counts. Check `ulimit -n` on anything that handles many connections.",
+                "url": "https://slack.engineering/slacks-outage-on-january-4th-2021/"
+        }
+],
       points: [
         "Process memory, low to high address: text (code), data (globals), heap (grows up), stack (grows down).",
         "The OS tracks each process in a **PCB** (process control block): PID, state, program counter, registers, memory maps, open files, scheduling info.",
@@ -82,6 +91,15 @@ export const OS: Subject = {
       id: "sync",
       title: "Synchronization",
       summary: "When threads share data, the result can depend on timing: a **race condition**. The code that touches shared data is the **critical section**, and only one thread may be inside it at a time.",
+      real: [
+        {
+                "who": "Mars Pathfinder",
+                "when": "1997",
+                "what": "Days after landing, the spacecraft began resetting itself. A low-priority weather task held a mutex that a high-priority bus task needed, while a medium-priority task kept the low one from running. A watchdog saw the bus task stalled and reset everything. Engineers reproduced it on a replica with tracing on, and enabling priority inheritance fixed it remotely.",
+                "lesson": "Priority inversion is not just an exam topic: it happened on Mars. Keep tracing tools available in production.",
+                "url": "https://www.cs.cornell.edu/courses/cs614/1999sp/papers/pathfinder.html"
+        }
+],
       points: [
         "A correct solution needs **mutual exclusion**, **progress** (if nobody is inside, someone waiting gets in) and **bounded waiting** (no thread waits forever).",
         "`count++` is three steps (load, add, store), so two threads can both read 5 and both write 6.",

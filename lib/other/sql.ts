@@ -82,6 +82,16 @@ ORDER BY id;`, sqlSetup: SETUP, result: { head: ["name", "band"], rows: [["Asha"
       id: "joins",
       title: "Joins",
       summary: "A join combines rows from two tables where a condition matches. The join type decides what happens to rows that find no partner.",
+      real: [
+        {
+                "who": "Cloudflare",
+                "when": "Nov 2025",
+                "what": "A query reading column names from a metadata table did not filter by database. When a permissions change made a second database's tables visible, the query returned duplicate rows, which doubled a config file and took down much of their network.",
+                "lesson": "Unexpected rows are a real outage cause. Ask of every query: what stops this from returning duplicates?",
+                "url": "https://blog.cloudflare.com/18-november-2025-outage/"
+        }
+],
+      work: ["After writing a join, check the row count against what you expected. Fan-out from a one-to-many join silently doubles sums."],
       diagram: `flowchart LR
   subgraph I["INNER JOIN"]
     direction LR
@@ -229,6 +239,7 @@ ORDER BY day, id;`, sqlSetup: SETUP, result: { head: ["day", "amount", "running_
       id: "patterns",
       title: "Patterns interviewers reuse",
       summary: "A handful of shapes cover most interview questions: Nth highest, top-N per group, running totals, gaps and islands (consecutive streaks), duplicates, and set comparisons.",
+      work: ["Most real queries are read by someone else later. Use CTEs and clear names, not one clever line.", "On a large table, test with `EXPLAIN` before running in production, and put a `LIMIT` on exploratory queries."],
       diagram: `flowchart TB
   subgraph R1[" "]
     direction LR

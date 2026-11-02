@@ -194,7 +194,7 @@ export default function Playground({ mode, code, setup, title, onClose }: { mode
               <div className="pg-pane-title">Server on port {port}: send a request</div>
               <div className="flex flex-wrap gap-2 p-3">
                 <select aria-label="HTTP method" className="field w-auto" value={method} onChange={(e) => setMethod(e.target.value)}>{["GET", "POST", "PUT", "PATCH", "DELETE"].map((m) => <option key={m}>{m}</option>)}</select>
-                <input aria-label="Path" className="field min-w-0 flex-1 font-mono" value={path} onChange={(e) => setPath(e.target.value)} />
+                <input aria-label="Path" className="field order-3 min-w-0 flex-1 basis-full font-mono sm:order-none sm:basis-0" value={path} onChange={(e) => setPath(e.target.value)} />
                 <button className="btn btn-primary"><Play size={14} weight="fill" aria-hidden />Send</button>
                 <textarea aria-label="Request headers, one per line" className="field w-full font-mono text-[13px]" rows={1} placeholder="Headers, e.g. authorization: Bearer secret-demo-token" value={headers} onChange={(e) => setHeaders(e.target.value)} />
                 {method !== "GET" && <textarea aria-label="JSON request body" className="field w-full font-mono text-[13px]" rows={3} placeholder='Body, e.g. {"text": "hello"}' value={body} onChange={(e) => setBody(e.target.value)} />}
