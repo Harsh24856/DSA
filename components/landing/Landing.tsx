@@ -1,14 +1,20 @@
 "use client";
 // The public page signed-out visitors see. One action: Continue with Google. Every number comes from lib/landingFacts.ts
 // and the screenshots in public/landing are the real app (tools/landing_shots.mjs).
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { CaretDown } from "@phosphor-icons/react";
+import { CaretDown, Play } from "@phosphor-icons/react";
 import { FACTS as F } from "@/lib/landingFacts";
 import { CTA } from "./CTA";
 import { Logo } from "../Logo";
+import { Skeleton } from "../ui";
+import { PlanDemo } from "./PlanDemo";
+
+const HeroDemo = dynamic(() => import("./HeroDemo").then((m) => m.HeroDemo), { ssr: false, loading: () => <Skeleton className="h-[560px] rounded-2xl" /> });
+const Playground = dynamic(() => import("../other/playground/Playground"), { ssr: false, loading: () => <Skeleton className="h-[300px] rounded-2xl" /> });
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -19,11 +25,11 @@ function Reveal({ children, className = "" }: { children: ReactNode; className?:
 // pixel sizes of the screenshots, so the page does not shift as they load
 const SIZE: Record<string, number[]> = {"/landing/today.jpg": [2560, 1600], "/landing/visualizer.jpg": [1520, 1600], "/landing/playground.jpg": [2108, 984], "/landing/story.jpg": [2108, 904]};
 
-function Shot({ src, alt, priority }: { src: string; alt: string; priority?: boolean }) {
+function Shot({ src, alt }: { src: string; alt: string }) {
   const [w, h] = SIZE[src];
   return (
     <div className="overflow-hidden rounded-2xl border border-line-strong bg-surface p-2">
-      <Image src={src} alt={alt} width={w} height={h} priority={priority} sizes="(min-width: 1152px) 1104px, 100vw" className="h-auto w-full rounded-lg" />
+      <Image src={src} alt={alt} width={w} height={h} sizes="(min-width: 1152px) 1104px, 100vw" className="h-auto w-full rounded-lg" />
     </div>
   );
 }
@@ -73,16 +79,39 @@ function TaglineReveal() {
   );
 }
 
-const BENEFITS: { title: string; body: ReactNode; src: string; alt: string }[] = [
+const SAMPLE = `import { useState } from "react";
+
+export default function App() {
+  const [solved, setSolved] = useState(0);
+  return (
+    <button onClick={() => setSolved(solved + 1)}>
+      Solved today: {solved}
+    </button>
+  );
+}`;
+
+/** The screenshot until asked, so a visitor who never tries it downloads nothing extra. */
+function TryPlayground({ src, alt }: { src: string; alt: string }) {
+  const [on, setOn] = useState(false);
+  if (on) return <Playground mode="react" code={SAMPLE} title="Change the code and watch the button update" onClose={() => setOn(false)} />;
+  return (
+    <div className="relative">
+      <Shot src={src} alt={alt} />
+      <button type="button" className="btn btn-primary absolute bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap" onClick={() => setOn(true)}><Play size={16} weight="fill" aria-hidden />Try it here</button>
+    </div>
+  );
+}
+
+const BENEFITS: { title: string; body: ReactNode; src: string; alt: string; demo?: "plan" | "code" }[] = [
   { title: "Your plan is already written",
     body: <>Three LeetCode and one SQL on weekdays, more on weekends. Miss a day and it rolls forward, so nothing is lost and the list never piles up. Problems you needed a hint for return after 3, 7 and 21 days.</>,
-    src: "/landing/today.jpg", alt: "The Today page showing a daily list of LeetCode problems with difficulty labels, a progress count and a weekly chart." },
+    src: "/landing/today.jpg", alt: "The Today page showing a daily list of LeetCode problems with difficulty labels, a progress count and a weekly chart.", demo: "plan" },
   { title: "See the algorithm run, step by step",
     body: <>All {F.visualised} LeetCode questions have a written solution and a visualiser you can step through, on a small example you can follow. {F.topics} topics and {F.patterns} patterns teach the idea first, with a template and the traps.</>,
     src: "/landing/visualizer.jpg", alt: "A solution panel with a step by step visualiser of an algorithm running on a small array, with a note explaining the current step." },
   { title: "Write code here and watch it run",
     body: <>React updates as you type. Express answers real requests in the browser. Python and SQL are the real thing compiled to WebAssembly. Every sample has a Try it button, with nothing to install.</>,
-    src: "/landing/playground.jpg", alt: "A code editor beside a live preview of a React counter component, with a console below." },
+    src: "/landing/playground.jpg", alt: "A code editor beside a live preview of a React counter component, with a console below.", demo: "code" },
   { title: "Learn from what actually broke",
     body: <>{F.subjects} CS subjects and {F.chapters} chapters, with {F.stories} real incidents and designs, each linked to its source. A 43 second network blip took GitHub 24 hours to recover from. You will remember why.</>,
     src: "/landing/story.jpg", alt: "A chapter on consistency showing real incidents from GitHub and Amazon, each with a takeaway and a link to the source." },
@@ -148,8 +177,8 @@ export function Landing() {
             <div className="mt-8"><CTA /></div>
             <p className="mt-4 caption-5 text-muted">Free. No card. {F.problems} problems and {F.patterns} patterns ready when you sign in.</p>
           </motion.div>
-          <motion.div className="mt-16 w-full" initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.1, ease: EASE }}>
-            <Shot priority src="/landing/today.jpg" alt="DSA Daily's Today page: a floating navigation bar, four key numbers and a list of today's problems." />
+          <motion.div className="mx-auto mt-16 w-full max-w-[760px]" initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.1, ease: EASE }}>
+            <HeroDemo />
           </motion.div>
         </section>
 
@@ -175,7 +204,7 @@ export function Landing() {
                 <h2 className="heading-5 sm:heading-4">{b.title}</h2>
                 <p className="mt-4 body-3 text-muted">{b.body}</p>
               </div>
-              <div className={i % 2 ? "lg:order-1" : ""}><Shot src={b.src} alt={b.alt} /></div>
+              <div className={`min-w-0 ${i % 2 ? "lg:order-1" : ""}`}>{b.demo === "plan" ? <PlanDemo /> : b.demo === "code" ? <TryPlayground src={b.src} alt={b.alt} /> : <Shot src={b.src} alt={b.alt} />}</div>
             </Reveal>
           ))}
         </section>

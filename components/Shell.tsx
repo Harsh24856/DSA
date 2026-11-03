@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from "motion/react";
-import { CloudCheck, CloudSlash, GearSix } from "@phosphor-icons/react";
+import { CloudCheck, CloudSlash, GearSix, MagnifyingGlass } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import { diffDays, parse } from "@/lib/logic";
 import { Settings } from "./Settings";
@@ -13,6 +13,7 @@ import { LookLayer } from "./LookLayer";
 import { Logo } from "./Logo";
 
 const Landing = dynamic(() => import("./landing/Landing").then((m) => m.Landing));
+const Search = dynamic(() => import("./Search").then((m) => m.Search), { ssr: false });
 
 const NAV = [
   { href: "/", label: "Today" },
@@ -32,12 +33,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const { now, status, synced, connected, toast, ready, email, state, authChecked } = useStore();
   const [settings, setSettings] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [search, setSearch] = useState(false);
   const reduce = useReducedMotion();
   const left = Math.max(0, diffDays(parse(state.quota.placement), now));
   const isOn = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   const page = NAV.find((n) => isOn(n.href));
 
-  useEffect(() => { setMenu(false); }, [path]);
+  useEffect(() => { setMenu(false); setSearch(false); }, [path]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setSearch((s) => !s); } };
+    addEventListener("keydown", onKey);
+    return () => removeEventListener("keydown", onKey);
+  }, []);
   useEffect(() => {
     if (!menu) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenu(false); };
@@ -78,6 +85,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {connected && synced ? <CloudCheck size={18} aria-hidden /> : <CloudSlash size={18} aria-hidden />}
             <span className="sr-only">{status}</span>
           </span>
+          <button type="button" onClick={() => setSearch(true)} aria-label="Search questions and pages" title="Search (Ctrl or Cmd + K)" className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted transition duration-300 hover:bg-surface-2 hover:text-ink active:scale-95">
+            <MagnifyingGlass size={18} aria-hidden />
+          </button>
           <button type="button" onClick={() => setSettings(true)} aria-label="Settings" className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted transition duration-300 hover:bg-surface-2 hover:text-ink active:scale-95">
             <GearSix size={18} aria-hidden />
           </button>
@@ -121,6 +131,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     </main>
 
     <Settings open={settings} onClose={() => setSettings(false)} />
+    {search && <Search nav={NAV} onClose={() => setSearch(false)} />}
     <AnimatePresence>
       {toast && (
         <motion.div role="status" initial={{ opacity: 0, y: 16, x: "-50%" }} animate={{ opacity: 1, y: 0, x: "-50%" }} exit={{ opacity: 0, y: 8, x: "-50%" }}

@@ -37,20 +37,20 @@ def minInterval(intervals, queries):
     return [best[q] for q in queries]`,
     lang: "python", time: "O((n + q) log n)", space: "O(n + q)",
     viz: () => {
-      const items: [number, number][] = [[1, 4], [2, 4], [3, 6], [4, 4]], frames: IntervalsFrame[] = [], heap: number[] = [], gone = new Set<number>(); let i = 0;
-      const size = (k: number) => items[k][1] - items[k][0] + 1;
-      frames.push({ note: "Intervals sorted by start; queries handled in increasing order so each interval is pushed once", tones: all(items.map((_, k) => k), "muted") });
-      for (const q of [2, 3, 4, 5]) {
-        const pushed: number[] = [], dropped: number[] = [];
+      const items: [number, number][] = [[1, 4], [2, 4], [3, 6], [4, 4], [5, 8]], qs = [2, 3, 4, 5, 6, 9], frames: IntervalsFrame[] = [], heap: number[] = [], gone = new Set<number>(), res: number[] = []; let i = 0;
+      const size = (k: number) => items[k][1] - items[k][0] + 1, tn = (extra: Record<number, Tone> = {}) => { const t: Record<number, Tone> = {}; items.forEach((_, k) => (t[k] = gone.has(k) ? "done" : heap.includes(k) ? "window" : "muted")); return { ...t, ...extra }; };
+      frames.push({ note: `Intervals sorted by start; answer queries ${qs.join(", ")} in increasing order. A min-heap of (size, end) holds every interval that has started`, tones: tn() });
+      for (const q of qs) {
+        const pushed: number[] = [];
         while (i < items.length && items[i][0] <= q) { heap.push(i); pushed.push(i); i++; }
         heap.sort((a, b) => size(a) - size(b) || items[a][1] - items[b][1]);
-        while (heap.length && items[heap[0]][1] < q) { const k = heap.shift()!; gone.add(k); dropped.push(k); }
-        const top = heap.length ? heap[0] : -1, tones: Record<number, Tone> = {};
-        items.forEach((_, k) => (tones[k] = heap.includes(k) ? "window" : "muted"));
-        dropped.forEach((k) => (tones[k] = "bad")); if (top >= 0) tones[top] = "found";
-        frames.push({ note: `q = ${q}: ${pushed.length ? `push ${pushed.map((k) => iv(items[k])).join(", ")}` : "no new interval starts"}${dropped.length ? `; pop ${dropped.map((k) => iv(items[k])).join(", ")} (ended before ${q})` : ""}. Heap top size = ${top >= 0 ? size(top) : -1}`, line: q, tones });
+        if (pushed.length) frames.push({ note: `q = ${q}: ${pushed.map((k) => `${iv(items[k])} (size ${size(k)})`).join(" and ")} start${pushed.length > 1 ? "" : "s"} at or before ${q}, so push ${pushed.length > 1 ? "them" : "it"} onto the heap`, line: q, tones: tn(Object.fromEntries(pushed.map((k) => [k, "active" as Tone]))) });
+        const dropped: number[] = []; while (heap.length && items[heap[0]][1] < q) { const k = heap.shift()!; gone.add(k); dropped.push(k); }
+        const top = heap.length ? heap[0] : -1; res.push(top >= 0 ? size(top) : -1);
+        frames.push({ note: `q = ${q}: ${dropped.length ? `pop ${dropped.map((k) => iv(items[k])).join(", ")} since ${dropped.length > 1 ? "they end" : "it ends"} before ${q}; ` : "nothing on top ends early; "}${top >= 0 ? `the smallest interval left is ${iv(items[top])}, so the answer is ${size(top)}` : "the heap is empty, so the answer is -1"}`, line: q, tones: tn({ ...Object.fromEntries(dropped.map((k) => [k, "bad" as Tone])), ...(top >= 0 ? { [top]: "found" as Tone } : {}) }) });
       }
-      return { kind: "intervals", title: "Queries 2, 3, 4, 5 → [3, 3, 1, 4]", items, frames };
+      frames.push({ note: `Answers for queries ${qs.join(", ")} are [${res.join(", ")}]`, tones: tn() });
+      return { kind: "intervals", title: `Queries ${qs.join(", ")} → [${res.join(", ")}]`, items, frames };
     },
   },
 
@@ -157,7 +157,16 @@ class RangeModule:
         slow, fast = slow.next, fast.next.next
     return slow`,
     lang: "python", time: "O(n)", space: "O(1)",
-    viz: () => fastSlow([1, 2, 3, 4, 5, 6]),
+    viz: () => {
+      const vals = [1, 2, 3, 4, 5, 6, 7, 8, 9], next = chain(9), frames: ListFrame[] = []; let slow = 0, fast = 0;
+      frames.push(lf("slow and fast both start at the head; slow moves 1 node per step and fast moves 2, so when fast runs out slow is halfway", next, { "slow fast": 0 }, { 0: "active" }));
+      while (fast !== -1 && next[fast] !== -1) {
+        slow = next[slow]; fast = next[next[fast]];
+        frames.push(lf(`slow steps to ${vals[slow]}, fast jumps to ${fast === -1 ? "null" : vals[fast]}${fast !== -1 && next[fast] !== -1 ? `; fast and fast.next both exist, keep going` : ""}`, next, { slow, fast }, { [slow]: "active", ...(fast !== -1 ? { [fast]: "window" as Tone } : {}) }));
+      }
+      frames.push(lf(`fast is on the last node (${vals[fast]}) and fast.next is null, so stop: slow = ${vals[slow]} is the middle`, next, { slow, fast }, { [slow]: "found" }));
+      return list("Middle of 1 to 9 is 5", vals, frames);
+    },
   },
 
   "remove-nth-node-from-end-of-list": {
@@ -237,17 +246,18 @@ class RangeModule:
     return dummy.next`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const vals = ["d", 1, 2, 3, 4, 5], next = chain(6), L = 2, R = 4, frames: ListFrame[] = []; let prev = 0;
+      const vals = ["d", 1, 2, 3, 4, 5, 6, 7], next = chain(8), L = 2, R = 6, frames: ListFrame[] = []; let prev = 0;
+      frames.push(lf(`Reverse positions ${L} to ${R} of 1 to 7 in one pass. "d" is a dummy head so position 1 is no special case`, next, { dummy: 0 }, all([L, L + 1, L + 2, L + 3, R], "window")));
       for (let k = 0; k < L - 1; k++) prev = next[prev];
       const cur = next[prev];
-      frames.push(lf(`prev stops before position ${L}; cur = ${vals[cur]} starts the section`, next, { prev, cur }, { [cur]: "window" }));
+      frames.push(lf(`prev walks ${L - 1} step to node ${vals[prev]}, the node just before position ${L}; cur = ${vals[cur]} will stay put and end up last in the section`, next, { prev, cur }, { [prev]: "active", [cur]: "window" }));
       for (let k = 0; k < R - L; k++) {
         const nx = next[cur]; next[cur] = next[nx]; next[nx] = next[prev]; next[prev] = nx;
         const order: (string | number)[] = []; for (let p = next[0]; p !== -1; p = next[p]) order.push(vals[p]);
-        frames.push(lf(`Move ${vals[nx]} to the front of the section → ${order.join(" → ")}`, next, { prev, cur, moved: nx }, { [nx]: "found", [cur]: "window" }));
+        frames.push(lf(`move ${vals[nx]} (right after cur) to the front of the section, just after prev: ${order.join(" → ")}`, next, { prev, cur, moved: nx }, { [nx]: "found", [cur]: "window" }));
       }
-      frames.push(lf(`${R - L} moves reverse positions ${L}..${R}; cur (${vals[cur]}) ends up last and still links to the rest`, next, { prev, cur }, all([2, 3, 4], "done")));
-      return list("reverseBetween([1,2,3,4,5], 2, 4) = [1,4,3,2,5]", vals, frames);
+      frames.push(lf(`${R - L} moves reversed positions ${L}..${R}: cur (${vals[cur]}) is now last in the section and still links to ${vals[next[cur]]}`, next, { prev, cur }, all([2, 3, 4, 5, 6], "found")));
+      return list("reverseBetween([1..7], 2, 6) = [1,6,5,4,3,2,7]", vals, frames);
     },
   },
 
@@ -272,20 +282,26 @@ class RangeModule:
         group_prev = first`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const vals = ["d", 1, 2, 3, 4, 5], next = chain(6), k = 2, frames: ListFrame[] = []; let gp = 0;
-      const done: number[] = [];
+      const vals = ["d", 1, 2, 3, 4, 5, 6, 7], next = chain(8), k = 3, frames: ListFrame[] = [], done: number[] = []; let gp = 0;
+      frames.push(lf(`Reverse the list in groups of ${k}: [1,2,3] and [4,5,6] flip, the lone 7 stays. "d" is a dummy head`, next, { groupPrev: 0 }, {}));
       for (;;) {
         let kth = gp, c = 0; while (c < k && kth !== -1) { kth = next[kth]; c++; }
-        if (kth === -1) { frames.push(lf("Fewer than k nodes left → leave them as they are", next, { groupPrev: gp }, all(done, "done"))); break; }
+        if (kth === -1) { frames.push(lf(`only ${vals.length - 1 - done.length} node${vals.length - 1 - done.length === 1 ? "" : "s"} left, fewer than k = ${k}: leave ${vals[next[gp]]} as it is`, next, { groupPrev: gp }, all(done, "done"))); break; }
         const gn = next[kth], first = next[gp];
-        frames.push(lf(`k = ${k} nodes found: ${vals[first]} .. ${vals[kth]}`, next, { groupPrev: gp, kth }, all(Array.from({ length: k }, (_, j) => first + j), "window")));
+        frames.push(lf(`count ${k} nodes from ${vals[first]}: kth = ${vals[kth]}, and the node after the group is ${gn === -1 ? "null" : vals[gn]}`, next, { groupPrev: gp, kth, ...(gn !== -1 ? { groupNext: gn } : {}) }, { ...all(done, "done"), ...all(Array.from({ length: k }, (_, j) => first + j), "window") }));
         let prev = gn, cur = first;
-        while (cur !== gn) { const nx = next[cur]; next[cur] = prev; prev = cur; cur = nx; }
-        next[gp] = kth; done.push(first, kth);
-        frames.push(lf(`Reversed and spliced: groupPrev → ${vals[kth]}, ${vals[first]} → ${gn === -1 ? "null" : vals[gn]}`, next, { groupPrev: gp, newPrev: first }, { ...all(done, "done"), [kth]: "found" }));
+        while (cur !== gn) {
+          const nx = next[cur]; next[cur] = prev; prev = cur; cur = nx;
+          frames.push(lf(`flip ${vals[prev]}.next to point at ${next[prev] === -1 ? "null" : vals[next[prev]]}`, next, { groupPrev: gp, prev, ...(cur !== -1 ? { cur } : {}) }, { ...all(done, "done"), [prev]: "found" }));
+        }
+        next[gp] = kth; done.push(first, kth, ...Array.from({ length: k }, (_, j) => first + j).filter((x) => x !== first && x !== kth));
+        const grp: (string | number)[] = []; for (let p = kth; ; p = next[p]) { grp.push(vals[p]); if (p === first) break; }
+        frames.push(lf(`connect groupPrev to ${vals[kth]}: the group now reads ${grp.join(" → ")}, and ${vals[first]} (now last) leads on to ${gn === -1 ? "null" : vals[gn]}`, next, { groupPrev: gp, first }, { ...all(done, "done"), [kth]: "found" }));
         gp = first;
       }
-      return list("reverseKGroup([1,2,3,4,5], 2) = [2,1,4,3,5]", vals, frames);
+      const order: (string | number)[] = []; for (let p = next[0]; p !== -1; p = next[p]) order.push(vals[p]);
+      frames.push(lf(`Result: ${order.join(" → ")}`, next, {}, all(Array.from({ length: 7 }, (_, j) => j + 1), "found")));
+      return list("reverseKGroup([1..7], 3) = [3,2,1,6,5,4,7]", vals, frames);
     },
   },
 
@@ -334,7 +350,27 @@ class RangeModule:
         first.next, second.next = second, n1
         first, second = n1, n2`,
     lang: "python", time: "O(n)", space: "O(1)",
-    viz: () => reorderList([1, 2, 3, 4, 5]),
+    viz: () => {
+      const vals = [1, 2, 3, 4, 5, 6], next = chain(6), frames: ListFrame[] = [], show = () => { const o: (string | number)[] = []; for (let p = 0; p !== -1 && o.length < 12; p = next[p]) o.push(vals[p]); return o.join(" → "); };
+      frames.push(lf("Reorder 1,2,3,4,5,6 into 1,6,2,5,3,4: find the middle, reverse the second half, then weave the halves", next, { head: 0 }, {}));
+      let slow = 0, fast = 0;
+      while (next[fast] !== -1 && next[next[fast]] !== -1) { slow = next[slow]; fast = next[next[fast]]; frames.push(lf(`slow moves to ${vals[slow]}, fast jumps to ${vals[fast]}; ${next[fast] !== -1 && next[next[fast]] !== -1 ? "fast still has two nodes ahead, continue" : "fast cannot jump again, stop"}`, next, { slow, fast }, { [slow]: "active", [fast]: "window" })); }
+      let second = next[slow]; next[slow] = -1;
+      frames.push(lf(`cut after slow (${vals[slow]}): the first half is ${show()} and the second half starts at ${vals[second]}`, next, { slow, second }, { [slow]: "active", [second]: "window" }));
+      let prev = -1;
+      while (second !== -1) {
+        const nx = next[second]; next[second] = prev; prev = second; second = nx;
+        frames.push(lf(`reverse the second half: ${vals[prev]}.next now points at ${next[prev] === -1 ? "null" : vals[next[prev]]}`, next, { prev, ...(second !== -1 ? { second } : {}) }, { [prev]: "found" }));
+      }
+      let first = 0; second = prev;
+      while (second !== -1) {
+        const n1 = next[first], n2 = next[second]; next[first] = second; next[second] = n1;
+        frames.push(lf(`weave: ${vals[first]} → ${vals[second]} → ${n1 === -1 ? "null" : vals[n1]}; the list so far reads ${show()}`, next, { first: n1 === -1 ? first : n1, ...(n2 !== -1 ? { second: n2 } : {}) }, { [first]: "found", [second]: "found" }));
+        first = n1; second = n2;
+      }
+      frames.push(lf(`Reordered: ${show()}`, next, { head: 0 }, all(vals.map((_, i) => i), "found")));
+      return list("Reorder list = middle + reverse + weave", vals, frames);
+    },
   },
 
   "partition-list": {
@@ -380,7 +416,18 @@ class RangeModule:
             cur = cur.next
     return head`,
     lang: "python", time: "O(n)", space: "O(1)",
-    viz: () => removeDups([1, 1, 2, 3, 3]),
+    viz: () => {
+      const vals = [1, 1, 2, 3, 3, 3, 4, 4], next = chain(8), frames: ListFrame[] = [], gone: number[] = []; let cur = 0;
+      frames.push(lf("Sorted list: equal values sit side by side. At cur, compare with the next node: equal means skip the next node, different means advance", next, { cur: 0 }, { 0: "active" }));
+      while (cur !== -1 && next[cur] !== -1) {
+        const nx = next[cur];
+        if (vals[nx] === vals[cur]) { next[cur] = next[nx]; next[nx] = -1; gone.push(nx); frames.push(lf(`cur ${vals[cur]} equals next ${vals[nx]}: splice the duplicate out with cur.next = cur.next.next and stay on cur (${gone.length} removed so far)`, next, { cur }, { ...all(gone, "bad"), [cur]: "active" })); }
+        else { cur = nx; frames.push(lf(`cur differs from next (${vals[nx]}), so advance: cur = ${vals[cur]}`, next, { cur }, { ...all(gone, "bad"), [cur]: "active" })); }
+      }
+      const out: number[] = []; for (let p = 0; p !== -1; p = next[p]) out.push(vals[p]);
+      frames.push(lf(`cur.next is null: the list is ${out.join(" → ")}, every value once`, next, {}, all(vals.map((_, i) => i).filter((i) => !gone.includes(i)), "found")));
+      return list("Remove duplicates from a sorted list", vals, frames);
+    },
   },
 
   "remove-duplicates-from-sorted-list-ii": {
@@ -400,17 +447,20 @@ class RangeModule:
     return dummy.next`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const vals = ["d", 1, 2, 3, 3, 4, 4, 5], next = chain(8), frames: ListFrame[] = [], gone: number[] = []; let prev = 0, h = 1;
+      const vals = ["d", 1, 1, 2, 3, 3, 4, 5, 5, 6], next = chain(10), frames: ListFrame[] = [], gone: number[] = []; let prev = 0, h = 1;
+      frames.push(lf("Drop every value that appears more than once, keeping none of its copies. prev trails the last kept node, head scouts ahead; \"d\" is a dummy so even the first value can be removed", next, { prev: 0, head: 1 }, { 1: "active" }));
       while (h !== -1) {
         if (next[h] !== -1 && vals[h] === vals[next[h]]) {
           const start = h; while (next[h] !== -1 && vals[h] === vals[next[h]]) h = next[h];
           for (let k = start; k <= h; k++) gone.push(k);
           next[prev] = next[h];
-          frames.push(lf(`Run of ${vals[start]}s → skip it all: prev.next = ${next[h] === -1 ? "null" : vals[next[h]]}`, next, { prev, head: h }, all(gone, "bad")));
-        } else { prev = h; frames.push(lf(`${vals[h]} differs from its next → unique, prev moves onto it`, next, { prev, head: h }, { ...all(gone, "muted"), [h]: "found" })); }
+          frames.push(lf(`head ${vals[start]} equals its next, so all ${h - start + 1} copies of ${vals[start]} go: prev.next = ${next[h] === -1 ? "null" : vals[next[h]]}`, next, { prev, head: h }, all(gone, "bad")));
+        } else { prev = h; frames.push(lf(`${vals[h]} differs from its next, so it is unique: prev moves onto it`, next, { prev, head: h }, { ...all(gone, "muted"), [h]: "found" })); }
         h = next[h];
       }
-      return list("deleteDuplicates([1,2,3,3,4,4,5]) = [1,2,5]", vals, frames);
+      const out: (string | number)[] = []; for (let p = next[0]; p !== -1; p = next[p]) out.push(vals[p]);
+      frames.push(lf(`head is null: only values that appeared once remain, ${out.join(" → ")}`, next, {}, all(vals.map((_, i) => i).filter((i) => i && !gone.includes(i)), "found")));
+      return list("deleteDuplicates([1,1,2,3,3,4,5,5,6]) = [2,4,6]", vals, frames);
     },
   },
 
@@ -489,13 +539,13 @@ class RangeModule:
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
       const vals = [5, 4, 2, 1, 7, 3], next = chain(6), frames: ListFrame[] = []; let s = 0, f = 0;
-      while (f !== -1 && next[f] !== -1) { s = next[s]; f = next[next[f]]; }
-      frames.push(lf(`Fast and slow: second half starts at ${vals[s]}`, next, { slow: s }, all([3, 4, 5], "window")));
+      frames.push(lf("Node i pairs with node n-1-i (its twin). Find the middle, reverse the second half, then walk both halves together adding twins", next, { "slow fast": 0 }, {}));
+      while (f !== -1 && next[f] !== -1) { s = next[s]; f = next[next[f]]; frames.push(lf(`slow steps to ${vals[s]}, fast jumps ${f === -1 ? "off the end, so slow is the start of the second half" : `to ${vals[f]}`}`, next, { slow: s, ...(f !== -1 ? { fast: f } : {}) }, { [s]: "active", ...(f !== -1 ? { [f]: "window" as Tone } : {}) })); }
       let prev = -1, cur = s;
-      while (cur !== -1) { const nx = next[cur]; next[cur] = prev; prev = cur; cur = nx; }
-      frames.push(lf("Reverse the second half: 3 → 7 → 1", next, { prev }, all([3, 4, 5], "window")));
+      while (cur !== -1) { const nx = next[cur]; next[cur] = prev; prev = cur; cur = nx; frames.push(lf(`reverse the second half: ${vals[prev]}.next now points at ${next[prev] === -1 ? "null" : vals[next[prev]]}`, next, { prev, ...(cur !== -1 ? { cur } : {}) }, { [prev]: "found" })); }
       let a = 0, b = prev, best = 0;
-      while (b !== -1) { best = Math.max(best, vals[a] + vals[b]); frames.push(lf(`Twins ${vals[a]} + ${vals[b]} = ${vals[a] + vals[b]}, best = ${best}`, next, { head: a, prev: b }, { [a]: "found", [b]: "found" })); a = next[a]; b = next[b]; }
+      while (b !== -1) { const old = best; best = Math.max(best, vals[a] + vals[b]); frames.push(lf(`twins ${vals[a]} and ${vals[b]} add to ${vals[a] + vals[b]}${best > old ? ", a new best" : `, best stays ${best}`}`, next, { head: a, prev: b }, { [a]: "found", [b]: "found" })); a = next[a]; b = next[b]; }
+      frames.push(lf(`The second half is used up: the maximum twin sum is ${best}`, next, {}, {}));
       return list(`pairSum([5,4,2,1,7,3]) = ${best}`, vals, frames);
     },
   },
@@ -553,7 +603,17 @@ class RangeModule:
         s[l], s[r] = s[r], s[l]
         l, r = l + 1, r - 1`,
     lang: "python", time: "O(n)", space: "O(1)",
-    viz: () => reverseString("hello"),
+    viz: () => {
+      const s = "placement", a = s.split(""), frames: CellsFrame[] = []; let l = 0, r = a.length - 1;
+      frames.push({ note: `Reverse "${s}" in place: swap the two ends, then move l right and r left until they meet`, rows: [[...a]], marks: [{ i: l, label: "l" }, { i: r, label: "r" }] });
+      while (l < r) {
+        const x = a[l], y = a[r]; [a[l], a[r]] = [a[r], a[l]];
+        frames.push({ note: `swap s[${l}] = '${x}' with s[${r}] = '${y}', then l = ${l + 1}, r = ${r - 1}`, rows: [[...a]], tones: { [`0:${l}`]: "found", [`0:${r}`]: "found" }, marks: [{ i: l, label: "l" }, { i: r, label: "r" }] });
+        l++; r--;
+      }
+      frames.push({ note: `l = ${l} and r = ${r} have met: ${l === r ? `the middle letter '${a[l]}' stays` : "nothing left to swap"}, the string reads "${a.join("")}"`, rows: [[...a]], tones: range(0, a.length - 1, 0, "found") });
+      return cells("Reverse a string in place", [s.split("")], frames);
+    },
   },
 
   "unique-binary-search-trees-ii": {
@@ -902,7 +962,17 @@ def evalRPN(tokens):
             stack.append(int(t))
     return stack[0]`,
     lang: "python", time: "O(n)", space: "O(n)",
-    viz: () => rpn(["4", "13", "5", "/", "+"]),
+    viz: () => {
+      const tokens = ["5", "1", "4", "+", "*", "9", "3", "/", "-"], st: number[] = [], frames: StackFrame[] = [];
+      const ops: Record<string, (a: number, b: number) => number> = { "+": (a, b) => a + b, "-": (a, b) => a - b, "*": (a, b) => a * b, "/": (a, b) => Math.trunc(a / b) };
+      frames.push({ note: `Tokens: ${tokens.join(" ")}. Push numbers; an operator pops the top two, applies, and pushes the result`, items: [] });
+      tokens.forEach((t) => {
+        if (t in ops) { const b = st.pop()!, a = st.pop()!, v = ops[t](a, b); st.push(v); frames.push({ note: `'${t}' pops ${b} (right) and ${a} (left): ${a} ${t} ${b} = ${v}, push ${v}`, items: [...st], incoming: v, popped: [a, b] }); }
+        else { st.push(+t); frames.push({ note: `${t} is a number, push it`, items: [...st], incoming: +t }); }
+      });
+      frames.push({ note: `One value is left on the stack: the answer ${st[0]}`, items: [...st] });
+      return { kind: "stack", title: `5 1 4 + * 9 3 / - = ${st[0]}`, input: tokens, frames };
+    },
   },
 
   "simplify-path": {
@@ -1163,16 +1233,21 @@ class FreqStack:
     return True`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const s = "abccdba", a = s.split(""), frames: CellsFrame[] = []; let l = 0, r = a.length - 1;
+      const s = "abcdfdecba", a = s.split(""), frames: CellsFrame[] = []; let l = 0, r = a.length - 1;
       const m = (x: number, y: number) => [{ i: x, label: "L" }, { i: y, label: "R" }];
-      while (l < r && a[l] === a[r]) { frames.push({ note: `'${a[l]}' = '${a[r]}' → move both in`, tones: { [`0:${l}`]: "found", [`0:${r}`]: "found" }, marks: m(l, r) }); l++; r--; }
-      frames.push({ note: `'${a[l]}' ≠ '${a[r]}' → one of them must be deleted`, tones: { [`0:${l}`]: "bad", [`0:${r}`]: "bad" }, marks: m(l, r) });
-      const pal = (x: number, y: number) => { for (; x < y; x++, y--) if (a[x] !== a[y]) return false; return true; };
-      const p1 = pal(l + 1, r);
-      frames.push({ note: `Skip left: "${s.slice(l + 1, r + 1)}" ${p1 ? "is" : "is not"} a palindrome`, tones: { ...range(l + 1, r, 0, p1 ? "found" : "window"), [`0:${l}`]: "muted" }, marks: m(l + 1, r) });
-      const p2 = pal(l, r - 1);
-      if (!p1) frames.push({ note: `Skip right: "${s.slice(l, r)}" ${p2 ? "is a palindrome → true" : "is not either → false"}`, tones: { ...range(l, r - 1, 0, p2 ? "found" : "bad"), [`0:${r}`]: "muted" }, marks: m(l, r - 1) });
-      return cells(`validPalindrome("${s}") = ${p1 || p2}`, [a], frames);
+      const pal = (x: number, y: number) => { let note = ""; for (; x < y; x++, y--) if (a[x] !== a[y]) return { ok: false, note: `'${a[x]}' and '${a[y]}' differ`, at: [x, y] }; return { ok: true, note: "all pairs match", at: [0, 0] }; };
+      frames.push({ note: `Can "${s}" become a palindrome after deleting at most one letter? Walk l and r inward while the letters match`, marks: m(l, r) });
+      while (l < r && a[l] === a[r]) { frames.push({ note: `s[${l}] = '${a[l]}' equals s[${r}] = '${a[r]}', move both inward`, tones: { [`0:${l}`]: "found", [`0:${r}`]: "found" }, marks: m(l, r) }); l++; r--; }
+      if (l >= r) frames.push({ note: "The pointers met without a mismatch, so it is already a palindrome", tones: range(0, a.length - 1, 0, "found") });
+      else {
+        frames.push({ note: `s[${l}] = '${a[l]}' differs from s[${r}] = '${a[r]}': spend the one deletion on either the left or the right letter`, tones: { [`0:${l}`]: "bad", [`0:${r}`]: "bad" }, marks: m(l, r) });
+        const c1 = pal(l + 1, r);
+        frames.push({ note: `delete the left '${a[l]}': "${s.slice(l + 1, r + 1)}" ${c1.ok ? "is a palindrome" : `is not a palindrome, ${c1.note}`}`, tones: { ...range(l + 1, r, 0, c1.ok ? "found" : "window"), [`0:${l}`]: "muted" }, marks: m(l + 1, r) });
+        if (!c1.ok) { const c2 = pal(l, r - 1); frames.push({ note: `delete the right '${a[r]}': "${s.slice(l, r)}" ${c2.ok ? "is a palindrome" : `is not a palindrome, ${c2.note}`}`, tones: { ...range(l, r - 1, 0, c2.ok ? "found" : "bad"), [`0:${r}`]: "muted" }, marks: m(l, r - 1) }); }
+        const ok = c1.ok || (!c1.ok && pal(l, r - 1).ok);
+        frames.push({ note: ok ? "One deletion makes it a palindrome, so the answer is true" : "Neither deletion works, so the answer is false", tones: ok ? range(0, a.length - 1, 0, "found") : range(0, a.length - 1, 0, "bad") });
+      }
+      return cells(`validPalindrome("${s}") = true`, [a], frames);
     },
   },
 
@@ -1193,17 +1268,17 @@ def backspaceCompare(s, t):
     return all(a == b for a, b in zip_longest(kept(s), kept(t)))`,
     lang: "python", time: "O(m + n)", space: "O(1)",
     viz: () => {
-      const s = "ab#c#d", t = "ad#d", rows = [s.split(""), [...t.split(""), "", ""]], frames: CellsFrame[] = [], tones: Record<string, Tone> = {};
+      const s = "ab#cc#de", t = "acd#de", rows = [s.split(""), [...t.split(""), "", ""]], frames: CellsFrame[] = [], tones: Record<string, Tone> = {};
       const walk = (x: string, row: number, i: number): number => { let skip = 0; while (i >= 0) { if (x[i] === "#") { skip++; tones[`${row}:${i}`] = "muted"; } else if (skip) { skip--; tones[`${row}:${i}`] = "bad"; } else return i; i--; } return -1; };
-      let i = s.length, j = t.length;
-      frames.push({ note: "Read both strings from the right; each '#' erases the next real character to its left", tones: {} });
+      let i = s.length, j = t.length, n = 0, same = true;
+      frames.push({ note: "Read both strings from the right; each '#' erases the next real character to its left. Compare the survivors one pair at a time", tones: {} });
       for (;;) {
         i = walk(s, 0, i - 1); j = walk(t, 1, j - 1);
-        if (i < 0 || j < 0) { frames.push({ note: i < 0 && j < 0 ? "Both strings ran out together → equal: true" : "One string ran out first → false", tones: { ...tones } }); break; }
-        tones[`0:${i}`] = "found"; tones[`1:${j}`] = "found";
-        frames.push({ note: `Survivors s[${i}] = '${s[i]}' and t[${j}] = '${t[j]}' → ${s[i] === t[j] ? "match" : "differ"} (red = erased by a '#')`, tones: { ...tones }, marks: [{ i, label: "i" }, { i: j, label: "j", row: 1 }] });
+        if (i < 0 || j < 0) { same = same && i < 0 && j < 0; frames.push({ note: i < 0 && j < 0 ? `Both strings ran out together after ${n} survivors each, so they are equal` : "One string ran out first, so they differ", tones: { ...tones } }); break; }
+        n++; tones[`0:${i}`] = "found"; tones[`1:${j}`] = "found"; if (s[i] !== t[j]) same = false;
+        frames.push({ note: `survivor ${n}: s[${i}] = '${s[i]}' and t[${j}] = '${t[j]}' ${s[i] === t[j] ? "match" : "differ"} (red letters were erased by a '#')`, tones: { ...tones }, marks: [{ i, label: "i" }, { i: j, label: "j", row: 1 }] });
       }
-      return cells(`backspaceCompare("${s}", "${t}") = true`, rows, frames, ["s", "t"]);
+      return cells(`backspaceCompare("${s}", "${t}") = ${same}`, rows, frames, ["s", "t"]);
     },
   },
 
@@ -1279,14 +1354,18 @@ def minWindow(s, t):
     return win == need`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const s1 = "ab", s2 = "eidbaooo", k = 2, a = s2.split(""), frames: CellsFrame[] = [];
-      const key = (x: string) => x.split("").sort().join("");
-      for (let i = 0; i + k <= a.length; i++) {
-        const w = s2.slice(i, i + k), hit = key(w) === key(s1);
-        frames.push({ note: `${i ? `Slide: add '${a[i + k - 1]}', drop '${a[i - 1]}'. ` : ""}Window "${w}" ${hit ? `has the same counts as "${s1}" → true` : "counts differ"}`, tones: range(i, i + k - 1, 0, hit ? "found" : "window") });
-        if (hit) break;
+      const s1 = "abc", s2 = "ooabdcbaef", k = 3, a = s2.split(""), frames: CellsFrame[] = [];
+      const cnt = (x: string) => { const m: Record<string, number> = {}; for (const c of x) m[c] = (m[c] || 0) + 1; return m; }, show = (m: Record<string, number>) => Object.keys(m).sort().map((c) => `${c}${m[c]}`).join(" ");
+      const need = cnt(s1);
+      frames.push({ note: `Does "${s2}" contain a rearrangement of "${s1}"? Slide a window of ${k} letters and compare letter counts with the needed ${show(need)}`, tones: {} });
+      let hitAt = -1;
+      for (let i = 0; i + k <= a.length && hitAt < 0; i++) {
+        const w = s2.slice(i, i + k), c = cnt(w), diff = [...new Set([...Object.keys(need), ...Object.keys(c)])].sort().find((x) => (need[x] || 0) !== (c[x] || 0)), hit = diff === undefined;
+        frames.push({ note: `${i ? `slide: add '${a[i + k - 1]}', drop '${a[i - 1]}'. ` : ""}window "${w}" has ${show(c)}, ${hit ? "the same counts as needed" : `but '${diff}' count is ${c[diff!] || 0} and needs ${need[diff!] || 0}`}`, tones: range(i, i + k - 1, 0, hit ? "found" : "window") });
+        if (hit) hitAt = i;
       }
-      return cells(`checkInclusion("${s1}", "${s2}") = true`, [a], frames);
+      frames.push({ note: hitAt >= 0 ? `Window "${s2.slice(hitAt, hitAt + k)}" at ${hitAt}..${hitAt + k - 1} is a permutation of "${s1}", so the answer is true` : "No window matched, so the answer is false", tones: hitAt >= 0 ? range(hitAt, hitAt + k - 1, 0, "found") : {} });
+      return cells(`checkInclusion("${s1}", "${s2}") = ${hitAt >= 0}`, [a], frames);
     },
   },
 
@@ -1370,10 +1449,15 @@ def firstUniqChar(s):
     return -1`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const s = "loveleetcode", a = s.split(""), cnt = a.map((c) => a.filter((x) => x === c).length), frames: CellsFrame[] = [];
-      frames.push({ note: "Pass 1: count each character (shown under every copy)", rows: [a, cnt], tones: {} });
-      for (let i = 0; i < a.length; i++) { const u = cnt[i] === 1; frames.push({ note: `Pass 2: '${a[i]}' appears ${cnt[i]} time${cnt[i] === 1 ? "" : "s"}${u ? ` → first unique at index ${i}` : ""}`, rows: [a, cnt], tones: { [`0:${i}`]: u ? "found" : "bad", [`1:${i}`]: u ? "found" : "bad", ...range(0, i - 1, 0, "muted") } }); if (u) break; }
-      return cells(`firstUniqChar("${s}") = 2`, [a, a.map(() => "")], frames, ["s", "count"]);
+      const s = "abacbdcef", a = s.split(""), cnt = a.map((c) => a.filter((x) => x === c).length), frames: CellsFrame[] = []; let ans = -1;
+      frames.push({ note: `Find the first character of "${s}" that appears exactly once. Pass 1 counts every character, pass 2 scans left to right for a count of 1`, rows: [a, a.map(() => "")], tones: {} });
+      frames.push({ note: `Pass 1: count each character and show the count under every copy: ${[...new Set(a)].map((c) => `${c}=${cnt[a.indexOf(c)]}`).join(", ")}`, rows: [a, cnt], tones: {} });
+      for (let i = 0; i < a.length; i++) {
+        const u = cnt[i] === 1;
+        frames.push({ note: u ? `Pass 2: '${a[i]}' at index ${i} appears only once, so the answer is ${i}` : `Pass 2: '${a[i]}' at index ${i} appears ${cnt[i]} times, so skip it`, rows: [a, cnt], tones: { ...range(0, i - 1, 0, "muted"), [`0:${i}`]: u ? "found" : "bad", [`1:${i}`]: u ? "found" : "bad" } });
+        if (u) { ans = i; break; }
+      }
+      return cells(`firstUniqChar("${s}") = ${ans}`, [a, a.map(() => "")], frames, ["s", "count"]);
     },
   },
 
@@ -1521,10 +1605,16 @@ def firstUniqChar(s):
     return s in (s + s)[1:-1]`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const s = "abab", d = (s + s).split(""), n = s.length, frames: CellsFrame[] = [];
-      frames.push({ note: `s + s = "${s + s}"; ignore the first and last character`, tones: { "0:0": "muted", [`0:${2 * n - 1}`]: "muted" } });
-      for (let i = 1; i < n; i++) { const hit = (s + s).slice(i, i + n) === s; frames.push({ note: `Rotation by ${i}: "${(s + s).slice(i, i + n)}" ${hit ? `equals s → s repeats a block of length ${i}` : "differs"}`, tones: { "0:0": "muted", [`0:${2 * n - 1}`]: "muted", ...range(i, i + n - 1, 0, hit ? "found" : "window") } }); if (hit) break; }
-      return cells(`repeatedSubstringPattern("${s}") = true`, [d], frames);
+      const s = "abcabc", dd = s + s, d = dd.split(""), n = s.length, frames: CellsFrame[] = []; let found = 0;
+      frames.push({ note: `If "${s}" is a block repeated, then s appears inside s + s at some shift other than 0 and ${n}. s + s = "${dd}"`, tones: {} });
+      frames.push({ note: `Drop the first and last character, so only shifts 1 to ${n - 1} remain; look for s inside the middle part`, tones: { "0:0": "muted", [`0:${2 * n - 1}`]: "muted" } });
+      for (let i = 1; i < n; i++) {
+        const w = dd.slice(i, i + n), hit = w === s;
+        frames.push({ note: `shift ${i}: the next ${n} letters are "${w}", ${hit ? `the same as s, so s is a block of length ${i} repeated` : "not equal to s"}`, tones: { "0:0": "muted", [`0:${2 * n - 1}`]: "muted", ...range(i, i + n - 1, 0, hit ? "found" : "window") } });
+        if (hit) { found = i; break; }
+      }
+      frames.push({ note: found ? `Shift ${found} works, so the answer is true: "${s.slice(0, found)}" repeated ${n / found} times makes s` : "No shift works, so the answer is false", tones: found ? range(0, n - 1, 0, "found") : {} });
+      return cells(`repeatedSubstringPattern("${s}") = ${found > 0}`, [d], frames);
     },
   },
 
@@ -1540,12 +1630,17 @@ def firstUniqChar(s):
     lang: "python", time: "O(n · (m + n))", space: "O(m + n)",
     viz: () => {
       const a = "abcd", b = "cdabcdab", q = Math.ceil(b.length / a.length), frames: CellsFrame[] = []; let ans = -1;
+      frames.push({ note: `How many copies of "${a}" must be stacked so "${b}" appears inside? Need at least ceil(${b.length} / ${a.length}) = ${q} copies, and one more if b starts mid-copy, so try ${q} then ${q + 1}`, rows: [a.repeat(q + 1).split("")], tones: {} });
       for (const t of [q, q + 1]) {
         const r = a.repeat(t);
-        for (let i = 0; i + b.length <= r.length; i++) { const hit = r.slice(i, i + b.length) === b; frames.push({ note: `${t} copies "${r}": start ${i} → "${r.slice(i, i + b.length)}" ${hit ? "= b" : "≠ b"}`, rows: [r.split("")], tones: range(i, i + b.length - 1, 0, hit ? "found" : "window") }); if (hit) { ans = t; break; } }
+        for (let i = 0; i + b.length <= r.length; i++) {
+          const hit = r.slice(i, i + b.length) === b;
+          frames.push({ note: `${t} copies "${r}", start ${i}: "${r.slice(i, i + b.length)}" ${hit ? "equals b" : "is not b"}`, rows: [r.split("")], tones: range(i, i + b.length - 1, 0, hit ? "found" : "window") });
+          if (hit) { ans = t; break; }
+        }
         if (ans > 0) break;
       }
-      frames.push({ note: `Answer ${ans} copies`, rows: [a.repeat(ans).split("")], tones: range(2, 2 + b.length - 1, 0, "found") });
+      frames.push({ note: `b fits inside ${ans} copies of a, and ${ans - 1} are not enough, so the answer is ${ans}`, rows: [a.repeat(ans).split("")], tones: range(0, a.repeat(ans).length - 1, 0, "found") });
       return cells(`repeatedStringMatch("${a}", "${b}") = ${ans}`, [a.repeat(q + 1).split("")], frames);
     },
   },
@@ -1557,9 +1652,15 @@ def firstUniqChar(s):
     return len(s) == len(goal) and goal in s + s`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const s = "abcde", goal = "cdeab", d = (s + s).split(""), frames: CellsFrame[] = [];
-      for (let k = 0; k < s.length; k++) { const w = (s + s).slice(k, k + s.length), hit = w === goal; frames.push({ note: `Rotation by ${k} = "${w}" ${hit ? "= goal → true" : "≠ goal"}`, tones: range(k, k + s.length - 1, 0, hit ? "found" : "window") }); if (hit) break; }
-      return cells(`rotateString("${s}", "${goal}") = true`, [d], frames);
+      const s = "abcde", goal = "eabcd", dd = s + s, d = dd.split(""), frames: CellsFrame[] = []; let found = -1;
+      frames.push({ note: `Every rotation of "${s}" is a ${s.length}-letter window inside s + s = "${dd}". Same length as goal "${goal}"? yes (${s.length}), so look for goal in it`, tones: {} });
+      for (let k = 0; k < s.length; k++) {
+        const w = dd.slice(k, k + s.length), hit = w === goal;
+        frames.push({ note: `rotate by ${k}: the window is "${w}", ${hit ? `which equals goal "${goal}"` : "which is not the goal"}`, tones: range(k, k + s.length - 1, 0, hit ? "found" : "window") });
+        if (hit) { found = k; break; }
+      }
+      frames.push({ note: found >= 0 ? `Rotating s left by ${found} gives goal, so the answer is true` : "No rotation matched, so the answer is false", tones: found >= 0 ? range(found, found + s.length - 1, 0, "found") : {} });
+      return cells(`rotateString("${s}", "${goal}") = ${found >= 0}`, [d], frames);
     },
   },
 
@@ -1573,14 +1674,17 @@ def firstUniqChar(s):
     return min(strs, key=len)`,
     lang: "python", time: "O(total characters)", space: "O(1)",
     viz: () => {
-      const strs = ["flower", "flow", "flight"], W = 6, c = strs.map((w) => [...w.split(""), ...Array(W - w.length).fill(null)]), frames: TableFrame[] = [];
-      for (let i = 0; i < 4; i++) {
+      const strs = ["interview", "internet", "interval", "internal"], W = 9, c = strs.map((w) => [...w.split(""), ...Array(W - w.length).fill(null)]), minLen = Math.min(...strs.map((w) => w.length)), frames: TableFrame[] = []; let end = minLen;
+      frames.push({ note: `Compare the words column by column, left to right; the prefix ends at the first column where the letters are not all equal`, cells: c });
+      for (let i = 0; i < minLen; i++) {
         const col = strs.map((w) => w[i]), same = new Set(col).size === 1, t: Record<string, Tone> = {};
         strs.forEach((_, r) => { for (let j = 0; j < i; j++) t[`${r}:${j}`] = "found"; t[`${r}:${i}`] = same ? "active" : "bad"; });
-        frames.push({ note: `Column ${i}: ${col.map((x) => `'${x}'`).join(", ")} → ${same ? "all equal, extend" : `mismatch → prefix "${strs[0].slice(0, i)}"`}`, cells: c, tones: t });
-        if (!same) break;
+        frames.push({ note: `column ${i}: ${col.map((x) => `'${x}'`).join(", ")} ${same ? "are all equal, so the prefix grows to " + `"${strs[0].slice(0, i + 1)}"` : `are not all equal, so the prefix stops at "${strs[0].slice(0, i)}"`}`, cells: c, tones: t });
+        if (!same) { end = i; break; }
       }
-      return { kind: "table", title: "longestCommonPrefix = \"fl\"", rowHead: strs, colHead: Array.from({ length: W }, (_, i) => String(i)), frames };
+      const t: Record<string, Tone> = {}; strs.forEach((_, r) => { for (let j = 0; j < end; j++) t[`${r}:${j}`] = "found"; });
+      frames.push({ note: `The longest common prefix is "${strs[0].slice(0, end)}"`, cells: c, tones: t });
+      return { kind: "table", title: `longestCommonPrefix = "${strs[0].slice(0, end)}"`, rowHead: strs.map((_, i) => `w${i}`), colHead: Array.from({ length: W }, (_, i) => String(i)), frames };
     },
   },
 
@@ -1596,14 +1700,16 @@ def compareVersion(version1, version2):
     return 0`,
     lang: "python", time: "O(m + n)", space: "O(m + n)",
     viz: () => {
-      const v1 = "1.01.3", v2 = "1.001.10.0", A = v1.split("."), B = v2.split("."), W = Math.max(A.length, B.length), frames: CellsFrame[] = [];
+      const v1 = "1.01.0.4.0", v2 = "1.001.0.04.1", A = v1.split("."), B = v2.split("."), W = Math.max(A.length, B.length), frames: CellsFrame[] = [];
       const pad = (x: string[]) => [...x, ...Array(W - x.length).fill("0")]; let ans = 0;
+      frames.push({ note: `Split both versions on dots and compare revision by revision as numbers, so "01" and "001" are both 1. A missing revision counts as 0`, tones: {} });
       for (let i = 0; i < W; i++) {
         const x = +(A[i] ?? "0"), y = +(B[i] ?? "0");
         if (x !== y) ans = x > y ? 1 : -1;
-        frames.push({ note: `Revision ${i}: ${x} vs ${y}${A[i] == null ? " (missing → 0)" : ""} → ${x === y ? "equal, keep going" : `${x} ${x > y ? ">" : "<"} ${y} → return ${ans}`}`, tones: { [`0:${i}`]: x === y ? "found" : "bad", [`1:${i}`]: x === y ? "found" : "bad" } });
+        frames.push({ note: `revision ${i}: "${A[i] ?? "0"}" is ${x} and "${B[i] ?? "0"}" is ${y}, ${x === y ? "equal, keep going" : `${x} is ${x > y ? "bigger" : "smaller"}, so the result is ${ans}`}`, tones: { [`0:${i}`]: x === y ? "found" : "bad", [`1:${i}`]: x === y ? "found" : "bad" } });
         if (ans) break;
       }
+      frames.push({ note: ans ? `The first different revision decides: version1 is ${ans > 0 ? "newer" : "older"}, return ${ans}` : "All revisions are equal, return 0", tones: {} });
       return cells(`compareVersion("${v1}", "${v2}") = ${ans}`, [pad(A), pad(B)], frames, ["v1", "v2"]);
     },
   },
@@ -1684,14 +1790,19 @@ def numberToWords(num):
     viz: () => {
       const ONES = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"], TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
       const three = (n: number) => { const o: string[] = []; if (n >= 100) { o.push(ONES[Math.floor(n / 100)], "Hundred"); n %= 100; } if (n >= 20) { o.push(TENS[Math.floor(n / 10)]); n %= 10; } if (n) o.push(ONES[n]); return o; };
-      let num = 1234567; const scales: [number, string][] = [[1e9, "Billion"], [1e6, "Million"], [1000, "Thousand"], [1, ""]], c: (string | number | null)[][] = scales.map(([, n]) => [n || "(units)", null, null]), frames: TableFrame[] = [], words: string[] = [];
-      scales.forEach(([sc], k) => {
-        if (num < sc) { c[k][1] = 0; frames.push({ note: `${1234567} has no ${scales[k][1]} group → skip`, cells: c.map((r) => [...r]), active: [k, 1] }); return; }
-        const g = Math.floor(num / sc), w = three(g); num %= sc; c[k][1] = g; c[k][2] = w.join(" "); words.push(...w, ...(scales[k][1] ? [scales[k][1]] : []));
-        frames.push({ note: `Group ${g} → "${w.join(" ")}"${scales[k][1] ? ` + "${scales[k][1]}"` : ""}; ${num} left`, cells: c.map((r) => [...r]), active: [k, 2] });
+      const total = 1000567; let num = total; const scales: [number, string][] = [[1e9, "Billion"], [1e6, "Million"], [1000, "Thousand"], [1, ""]], c: (string | number | null)[][] = scales.map(([, n]) => [n || "(units)", null, null]), frames: TableFrame[] = [], words: string[] = [];
+      const snap = () => c.map((r) => [...r]);
+      frames.push({ note: `Say ${total} in words: peel off groups of three digits from the biggest scale down, and name each group with the three-digit rule plus its scale word`, cells: snap() });
+      scales.forEach(([sc, name], k) => {
+        if (num < sc) { c[k][1] = 0; frames.push({ note: `${num} is below ${sc}, so there is no ${name} group and nothing is said`, cells: snap(), active: [k, 1] }); return; }
+        const before = num, g = Math.floor(num / sc), w = three(g); num %= sc; c[k][1] = g;
+        frames.push({ note: `${name || "units"}: ${before} // ${sc} = ${g}, remainder ${num}`, cells: snap(), active: [k, 1] });
+        c[k][2] = w.join(" "); words.push(...w, ...(name ? [name] : []));
+        const h = Math.floor(g / 100), r = g % 100, parts = [...(h ? [`${ONES[h]} Hundred`] : []), ...(r >= 20 ? [TENS[Math.floor(r / 10)]] : []), ...(r % 10 || (r > 0 && r < 20) ? [ONES[r >= 20 ? r % 10 : r]] : [])];
+        frames.push({ note: `say ${g} with the three-digit rule: ${parts.join(", ")}${name ? `, then add "${name}"` : ""}`, cells: snap(), active: [k, 2] });
       });
-      frames.push({ note: `"${words.join(" ")}"`, cells: c.map((r) => [...r]) });
-      return { kind: "table", title: "numberToWords(1234567)", rowHead: ["Billion", "Million", "Thousand", "units"], colHead: ["scale", "group", "words"], frames };
+      frames.push({ note: `Join the pieces: "${words.join(" ")}"`, cells: snap() });
+      return { kind: "table", title: `numberToWords(${total})`, rowHead: ["Billion", "Million", "Thousand", "units"], colHead: ["scale", "group", "words"], frames };
     },
   },
 
@@ -1847,7 +1958,24 @@ def suggestedProducts(products, searchWord):
             return ch in node and dfs(node[ch], i + 1)
         return dfs(self.root, 0)`,
     lang: "python", time: "O(L) to add, O(26^dots · L) to search", space: "O(total characters)",
-    viz: () => trieWildcard(["bad", "dad", "mad"], ".ad"),
+    viz: () => {
+      const words = ["bat", "dad", "mad"], q = ".ad", nodes: TNode[] = [{ id: 0, label: "•", parent: null }], ends = new Set<number>(), frames: TreeFrame[] = [], seen: Record<number, Tone> = {};
+      for (const w of words) { let cur = 0; for (const ch of w) { let nx = nodes.find((n) => n.parent === cur && n.label === ch)?.id; if (nx === undefined) { nx = nodes.length; nodes.push({ id: nx, label: ch, parent: cur }); } cur = nx; } ends.add(cur); }
+      const kids = (id: number) => nodes.filter((n) => n.parent === id), pathOf = (id: number): string => (id ? pathOf(nodes[id].parent!) + nodes[id].label : "");
+      frames.push({ note: `addWord inserted ${words.map((w) => `"${w}"`).join(", ")} into a trie. search("${q}") treats '.' as any one letter, so it tries every child there and backtracks on a dead end`, tones: {} });
+      const go = (id: number, k: number): boolean => {
+        seen[id] = "active";
+        if (k === q.length) { const ok = ends.has(id); seen[id] = ok ? "found" : "bad"; frames.push({ note: ok ? `pattern used up at "${pathOf(id)}", which is the end of a stored word, so search returns true` : `pattern used up at "${pathOf(id)}" but no word ends here`, tones: { ...seen } }); return ok; }
+        const c = q[k], next = kids(id).filter((n) => c === "." || n.label === c);
+        frames.push({ note: c === "." ? `'.' after "${pathOf(id) || "the root"}": any letter fits, so try its ${next.length} children ${next.map((n) => n.label).join(", ")} in order` : `'${c}' after "${pathOf(id)}": ${next.length ? "that child exists, follow it" : `there is no child '${c}', dead end`}`, tones: { ...seen } });
+        for (const n of next) if (go(n.id, k + 1)) return true;
+        seen[id] = "bad"; if (next.length) frames.push({ note: `every branch below "${pathOf(id) || "the root"}" failed, back up`, tones: { ...seen } });
+        return false;
+      };
+      const ok = go(0, 0);
+      frames.push({ note: ok ? `search("${q}") is true: "${[...ends].map(pathOf).find((w) => /ad$/.test(w))}" matches` : `search("${q}") is false`, tones: { ...seen } });
+      return { kind: "tree", title: `Wildcard search "${q}" in a trie`, nodes, frames };
+    },
   },
 
   "camelcase-matching": {
@@ -1895,12 +2023,17 @@ def suggestedProducts(products, searchWord):
         return self.index.get(pref + "#" + suff, -1)`,
     lang: "python", time: "O(n · L³) to build, O(L) per query", space: "O(n · L³)",
     viz: () => {
-      const w = "ape", L = w.length, c: (string | number | null)[][] = Array.from({ length: L + 1 }, () => Array(L + 1).fill(null)), frames: TableFrame[] = [];
+      const w = "ape", L = w.length, c: (string | number | null)[][] = Array.from({ length: L + 1 }, () => Array(L + 1).fill(null)), frames: TableFrame[] = [], index = new Map<string, number>();
+      const snap = () => c.map((r) => [...r]);
+      frames.push({ note: `Store word 0 = "${w}" under every key prefix + "#" + suffix. Rows are the prefix length, columns the suffix start, so a query becomes one lookup`, cells: snap() });
       for (let p = 0; p <= L; p++) {
-        for (let s = 0; s <= L; s++) c[p][s] = `${w.slice(0, p)}#${w.slice(s)}`;
-        frames.push({ note: `Prefix "${w.slice(0, p)}": keys with every suffix → index 0`, cells: c.map((r) => [...r]), active: [p, L] });
+        for (let s = 0; s <= L; s++) { const key = `${w.slice(0, p)}#${w.slice(s)}`; c[p][s] = key; index.set(key, 0); }
+        frames.push({ note: `prefix "${w.slice(0, p)}" (length ${p}): pair it with every suffix, giving ${L + 1} keys that all map to index 0`, cells: snap(), active: [p, L] });
       }
-      frames.push({ note: "f(\"a\", \"e\") looks up \"a#e\" → 0. A later word with the same key would overwrite it with its larger index", cells: c.map((r) => [...r]), active: [1, 2] });
+      const f = (pre: string, suf: string) => index.get(`${pre}#${suf}`) ?? -1;
+      frames.push({ note: `f("a", "e") builds the key "a#e" and finds it in row 1, column 2, so it returns ${f("a", "e")}. A later word with the same key would overwrite it, so the largest index wins`, cells: snap(), active: [1, 2], tones: { "1:2": "found" } });
+      frames.push({ note: `f("b", "e") builds "b#e", which no row holds, so it returns ${f("b", "e")}`, cells: snap(), tones: Object.fromEntries(c.flatMap((r, i) => r.map((_, j) => [`${i}:${j}`, "muted" as Tone]))) });
+      frames.push({ note: `Each query is one dictionary lookup: f("a", "e") = ${f("a", "e")} and f("b", "e") = ${f("b", "e")}`, cells: snap(), tones: { "1:2": "found" } });
       return { kind: "table", title: `Keys for "${w}" (rows prefix length, columns suffix start)`, rowHead: ["0", "1", "2", "3"], colHead: ["0", "1", "2", "3"], frames };
     },
   },
@@ -1934,7 +2067,24 @@ def suggestedProducts(products, searchWord):
                 dfs(r, c, root)
     return out`,
     lang: "python", time: "O(m · n · 4^L)", space: "O(total word length)",
-    viz: () => wordSearchGrid(),
+    viz: () => {
+      const g = [["o", "a", "a", "n"], ["e", "t", "a", "e"], ["i", "h", "k", "r"], ["i", "f", "l", "v"]], words = ["oath", "pea", "eat", "rain"], root: Record<string, any> = {};
+      for (const wd of words) { let n = root; for (const ch of wd) n = n[ch] ??= {}; n.$ = wd; }
+      const m = 4, frames: TableFrame[] = [], path: [number, number][] = [], got: [number, number][] = [], out: string[] = [], b = g.map((r) => [...r]);
+      frames.push({ note: `Find words ${words.map((x) => `"${x}"`).join(", ")} in the grid. They sit in a trie, so a walk stops the moment its letters are not a prefix of any word`, cells: g.map((r) => [...r]) });
+      const dfs = (r: number, c: number, parent: Record<string, any>) => {
+        const ch = b[r][c], node = parent[ch]; path.push([r, c]); const prefix = path.map(([y, x]) => g[y][x]).join("");
+        let note = `step onto '${ch}' at (${r},${c}): "${prefix}" is a prefix in the trie`;
+        if (node.$) { out.push(node.$); got.push(...path); note += `, and it is a whole word, so "${node.$}" is found`; delete node.$; }
+        frames.push({ note, cells: g.map((x) => [...x]), active: [r, c], deps: path.slice(0, -1), tones: Object.fromEntries(got.map(([y, x]) => [`${y}:${x}`, "found" as Tone])) });
+        b[r][c] = "#";
+        for (const [nr, nc] of [[r + 1, c], [r - 1, c], [r, c + 1], [r, c - 1]]) if (nr >= 0 && nr < m && nc >= 0 && nc < m && b[nr][nc] in node) dfs(nr, nc, node);
+        b[r][c] = ch; path.pop();
+      };
+      for (let r = 0; r < m; r++) for (let c = 0; c < m; c++) if (b[r][c] in root) dfs(r, c, root);
+      frames.push({ note: `Every start cell is tried and only 9 steps were needed thanks to pruning: found ${out.map((x) => `"${x}"`).join(" and ")}`, cells: g.map((r) => [...r]), tones: Object.fromEntries(got.map(([y, x]) => [`${y}:${x}`, "found" as Tone])) });
+      return { kind: "table", title: `Word Search II: found ${out.join(", ")}`, rowHead: ["0", "1", "2", "3"], colHead: ["0", "1", "2", "3"], frames };
+    },
   },
 
   "longest-word-in-dictionary": {
@@ -2138,18 +2288,19 @@ def maxGeneticDifference(parents, queries):
     return ans`,
     lang: "python", time: "O(n · 15)", space: "O(n · 15)",
     viz: () => {
-      const nums = [1, 4, 2, 7], low = 2, high = 6, B = 4, trie: number[][] = [[0, 0, 0]], frames: TableFrame[] = []; let ans = 0;
+      const nums = [1, 4, 2, 7, 3, 6], low = 2, high = 6, B = 4, trie: number[][] = [[0, 0, 0]], frames: TableFrame[] = []; let ans = 0;
       const insert = (x: number) => { let cur = 0; for (let b = B - 1; b >= 0; b--) { const bit = (x >> b) & 1; if (!trie[cur][bit]) { trie.push([0, 0, 0]); trie[cur][bit] = trie.length - 1; } cur = trie[cur][bit]; trie[cur][2]++; } };
       const less = (x: number, lim: number) => { let cur = 0, total = 0; for (let b = B - 1; b >= 0; b--) { const xb = (x >> b) & 1, lb = (lim >> b) & 1; if (lb) { const s = trie[cur][xb]; if (s) total += trie[s][2]; cur = trie[cur][1 - xb]; } else cur = trie[cur][xb]; if (!cur) break; } return total; };
       const c: (string | number | null)[][] = nums.map(() => nums.map(() => null)), t: Record<string, Tone> = {};
+      frames.push({ note: `Count pairs i < j with low <= nums[i] ^ nums[j] <= high for low = ${low}, high = ${high}. For each x count earlier numbers with xor below ${high + 1} minus those below ${low}, using a bit trie of earlier numbers`, cells: c.map((r) => [...r]) });
       nums.forEach((x, i) => {
         const hi = less(x, high + 1), lo = less(x, low); ans += hi - lo;
         for (let j = 0; j < i; j++) { const v = x ^ nums[j]; c[i][j] = v; t[`${i}:${j}`] = v >= low && v <= high ? "found" : "muted"; }
-        frames.push({ note: i ? `x = ${x}: earlier XORs < ${high + 1}: ${hi}, < ${low}: ${lo} → ${hi - lo} new pair${hi - lo === 1 ? "" : "s"} (total ${ans}); then insert ${x}` : `x = ${x}: trie is empty, nothing to pair with; insert ${x}`, cells: c.map((r) => [...r]), active: [i, Math.max(0, i - 1)], tones: { ...t } });
+        frames.push({ note: i ? `x = ${x}: ${hi} earlier number${hi === 1 ? "" : "s"} xor below ${high + 1} and ${lo} xor below ${low}, so ${hi - lo} new pair${hi - lo === 1 ? "" : "s"} (total ${ans}); then insert ${x} into the trie` : `x = ${x}: the trie is empty so there is nothing to pair with; insert ${x}`, cells: c.map((r) => [...r]), active: [i, Math.max(0, i - 1)], tones: { ...t } });
         insert(x);
       });
-      frames.push({ note: `${ans} pairs have XOR in [${low}, ${high}] (green cells)`, cells: c.map((r) => [...r]), tones: { ...t } });
-      return { kind: "table", title: `countPairs([1,4,2,7], ${low}, ${high}) = ${ans}`, rowHead: nums.map(String), colHead: nums.map(String), frames };
+      frames.push({ note: `${ans} pairs have xor in [${low}, ${high}] (green cells)`, cells: c.map((r) => [...r]), tones: { ...t } });
+      return { kind: "table", title: `countPairs([${nums.join(",")}], ${low}, ${high}) = ${ans}`, rowHead: nums.map(String), colHead: nums.map(String), frames };
     },
   },
   // @@end

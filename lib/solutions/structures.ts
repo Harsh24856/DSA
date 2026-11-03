@@ -111,10 +111,11 @@ export const STRUCT_SOLUTIONS: Record<string, Solution> = {
     return build(0, len(vals) - 1)`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const v = [-10, -3, 0, 5, 9]; const steps: { label: string; parent: number | null; side?: "L" | "R"; note: string }[] = [];
-      const build = (lo: number, hi: number, parent: number | null, side?: "L" | "R") => { if (lo > hi) return; const mid = (lo + hi) >> 1, id = steps.length; steps.push({ label: String(v[mid]), parent, side, note: `range [${v.slice(lo, hi + 1).join(", ")}] → middle ${v[mid]} becomes the ${parent == null ? "root" : `${side === "L" ? "left" : "right"} child`}` }); build(lo, mid - 1, id, "L"); build(mid + 1, hi, id, "R"); };
+      const v = [-10, -3, 0, 5, 9, 12, 15]; const steps: { label: string; parent: number | null; side?: "L" | "R"; note: string }[] = [];
+      const build = (lo: number, hi: number, parent: number | null, side?: "L" | "R") => { if (lo > hi) return; const mid = (lo + hi) >> 1, id = steps.length; steps.push({ label: String(v[mid]), parent, side, note: `build(${lo}, ${hi}) covers [${v.slice(lo, hi + 1).join(", ")}]: mid = (${lo} + ${hi}) // 2 = ${mid}, so ${v[mid]} becomes ${parent == null ? "the root" : `the ${side === "L" ? "left" : "right"} child of ${steps[parent].label}`}` }); build(lo, mid - 1, id, "L"); build(mid + 1, hi, id, "R"); };
       build(0, v.length - 1, null);
-      const g = grow(steps); return tree("Sorted list [-10, -3, 0, 5, 9] → balanced BST", g.nodes, g.frames);
+      const g = grow(steps), all = (t: Tone) => Object.fromEntries(g.nodes.map((n) => [n.id, t])) as Record<number, Tone>;
+      return tree("Sorted list [-10, -3, 0, 5, 9, 12, 15] → balanced BST", g.nodes, [{ note: `Turn the sorted list [${v.join(", ")}] into a height-balanced BST: copy it to an array, then the middle of each range is the root of that range`, tones: all("muted") }, ...g.frames, { note: "Both halves are empty everywhere below the leaves, so the balanced BST is complete", tones: all("found") }]);
     },
   },
 
@@ -139,9 +140,21 @@ def distanceK(root, target, k):
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
       const vals: V = [3, 5, 1, 6, 2, 0, 8, null, null, 7, 4], { nodes, kids, val } = T(vals), par = new Map<number, number>(); Object.entries(kids).forEach(([p, ch]) => ch.forEach((c) => c != null && par.set(c, +p)));
-      const k = 2, target = 1; let q = [target]; const seen = new Set(q), dist: Record<number, string> = { [target]: "d0" }; const frames: TreeFrame[] = [{ note: `Start at target ${val(target)}`, tones: { [target]: "active" }, badges: { ...dist } }];
-      for (let d = 1; d <= k; d++) { const nq: number[] = []; for (const n of q) for (const m of [kids[n][0], kids[n][1], par.get(n)]) if (m != null && !seen.has(m)) { seen.add(m); nq.push(m); dist[m] = "d" + d; } q = nq; frames.push({ note: `Ring ${d} (children and parent count): ${q.map(val).join(", ")}`, tones: Object.fromEntries([...seen].map((x) => [x, q.includes(x) ? (d === k ? "found" : "window") : "done"])) as Record<number, Tone>, badges: { ...dist } }); }
-      return tree(`Nodes at distance ${k} from ${val(target)}: ${q.map(val).join(", ")}`, nodes, frames);
+      const k = 3, target = 1, queue = [target], seen = new Set(queue), dist: Record<number, string> = { [target]: "d0" };
+      const tones = (cur?: number) => Object.fromEntries([...seen].map((x) => [x, x === cur ? "active" : queue.includes(x) ? "window" : "done"])) as Record<number, Tone>;
+      const frames: TreeFrame[] = [
+        { note: `Find every node at distance ${k} from the target ${val(target)}. A tree only points downward, so first record each node's parent`, tones: { [target]: "active" }, badges: { ...dist } },
+        { note: `Parents recorded (shown as ↑): now every node has up to 3 neighbours, its two children and its parent`, tones: { [target]: "active" }, badges: Object.fromEntries([...par].map(([c, p]) => [c, "↑" + val(p)])) }];
+      for (let d = 1; d <= k; d++) {
+        const size = queue.length;
+        for (let s = 0; s < size; s++) {
+          const n = queue.shift()!, added: number[] = [];
+          for (const m of [kids[n][0], kids[n][1], par.get(n)]) if (m != null && !seen.has(m)) { seen.add(m); queue.push(m); dist[m] = "d" + d; added.push(m); }
+          frames.push({ note: `step ${d}: pop ${val(n)}; ${added.length ? `its unseen ${added.length === 1 ? "neighbour" : "neighbours"} ${added.map(val).join(", ")} join the queue at distance ${d}` : "all of its neighbours were already seen"}`, tones: tones(n), badges: { ...dist } });
+        }
+      }
+      frames.push({ note: `After ${k} rings the queue holds exactly the nodes at distance ${k}: ${queue.map(val).join(", ")}`, tones: Object.fromEntries([...seen].map((x) => [x, queue.includes(x) ? "found" : "done"])) as Record<number, Tone>, badges: { ...dist } });
+      return tree(`Nodes at distance ${k} from ${val(target)}: ${queue.map(val).join(", ")}`, nodes, frames);
     },
   },
 
@@ -161,11 +174,11 @@ def findFrequentTreeSum(root):
     return [v for v, c in count.items() if c == top]`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const vals: V = [5, 2, -5], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], badges: Record<number, string> = {}, count = new Map<number, number>();
-      const s = (i: number | null): number => { if (i == null) return 0; const t = val(i) + s(kids[i][0]) + s(kids[i][1]); badges[i] = "sum " + t; count.set(t, (count.get(t) || 0) + 1); frames.push({ note: `subtree at ${val(i)} sums to ${t}`, tones: { [i]: "active" }, badges: { ...badges } }); return t; };
+      const vals: V = [3, 1, -2, 1, 1, -3, 1], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [{ note: "Find the most frequent subtree sum. Go bottom-up: a node's sum is its value plus the sums of its two subtrees", tones: {} }], badges: Record<number, string> = {}, count = new Map<number, number>(), sums: Record<number, number> = {};
+      const s = (i: number | null): number => { if (i == null) return 0; const l = s(kids[i][0]), r = s(kids[i][1]), t = val(i) + l + r; sums[i] = t; badges[i] = "Σ" + t; count.set(t, (count.get(t) || 0) + 1); frames.push({ note: `node ${val(i)}: ${val(i)} + left ${l} + right ${r} = ${t}; the sum ${t} has now been seen ${count.get(t)} time${count.get(t) === 1 ? "" : "s"}`, tones: { [i]: "active" }, badges: { ...badges } }); return t; };
       s(0); const top = Math.max(...count.values()), res = [...count].filter(([, c]) => c === top).map(([v]) => v);
-      frames.push({ note: `Counts: ${[...count].map(([v, c]) => `${v}×${c}`).join(", ")} → most frequent: [${res.join(", ")}]`, tones: {}, badges: { ...badges } });
-      return tree("Subtree sums", nodes, trail(frames));
+      frames.push({ note: `Counts: ${[...count].map(([v, c]) => `${v}×${c}`).join(", ")}. The highest count is ${top}, so the answer is [${res.join(", ")}]`, tones: Object.fromEntries(Object.entries(sums).filter(([, t]) => res.includes(t)).map(([i]) => [i, "found"])) as Record<number, Tone>, badges: { ...badges } });
+      return tree(`Most frequent subtree sum: [${res.join(", ")}]`, nodes, trail(frames));
     },
   },
 
@@ -184,10 +197,14 @@ def findFrequentTreeSum(root):
     return head`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const orig = [1, 8, 9], vals: (string | number)[] = ["0", ...orig], next = vals.map((_, i) => (i + 1 < vals.length ? i + 1 : -1)), frames: ListFrame[] = [];
-      frames.push({ note: "Head 1 < 5, so no new leading digit is needed (the 0 placeholder is dropped)", next, values: [...vals], ptrs: [{ i: 1, label: "node" }], tones: { 0: "muted" } });
-      for (let i = 1; i < vals.length; i++) { const d = orig[i - 1], carry = i < orig.length && orig[i] >= 5 ? 1 : 0, nv = ((d * 2) % 10) + carry; vals[i] = nv; frames.push({ note: `${d} × 2 = ${d * 2} → keep ${(d * 2) % 10}${carry ? ` + 1 because the next digit ${orig[i]} ≥ 5 will carry` : ""} = ${nv}`, next, values: [...vals], ptrs: [{ i, label: "node" }], tones: { 0: "muted", ...Object.fromEntries(Array.from({ length: i }, (_, k) => [k + 1, "found"])) } }); }
-      return { kind: "list", title: "Double 1 → 8 → 9 (189 × 2 = 378)", values: ["0", ...orig], frames };
+      const orig = [8, 4, 6, 5, 3], vals: (string | number)[] = [0, ...orig], next = vals.map((_, i) => (i + 1 < vals.length ? i + 1 : -1)), done: Record<number, Tone> = {}, frames: ListFrame[] = [];
+      frames.push({ note: `Double the number 84653 stored as the list 8 → 4 → 6 → 5 → 3. Each digit doubles; it also gains 1 if the next digit is 5 or more, because that one carries`, next, values: [...vals], ptrs: [{ i: 1, label: "head" }], tones: { 0: "muted" } });
+      frames.push({ note: `The head 8 is at least 5, so doubling it carries into a new leading digit: put a new node 0 in front`, next, values: [...vals], ptrs: [{ i: 0, label: "head" }], tones: { 0: "active" } });
+      for (let i = 0; i < vals.length; i++) {
+        const d = vals[i] as number, nxt = i + 1 < vals.length ? (vals[i + 1] as number) : null, carry = nxt != null && nxt >= 5 ? 1 : 0, nv = ((d * 2) % 10) + carry; vals[i] = nv; done[i] = "found";
+        frames.push({ note: `node ${d}: ${d} × 2 = ${d * 2}, keep ${(d * 2) % 10}${nxt == null ? ", and there is no next digit" : carry ? `, plus 1 because the next digit ${nxt} is at least 5` : `, plus 0 because the next digit ${nxt} is below 5`}, so it becomes ${nv}`, next, values: [...vals], ptrs: [{ i, label: "node" }], tones: { ...done, [i]: i === vals.length - 1 ? "found" : "active" } });
+      }
+      return { kind: "list", title: "Double 84653 → 169306", values: [0, ...orig], frames };
     },
   },
 
@@ -234,11 +251,13 @@ def kthLargestLevelSum(root, k):
     return sorted(sums, reverse=True)[k - 1]`,
     lang: "python", time: "O(n + L log L)", space: "O(w)",
     viz: () => {
-      const vals: V = [5, 8, 9, 2, 1, 3, 7, 4, 6], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], sums: number[] = []; let q = [0];
-      while (q.length) { const s = q.reduce((a, i) => a + val(i), 0); sums.push(s); frames.push({ note: `level ${sums.length}: ${q.map(val).join(" + ")} = ${s}`, tones: Object.fromEntries(q.map((i) => [i, "active"])) as Record<number, Tone>, badges: { [q[q.length - 1]]: "Σ " + s } }); q = q.flatMap((i) => kids[i].filter((c): c is number => c != null)); }
-      const k = 2, sorted = [...sums].sort((a, b) => b - a);
-      frames.push({ note: `Level sums [${sums.join(", ")}] sorted: [${sorted.join(", ")}] → ${k}nd largest = ${sorted[k - 1]}`, tones: {} });
-      return tree("Kth largest level sum (k = 2)", nodes, trail(frames));
+      const vals: V = [5, 8, 9, 2, 1, 3, 7, 4, 6], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], sums: number[] = [], levels: number[][] = [], k = 2; let q = [0];
+      frames.push({ note: `Find the ${k}nd largest level sum. Process the tree one level at a time and add each level up`, tones: {} });
+      while (q.length) { const s = q.reduce((a, i) => a + val(i), 0); sums.push(s); levels.push(q); frames.push({ note: `level ${sums.length}: ${q.map(val).join(" + ")} = ${s}`, tones: Object.fromEntries(q.map((i) => [i, "active"])) as Record<number, Tone>, badges: { [q[q.length - 1]]: "Σ " + s } }); q = q.flatMap((i) => kids[i].filter((c): c is number => c != null)); }
+      const sorted = [...sums].sort((a, b) => b - a), at = sums.indexOf(sorted[k - 1]);
+      frames.push({ note: `Sort the level sums [${sums.join(", ")}] from large to small: [${sorted.join(", ")}]`, tones: {} });
+      frames.push({ note: `The ${k}nd largest is ${sorted[k - 1]}, the sum of level ${at + 1}`, tones: Object.fromEntries(levels[at].map((i) => [i, "found"])) as Record<number, Tone>, badges: { [levels[at][levels[at].length - 1]]: "Σ " + sorted[k - 1] } });
+      return tree(`Kth largest level sum (k = ${k}): ${sorted[k - 1]}`, nodes, trail(frames));
     },
   },
 
@@ -405,10 +424,14 @@ def kthLargestLevelSum(root, k):
     return 1 + countNodes(root.left) + countNodes(root.right)`,
     lang: "python", time: "O(log² n)", space: "O(log n)",
     viz: () => {
-      const vals: V = [1, 2, 3, 4, 5, 6], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [];
+      const vals: V = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [{ note: `Count the nodes of a complete tree without visiting them all. If the leftmost and rightmost paths from a node are equally deep, that subtree is perfect and has 2^h - 1 nodes`, tones: {} }], badges: Record<number, string> = {};
       const depth = (i: number | null, side: 0 | 1) => { let d = 0; while (i != null) { d++; i = kids[i][side]; } return d; };
-      const go = (i: number | null): number => { if (i == null) return 0; const lh = depth(i, 0), rh = depth(i, 1); if (lh === rh) { frames.push({ note: `${val(i)}: left depth ${lh} = right depth ${rh} → perfect, ${(1 << lh) - 1} nodes without visiting them`, tones: { [i]: "found" } }); return (1 << lh) - 1; } frames.push({ note: `${val(i)}: left depth ${lh} ≠ right depth ${rh} → count 1 + both children`, tones: { [i]: "active" } }); return 1 + go(kids[i][0]) + go(kids[i][1]); };
-      const n = go(0);
+      const go = (i: number | null): number => {
+        if (i == null) return 0; const lh = depth(i, 0), rh = depth(i, 1);
+        if (lh === rh) { badges[i] = "+" + ((1 << lh) - 1); frames.push({ note: `node ${val(i)}: left depth ${lh} = right depth ${rh}, so it is perfect and holds 2^${lh} - 1 = ${(1 << lh) - 1} node${(1 << lh) - 1 === 1 ? "" : "s"} without visiting ${(1 << lh) - 1 === 1 ? "it" : "them"}`, tones: { [i]: "found" }, badges: { ...badges } }); return (1 << lh) - 1; }
+        frames.push({ note: `node ${val(i)}: left depth ${lh} but right depth ${rh}, so count 1 for it and recurse into both children`, tones: { [i]: "active" }, badges: { ...badges } }); return 1 + go(kids[i][0]) + go(kids[i][1]);
+      };
+      const n = go(0); frames.push({ note: `The perfect pieces and the single nodes add up to ${n} nodes`, tones: Object.fromEntries(Object.keys(badges).map((i) => [i, "found"])) as Record<number, Tone>, badges: { ...badges } });
       return tree(`Complete tree has ${n} nodes`, nodes, trail(frames));
     },
   },
@@ -429,12 +452,21 @@ def kthLargestLevelSum(root, k):
     return dummy.next`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const vals = [0, 1, 2, -3, 3, 1], pre: number[] = []; let s = 0; vals.forEach((v) => { s += v; pre.push(s); });
+      const vals = [0, 1, 3, 2, -3, -2, 5, 1], pre: number[] = []; let s = 0; vals.forEach((v) => { s += v; pre.push(s); });
       const lastIdx = new Map<number, number>(); pre.forEach((p, i) => lastIdx.set(p, i));
-      const next = vals.map((_, i) => (i + 1 < vals.length ? i + 1 : -1)), frames: ListFrame[] = [{ note: `Prefix sums (dummy first): [${pre.join(", ")}]`, next: [...next], ptrs: [{ i: 0, label: "dummy" }], tones: { 0: "muted" } }];
-      const alive = new Set<number>([0]); let i = 0;
-      while (i !== -1) { const j = lastIdx.get(pre[i])!; const to = j + 1 < vals.length ? j + 1 : -1; const skipped = j > i; next[i] = to; frames.push({ note: skipped ? `prefix ${pre[i]} appears again at node ${j}: nodes ${i + 1}..${j} sum to 0 → skip them` : `prefix ${pre[i]} is unique → keep the link`, next: [...next], ptrs: [{ i, label: "node" }], tones: { 0: "muted", ...Object.fromEntries(Array.from({ length: Math.max(0, j - i) }, (_, k) => [i + 1 + k, "bad"])) } }); i = to; if (i !== -1) alive.add(i); }
-      return { kind: "list", title: "Remove zero-sum runs from 1 → 2 → -3 → 3 → 1", values: vals.map((v, k) => (k === 0 ? "d" : v)), frames };
+      const next = vals.map((_, i) => (i + 1 < vals.length ? i + 1 : -1)), shown = vals.map((v, k) => (k === 0 ? "d" : v)), bad: Record<number, Tone> = { 0: "muted" };
+      const frames: ListFrame[] = [
+        { note: `Remove every run of consecutive nodes that sums to 0 from 1 → 3 → 2 → -3 → -2 → 5 → 1, using a dummy node d in front`, next: [...next], values: shown, ptrs: [{ i: 0, label: "dummy" }], tones: { 0: "muted" } },
+        { note: `Pass 1: running sums (now shown in the nodes) are [${pre.join(", ")}]. Remember the LAST node for each sum; a repeated sum means the nodes in between add to 0`, next: [...next], values: [...pre], ptrs: [{ i: 0, label: "dummy" }], tones: { 0: "muted" } }];
+      let i = 0;
+      while (i !== -1) {
+        const j = lastIdx.get(pre[i])!, to = j + 1 < vals.length ? j + 1 : -1, skipped = j > i; next[i] = to;
+        if (skipped) for (let k = i + 1; k <= j; k++) bad[k] = "bad";
+        frames.push({ note: skipped ? `Pass 2, node with sum ${pre[i]}: that sum comes back at position ${j}, so the nodes after this one up to there (${vals.slice(i + 1, j + 1).join(", ")}) add to 0 and are skipped` : `Pass 2, ${i === 0 ? "dummy" : "node"} with sum ${pre[i]}: that sum appears nowhere later, so its link stays`, next: [...next], values: [...pre], ptrs: [{ i, label: "node" }], tones: { ...bad } });
+        i = to;
+      }
+      frames.push({ note: "The zero-sum runs are cut out, leaving 1 → 5 → 1", next: [...next], values: shown, ptrs: [{ i: 0, label: "dummy" }], tones: { ...bad, 1: "found", 6: "found", 7: "found" } });
+      return { kind: "list", title: "Remove zero-sum runs from 1 → 3 → 2 → -3 → -2 → 5 → 1", values: shown, frames };
     },
   },
 
@@ -457,12 +489,23 @@ def nearestExit(maze, entrance):
     return -1`,
     lang: "python", time: "O(R · C)", space: "O(R · C)",
     viz: () => {
-      const m = [["+", "+", ".", "+"], [".", ".", ".", "+"], ["+", "+", "+", "."]], R = 3, C = 4, ent: [number, number] = [1, 2];
-      const cellsOf = (dist: Map<string, number>) => m.map((row, r) => row.map((x, c) => (x === "+" ? "▉" : dist.has(`${r},${c}`) ? dist.get(`${r},${c}`)! : ".")));
-      const dist = new Map([[ent.join(","), 0]]), q: [number, number][] = [ent], frames: TableFrame[] = [{ note: "Start BFS at the entrance (distance 0)", cells: cellsOf(dist), active: ent }];
-      let found: [number, number] | null = null;
-      while (q.length && !found) { const [r, c] = q.shift()!; for (const [nr, nc] of [[r + 1, c], [r - 1, c], [r, c + 1], [r, c - 1]] as [number, number][]) { if (nr < 0 || nr >= R || nc < 0 || nc >= C || m[nr][nc] !== "." || dist.has(`${nr},${nc}`)) continue; dist.set(`${nr},${nc}`, dist.get(`${r},${c}`)! + 1); const exit = nr === 0 || nr === R - 1 || nc === 0 || nc === C - 1; frames.push({ note: exit ? `(${nr},${nc}) is on the border → nearest exit at ${dist.get(`${nr},${nc}`)} steps` : `reach (${nr},${nc}) at distance ${dist.get(`${nr},${nc}`)}`, cells: cellsOf(dist), active: [nr, nc], deps: [[r, c]] }); if (exit) { found = [nr, nc]; break; } q.push([nr, nc]); } }
-      return { kind: "table", title: "Nearest exit (BFS)", rowHead: ["0", "1", "2"], colHead: ["0", "1", "2", "3"], frames };
+      const m = ["+++++", "+...+", "+.+..", "+...+", "++.++"].map((r) => [...r]), R = 5, C = 5, ent: [number, number] = [1, 1], key = (r: number, c: number) => `${r},${c}`;
+      const dist = new Map([[key(...ent), 0]]), q: [number, number][] = [ent];
+      const grid = () => m.map((row, r) => row.map((x, c) => (x === "+" ? "▉" : dist.has(key(r, c)) ? dist.get(key(r, c))! : ".")));
+      const tones = () => Object.fromEntries([...dist.keys()].map((k) => { const [r, c] = k.split(",").map(Number); return [`${r}:${c}`, q.some(([a, b]) => a === r && b === c) ? "window" : "done"]; })) as Record<string, Tone>;
+      const frames: TableFrame[] = [{ note: "Fewest steps from the entrance to any open cell on the border (▉ is a wall). BFS explores cells in rings of equal distance", cells: grid(), active: ent }];
+      while (q.length) {
+        const [r, c] = q.shift()!, d = dist.get(key(r, c))!, news: [number, number][] = []; let exit: [number, number] | null = null;
+        for (const [nr, nc] of [[r + 1, c], [r - 1, c], [r, c + 1], [r, c - 1]] as [number, number][]) {
+          if (nr < 0 || nr >= R || nc < 0 || nc >= C || m[nr][nc] !== "." || dist.has(key(nr, nc))) continue;
+          dist.set(key(nr, nc), d + 1);
+          if (nr === 0 || nr === R - 1 || nc === 0 || nc === C - 1) { exit = [nr, nc]; break; }
+          q.push([nr, nc]); news.push([nr, nc]);
+        }
+        if (exit) { frames.push({ note: `pop (${r},${c}) at distance ${d}: its neighbour (${exit[0]},${exit[1]}) is open and on the border, so the nearest exit is ${d + 1} steps away`, cells: grid(), active: exit, deps: [[r, c]], tones: { ...tones(), [`${exit[0]}:${exit[1]}`]: "found" } }); break; }
+        frames.push({ note: news.length ? `pop (${r},${c}) at distance ${d}: new open cell${news.length === 1 ? "" : "s"} ${news.map(([a, b]) => `(${a},${b})`).join(", ")} at distance ${d + 1} ${news.length === 1 ? "joins" : "join"} the queue` : `pop (${r},${c}) at distance ${d}: no open unvisited neighbour, nothing to add`, cells: grid(), active: [r, c], tones: tones() });
+      }
+      return { kind: "table", title: "Nearest exit (BFS)", rowHead: ["0", "1", "2", "3", "4"], colHead: ["0", "1", "2", "3", "4"], frames };
     },
   },
 
@@ -481,9 +524,10 @@ def nearestExit(maze, entrance):
     return ans`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const a = [2, 7, 4, 3, 5], ans: (string | number)[] = a.map(() => 0), st: number[] = [], frames: StackFrame[] = [];
-      a.forEach((x, i) => { const popped: number[] = []; while (st.length && a[st[st.length - 1]] < x) { const j = st.pop()!; ans[j] = x; popped.push(a[j]); } st.push(i); frames.push({ note: popped.length ? `${x} answers ${popped.join(", ")}` : `push ${x}`, items: st.map((j) => a[j]), incoming: x, popped, side: `answer: [${ans.join(", ")}]` }); });
-      return { kind: "stack", title: "Next greater node for 2 → 7 → 4 → 3 → 5", input: a, frames };
+      const a = [1, 7, 5, 1, 9, 2, 5, 1], ans: (string | number)[] = a.map(() => 0), st: number[] = [], frames: StackFrame[] = [{ note: `Next greater value for each node of ${a.join(" → ")}. Copy the values to an array; the stack holds indices still waiting for a bigger value, answers start at 0`, items: [], side: `answer: [${ans.join(", ")}]` }];
+      a.forEach((x, i) => { const popped: number[] = []; while (st.length && a[st[st.length - 1]] < x) { const j = st.pop()!; ans[j] = x; popped.push(a[j]); } st.push(i); frames.push({ note: popped.length ? `value ${x} is bigger than ${popped.join(", ")} on the stack, so it is their next greater value; then ${x} is pushed` : `value ${x} is not bigger than the top ${a[st[st.length - 2]] ?? "of an empty stack"}, so just push it`, items: st.map((j) => a[j]), incoming: x, popped, side: `answer: [${ans.join(", ")}]` }); });
+      frames.push({ note: `The input is finished; the ${st.length} values left on the stack have no greater value after them, so they keep 0. Answer [${ans.join(", ")}]`, items: st.map((j) => a[j]), side: `answer: [${ans.join(", ")}]` });
+      return { kind: "stack", title: `Next greater node for ${a.join(" → ")}`, input: a, frames };
     },
   },
 
@@ -554,13 +598,20 @@ def restoreArray(adjacentPairs):
     return out`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const pairs = [[4, -2], [1, 4], [-3, 1]], vals = [4, -2, 1, -3], id = (v: number) => vals.indexOf(v);
-      const nodes = [{ id: 0, label: "4", x: 45, y: 20 }, { id: 1, label: "-2", x: 12, y: 55 }, { id: 2, label: "1", x: 75, y: 55 }, { id: 3, label: "-3", x: 45, y: 88 }];
-      const g = new Map<number, number[]>(); pairs.forEach(([a, b]) => { g.set(a, [...(g.get(a) || []), b]); g.set(b, [...(g.get(b) || []), a]); });
-      const deg = Object.fromEntries(vals.map((v) => [id(v), `deg ${g.get(v)!.length}`])); const frames: GraphFrame[] = [{ note: "Neighbour counts: the two ends have exactly one", badges: deg }];
-      const start = vals.find((v) => g.get(v)!.length === 1)!, out = [start], tones: Record<number, Tone> = { [id(start)]: "found" }, edgeTones: Record<string, Tone> = {}; let prev: number | null = null;
-      frames.push({ note: `start at ${start}: out = [${out.join(", ")}]`, badges: deg, tones: { ...tones } });
-      while (out.length < vals.length) { const cur = out[out.length - 1], nb = g.get(cur)!, nxt = nb[0] !== prev ? nb[0] : nb[nb.length - 1]; prev = cur; out.push(nxt); tones[id(nxt)] = "found"; edgeTones[`${Math.min(id(cur), id(nxt))}-${Math.max(id(cur), id(nxt))}`] = "found"; frames.push({ note: `from ${cur} step to ${nxt} (not where we came from): out = [${out.join(", ")}]`, badges: deg, tones: { ...tones, [id(nxt)]: "active" }, edgeTones: { ...edgeTones } }); }
+      const pairs = [[3, -4], [5, -1], [-4, 6], [8, 3], [-1, 8]], g = new Map<number, number[]>();
+      pairs.forEach(([a, b]) => { g.set(a, [...(g.get(a) || []), b]); g.set(b, [...(g.get(b) || []), a]); });
+      const vals = [...g.keys()], id = (v: number) => vals.indexOf(v), key = (u: number, v: number) => `${Math.min(id(u), id(v))}-${Math.max(id(u), id(v))}`;
+      const nodes = vals.map((v, i) => ({ id: i, label: String(v), x: 50 + 36 * Math.cos(-Math.PI / 2 + (i * 2 * Math.PI) / vals.length), y: 50 + 40 * Math.sin(-Math.PI / 2 + (i * 2 * Math.PI) / vals.length) }));
+      const deg = Object.fromEntries(vals.map((v) => [id(v), `deg ${g.get(v)!.length}`])), edgeTones: Record<string, Tone> = {}, tones: Record<number, Tone> = {};
+      const frames: GraphFrame[] = [
+        { note: `Each pair [a, b] says a and b sit next to each other, so treat the pairs as edges of a graph on ${vals.length} values` },
+        { note: "Count each value's neighbours: inner values of the array have 2, the two ends have exactly 1", badges: deg }];
+      const start = vals.find((v) => g.get(v)!.length === 1)!, out = [start]; let prev: number | null = null; tones[id(start)] = "found";
+      frames.push({ note: `${start} has a single neighbour, so it is one end of the array: out = [${out.join(", ")}]`, badges: deg, tones: { ...tones } });
+      while (out.length < vals.length) {
+        const cur = out[out.length - 1], nb = g.get(cur)!, nxt = nb[0] !== prev ? nb[0] : nb[nb.length - 1]; prev = cur; out.push(nxt); tones[id(nxt)] = "found"; edgeTones[key(cur, nxt)] = "found";
+        frames.push({ note: `from ${cur}, neighbours are ${nb.join(" and ")}; step to ${nxt}, the one we did not just come from: out = [${out.join(", ")}]`, badges: deg, tones: { ...tones, [id(nxt)]: out.length === vals.length ? "found" : "active" }, edgeTones: { ...edgeTones } });
+      }
       return { kind: "graph", title: `Restored: [${out.join(", ")}]`, nodes, edges: pairs.map(([a, b]) => ({ a: id(a), b: id(b) })), frames };
     },
   },
@@ -585,9 +636,10 @@ def restoreArray(adjacentPairs):
     return out`,
     lang: "python", time: "O(C(9, k) · k)", space: "O(k)",
     viz: () => {
-      const k = 3, n = 8, out: number[][] = [], path: number[] = [], frames: StackFrame[] = [];
+      const k = 2, n = 4, out: number[][] = [], path: number[] = [], frames: StackFrame[] = [{ note: `Choose ${k} different digits from 1 to 9 that add up to ${n}. Try digits in increasing order and stop a branch when a digit exceeds what is left`, items: [], side: `remaining: ${n}` }];
       const go = (start: number, rem: number) => { if (path.length === k) { if (rem === 0) out.push([...path]); frames.push({ note: rem === 0 ? `[${path.join(", ")}] sums to ${n}: record it` : `${k} digits but ${rem} still left: dead end`, items: [...path], side: `found: ${out.map((p) => `[${p.join(",")}]`).join(" ") || "none"}` }); return; } for (let d = start; d < 10; d++) { if (d > rem) { frames.push({ note: `${d} > remaining ${rem}: stop this branch`, items: [...path], side: `found: ${out.map((p) => `[${p.join(",")}]`).join(" ") || "none"}` }); break; } path.push(d); frames.push({ note: `try ${d}, remaining ${rem - d}`, items: [...path], incoming: d, side: `found: ${out.map((p) => `[${p.join(",")}]`).join(" ") || "none"}` }); go(d + 1, rem - d); path.pop(); } };
       go(1, n);
+      frames.push({ note: `Every branch is done: ${out.length} combination${out.length === 1 ? "" : "s"} found, ${out.map((p) => `[${p.join(", ")}]`).join(", ")}`, items: out[0] ?? [], side: `found: ${out.map((p) => `[${p.join(",")}]`).join(" ")}` });
       return { kind: "stack", title: `k = ${k}, n = ${n}: ${out.map((p) => `[${p.join(", ")}]`).join(", ")}`, frames };
     },
   },
@@ -611,9 +663,14 @@ def restoreArray(adjacentPairs):
     first.val, second.val = second.val, first.val`,
     lang: "python", time: "O(n)", space: "O(h)",
     viz: () => {
-      const vals: V = [3, 1, 4, null, null, 2], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], st: number[] = []; let node: number | null = 0, prev: number | null = null, first: number | null = null, second: number | null = null;
-      while (st.length || node != null) { while (node != null) { st.push(node); node = kids[node][0]; } const cur = st.pop()!; const drop = prev != null && val(prev) > val(cur); if (drop) { if (first == null) first = prev; second = cur; } frames.push({ note: `inorder visits ${val(cur)}${prev == null ? "" : drop ? `: ${val(prev!)} > ${val(cur)} is a drop → first = ${val(first!)}, second = ${val(cur)}` : `: ${val(prev)} < ${val(cur)}, in order`}`, tones: { [cur]: drop ? "bad" : "active", ...(first != null ? { [first]: "bad" } : {}) } }); prev = cur; node = kids[cur][1]; }
-      frames.push({ note: `Swap the values of ${val(first!)} and ${val(second!)}`, tones: { [first!]: "found", [second!]: "found" }, labels: { [first!]: String(val(second!)), [second!]: String(val(first!)) } });
+      const vals: V = [4, 6, 2, 1, 3, 5, 7], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [{ note: "Two values of a BST were swapped. Walk it in order (left, node, right): that should be sorted, and a swap shows up as a value smaller than the one before it", tones: {} }], st: number[] = []; let node: number | null = 0, prev: number | null = null, first: number | null = null, second: number | null = null;
+      while (st.length || node != null) {
+        while (node != null) { st.push(node); node = kids[node][0]; }
+        const cur = st.pop()!, drop = prev != null && val(prev) > val(cur); if (drop) { if (first == null) first = prev; second = cur; }
+        frames.push({ note: prev == null ? `inorder visits ${val(cur)} first, nothing before it to compare` : drop ? `inorder visits ${val(cur)} right after ${val(prev)}: ${val(prev)} > ${val(cur)} is a drop, so first = ${val(first!)} and second = ${val(cur)}` : `inorder visits ${val(cur)} right after ${val(prev)}: ${val(prev)} < ${val(cur)}, still in order`, tones: { [cur]: drop ? "bad" : "active", ...(first != null ? { [first]: "bad" } : {}) } });
+        prev = cur; node = kids[cur][1];
+      }
+      frames.push({ note: `Swap the values of first (${val(first!)}) and second (${val(second!)}) to restore the BST`, tones: { [first!]: "found", [second!]: "found" }, labels: { [first!]: String(val(second!)), [second!]: String(val(first!)) } });
       return tree("Recover a BST with two swapped values", nodes, trail(frames));
     },
   },
@@ -755,8 +812,12 @@ def restoreArray(adjacentPairs):
         level = nxt`,
     lang: "python", time: "O(n)", space: "O(width)",
     viz: () => {
-      const vals: V = [1, 2, 3, 4, 5, null, 6, 7, null, null, null, null, null, null, 8], { nodes, kids, val } = T(vals), frames: TreeFrame[] = []; let level = [0], depth = 0;
-      while (true) { const nxt = level.flatMap((i) => kids[i].filter((c): c is number => c != null)), sum = level.reduce((x, i) => x + val(i), 0); frames.push({ note: nxt.length ? `depth ${depth}: [${level.map(val).join(", ")}], next level has ${nxt.length} node${nxt.length === 1 ? "" : "s"}` : `depth ${depth} is the last level: ${level.map(val).join(" + ")} = ${sum}`, tones: Object.fromEntries(level.map((i) => [i, nxt.length ? "active" : "found"])) as Record<number, Tone> }); if (!nxt.length) break; level = nxt; depth++; }
+      const vals = Object.assign(Array(30).fill(null), { 0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 6: 6, 7: 7, 14: 8, 15: 10, 29: 9 }) as V, { nodes, kids, val } = T(vals), frames: TreeFrame[] = [{ note: "Sum the deepest leaves. Go down one level at a time and stop when a level has no children", tones: {} }]; let level = [0], depth = 0;
+      while (true) {
+        const nxt = level.flatMap((i) => kids[i].filter((c): c is number => c != null)), sum = level.reduce((x, i) => x + val(i), 0);
+        frames.push({ note: nxt.length ? `depth ${depth}: level = [${level.map(val).join(", ")}] and it has ${nxt.length} child${nxt.length === 1 ? "" : "ren"}, so go one level deeper` : `depth ${depth}: level = [${level.map(val).join(", ")}] has no children, so this is the deepest level: ${level.map(val).join(" + ")} = ${sum}`, tones: Object.fromEntries(level.map((i) => [i, nxt.length ? "active" : "found"])) as Record<number, Tone> });
+        if (!nxt.length) break; level = nxt; depth++;
+      }
       return tree("Deepest leaves sum", nodes, trail(frames));
     },
   },
@@ -849,10 +910,12 @@ class SnapshotArray:
         return self.a[0]`,
     lang: "python", time: "O(1) insert", space: "O(n)",
     viz: () => {
-      const vals: V = [1, 2, 3, 4, 5, 6, 7], { nodes, val } = T(vals), start = 4, frames: TreeFrame[] = [];
+      const vals: V = [1, 2, 3, 4, 5, 6, 7, 8, 9], { nodes, val } = T(vals), start = 3, frames: TreeFrame[] = [];
       const muted = (from: number) => Object.fromEntries(vals.map((_, i) => [i, "muted"]).filter(([i]) => (i as number) >= from)) as Record<number, Tone>;
-      frames.push({ note: `Start with [${vals.slice(0, start).join(", ")}] stored in level order (faded nodes come later)`, tones: muted(start), badges: Object.fromEntries(vals.slice(0, start).map((_, i) => [i, `#${i}`])) });
-      for (let i = start; i < vals.length; i++) { const p = (i - 1) >> 1; frames.push({ note: `insert(${val(i)}) goes to slot ${i}; parent slot (${i} - 1) // 2 = ${p} holds ${val(p)} → ${i % 2 ? "left" : "right"} child, return ${val(p)}`, tones: { ...muted(i + 1), [i]: "found", [p]: "active" }, badges: Object.fromEntries(vals.slice(0, i + 1).map((_, j) => [j, `#${j}`])) }); }
+      const slots = (n: number) => Object.fromEntries(vals.slice(0, n).map((_, i) => [i, `#${i}`]));
+      frames.push({ note: `The constructor walks the tree breadth first and stores the nodes in an array: [${vals.slice(0, start).join(", ")}]. Faded nodes are the ones inserted later`, tones: muted(start), badges: slots(start) });
+      for (let i = start; i < vals.length; i++) { const p = (i - 1) >> 1; frames.push({ note: `insert(${val(i)}): the array has ${i} nodes, so the parent is slot (${i} - 1) // 2 = ${p} holding ${val(p)}, which has no ${i % 2 ? "left" : "right"} child yet, so ${val(i)} becomes its ${i % 2 ? "left" : "right"} child and insert returns ${val(p)}`, tones: { ...muted(i + 1), [i]: "found", [p]: "active" }, badges: slots(i + 1) }); }
+      frames.push({ note: `get_root() returns ${val(0)}, the tree now has all ${vals.length} nodes and is still complete`, tones: Object.fromEntries(vals.map((_, i) => [i, "found"])) as Record<number, Tone>, badges: slots(vals.length) });
       return tree("Complete binary tree inserter", nodes, frames);
     },
   },
@@ -872,12 +935,16 @@ class SnapshotArray:
     return root`,
     lang: "python", time: "O(n)", space: "O(width)",
     viz: () => {
-      const vals: V = [4, 2, 6, 1, 1, 1, 1, 3, null, null, 1, 5], { nodes } = T(vals), added = [3, 4, 5, 6];
-      const frames: TreeFrame[] = [{ note: "Tree [4, 2, 6, 3, 1, 5], add a row of 1s at depth 3. Faded nodes are the new row", tones: Object.fromEntries(added.map((i) => [i, "muted"])) as Record<number, Tone> }];
-      frames.push({ note: "Depth 2 holds 2 and 6: walk there with BFS", tones: { 1: "active", 2: "active", 3: "muted", 4: "muted", 5: "muted", 6: "muted" } });
-      frames.push({ note: "Under 2: new left 1 keeps the old left 3, new right 1 keeps the old right 1", tones: { 1: "active", 3: "found", 4: "found", 5: "muted", 6: "muted" } });
-      frames.push({ note: "Under 6: new left 1 keeps the old left 5, new right 1 gets the old right (none)", tones: { 2: "active", 3: "found", 4: "found", 5: "found", 6: "found" } });
-      return tree("Add one row of 1s at depth 3", nodes, frames);
+      const vals: V = [4, 2, 6, 1, 1, 1, 1, 3, null, null, 1, 5], { nodes, kids, val } = T(vals), added = [3, 4, 5, 6], old = [7, 10, 11], depth = 3;
+      const placed: number[] = [], base = (act: number[]) => ({ ...Object.fromEntries(added.map((i) => [i, placed.includes(i) ? "found" : "muted"])), ...Object.fromEntries(old.map((i) => [i, "done"])), ...Object.fromEntries(act.map((i) => [i, "active"])) }) as Record<number, Tone>;
+      const frames: TreeFrame[] = [{ note: `Add a row of 1s at depth ${depth} of the tree 4 / (2, 6) / (3, 1, 5). Faded nodes are the new row; the old nodes 3, 1 and 5 will hang below it`, tones: base([]) }]; let level = [0];
+      for (let s = 0; s < depth - 2; s++) { level = level.flatMap((i) => kids[i].filter((c): c is number => c != null)); frames.push({ note: `depth - 2 = ${depth - 2} step down from the root: the level becomes [${level.map(val).join(", ")}], the nodes at depth ${depth - 1}`, tones: base(level) }); }
+      for (const n of level) for (const side of [0, 1] as const) {
+        const slot = 2 * n + 1 + side, kid = kids[slot]?.[side], tail = kid != null ? `the old ${side ? "right" : "left"} child ${val(kid)} hangs under it` : `there was no old ${side ? "right" : "left"} child`;
+        placed.push(slot); frames.push({ note: `Node ${val(n)}, ${side ? "right" : "left"}: a new 1 becomes its ${side ? "right" : "left"} child and ${tail}`, tones: base([n]) });
+      }
+      frames.push({ note: `Every node at depth ${depth - 1} now has two new children, so the row of 1s sits at depth ${depth}`, tones: base([]) });
+      return tree(`Add one row of 1s at depth ${depth}`, nodes, frames);
     },
   },
 

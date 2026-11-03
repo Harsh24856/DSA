@@ -25,7 +25,8 @@ const FILL: Record<Tone | "none", { fill: string; text: string; stroke: string; 
 };
 const EDGE: Record<Tone | "none", string> = { none: "var(--line-strong)", active: "var(--accent)", window: "var(--accent)", done: "var(--muted)", found: "var(--easy)", bad: "var(--hard)", muted: "var(--line)" };
 
-export function Visualizer({ diagram, input }: { diagram: Diagram; input?: ReactNode }) {
+/** `keys`: arrow keys and space work anywhere on the page, for players inside a sheet. `autoplay`: starts running by itself. */
+export function Visualizer({ diagram, input, keys, autoplay }: { diagram: Diagram; input?: ReactNode; keys?: boolean; autoplay?: boolean }) {
   const n = diagram.frames.length;
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -33,7 +34,7 @@ export function Visualizer({ diagram, input }: { diagram: Diagram; input?: React
   const reduce = useReducedMotion();
   const box = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setStep(0); setPlaying(false); }, [diagram]);
+  useEffect(() => { setStep(0); setPlaying(!!autoplay && !reduce); }, [diagram, autoplay, reduce]);
   useEffect(() => {
     if (!playing) return;
     if (step >= n - 1) { setPlaying(false); return; }
@@ -44,10 +45,18 @@ export function Visualizer({ diagram, input }: { diagram: Diagram; input?: React
   const frame = diagram.frames[Math.min(step, n - 1)];
   const go = (s: number) => { setPlaying(false); setStep(Math.max(0, Math.min(n - 1, s))); };
   const by = (d: number) => { setPlaying(false); setStep((s) => Math.max(0, Math.min(n - 1, s + d))); };
+  const onKey = (e: { key: string; preventDefault(): void }) => { if (e.key === "ArrowRight") { e.preventDefault(); by(1); } if (e.key === "ArrowLeft") { e.preventDefault(); by(-1); } if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); } };
+  const onKeyRef = useRef(onKey); onKeyRef.current = onKey;
+  useEffect(() => {
+    if (!keys) return;
+    const h = (e: KeyboardEvent) => { const el = e.target as HTMLElement; if (el.closest("input, select, textarea") || (e.key === " " && el.closest("button, a"))) return; onKeyRef.current(e); };
+    document.addEventListener("keydown", h);
+    return () => document.removeEventListener("keydown", h);
+  }, [keys]);
 
   return (
     <div ref={box} tabIndex={0} aria-label={`${diagram.title}. Step ${step + 1} of ${n}. Use the arrow keys to step.`}
-      onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); by(1); } if (e.key === "ArrowLeft") { e.preventDefault(); by(-1); } if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); } }}
+      onKeyDown={keys ? undefined : onKey}
       className="inset bg-surface-2/50 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-sm font-semibold">{diagram.title}</h4>
@@ -87,6 +96,7 @@ export function Visualizer({ diagram, input }: { diagram: Diagram; input?: React
           <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
         </select>
       </div>
+      {keys && <p className="mt-2 hidden text-xs text-muted [@media(hover:hover)]:block">Press ← and → to step, space to play.</p>}
     </div>
   );
 }

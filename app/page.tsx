@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { CheckCircle, Plus } from "@phosphor-icons/react";
+import { ArrowUpRight, Check, CheckCircle, Plus } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import { addDays, isWeekend, level, perDay, queue, revisitsDue, streak, title, todayPlan, TRACK, TRACKS, trackTotals, upcoming, url, weekStart, windowInfo, ymd } from "@/lib/logic";
 import type { Track } from "@/lib/problems";
 import { P } from "@/lib/problems";
 
 import { ProblemRow } from "@/components/ProblemRow";
+import { SolveButton } from "@/components/SolvePanel";
 import { WeekBars } from "@/components/charts";
 import { Bar, Card, Count, Skeleton, Stat } from "@/components/ui";
 
@@ -19,6 +20,7 @@ export default function Today() {
   const t = ymd(now);
   const plan = todayPlan(state, now);
   const left = plan.main.filter((i) => !state.done[i]).length;
+  const next = plan.main.find((i) => !state.done[i]);
   const rev = revisitsDue(state, now);
   const days = perDay(state);
   const solvedToday = days.get(t) || 0;
@@ -42,8 +44,9 @@ export default function Today() {
 
   return (
     <div className="flex flex-col gap-6">
+      {next !== undefined && <NextUp i={next} />}
 
-      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="Key numbers">
+      <section className="grid grid-cols-2 gap-3 max-sm:order-last xl:grid-cols-4" aria-label="Key numbers">
         <Stat label="Today" note={left ? `${left} left in today's plan` : "Today's plan is done"}><Count value={plan.main.length - left} /><Unit>/ {plan.main.length}</Unit></Stat>
         <Stat label="Streak" note={st ? "Keep it going today" : "Solve one to start"}><Count value={st} /><Unit>{st === 1 ? "day" : "days"}</Unit></Stat>
         <Stat label="Solved" note={`${solvedToday} today, ${weekTotal} this week`}><Count value={total} /><Unit>/ {P.length}</Unit></Stat>
@@ -144,6 +147,26 @@ export default function Today() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** The one thing to do now: the first unsolved problem of today's plan. */
+function NextUp({ i }: { i: number }) {
+  const { toggle } = useStore();
+  const name = title(i), lc = P[i][0] !== "C";
+  return (
+    <section aria-labelledby="next-up" className="card flex flex-wrap items-center gap-x-6 gap-y-4 p-4 sm:p-6">
+      <div className="min-w-0 flex-1 basis-64">
+        <p className="caption-4 text-muted">Next up</p>
+        <h2 id="next-up" className="t-h3 mt-1">{name}</h2>
+        <p className="mt-2 flex items-center gap-2 text-xs text-muted"><span className={`pill lv-${level(i)}`}>{P[i][3]}</span>{TRACK[P[i][0]]}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <a href={url(i)} target="_blank" rel="noopener" className="btn btn-primary">{lc ? "Open on LeetCode" : "Open on Codeforces"}<ArrowUpRight size={16} aria-hidden /></a>
+        {lc && <SolveButton t={{ slug: P[i][2], title: name, level: P[i][3], url: url(i), sql: P[i][0] === "S", i }} />}
+        <button type="button" className="btn" onClick={() => toggle(i, true)}><Check size={16} weight="bold" aria-hidden />Mark solved</button>
+      </div>
+    </section>
   );
 }
 

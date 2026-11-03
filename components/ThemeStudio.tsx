@@ -33,6 +33,19 @@ function Preview({ l }: { l: Look }) {
   );
 }
 
+/** Clear themes: a small question row, because reading it is what the theme is for. */
+function Sample({ id }: { id: string }) {
+  return (
+    <div data-preview={id} className="p-2">
+      <div className="rounded-lg border border-line bg-surface p-3">
+        <p className="truncate text-sm font-semibold text-ink">Two Sum</p>
+        <p className="truncate text-xs text-muted">Hash map, one pass</p>
+        <p className="mt-2 flex items-center gap-2 text-xs font-semibold"><span className="text-easy">Easy</span><span className="text-medium">Med</span><span className="text-hard">Hard</span><span className="ml-auto rounded-full bg-accent px-2 py-0.5 text-accent-ink">Go</span></p>
+      </div>
+    </div>
+  );
+}
+
 export function ThemeStudio() {
   const s = useStore();
   return (
@@ -44,17 +57,18 @@ export function ThemeStudio() {
       {GROUPS.map((g) => (
       <div key={g} className="flex flex-col gap-2">
       <h4 className="t-eyebrow mt-1">{g}</h4>
-      <ul className="flex flex-col gap-3">
+      {g === "Clear" && <p className="text-xs text-muted">Solid colours with strong contrast. The easiest to read.</p>}
+      <ul className={g === "Clear" ? "grid grid-cols-2 gap-2" : "flex flex-col gap-3"}>
         {LOOKS.filter((l) => l.group === g).map((l, i) => {
           const on = s.look === l.id;
           return (
             <motion.li key={l.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03, duration: 0.3 }}>
               <motion.button type="button" aria-pressed={on} onClick={() => s.setLook(l.id)} whileTap={{ scale: 0.985 }}
                 className={`group w-full cursor-pointer overflow-hidden rounded-tile border text-left transition-colors ${on ? "border-accent ring-2 ring-accent-soft" : "border-line hover:border-line-strong"}`}>
-                <Preview l={l} />
-                <div className="flex items-center gap-3 border-t border-line bg-surface px-4 py-3">
-                  <span className="text-sm font-semibold">{l.name}</span>
-                  <span className="min-w-0 flex-1 truncate text-xs text-muted">{l.blurb}</span>
+                {g === "Clear" ? <Sample id={l.id} /> : <Preview l={l} />}
+                <div className={`flex items-center gap-3 border-t border-line bg-surface ${g === "Clear" ? "px-3 py-2" : "px-4 py-3"}`}>
+                  <span className={`min-w-0 text-sm font-semibold ${g === "Clear" ? "flex-1 truncate" : ""}`} title={l.name}>{l.name}</span>
+                  {g !== "Clear" && <span className="min-w-0 flex-1 truncate text-xs text-muted">{l.blurb}</span>}
                   <span className="tick pointer-events-none" data-on={on || undefined}>{on && <Check size={14} weight="bold" aria-hidden />}</span>
                 </div>
               </motion.button>

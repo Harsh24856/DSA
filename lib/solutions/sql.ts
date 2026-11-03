@@ -5,6 +5,9 @@ import type { Solution } from "./types";
 type Rows = (string | number | null)[][];
 const t = (name: string, cols: string[], rows: Rows, hl?: number[], tone?: SqlTable["tone"]): SqlTable => ({ name, cols, rows, hl, tone });
 const viz = (title: string, frames: TablesFrame[]): Diagram => ({ kind: "tables", title, frames });
+const ix = (a: unknown[]) => a.map((_, k) => k);
+const at = (r: Rows, f: (x: Rows[number], i: number) => boolean) => r.flatMap((x, i) => f(x, i) ? [i] : []);
+const grp = (r: Rows, ...k: number[]) => { const m = new Map<string, Rows>(); for (const x of r) { const s = k.map(i => x[i]).join("|"); m.set(s, [...(m.get(s) ?? []), x]); } return [...m.values()]; };
 const sql = (approach: string, idea: string[], code: string, v: () => Diagram, time = "O(n)", space = "O(n)"): Solution => ({ approach, idea, code, lang: "sql", time, space, viz: v });
 
 export const SQL_SOLUTIONS: Record<string, Solution> = {
@@ -40,16 +43,26 @@ GROUP BY v.customer_id;`,
     `SELECT product_id
 FROM Products
 WHERE low_fats = 'Y' AND recyclable = 'Y';`,
-    () => { const P = (hl?: number[]) => t("Products", ["product_id", "low_fats", "recyclable"], [[0, "Y", "N"], [1, "Y", "Y"], [2, "N", "Y"], [3, "Y", "Y"], [4, "N", "N"]], hl, "found");
-      return viz("Filter on two flags", [{ note: "Check both columns on every row", tables: [P()] }, { note: "Rows 1 and 3 have Y in both", tables: [P([1, 3]), t("Result", ["product_id"], [[1], [3]], [0, 1], "found")] }]); }, "O(n)", "O(1)"),
+    () => { const r: Rows = [[0, "Y", "N"], [1, "Y", "Y"], [2, "N", "Y"], [3, "Y", "Y"], [4, "N", "N"]], P = (hl?: number[], tone?: SqlTable["tone"]) => t("Products", ["product_id", "low_fats", "recyclable"], r, hl, tone), lf = at(r, x => x[1] === "Y"), both = lf.filter(i => r[i][2] === "Y");
+      return viz("Filter on two flags", [
+        { note: "FROM Products: five rows, each with a low_fats and a recyclable flag", tables: [P()] },
+        { note: "low_fats = 'Y' keeps products 0, 1 and 3 and drops 2 and 4", tables: [P(lf, "window")] },
+        { note: "recyclable = 'Y' must also hold, and product 0 is not recyclable, so only 1 and 3 survive", tables: [P(both, "found")] },
+        { note: "SELECT product_id returns the ids that survived: 1 and 3", tables: [t("Result", ["product_id"], both.map(i => [r[i][0]]), ix(both), "found")] },
+      ]); }, "O(n)", "O(1)"),
 
   "big-countries": sql("WHERE with OR: area at least 3,000,000 or population at least 25,000,000.",
     ["A country is big if either threshold is met, so OR them."],
     `SELECT name, population, area
 FROM World
 WHERE area >= 3000000 OR population >= 25000000;`,
-    () => { const W = (hl?: number[]) => t("World", ["name", "area", "population"], [["Afghanistan", 652230, 25500100], ["Albania", 28748, 2831741], ["Algeria", 2381741, 37100000], ["Andorra", 468, 78115]], hl, "found");
-      return viz("Big by area or by population", [{ note: "Either condition makes a country big", tables: [W()] }, { note: "Afghanistan and Algeria pass on population", tables: [W([0, 2])] }]); }, "O(n)", "O(1)"),
+    () => { const r: Rows = [["Afghanistan", 652230, 25500100], ["Albania", 28748, 2831741], ["Algeria", 2381741, 37100000], ["Andorra", 468, 78115]], W = (hl?: number[], tone?: SqlTable["tone"]) => t("World", ["name", "area", "population"], r, hl, tone), a = at(r, x => (x[1] as number) >= 3000000), p = at(r, x => (x[2] as number) >= 25000000), keep = at(r, (_, i) => a.includes(i) || p.includes(i));
+      return viz("Big by area or by population", [
+        { note: "FROM World: four countries with their area and population", tables: [W()] },
+        { note: "area >= 3000000 is true for no row, because the largest area here is Algeria's 2381741", tables: [W(a, "bad")] },
+        { note: "population >= 25000000 is true for Afghanistan (25500100) and Algeria (37100000), and with OR one true test is enough", tables: [W(p, "window")] },
+        { note: "SELECT name, population, area returns the two big countries", tables: [t("Result", ["name", "population", "area"], keep.map(i => [r[i][0], r[i][2], r[i][1]]), ix(keep), "found")] },
+      ]); }, "O(n)", "O(1)"),
 
   "employees-earning-more-than-their-managers": sql("Self-join Employee to its manager row and compare salaries.",
     ["Join e.managerId = m.id to put each employee next to their manager.", "Keep rows where the employee earns more."],
@@ -57,8 +70,13 @@ WHERE area >= 3000000 OR population >= 25000000;`,
 FROM Employee e
 JOIN Employee m ON e.managerId = m.id
 WHERE e.salary > m.salary;`,
-    () => { const E = (hl?: number[], tone?: SqlTable["tone"]) => t("Employee", ["id", "name", "salary", "managerId"], [[1, "Joe", 70000, 3], [2, "Henry", 80000, 4], [3, "Sam", 60000, null], [4, "Max", 90000, null]], hl, tone);
-      return viz("Employee vs their manager", [{ note: "Joe's manager is Sam (3), Henry's is Max (4)", tables: [E()] }, { note: "Joe 70000 > Sam 60000; Henry 80000 < Max 90000", tables: [E([0], "found"), t("Result", ["Employee"], [["Joe"]], [0], "found")] }]); }),
+    () => { const r: Rows = [[1, "Joe", 70000, 3], [2, "Henry", 80000, 4], [3, "Sam", 60000, null], [4, "Max", 90000, null]], j: Rows = r.flatMap(e => r.filter(m => m[0] === e[3]).map(m => [e[1], e[2], m[1], m[2]])), J = (hl?: number[], tone?: SqlTable["tone"]) => t("e JOIN m", ["employee", "e.salary", "manager", "m.salary"], j, hl, tone), ok = at(j, x => (x[1] as number) > (x[3] as number));
+      return viz("Employee vs their manager", [
+        { note: "FROM Employee e: Joe's managerId is 3 and Henry's is 4, while Sam and Max have no manager", tables: [t("Employee", ["id", "name", "salary", "managerId"], r)] },
+        { note: "JOIN Employee m ON e.managerId = m.id pairs Joe with Sam and Henry with Max; Sam and Max have no manager, so they get no pair", tables: [J(undefined, "window")] },
+        { note: "WHERE e.salary > m.salary keeps Joe (70000 > 60000) and drops Henry (80000 < 90000)", tables: [J(ok, "found")] },
+        { note: "SELECT e.name returns Joe", tables: [t("Result", ["Employee"], ok.map(i => [j[i][0]]), ix(ok), "found")] },
+      ]); }),
 
   "students-and-examinations": sql("CROSS JOIN students with subjects for every pair, then LEFT JOIN exam counts.",
     ["Every student must appear with every subject, even with 0 exams: CROSS JOIN builds all pairs.", "LEFT JOIN Examinations and COUNT the matches (COUNT of a column ignores nulls)."],
@@ -70,10 +88,14 @@ LEFT JOIN Examinations e
   ON e.student_id = s.student_id AND e.subject_name = sub.subject_name
 GROUP BY s.student_id, s.student_name, sub.subject_name
 ORDER BY s.student_id, sub.subject_name;`,
-    () => viz("All student-subject pairs, then counts", [
-      { note: "2 students × 2 subjects = 4 pairs from the CROSS JOIN", tables: [t("Students", ["student_id", "student_name"], [[1, "Alice"], [2, "Bob"]]), t("Subjects", ["subject_name"], [["Math"], ["Physics"]]), t("Examinations", ["student_id", "subject_name"], [[1, "Math"], [1, "Math"], [1, "Physics"]])] },
-      { note: "Bob has no exams, but his rows stay with count 0", tables: [t("Result", ["student_id", "student_name", "subject_name", "attended_exams"], [[1, "Alice", "Math", 2], [1, "Alice", "Physics", 1], [2, "Bob", "Math", 0], [2, "Bob", "Physics", 0]], [2, 3], "found")] },
-    ]), "O(s · k + e)"),
+    () => { const S: Rows = [[1, "Alice"], [2, "Bob"]], U: Rows = [["Math"], ["Physics"]], X: Rows = [[1, "Math"], [1, "Math"], [1, "Physics"]], pairs: Rows = S.flatMap(s => U.map(u => [s[0], s[1], u[0]])), same = (p: Rows[number]) => X.filter(x => x[0] === p[0] && x[1] === p[2]),
+        j: Rows = pairs.flatMap(p => same(p).length ? same(p).map(x => [...p, x[1]]) : [[...p, null]]), res: Rows = pairs.map(p => [...p, same(p).length]);
+      return viz("All student-subject pairs, then counts", [
+        { note: "FROM Students, Subjects and Examinations: Alice sat Math twice and Physics once, Bob sat nothing", tables: [t("Students", ["student_id", "student_name"], S), t("Subjects", ["subject_name"], U), t("Examinations", ["student_id", "subject_name"], X)] },
+        { note: "CROSS JOIN pairs every student with every subject: 2 x 2 = 4 rows", tables: [t("Students x Subjects", ["student_id", "student_name", "subject_name"], pairs, undefined, "window")] },
+        { note: "LEFT JOIN Examinations on student and subject: Alice's Math pair matches two exam rows, and Bob's pairs match none, so e.subject_name is NULL", tables: [t("joined", ["student_id", "student_name", "subject_name", "e.subject_name"], j, [3, 4], "window")] },
+        { note: "GROUP BY the pair and COUNT(e.subject_name), which skips NULL, gives 2, 1, 0 and 0; ORDER BY keeps student then subject order", tables: [t("Result", ["student_id", "student_name", "subject_name", "attended_exams"], res, [2, 3], "found")] },
+      ]); }, "O(s · k + e)"),
 
   "customers-who-never-order": sql("Anti-join: LEFT JOIN Orders and keep customers whose order side is null.",
     ["A customer with no order has no matching row in Orders.", "NOT EXISTS works too; LEFT JOIN + IS NULL is the classic form."],
@@ -81,16 +103,26 @@ ORDER BY s.student_id, sub.subject_name;`,
 FROM Customers c
 LEFT JOIN Orders o ON o.customerId = c.id
 WHERE o.id IS NULL;`,
-    () => { const C = (hl?: number[], tone?: SqlTable["tone"]) => t("Customers", ["id", "name"], [[1, "Joe"], [2, "Henry"], [3, "Sam"], [4, "Max"]], hl, tone), O = t("Orders", ["id", "customerId"], [[1, 3], [2, 1]]);
-      return viz("Customers with no orders", [{ note: "Orders reference customers 3 and 1", tables: [C(), O] }, { note: "Henry and Max have no matching order", tables: [C([1, 3], "found"), O] }]); }),
+    () => { const C: Rows = [[1, "Joe"], [2, "Henry"], [3, "Sam"], [4, "Max"]], O: Rows = [[1, 3], [2, 1]], j: Rows = C.flatMap(c => { const m = O.filter(o => o[1] === c[0]); return m.length ? m.map(o => [c[0], c[1], o[0]]) : [[c[0], c[1], null]]; }), none = at(j, x => x[2] === null), cols = ["c.id", "name", "o.id"];
+      return viz("Customers with no orders", [
+        { note: "FROM Customers and Orders: orders 1 and 2 belong to customers 3 and 1", tables: [t("Customers", ["id", "name"], C), t("Orders", ["id", "customerId"], O)] },
+        { note: "LEFT JOIN Orders keeps every customer; Henry and Max find no order, so their o.id is NULL", tables: [t("c LEFT JOIN o", cols, j, none, "window")] },
+        { note: "WHERE o.id IS NULL keeps only the unmatched customers", tables: [t("c LEFT JOIN o", cols, none.map(i => j[i]), ix(none), "found")] },
+        { note: "SELECT c.name returns Henry and Max", tables: [t("Result", ["Customers"], none.map(i => [j[i][1]]), ix(none), "found")] },
+      ]); }),
 
   "find-customer-referee": sql("Rows where referee_id is not 2, remembering that NULL is neither equal nor unequal.",
     ["referee_id <> 2 is NULL (not true) when referee_id is NULL, so those rows would be lost.", "Add OR referee_id IS NULL."],
     `SELECT name
 FROM Customer
 WHERE referee_id <> 2 OR referee_id IS NULL;`,
-    () => { const C = (hl?: number[]) => t("Customer", ["id", "name", "referee_id"], [[1, "Will", null], [2, "Jane", null], [3, "Alex", 2], [4, "Bill", null], [5, "Zack", 1], [6, "Mark", 2]], hl, "found");
-      return viz("Watch out for NULL", [{ note: "referee_id <> 2 alone would drop the NULL rows", tables: [C([4])] }, { note: "With OR IS NULL: Will, Jane, Bill, Zack", tables: [C([0, 1, 3, 4])] }]); }, "O(n)", "O(1)"),
+    () => { const r: Rows = [[1, "Will", null], [2, "Jane", null], [3, "Alex", 2], [4, "Bill", null], [5, "Zack", 1], [6, "Mark", 2]], C = (hl?: number[], tone?: SqlTable["tone"]) => t("Customer", ["id", "name", "referee_id"], r, hl, tone), ne = at(r, x => x[2] !== null && x[2] !== 2), keep = at(r, x => x[2] !== 2);
+      return viz("Watch out for NULL", [
+        { note: "FROM Customer: Will, Jane and Bill have a NULL referee_id, and Alex and Mark were referred by customer 2", tables: [C()] },
+        { note: "referee_id <> 2 is true only for Zack (1); Alex and Mark are false, and the three NULL rows give NULL, which WHERE treats as not true", tables: [C(ne, "window")] },
+        { note: "OR referee_id IS NULL rescues Will, Jane and Bill, which the <> test alone would have lost", tables: [C(keep, "found")] },
+        { note: "SELECT name returns Will, Jane, Bill and Zack", tables: [t("Result", ["name"], keep.map(i => [r[i][1]]), ix(keep), "found")] },
+      ]); }, "O(n)", "O(1)"),
 
   "average-time-of-process-per-machine": sql("Self-join each process's start row with its end row, average end - start per machine.",
     ["Each process has one 'start' and one 'end' row: join them on machine_id and process_id.", "AVG(end - start) per machine, rounded to 3 decimals."],
@@ -110,8 +142,13 @@ GROUP BY s.machine_id;`,
 FROM Person
 GROUP BY email
 HAVING COUNT(*) > 1;`,
-    () => { const P = (hl?: number[]) => t("Person", ["id", "email"], [[1, "a@b.com"], [2, "c@d.com"], [3, "a@b.com"]], hl);
-      return viz("Groups with count > 1", [{ note: "Group rows by email", tables: [P()] }, { note: "a@b.com appears twice", tables: [P([0, 2]), t("Result", ["Email"], [["a@b.com"]], [0], "found")] }]); }),
+    () => { const r: Rows = [[1, "a@b.com"], [2, "c@d.com"], [3, "a@b.com"]], G: Rows = grp(r, 1).map(x => [x[0][1], x.length]), dup = at(G, x => (x[1] as number) > 1), cols = ["email", "COUNT(*)"];
+      return viz("Groups with count > 1", [
+        { note: "FROM Person: rows 1 and 3 hold the same email", tables: [t("Person", ["id", "email"], r, [0, 2], "window")] },
+        { note: "GROUP BY email makes two groups, and COUNT(*) gives a@b.com 2 and c@d.com 1", tables: [t("Groups", cols, G, undefined, "window")] },
+        { note: "HAVING COUNT(*) > 1 keeps the groups with more than one row, which is only a@b.com", tables: [t("Groups", cols, G, dup, "found")] },
+        { note: "SELECT email AS Email returns a@b.com", tables: [t("Result", ["Email"], dup.map(i => [G[i][0]]), ix(dup), "found")] },
+      ]); }),
 
   "article-views-i": sql("Rows where an author viewed their own article, distinct, sorted.",
     ["author_id = viewer_id means a self-view.", "An author can view several times, so DISTINCT."],
@@ -119,26 +156,38 @@ HAVING COUNT(*) > 1;`,
 FROM Views
 WHERE author_id = viewer_id
 ORDER BY id;`,
-    () => { const V = (hl?: number[]) => t("Views", ["article_id", "author_id", "viewer_id"], [[1, 3, 5], [1, 3, 6], [2, 7, 7], [2, 7, 6], [4, 7, 1], [3, 4, 4], [3, 4, 4]], hl, "found");
-      return viz("Self-views", [{ note: "author 7 and author 4 viewed their own articles", tables: [V([2, 5, 6])] }, { note: "DISTINCT and sort", tables: [t("Result", ["id"], [[4], [7]], [0, 1], "found")] }]); }),
+    () => { const r: Rows = [[1, 3, 5], [1, 3, 6], [2, 7, 7], [2, 7, 6], [4, 7, 1], [3, 4, 4], [3, 4, 4]], V = (hl?: number[], tone?: SqlTable["tone"]) => t("Views", ["article_id", "author_id", "viewer_id"], r, hl, tone), s = at(r, x => x[1] === x[2]), ids: Rows = s.map(i => [r[i][1]]), d: Rows = ids.filter((x, i) => ids.findIndex(y => y[0] === x[0]) === i), res = [...d].sort((a, b) => (a[0] as number) - (b[0] as number));
+      return viz("Self-views", [
+        { note: "FROM Views: seven rows of author and viewer", tables: [V()] },
+        { note: "WHERE author_id = viewer_id keeps the self-views: author 7 on article 2 and author 4 twice on article 3", tables: [V(s, "found")] },
+        { note: "SELECT DISTINCT author_id collapses the values 7, 4, 4 into 7 and 4", tables: [t("author_id", ["id"], d, ix(d), "window")] },
+        { note: "ORDER BY id puts 4 before 7", tables: [t("Result", ["id"], res, ix(res), "found")] },
+      ]); }),
 
   "delete-duplicate-emails": sql("Self-join DELETE: remove every row that has the same email as a row with a smaller id.",
     ["Keep the smallest id per email. A row is a duplicate if another row shares its email with a smaller id.", "MySQL allows DELETE with a self-join."],
     `DELETE p1
 FROM Person p1
 JOIN Person p2 ON p1.email = p2.email AND p1.id > p2.id;`,
-    () => { const P = (hl?: number[], tone?: SqlTable["tone"]) => t("Person", ["id", "email"], [[1, "john@example.com"], [2, "bob@example.com"], [3, "john@example.com"]], hl, tone);
-      return viz("Keep the smallest id per email", [{ note: "Row 3 shares an email with row 1, which has a smaller id", tables: [P([2], "bad")] }, { note: "After DELETE", tables: [t("Person", ["id", "email"], [[1, "john@example.com"], [2, "bob@example.com"]], [0, 1], "found")] }]); }),
+    () => { const r: Rows = [[1, "john@example.com"], [2, "bob@example.com"], [3, "john@example.com"]], P = (rows: Rows, hl?: number[], tone?: SqlTable["tone"]) => t("Person", ["id", "email"], rows, hl, tone), pairs: Rows = r.flatMap(a => r.filter(b => a[1] === b[1] && (a[0] as number) > (b[0] as number)).map(b => [a[0], b[0], a[1]])), del = new Set(pairs.map(p => p[0])), left = r.filter(x => !del.has(x[0]));
+      return viz("Keep the smallest id per email", [
+        { note: "FROM Person p1: row 3 repeats the email of row 1", tables: [P(r)] },
+        { note: "JOIN Person p2 on the same email and p1.id > p2.id makes one pair, row 3 against row 1; Bob pairs with nobody", tables: [t("p1 JOIN p2", ["p1.id", "p2.id", "email"], pairs, ix(pairs), "window")] },
+        { note: "DELETE p1 removes every row that appears on the p1 side of a pair, so row 3 goes", tables: [P(r, at(r, x => del.has(x[0])), "bad")] },
+        { note: "Person after DELETE keeps the smallest id of each email", tables: [P(left, ix(left), "found")] },
+      ]); }),
 
   "replace-employee-id-with-the-unique-identifier": sql("LEFT JOIN the unique id table so employees without one show null.",
     ["Every employee is listed, matched or not: LEFT JOIN from Employees."],
     `SELECT u.unique_id, e.name
 FROM Employees e
 LEFT JOIN EmployeeUNI u ON u.id = e.id;`,
-    () => viz("Map ids, keep everyone", [
-      { note: "Join on id", tables: [t("Employees", ["id", "name"], [[1, "Alice"], [7, "Bob"], [11, "Meir"], [90, "Winston"], [3, "Jonathan"]]), t("EmployeeUNI", ["id", "unique_id"], [[3, 1], [11, 2], [90, 3]])] },
-      { note: "Alice and Bob have no unique id → null", tables: [t("Result", ["unique_id", "name"], [[null, "Alice"], [null, "Bob"], [2, "Meir"], [3, "Winston"], [1, "Jonathan"]], [0, 1], "found")] },
-    ])),
+    () => { const E: Rows = [[1, "Alice"], [7, "Bob"], [11, "Meir"], [90, "Winston"], [3, "Jonathan"]], U: Rows = [[3, 1], [11, 2], [90, 3]], j: Rows = E.map(e => [e[0], e[1], U.find(u => u[0] === e[0])?.[1] ?? null]), nul = at(j, x => x[2] === null);
+      return viz("Map ids, keep everyone", [
+        { note: "FROM Employees and EmployeeUNI: only ids 3, 11 and 90 have a unique id", tables: [t("Employees", ["id", "name"], E), t("EmployeeUNI", ["id", "unique_id"], U)] },
+        { note: "LEFT JOIN EmployeeUNI ON u.id = e.id: Meir, Winston and Jonathan find a unique_id, while Alice and Bob get NULL", tables: [t("e LEFT JOIN u", ["e.id", "name", "unique_id"], j, nul, "window")] },
+        { note: "SELECT u.unique_id, e.name keeps all five employees, NULL ids included", tables: [t("Result", ["unique_id", "name"], j.map(x => [x[2], x[1]]), nul, "found")] },
+      ]); }),
 
   "average-selling-price": sql("Join each sale to the price valid on its date, then units-weighted average per product.",
     ["The price for a sale is the Prices row whose date range contains the purchase date.", "Average price = SUM(price × units) / SUM(units). Products with no sales must show 0, so LEFT JOIN from Prices and IFNULL."],
@@ -149,19 +198,25 @@ LEFT JOIN UnitsSold u
   ON u.product_id = p.product_id
  AND u.purchase_date BETWEEN p.start_date AND p.end_date
 GROUP BY p.product_id;`,
-    () => viz("Weighted average by date range", [
-      { note: "Each sale picks the price active on its date", tables: [t("Prices", ["product_id", "start", "end", "price"], [[1, "02-17", "02-28", 5], [1, "03-01", "03-22", 20], [2, "02-01", "02-20", 15], [2, "02-21", "03-31", 30]]), t("UnitsSold", ["product_id", "date", "units"], [[1, "02-25", 100], [1, "03-01", 15], [2, "02-10", 200], [2, "03-22", 30]])] },
-      { note: "Product 1: (5·100 + 20·15) / 115 = 6.96. Product 2: (15·200 + 30·30) / 230 = 16.96", tables: [t("Result", ["product_id", "average_price"], [[1, 6.96], [2, 16.96]], [0, 1], "found")] },
-    ])),
+    () => { const P: Rows = [[1, "02-17", "02-28", 5], [1, "03-01", "03-22", 20], [2, "02-01", "02-20", 15], [2, "02-21", "03-31", 30]], S: Rows = [[1, "02-25", 100], [1, "03-01", 15], [2, "02-10", 200], [2, "03-22", 30]], n = (x: unknown) => x as number,
+        j: Rows = P.flatMap(p => S.filter(s => s[0] === p[0] && String(s[1]) >= String(p[1]) && String(s[1]) <= String(p[2])).map(s => [p[0], p[3], s[1], s[2]])), A: Rows = grp(j, 0).map(x => [x[0][0], x.reduce((a, y) => a + n(y[1]) * n(y[3]), 0), x.reduce((a, y) => a + n(y[3]), 0)]), res: Rows = A.map(a => [a[0], Math.round(n(a[1]) / n(a[2]) * 100) / 100]);
+      return viz("Weighted average by date range", [
+        { note: "FROM Prices and UnitsSold: each price is valid for a date range", tables: [t("Prices", ["product_id", "start", "end", "price"], P), t("UnitsSold", ["product_id", "date", "units"], S)] },
+        { note: "LEFT JOIN with purchase_date BETWEEN start_date AND end_date gives each sale the price active on its day", tables: [t("joined", ["product_id", "price", "purchase_date", "units"], j, undefined, "window")] },
+        { note: "GROUP BY product_id: SUM(price * units) is 800 and 3900, and SUM(units) is 115 and 230", tables: [t("sums", ["product_id", "SUM(price * units)", "SUM(units)"], A, undefined, "window")] },
+        { note: "Dividing and rounding to 2 places: 800 / 115 = 6.96 and 3900 / 230 = 16.96", tables: [t("Result", ["product_id", "average_price"], res, ix(res), "found")] },
+      ]); }),
 
   "swap-sex-of-employees": sql("A single UPDATE with CASE (or IF) flips 'm' and 'f'.",
     ["One statement, no temporary table: CASE picks the opposite value per row."],
     `UPDATE Salary
 SET sex = CASE sex WHEN 'm' THEN 'f' ELSE 'm' END;`,
-    () => viz("Flip every value in one pass", [
-      { note: "Before", tables: [t("Salary", ["id", "name", "sex"], [[1, "A", "m"], [2, "B", "f"], [3, "C", "m"], [4, "D", "f"]])] },
-      { note: "After UPDATE", tables: [t("Salary", ["id", "name", "sex"], [[1, "A", "f"], [2, "B", "m"], [3, "C", "f"], [4, "D", "m"]], [0, 1, 2, 3], "found")] },
-    ]), "O(n)", "O(1)"),
+    () => { const r: Rows = [[1, "A", "m"], [2, "B", "f"], [3, "C", "m"], [4, "D", "f"]], flip = (s: unknown) => s === "m" ? "f" : "m", after: Rows = r.map(x => [x[0], x[1], flip(x[2])]);
+      return viz("Flip every value in one pass", [
+        { note: "Before the UPDATE: A and C are 'm', B and D are 'f'", tables: [t("Salary", ["id", "name", "sex"], r)] },
+        { note: "CASE sex WHEN 'm' THEN 'f' ELSE 'm' END is evaluated on each row, turning m into f and anything else into m", tables: [t("CASE per row", ["id", "name", "sex", "new sex"], r.map((x, i) => [...x, after[i][2]]), undefined, "window")] },
+        { note: "SET sex writes those values back in the same pass, so no temporary table is needed", tables: [t("Salary", ["id", "name", "sex"], after, ix(after), "found")] },
+      ]); }, "O(n)", "O(1)"),
 
   "group-sold-products-by-the-date": sql("GROUP BY date: count distinct products and GROUP_CONCAT them sorted.",
     ["The same product can be sold twice on a day, so count and list DISTINCT products.", "GROUP_CONCAT(DISTINCT product ORDER BY product) builds the comma list."],
@@ -171,10 +226,14 @@ SET sex = CASE sex WHEN 'm' THEN 'f' ELSE 'm' END;`,
 FROM Activities
 GROUP BY sell_date
 ORDER BY sell_date;`,
-    () => viz("One row per day", [
-      { note: "Group by sell_date", tables: [t("Activities", ["sell_date", "product"], [["2020-05-30", "Headphone"], ["2020-06-01", "Pencil"], ["2020-06-02", "Mask"], ["2020-05-30", "Basketball"], ["2020-06-01", "Bible"], ["2020-06-02", "Mask"], ["2020-05-30", "T-Shirt"]])] },
-      { note: "Mask twice on 06-02 counts once", tables: [t("Result", ["sell_date", "num_sold", "products"], [["2020-05-30", 3, "Basketball,Headphone,T-Shirt"], ["2020-06-01", 2, "Bible,Pencil"], ["2020-06-02", 1, "Mask"]], [2], "found")] },
-    ])),
+    () => { const r: Rows = [["2020-05-30", "Headphone"], ["2020-06-01", "Pencil"], ["2020-06-02", "Mask"], ["2020-05-30", "Basketball"], ["2020-06-01", "Bible"], ["2020-06-02", "Mask"], ["2020-05-30", "T-Shirt"]], g = grp(r, 0).sort((a, b) => String(a[0][0]).localeCompare(String(b[0][0]))), dist = (x: Rows) => [...new Set(x.map(y => String(y[1])))].sort(),
+        G: Rows = g.map(x => [x[0][0], x.length, x.map(y => y[1]).join(", ")]), D: Rows = g.map(x => [x[0][0], x.length, dist(x).length]), res: Rows = g.map(x => [x[0][0], dist(x).length, dist(x).join(",")]);
+      return viz("One row per day", [
+        { note: "FROM Activities: seven sales over three days, and Mask is sold twice on 2020-06-02", tables: [t("Activities", ["sell_date", "product"], r, [2, 5], "window")] },
+        { note: "GROUP BY sell_date puts the seven rows into three day groups", tables: [t("Groups", ["sell_date", "rows", "products in the group"], G, undefined, "window")] },
+        { note: "COUNT(DISTINCT product) counts Mask once on 2020-06-02 even though that day has two rows", tables: [t("Counts", ["sell_date", "rows", "num_sold"], D, [2], "window")] },
+        { note: "GROUP_CONCAT(DISTINCT product ORDER BY product) builds the sorted lists, and ORDER BY sell_date orders the days", tables: [t("Result", ["sell_date", "num_sold", "products"], res, [2], "found")] },
+      ]); }),
 
   "employee-bonus": sql("LEFT JOIN Bonus, keep bonus < 1000 or no bonus at all (NULL).",
     ["Employees without a bonus row must be included, so LEFT JOIN.", "bonus < 1000 is not true for NULL, so add OR IS NULL."],
@@ -182,10 +241,13 @@ ORDER BY sell_date;`,
 FROM Employee e
 LEFT JOIN Bonus b ON b.empId = e.empId
 WHERE b.bonus < 1000 OR b.bonus IS NULL;`,
-    () => viz("Small or missing bonus", [
-      { note: "Join employees to bonuses", tables: [t("Employee", ["empId", "name"], [[3, "Brad"], [1, "John"], [2, "Dan"], [4, "Thomas"]]), t("Bonus", ["empId", "bonus"], [[2, 500], [4, 2000]])] },
-      { note: "Thomas (2000) is dropped; Brad and John have NULL", tables: [t("Result", ["name", "bonus"], [["Brad", null], ["John", null], ["Dan", 500]], [0, 1, 2], "found")] },
-    ])),
+    () => { const E: Rows = [[3, "Brad"], [1, "John"], [2, "Dan"], [4, "Thomas"]], B: Rows = [[2, 500], [4, 2000]], j: Rows = E.map(e => [e[0], e[1], B.find(b => b[0] === e[0])?.[1] ?? null]), ok = at(j, x => x[2] === null || (x[2] as number) < 1000);
+      return viz("Small or missing bonus", [
+        { note: "FROM Employee and Bonus: only Dan (500) and Thomas (2000) have a bonus row", tables: [t("Employee", ["empId", "name"], E), t("Bonus", ["empId", "bonus"], B)] },
+        { note: "LEFT JOIN Bonus keeps all four employees; Brad and John get a NULL bonus", tables: [t("e LEFT JOIN b", ["empId", "name", "bonus"], j, at(j, x => x[2] === null), "window")] },
+        { note: "WHERE b.bonus < 1000 OR b.bonus IS NULL: Dan passes on 500, Brad and John pass on NULL, and Thomas fails with 2000", tables: [t("e LEFT JOIN b", ["empId", "name", "bonus"], j, ok, "found")] },
+        { note: "SELECT e.name, b.bonus returns the three rows that passed", tables: [t("Result", ["name", "bonus"], ok.map(i => [j[i][1], j[i][2]]), ix(ok), "found")] },
+      ]); }),
 
   "not-boring-movies": sql("Odd id, description not 'boring', sorted by rating descending.",
     ["id % 2 = 1 keeps odd ids.", "ORDER BY rating DESC."],
@@ -193,18 +255,25 @@ WHERE b.bonus < 1000 OR b.bonus IS NULL;`,
 FROM Cinema
 WHERE id % 2 = 1 AND description <> 'boring'
 ORDER BY rating DESC;`,
-    () => { const C = (hl?: number[]) => t("Cinema", ["id", "movie", "description", "rating"], [[1, "War", "great 3D", 8.9], [2, "Science", "fiction", 8.5], [3, "irish", "boring", 6.2], [4, "Ice song", "Fantacy", 8.6], [5, "House card", "Interesting", 9.1]], hl, "found");
-      return viz("Filter, then sort", [{ note: "Odd ids 1, 3, 5; movie 3 is boring", tables: [C([0, 4])] }, { note: "Sorted by rating", tables: [t("Result", ["id", "movie", "description", "rating"], [[5, "House card", "Interesting", 9.1], [1, "War", "great 3D", 8.9]], [0, 1], "found")] }]); }, "O(n log n)"),
+    () => { const r: Rows = [[1, "War", "great 3D", 8.9], [2, "Science", "fiction", 8.5], [3, "irish", "boring", 6.2], [4, "Ice song", "Fantacy", 8.6], [5, "House card", "Interesting", 9.1]], C = (hl?: number[], tone?: SqlTable["tone"]) => t("Cinema", ["id", "movie", "description", "rating"], r, hl, tone), odd = at(r, x => (x[0] as number) % 2 === 1), ok = odd.filter(i => r[i][2] !== "boring"), res = ok.map(i => r[i]).sort((a, b) => (b[3] as number) - (a[3] as number));
+      return viz("Filter, then sort", [
+        { note: "FROM Cinema: five movies", tables: [C()] },
+        { note: "id % 2 = 1 keeps the odd ids 1, 3 and 5", tables: [C(odd, "window")] },
+        { note: "description <> 'boring' drops movie 3 (irish), leaving ids 1 and 5", tables: [C(ok, "found")] },
+        { note: "SELECT * with ORDER BY rating DESC puts House card (9.1) before War (8.9)", tables: [t("Result", ["id", "movie", "description", "rating"], res, ix(res), "found")] },
+      ]); }, "O(n log n)"),
 
   "product-sales-analysis-i": sql("Inner join Sales to Product on product_id.",
     ["Each sale's product name comes from Product. Every sale has a product, so a plain JOIN works."],
     `SELECT p.product_name, s.year, s.price
 FROM Sales s
 JOIN Product p ON p.product_id = s.product_id;`,
-    () => viz("Look up product names", [
-      { note: "Join on product_id", tables: [t("Sales", ["sale_id", "product_id", "year", "price"], [[1, 100, 2008, 5000], [2, 100, 2009, 5000], [7, 200, 2011, 9000]]), t("Product", ["product_id", "product_name"], [[100, "Nokia"], [200, "Apple"], [300, "Samsung"]])] },
-      { note: "Result", tables: [t("Result", ["product_name", "year", "price"], [["Nokia", 2008, 5000], ["Nokia", 2009, 5000], ["Apple", 2011, 9000]], [0, 1, 2], "found")] },
-    ])),
+    () => { const S: Rows = [[1, 100, 2008, 5000], [2, 100, 2009, 5000], [7, 200, 2011, 9000]], P: Rows = [[100, "Nokia"], [200, "Apple"], [300, "Samsung"]], j: Rows = S.flatMap(s => P.filter(p => p[0] === s[1]).map(p => [s[0], s[1], p[1], s[2], s[3]]));
+      return viz("Look up product names", [
+        { note: "FROM Sales and Product: Samsung (300) has no sale", tables: [t("Sales", ["sale_id", "product_id", "year", "price"], S), t("Product", ["product_id", "product_name"], P, [2], "bad")] },
+        { note: "JOIN Product p ON p.product_id = s.product_id attaches a name to each sale, and Samsung never appears because no sale points to it", tables: [t("s JOIN p", ["sale_id", "product_id", "product_name", "year", "price"], j, undefined, "window")] },
+        { note: "SELECT product_name, year, price keeps three columns of the joined rows", tables: [t("Result", ["product_name", "year", "price"], j.map(x => [x[2], x[3], x[4]]), ix(j), "found")] },
+      ]); }),
 
   "reformat-department-table": sql("Pivot with conditional aggregation: one SUM(CASE WHEN month = ...) column per month, grouped by id.",
     ["GROUP BY id makes one output row per department.", "For each month, CASE keeps the revenue only on that month's row (null elsewhere); SUM over the group picks it up, and stays null when the month is missing."],
@@ -294,8 +363,13 @@ ORDER BY current_borrowers DESC, b.title;`,
     `SELECT tweet_id
 FROM Tweets
 WHERE CHAR_LENGTH(content) > 15;`,
-    () => { const T2 = (hl?: number[]) => t("Tweets", ["tweet_id", "content", "length"], [[1, "Let us Code", 11], [2, "More than fifteen chars are here!", 33]], hl, "bad");
-      return viz("Content longer than 15 characters", [{ note: "Measure each tweet", tables: [T2()] }, { note: "Only tweet 2 is over 15", tables: [T2([1]), t("Result", ["tweet_id"], [[2]], [0], "found")] }]); }, "O(n)", "O(1)"),
+    () => { const r: Rows = [[1, "Let us Code"], [2, "More than fifteen chars are here!"], [3, "Short one"], [4, "exactly 15 char"]], len: Rows = r.map(x => [...x, [...String(x[1])].length]), bad = at(len, x => (x[2] as number) > 15);
+      return viz("Content longer than 15 characters", [
+        { note: "FROM Tweets: four tweets", tables: [t("Tweets", ["tweet_id", "content"], r)] },
+        { note: "CHAR_LENGTH(content) counts characters: 11, 33, 9 and 15", tables: [t("Tweets", ["tweet_id", "content", "CHAR_LENGTH"], len, undefined, "window")] },
+        { note: "WHERE CHAR_LENGTH(content) > 15 keeps only tweet 2; tweet 4 has exactly 15, which is not more than 15", tables: [t("Tweets", ["tweet_id", "content", "CHAR_LENGTH"], len, bad, "bad")] },
+        { note: "SELECT tweet_id returns 2", tables: [t("Result", ["tweet_id"], bad.map(i => [len[i][0]]), ix(bad), "found")] },
+      ]); }, "O(n)", "O(1)"),
 
   "analyze-subscription-conversion": sql("Per user, average the trial rows and the paid rows separately with AVG(CASE ...); users missing either average did not convert.",
     ["AVG ignores nulls, so AVG(CASE WHEN type = 'free_trial' THEN duration END) averages only trial days.", "A user who converted has both a trial average and a paid average; HAVING drops anyone where either is null."],
@@ -430,7 +504,7 @@ JOIN r c ON c.store_id = s.store_id AND c.lo = 1
 WHERE e.n >= 3 AND e.quantity < c.quantity
 ORDER BY imbalance_ratio DESC, s.store_name;`,
     () => { const I = (hl?: number[], tone?: SqlTable["tone"]) => t("inventory", ["store_id", "product_name", "quantity", "price"], [[1, "Laptop", 5, 999], [1, "Mouse", 20, 19], [1, "Cable", 50, 9], [2, "Phone", 30, 699], [2, "Charger", 12, 25], [2, "Case", 10, 15]], hl, tone);
-      return viz("Most expensive vs cheapest stock", [{ note: "Each store has 3 products", tables: [t("stores", ["store_id", "store_name", "location"], [[1, "Downtown", "New York"], [2, "Mall", "Chicago"]]), I()] }, { note: "Store 1: Laptop (5 left) vs Cable (50 left): 5 < 50 → ratio 50 / 5 = 10.00", tables: [I([0, 2], "found")] }, { note: "Store 2: Phone (30) vs Case (10): the expensive one has more stock ✗", tables: [I([3, 5], "bad")] }, { note: "Result", tables: [t("Result", ["store_id", "store_name", "most_exp_product", "cheapest_product", "imbalance_ratio"], [[1, "Downtown", "Laptop", "Cable", "10.00"]], [0], "found")] }]); }, "O(n log n)"),
+      return viz("Most expensive vs cheapest stock", [{ note: "Each store has 3 products", tables: [t("stores", ["store_id", "store_name", "location"], [[1, "Downtown", "New York"], [2, "Mall", "Chicago"]]), I()] }, { note: "Store 1: Laptop (5 left) vs Cable (50 left): 5 < 50 → ratio 50 / 5 = 10.00", tables: [I([0, 2], "found")] }, { note: "Store 2: Phone (30) vs Case (10): the expensive one has more stock ✗", tables: [I([3, 5], "bad")] }, { note: "Result", tables: [t("Result", ["store_id", "store_name", "location", "most_exp_product", "cheapest_product", "imbalance_ratio"], [[1, "Downtown", "New York", "Laptop", "Cable", "10.00"]], [0], "found")] }]); }, "O(n log n)"),
 
   "product-price-at-a-given-date": sql("For each product, take the latest change on or before 2019-08-16; products with no such change still cost 10.",
     ["List every product once (DISTINCT product_id).", "A correlated subquery finds the newest new_price with change_date ≤ 2019-08-16.", "COALESCE turns 'no change yet' (null) into the starting price 10."],
@@ -451,7 +525,7 @@ FROM (SELECT DISTINCT product_id FROM Products) p;`,
 FROM Patients
 WHERE conditions LIKE 'DIAB1%' OR conditions LIKE '% DIAB1%';`,
     () => { const P = (hl?: number[], tone?: SqlTable["tone"]) => t("Patients", ["patient_id", "patient_name", "conditions"], [[1, "Daniel", "YFEV COUGH"], [2, "Alice", ""], [3, "Bob", "DIAB100 MYOP"], [4, "George", "ACNE DIAB100"], [5, "Alain", "DIAB201"]], hl, tone);
-      return viz("Codes starting with DIAB1", [{ note: "Each patient's code list", tables: [P()] }, { note: "Bob: first code DIAB100. George: second code DIAB100 (after a space)", tables: [P([2, 3], "found")] }, { note: "Alain's DIAB201 starts with DIAB2, not DIAB1", tables: [P([4], "bad")] }]); }, "O(n)", "O(1)"),
+      return viz("Codes starting with DIAB1", [{ note: "Each patient's code list", tables: [P()] }, { note: "Bob: first code DIAB100. George: second code DIAB100 (after a space)", tables: [P([2, 3], "found")] }, { note: "Alain's DIAB201 starts with DIAB2, not DIAB1", tables: [P([4], "bad")] }, { note: "Result: Bob and George, the two patients with a code starting DIAB1", tables: [t("Result", ["patient_id", "patient_name", "conditions"], [[3, "Bob", "DIAB100 MYOP"], [4, "George", "ACNE DIAB100"]], [0, 1], "found")] }]); }, "O(n)", "O(1)"),
 
   "exchange-seats": sql("Compute each student's new id: odd ids move up by one, even ids move down by one, except a last odd id which stays.",
     ["Swapping neighbours means seat 1 ↔ 2, 3 ↔ 4, …", "So an odd id becomes id + 1 and an even id becomes id - 1.", "If the count is odd, the last (odd) id has no partner: keep it. Then sort by the new id."],

@@ -376,7 +376,20 @@ export const PATTERN3: Record<string, Solution> = {
         hold, sold, rest = max(hold, rest - p), hold + p, max(rest, sold)
     return max(sold, rest)`,
     lang: "python", time: "O(n)", space: "O(1)",
-    viz: () => stateMachine([1, 2, 3, 0, 2]),
+    viz: () => {
+      const prices = [1, 2, 3, 0, 2, 5], fmt = (x: number) => (Number.isFinite(x) ? String(x) : "-∞"), rows: (string | number)[][] = [prices, prices.map(() => ""), prices.map(() => ""), prices.map(() => "")], snap = () => rows.map((r) => [...r]);
+      let hold = -Infinity, sold = 0, rest = 0;
+      const frames: CellsFrame[] = [{ note: `Goal: the most profit from [${prices.join(", ")}] when every sale forces a one-day cooldown. Track three states each day: hold a share, sold today, resting. Start with hold = -∞, sold = 0, rest = 0`, rows: snap() }];
+      prices.forEach((p, i) => {
+        const h = Math.max(hold, rest - p), s = hold + p, r = Math.max(rest, sold);
+        const note = `Day ${i}, price ${p}: hold = max(${fmt(hold)}, rest ${rest} - ${p}) = ${fmt(h)}; sold = hold ${fmt(hold)} + ${p} = ${fmt(s)}; rest = max(${rest}, yesterday's sold ${fmt(sold)}) = ${r}`;
+        hold = h; sold = s; rest = r; rows[1][i] = fmt(hold); rows[2][i] = fmt(sold); rows[3][i] = fmt(rest);
+        frames.push({ note, rows: snap(), tones: { [`1:${i}`]: "active", [`2:${i}`]: "active", [`3:${i}`]: "active" } });
+      });
+      const ans = Math.max(sold, rest), last = prices.length - 1;
+      frames.push({ note: `After the last day the best is max(sold ${sold}, rest ${rest}) = ${ans}`, rows: snap(), tones: { [`2:${last}`]: sold >= rest ? "found" : "muted", [`3:${last}`]: rest >= sold ? "found" : "muted" } });
+      return cells(`Stock with cooldown: ${ans}`, rows.map((r, i) => (i ? r.map(() => "") : r)), frames, ["price", "hold", "sold", "rest"]);
+    },
   },
 
   "best-time-to-buy-and-sell-stock-iv": {
@@ -833,14 +846,17 @@ def validPath(n, edges, source, destination):
     return False`,
     lang: "python", time: "O(n + E)", space: "O(n + E)",
     viz: () => {
-      const E = [[0, 1], [0, 2], [3, 5], [5, 4], [4, 3]], src = 0, dst = 5, adj: number[][] = Array.from({ length: 6 }, () => []);
+      const E = [[0, 1], [0, 2], [1, 3], [2, 3], [3, 4], [4, 5], [6, 7]], src = 0, dst = 5, adj: number[][] = Array.from({ length: 8 }, () => []);
       E.forEach(([a, b]) => { adj[a].push(b); adj[b].push(a); });
-      const nodes = [{ id: 0, label: "0", x: 10, y: 50 }, { id: 1, label: "1", x: 35, y: 15 }, { id: 2, label: "2", x: 35, y: 85 }, { id: 3, label: "3", x: 65, y: 50 }, { id: 4, label: "4", x: 90, y: 15 }, { id: 5, label: "5", x: 90, y: 85 }];
-      const seen = new Set([src]), q = [src], frames: GraphFrame[] = [], et: Record<string, Tone> = {};
-      frames.push({ note: `BFS from ${src}, looking for ${dst}`, tones: { [src]: "active", [dst]: "window" } });
-      while (q.length) { const u = q.shift()!; const got: number[] = []; for (const v of adj[u]) if (!seen.has(v)) { seen.add(v); q.push(v); got.push(v); et[ek(u, v)] = "found"; } frames.push({ note: `pop ${u}: ${got.length ? `new neighbours ${got.join(", ")}` : "nothing new"}; queue [${q.join(", ")}]`, tones: { ...tn([...seen], "found"), [u]: "active", [dst]: "window" }, edgeTones: { ...et } }); }
-      frames.push({ note: `queue empty and ${dst} was never reached → false (it sits in another component)`, tones: { ...tn([...seen], "found"), [dst]: "bad" }, edgeTones: { ...et } });
-      return { kind: "graph", title: `Path ${src} to ${dst}: false`, nodes, edges: E.map(([a, b]) => ({ a, b })), frames };
+      const xy = [[8, 50], [28, 18], [28, 82], [52, 50], [72, 50], [92, 50], [50, 8], [78, 8]], nodes = xy.map(([x, y], i) => ({ id: i, label: String(i), x, y }));
+      const seen = new Set([src]), q = [src], frames: GraphFrame[] = [{ note: `Goal: is there a path from ${src} to ${dst}? Breadth-first search from ${src}, marking nodes seen when they are queued`, tones: { [src]: "active", [dst]: "window" } }], et: Record<string, Tone> = {}; let found = false;
+      while (q.length) {
+        const u = q.shift()!;
+        if (u === dst) { found = true; frames.push({ note: `Pop ${u}: that is the destination ${dst}, so a path exists`, tones: { ...tn([...seen], "done"), [u]: "found" }, edgeTones: { ...et } }); break; }
+        const got: number[] = []; for (const v of adj[u]) if (!seen.has(v)) { seen.add(v); q.push(v); got.push(v); et[ek(u, v)] = "found"; }
+        frames.push({ note: `Pop ${u}: ${got.length ? `new neighbours ${got.join(", ")} join the queue` : "every neighbour is already seen"}; queue is [${q.join(", ")}]`, tones: { ...tn([...seen], "done"), ...tn(q, "window"), [u]: "active", [dst]: seen.has(dst) ? "window" : "muted" }, edgeTones: { ...et } });
+      }
+      return { kind: "graph", title: `Path ${src} to ${dst}: ${found}`, nodes, edges: E.map(([a, b]) => ({ a, b })), frames };
     },
   },
 
@@ -933,17 +949,16 @@ def updateMatrix(mat):
     return dist`,
     lang: "python", time: "O(R · C)", space: "O(R · C)",
     viz: () => {
-      const m = [[0, 1, 1, 1], [1, 1, 1, 1], [1, 1, 0, 1], [1, 1, 1, 1]], R = 4, C = 4, dist: Cell[][] = m.map((r) => r.map((v) => (v ? null : 0))), frames: TableFrame[] = [];
-      let layer = [[0, 0], [2, 2]], d = 0; const seen = ["0:0", "2:2"];
-      frames.push({ note: "both zeros start the BFS at distance 0", cells: copy(dist), tones: tn(seen, "found") });
-      while (layer.length) {
-        d++; const next: number[][] = [];
-        for (const [r, c] of layer) for (const [dr, dc] of D4) { const nr = r + dr, nc = c + dc; if (nr >= 0 && nc >= 0 && nr < R && nc < C && dist[nr][nc] == null) { dist[nr][nc] = d; next.push([nr, nc]); } }
-        if (!next.length) break;
-        frames.push({ note: `layer ${d}: ${next.length} cells are ${d} step${d === 1 ? "" : "s"} from the nearest 0`, cells: copy(dist), tones: { ...tn(seen, "done"), ...tn(next.map(([r, c]) => `${r}:${c}`), "active") } });
-        seen.push(...next.map(([r, c]) => `${r}:${c}`)); layer = next;
+      const m = [[0, 1, 1, 1], [1, 1, 1, 1], [1, 1, 0, 1]], R = 3, C = 4, dist: Cell[][] = m.map((r) => r.map((v) => (v ? null : 0))), q: number[][] = [], done: string[] = [], key = ([r, c]: number[]) => `${r}:${c}`;
+      m.forEach((r, i) => r.forEach((v, j) => { if (!v) q.push([i, j]); }));
+      const frames: TableFrame[] = [{ note: "Goal: the distance from every cell to its nearest 0. Put every 0 in the queue at distance 0 and spread outwards one step at a time", cells: copy(dist), tones: tn(q.map(key), "window") }];
+      while (q.length) {
+        const [r, c] = q.shift()!, d = dist[r][c] as number, set: string[] = [];
+        for (const [dr, dc] of D4) { const nr = r + dr, nc = c + dc; if (nr >= 0 && nc >= 0 && nr < R && nc < C && dist[nr][nc] == null) { dist[nr][nc] = d + 1; q.push([nr, nc]); set.push(`(${nr}, ${nc})`); } }
+        done.push(key([r, c]));
+        frames.push({ note: `Pop (${r}, ${c}) at distance ${d}: ${set.length ? `its unvisited neighbours ${set.join(", ")} get ${d + 1}` : "all its neighbours already have a distance"}; ${q.length} cell${q.length === 1 ? "" : "s"} still queued`, cells: copy(dist), active: [r, c], tones: { ...tn(done, "done"), ...tn(q.map(key), "window"), [key([r, c])]: "active" } });
       }
-      frames.push({ note: "every cell now holds its distance to the nearest 0", cells: copy(dist), tones: tn(seen, "found") });
+      frames.push({ note: "The queue is empty, so every cell holds its distance to the nearest 0", cells: copy(dist), tones: tn(done, "found") });
       return table("Distance to nearest 0", heads(R, "r"), heads(C, "c"), frames);
     },
   },
@@ -970,13 +985,16 @@ def canFinish(numCourses, prerequisites):
     return taken == numCourses`,
     lang: "python", time: "O(V + E)", space: "O(V + E)",
     viz: () => {
-      const n = 5, pre = [[1, 0], [2, 1], [3, 2], [1, 3], [4, 0]], nodes = [{ id: 0, label: "0", x: 8, y: 50 }, { id: 1, label: "1", x: 40, y: 20 }, { id: 2, label: "2", x: 75, y: 20 }, { id: 3, label: "3", x: 58, y: 80 }, { id: 4, label: "4", x: 30, y: 90 }];
+      const n = 8, pre = [[1, 0], [2, 0], [3, 1], [3, 2], [4, 3], [6, 5], [7, 6], [5, 7]], xy = [[6, 50], [24, 18], [24, 82], [44, 50], [62, 50], [84, 14], [96, 50], [84, 86]], nodes = xy.map(([x, y], i) => ({ id: i, label: String(i), x, y }));
       const adj: number[][] = Array.from({ length: n }, () => []), indeg = Array(n).fill(0); pre.forEach(([a, b]) => { adj[b].push(a); indeg[a]++; });
-      const q = indeg.flatMap((d, i) => (d ? [] : [i])), taken: number[] = [], frames: GraphFrame[] = [], badge = () => Object.fromEntries(indeg.map((d, i) => [i, `in ${d}`]));
-      frames.push({ note: `badges = unmet prerequisites; free to take now: [${q.join(", ")}]`, tones: tn(q, "window"), badges: badge() });
-      while (q.length) { const u = q.shift()!; taken.push(u); const freed: number[] = []; for (const v of adj[u]) if (--indeg[v] === 0) { q.push(v); freed.push(v); } frames.push({ note: `take course ${u}${freed.length ? `; course ${freed.join(", ")} now free` : ""}; queue [${q.join(", ")}]`, tones: { ...tn(taken, "found"), ...tn(q, "window"), [u]: "active" }, badges: badge() }); }
+      const q = indeg.flatMap((d, i) => (d ? [] : [i])), taken: number[] = [], badge = () => Object.fromEntries(indeg.map((d, i) => [i, `in ${d}`]));
+      const frames: GraphFrame[] = [{ note: `Goal: can all ${n} courses be finished? A badge counts each course's unmet prerequisites; only courses with 0 can be taken. Free now: [${q.join(", ")}]`, tones: tn(q, "window"), badges: badge() }];
+      while (q.length) {
+        const u = q.shift()!; taken.push(u); const freed: number[] = []; for (const v of adj[u]) if (--indeg[v] === 0) { q.push(v); freed.push(v); }
+        frames.push({ note: `Take course ${u}${adj[u].length ? `, which lowers the count of ${adj[u].join(", ")}` : ""}${freed.length ? `; course${freed.length > 1 ? "s" : ""} ${freed.join(", ")} ${freed.length > 1 ? "become" : "becomes"} free` : ""}; queue is [${q.join(", ")}]`, tones: { ...tn(taken, "found"), ...tn(q, "window"), [u]: "active" }, badges: badge() });
+      }
       const stuck = indeg.flatMap((d, i) => (d ? [i] : []));
-      frames.push({ note: `${taken.length} of ${n} taken; courses ${stuck.join(", ")} wait on each other in a cycle → false`, tones: { ...tn(taken, "found"), ...tn(stuck, "bad") }, badges: badge() });
+      frames.push({ note: taken.length === n ? `All ${n} courses were taken, so the answer is true` : `The queue is empty after ${taken.length} of ${n} courses; courses ${stuck.join(", ")} each wait on another in a cycle, so the answer is false`, tones: { ...tn(taken, "found"), ...tn(stuck, "bad") }, badges: badge() });
       return { kind: "graph", title: `Can finish: ${taken.length === n}`, nodes, edges: pre.map(([a, b]) => ({ a: b, b: a, directed: true })), frames };
     },
   },
@@ -1062,16 +1080,17 @@ def findOrder(numCourses, prerequisites):
         parent[ra] = rb`,
     lang: "python", time: "O(n · α(n))", space: "O(n)",
     viz: () => {
-      const E = [[1, 2], [2, 3], [3, 4], [1, 4], [1, 5]], xy = [[15, 20], [50, 10], [85, 40], [50, 90], [10, 85]];
-      const nodes = xy.map(([x, y], i) => ({ id: i, label: String(i + 1), x, y })), parent = [0, 1, 2, 3, 4, 5], frames: GraphFrame[] = [], et: Record<string, Tone> = {};
-      const find = (x: number): number => (parent[x] === x ? x : find(parent[x])), badges = () => Object.fromEntries([1, 2, 3, 4, 5].map((v) => [v - 1, `root ${find(v)}`]));
+      const E = [[1, 2], [1, 3], [3, 4], [5, 6], [4, 5], [2, 6], [6, 7]], xy = [[8, 50], [30, 14], [30, 86], [55, 86], [80, 86], [76, 36], [94, 12]];
+      const nodes = xy.map(([x, y], i) => ({ id: i, label: String(i + 1), x, y })), parent = [0, 1, 2, 3, 4, 5, 6, 7], frames: GraphFrame[] = [{ note: "Goal: a tree plus one extra edge; find the extra one. Add the edges in order with union-find; the first edge whose ends already share a root closes a cycle" }], et: Record<string, Tone> = {};
+      const find = (x: number): number => (parent[x] === x ? x : find(parent[x])), badges = () => Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((v) => [v - 1, `root ${find(v)}`]));
       let ans: number[] = [];
       for (const [a, b] of E) {
         const ra = find(a), rb = find(b);
-        if (ra === rb) { et[ek(a - 1, b - 1)] = "bad"; ans = [a, b]; frames.push({ note: `edge ${a}-${b}: both already have root ${ra} → this edge closes a cycle, answer [${a}, ${b}]`, tones: { [a - 1]: "bad", [b - 1]: "bad" }, edgeTones: { ...et }, badges: badges() }); break; }
+        if (ra === rb) { et[ek(a - 1, b - 1)] = "bad"; ans = [a, b]; frames.push({ note: `Edge ${a}-${b}: both ends already have root ${ra}, so they are connected and this edge closes a cycle`, tones: { [a - 1]: "bad", [b - 1]: "bad" }, edgeTones: { ...et }, badges: badges() }); break; }
         parent[ra] = rb; et[ek(a - 1, b - 1)] = "found";
-        frames.push({ note: `edge ${a}-${b}: roots ${ra} and ${rb} differ → union`, tones: { [a - 1]: "active", [b - 1]: "active" }, edgeTones: { ...et }, badges: badges() });
+        frames.push({ note: `Edge ${a}-${b}: roots ${ra} and ${rb} differ, so the edge joins two groups and is kept`, tones: { [a - 1]: "active", [b - 1]: "active" }, edgeTones: { ...et }, badges: badges() });
       }
+      frames.push({ note: `The redundant edge is [${ans.join(", ")}]; the remaining edges were never needed`, tones: { [ans[0] - 1]: "found", [ans[1] - 1]: "found" }, edgeTones: { ...et, [ek(ans[0] - 1, ans[1] - 1)]: "found" }, badges: badges() });
       return { kind: "graph", title: `Redundant edge [${ans.join(", ")}]`, nodes, edges: E.map(([a, b]) => ({ a: a - 1, b: b - 1 })), frames };
     },
   },
@@ -1097,13 +1116,19 @@ def findOrder(numCourses, prerequisites):
     return [[owner[r]] + sorted(es) for r, es in groups.items()]`,
     lang: "python", time: "O(E log E)", space: "O(E)",
     viz: () => {
-      const acc = [["John", "j1", "j2"], ["John", "j1", "j3"], ["Mary", "m1"], ["John", "j4"]], emails = ["j1", "j2", "j3", "m1", "j4"], xy = [[30, 50], [10, 15], [10, 85], [70, 50], [95, 50]];
-      const nodes = emails.map((e, i) => ({ id: i, label: e, x: xy[i][0], y: xy[i][1] })), id = (e: string) => emails.indexOf(e), parent = emails.map((_, i) => i), frames: GraphFrame[] = [], et: Record<string, Tone> = {};
+      const acc = [["John", "j1", "j2"], ["Mary", "m1", "m2"], ["John", "j3"], ["John", "j2", "j3"], ["Mary", "m2", "m3"], ["Ann", "a1"]], emails = ["j1", "j2", "j3", "m1", "m2", "m3", "a1"], xy = [[8, 20], [30, 50], [8, 80], [60, 14], [62, 50], [90, 50], [62, 88]];
+      const nodes = emails.map((e, i) => ({ id: i, label: e, x: xy[i][0], y: xy[i][1] })), id = (e: string) => emails.indexOf(e), parent = emails.map((_, i) => i), owner: Record<string, string> = {}, frames: GraphFrame[] = [], et: Record<string, Tone> = {};
+      acc.forEach(([name, ...es]) => es.forEach((e) => (owner[e] = name)));
       const find = (x: number): number => (parent[x] === x ? x : find(parent[x])), badges = () => Object.fromEntries(emails.map((_, i) => [i, `root ${emails[find(i)]}`]));
-      acc.forEach(([name, ...es], k) => { const first = id(es[0]); es.forEach((e) => { const r = find(id(e)), f = find(first); if (r !== f) { parent[r] = f; et[ek(id(e), first)] = "found"; } }); frames.push({ note: `account ${k} (${name}: ${es.join(", ")}): union every email with ${es[0]}`, tones: tn(es.map(id), "active"), edgeTones: { ...et }, badges: badges() }); });
+      frames.push({ note: `Goal: merge accounts that share an email. Each email is a node; every account joins all its emails into one group with union-find`, badges: badges() });
+      acc.forEach(([name, ...es], k) => {
+        const first = id(es[0]), joined: string[] = [];
+        es.forEach((e) => { const r = find(id(e)), f = find(first); if (r !== f) { parent[r] = f; et[ek(id(e), first)] = "found"; joined.push(e); } });
+        frames.push({ note: `Account ${k} (${name}: ${es.join(", ")}): ${es.length === 1 ? `a single email, nothing to join` : joined.length ? `${joined.join(", ")} now join${joined.length === 1 ? "s" : ""} the group of ${es[0]}` : `all its emails are already in one group`}`, tones: tn(es.map(id), "active"), edgeTones: { ...et }, badges: badges() });
+      });
       const groups = new Map<number, string[]>(); emails.forEach((e, i) => groups.set(find(i), [...(groups.get(find(i)) || []), e]));
-      frames.push({ note: `${groups.size} people: ${[...groups.values()].map((g) => `[${g.sort().join(", ")}]`).join(", ")}`, tones: tn(emails.map((_, i) => i), "found"), edgeTones: { ...et }, badges: badges() });
-      return { kind: "graph", title: `Merged into ${groups.size} accounts`, nodes, edges: [{ a: 0, b: 1 }, { a: 0, b: 2 }], frames };
+      frames.push({ note: `${groups.size} people remain: ${[...groups.values()].map((g) => `${owner[g[0]]} [${[...g].sort().join(", ")}]`).join(", ")}`, tones: tn(emails.map((_, i) => i), "found"), edgeTones: { ...et }, badges: badges() });
+      return { kind: "graph", title: `Merged into ${groups.size} accounts`, nodes, edges: [{ a: 0, b: 1 }, { a: 1, b: 2 }, { a: 3, b: 4 }, { a: 4, b: 5 }], frames };
     },
   },
 
@@ -1237,17 +1262,18 @@ def maxProbability(n, edges, succProb, start_node, end_node):
     return 0.0`,
     lang: "python", time: "O(E log V)", space: "O(V + E)",
     viz: () => {
-      const E: [number, number, number][] = [[0, 1, 0.5], [0, 2, 0.9], [1, 2, 0.6], [1, 3, 0.8], [2, 3, 0.4]], xy = [[10, 50], [50, 10], [50, 90], [90, 50]], end = 3;
-      const nodes = xy.map(([x, y], i) => ({ id: i, label: String(i), x, y })), best = [1, 0, 0, 0], heap: number[][] = [[-1, 0]], done: number[] = [], frames: GraphFrame[] = [];
+      const E: [number, number, number][] = [[0, 1, 0.9], [0, 2, 0.5], [1, 2, 0.8], [1, 3, 0.6], [2, 4, 0.9], [3, 5, 0.7], [4, 5, 0.8]], xy = [[8, 50], [32, 18], [32, 82], [58, 18], [58, 82], [92, 50]], end = 5;
+      const nodes = xy.map(([x, y], i) => ({ id: i, label: String(i), x, y })), best = [1, 0, 0, 0, 0, 0], heap: number[][] = [[-1, 0]], done: number[] = [], frames: GraphFrame[] = [];
       const r3 = (x: number) => String(Math.round(x * 1000) / 1000), badges = () => Object.fromEntries(best.map((b, i) => [i, b ? r3(b) : "0"]));
+      frames.push({ note: `Goal: the path from 0 to ${end} with the highest success chance (edge chances multiply). Dijkstra on chances: always pop the most likely node; node 0 starts at 1`, tones: { 0: "active", [end]: "window" }, badges: badges() });
       let ans = 0;
       while (heap.length) {
         const [np, u] = popMin(heap), p = -np;
-        if (u === end) { ans = p; frames.push({ note: `pop node ${end} with chance ${r3(p)} → best path found`, tones: { ...tn(done, "done"), [u]: "found" }, badges: badges() }); break; }
-        if (p < best[u]) continue;
+        if (u === end) { ans = p; frames.push({ note: `Pop node ${end} with chance ${r3(p)}: the target is reached by its most likely path, so that is the answer`, tones: { ...tn(done, "done"), [u]: "found" }, badges: badges() }); break; }
+        if (p < best[u]) { frames.push({ note: `Pop node ${u} with chance ${r3(p)}, but a better ${r3(best[u])} is already known, so this entry is stale and skipped`, tones: { ...tn(done, "done"), [u]: "bad" }, badges: badges() }); continue; }
         done.push(u); const up: string[] = [];
         for (const [a, b, q] of E) { const v = a === u ? b : b === u ? a : -1; if (v >= 0 && p * q > best[v]) { best[v] = p * q; heap.push([-best[v], v]); up.push(`${v} → ${r3(p)} × ${q} = ${r3(best[v])}`); } }
-        frames.push({ note: `pop node ${u} (chance ${r3(p)})${up.length ? `; improve ${up.join(", ")}` : "; nothing improves"}`, tones: { ...tn(done, "done"), [u]: "active" }, badges: badges() });
+        frames.push({ note: `Pop node ${u} (chance ${r3(p)})${up.length ? `; improve ${up.join(", ")}` : "; nothing improves"}`, tones: { ...tn(done, "done"), [u]: "active" }, badges: badges() });
       }
       return { kind: "graph", title: `Best chance 0 to ${end}: ${r3(ans)}`, nodes, edges: E.map(([a, b, w]) => ({ a, b, w })), frames };
     },
@@ -1268,13 +1294,13 @@ def maxProbability(n, edges, succProb, start_node, end_node):
     return -1 if cost[dst] == float("inf") else cost[dst]`,
     lang: "python", time: "O(k · E)", space: "O(n)",
     viz: () => {
-      const F = [[0, 1, 100], [1, 2, 100], [2, 0, 100], [1, 3, 600], [2, 3, 200]], n = 4, src = 0, dst = 3, k = 1, rows: Cell[][] = [[0, null, null, null]], frames: TableFrame[] = [];
-      frames.push({ note: `round 0: only city ${src} is reachable, for free`, cells: copy(rows), active: [0, 0] });
+      const F = [[0, 1, 100], [1, 2, 100], [2, 3, 100], [3, 4, 100], [0, 2, 500], [1, 3, 600], [2, 4, 400]], n = 5, src = 0, dst = 4, k = 2, rows: Cell[][] = [[0, null, null, null, null]], frames: TableFrame[] = [];
+      frames.push({ note: `Goal: cheapest flight from city ${src} to ${dst} with at most ${k} stops, so at most ${k + 1} flights. Round r holds the best cost using r flights; round 0 has only city ${src}, for free`, cells: copy(rows), active: [0, 0] });
       for (let r = 1; r <= k + 1; r++) {
         const prev = rows[r - 1], cur = [...prev]; rows.push(cur);
-        for (const [u, v, w] of F) if (prev[u] != null && (cur[v] == null || (prev[u] as number) + w < (cur[v] as number))) { cur[v] = (prev[u] as number) + w; frames.push({ note: `round ${r}: fly ${u} → ${v} for ${w}: ${prev[u]} + ${w} = ${cur[v]}`, cells: copy(rows), active: [r, v], deps: [[r - 1, u]] }); }
+        for (const [u, v, w] of F) if (prev[u] != null && (cur[v] == null || (prev[u] as number) + w < (cur[v] as number))) { cur[v] = (prev[u] as number) + w; frames.push({ note: `Round ${r}: fly ${u} → ${v} for ${w}, ${prev[u]} + ${w} = ${cur[v]}, cheaper than before for city ${v}`, cells: copy(rows), active: [r, v], deps: [[r - 1, u]] }); }
       }
-      frames.push({ note: `cheapest to ${dst} with at most ${k} stop${k === 1 ? "" : "s"}: ${rows[k + 1][dst]} (0 → 1 → 3; 0 → 1 → 2 → 3 is cheaper but needs 2 stops)`, cells: copy(rows), tones: { [`${k + 1}:${dst}`]: "found" } });
+      frames.push({ note: `After ${k + 1} rounds the cheapest cost to city ${dst} is ${rows[k + 1][dst]}; the 4-flight route 0 → 1 → 2 → 3 → 4 costs 400 but needs 3 stops`, cells: copy(rows), tones: { [`${k + 1}:${dst}`]: "found" } });
       return table(`k = ${k}: ${rows[k + 1][dst]}`, heads(k + 2, "round "), heads(n, "city "), frames);
     },
   },
@@ -1609,18 +1635,23 @@ def shortestPathBinaryMatrix(grid):
     return True`,
     lang: "python", time: "O(V + E)", space: "O(V)",
     viz: () => {
-      const g = [[1, 3], [0, 2, 4], [1, 3, 5], [0, 2, 4], [1, 3, 5], [2, 4]], xy = [[10, 20], [50, 20], [90, 20], [10, 80], [50, 80], [90, 80]];
-      const g2 = g.map((vs) => [...vs]); g2[0].push(4); g2[4].push(0);
-      const nodes = xy.map(([x, y], i) => ({ id: i, label: String(i), x, y })), edges = g2.flatMap((vs, u) => vs.filter((v) => u < v).map((v) => ({ a: u, b: v })));
-      const color = Array(6).fill(-1), frames: GraphFrame[] = [], view = (note: string, extra: Record<number, Tone> = {}, et: Record<string, Tone> = {}) => frames.push({ note, tones: { ...Object.fromEntries(color.map((c, i) => [i, c === 0 ? "window" : c === 1 ? "found" : "muted"]).filter(([, t]) => t !== "muted")), ...extra } as Record<number, Tone>, badges: Object.fromEntries(color.map((c, i) => [i, c < 0 ? "" : c ? "B" : "A"])), edgeTones: et });
-      color[0] = 0; const stack = [0]; let ok = true;
-      view("colour node 0 with A; every neighbour must get B", { 0: "active" });
-      while (stack.length && ok) {
-        const u = stack.pop()!, got: number[] = [];
-        for (const v of g2[u]) { if (color[v] < 0) { color[v] = color[u] ^ 1; stack.push(v); got.push(v); } else if (color[v] === color[u]) { ok = false; view(`edge ${u}-${v} joins two ${color[u] ? "B" : "A"} nodes → odd cycle, not bipartite`, { [u]: "bad", [v]: "bad" }, { [ek(u, v)]: "bad" }); break; } }
-        if (ok) view(`pop ${u} (${color[u] ? "B" : "A"}): ${got.length ? `colour ${got.join(", ")} with ${color[u] ? "A" : "B"}` : "neighbours already fine"}`, { [u]: "active" });
+      const g = [[1, 3], [0, 2], [1], [0], [5, 6], [4, 6], [4, 5]], xy = [[30, 20], [55, 20], [80, 20], [8, 20], [15, 85], [65, 85], [40, 58]];
+      const nodes = xy.map(([x, y], i) => ({ id: i, label: String(i), x, y })), edges = g.flatMap((vs, u) => vs.filter((v) => u < v).map((v) => ({ a: u, b: v })));
+      const color = Array(7).fill(-1), frames: GraphFrame[] = [], et: Record<string, Tone> = {}, name = (c: number) => (c ? "B" : "A");
+      const view = (note: string, extra: Record<number, Tone> = {}) => frames.push({ note, tones: { ...Object.fromEntries(color.map((c, i) => [i, c === 0 ? "window" : "found"]).filter((_, i) => color[i] >= 0)), ...extra } as Record<number, Tone>, badges: Object.fromEntries(color.map((c, i) => [i, c < 0 ? "" : name(c)])), edgeTones: { ...et } });
+      frames.push({ note: "Goal: can the nodes be coloured A and B so every edge joins different colours? Start each unvisited component with A, then give neighbours the other colour" });
+      let ok = true;
+      for (let s = 0; s < g.length && ok; s++) {
+        if (color[s] !== -1) continue;
+        color[s] = 0; const stack = [s]; view(`Node ${s} starts a new component: colour it A`, { [s]: "active" });
+        while (stack.length && ok) {
+          const u = stack.pop()!, got: number[] = [];
+          for (const v of g[u]) { if (color[v] === -1) { color[v] = color[u] ^ 1; stack.push(v); got.push(v); et[ek(u, v)] = "found"; } else if (color[v] === color[u]) { ok = false; et[ek(u, v)] = "bad"; view(`Pop ${u} (${name(color[u])}): neighbour ${v} is also ${name(color[u])}, so edge ${u}-${v} joins two ${name(color[u])} nodes, an odd cycle, and the graph is not bipartite`, { [u]: "bad", [v]: "bad" }); break; } }
+          if (ok) view(`Pop ${u} (${name(color[u])}): ${got.length ? `colour ${got.join(", ")} with ${name(color[u] ^ 1)}` : "its neighbours already have the other colour"}`, { [u]: "active" });
+        }
       }
-      return { kind: "graph", title: `Grid plus edge 0-4: bipartite ${ok}`, nodes, edges, frames };
+      if (ok) view("Every component is coloured without a clash, so the graph is bipartite");
+      return { kind: "graph", title: `Two components, one with a triangle: bipartite ${ok}`, nodes, edges, frames };
     },
   },
 
@@ -1740,13 +1771,13 @@ def shortestAlternatingPaths(n, redEdges, blueEdges):
     return True`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const a = [3, 2, 1, 0, 4], frames: CellsFrame[] = []; let reach = 0, ok = true;
+      const a = [2, 0, 2, 0, 1, 3, 0, 1], last = a.length - 1, frames: CellsFrame[] = [{ note: `Goal: starting at index 0, can you reach index ${last}? Walk left to right keeping reach, the furthest index any visited position can jump to`, tones: { "0:0": "active" }, marks: [{ i: 0, label: "start" }] }]; let reach = 0, ok = true;
       for (let i = 0; i < a.length; i++) {
-        if (i > reach) { ok = false; frames.push({ note: `index ${i} is past the furthest reach ${reach} → stuck, false`, tones: { ...range(0, reach, 0, "done"), [`0:${i}`]: "bad" }, marks: [{ i: reach, label: "reach" }] }); break; }
+        if (i > reach) { ok = false; frames.push({ note: `Index ${i} is past the furthest reach ${reach}, so it cannot be reached: false`, tones: { ...range(0, reach, 0, "done"), [`0:${i}`]: "bad" }, marks: [{ i: reach, label: "reach" }] }); break; }
         const was = reach; reach = Math.max(reach, i + a[i]);
-        frames.push({ note: `index ${i}: can jump to ${i + a[i]}; reach ${reach > was ? `grows to ${reach}` : `stays ${reach}`}`, tones: { ...range(0, Math.min(reach, a.length - 1), 0, "window"), [`0:${i}`]: "active" }, marks: [{ i, label: "i" }, { i: Math.min(reach, a.length - 1), label: "reach" }] });
+        frames.push({ note: `Index ${i} is within reach ${was}; nums[${i}] = ${a[i]} jumps to ${i + a[i]}, so reach ${reach > was ? `grows from ${was} to ${reach}` : `stays ${reach}`}${reach >= last ? ", already covering the last index" : ""}`, tones: { ...range(0, Math.min(reach, last), 0, "window"), [`0:${i}`]: "active" }, marks: [{ i, label: "i" }, { i: Math.min(reach, last), label: "reach" }] });
       }
-      if (ok) frames.push({ note: "the last index is reachable → true", tones: range(0, a.length - 1, 0, "found") });
+      if (ok) frames.push({ note: `Reach ${reach} covers the last index ${last}: true`, tones: range(0, last, 0, "found") });
       return cells(`[${a.join(",")}]: ${ok}`, [a], frames);
     },
   },
@@ -1821,20 +1852,21 @@ def shortestAlternatingPaths(n, redEdges, blueEdges):
     return taps`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const n = 7, ranges = [1, 2, 1, 0, 2, 1, 0, 1], items = ranges.map((r, i) => [Math.max(0, i - r), Math.min(n, i + r)] as [number, number]), frames: IntervalsFrame[] = [], open: number[] = [];
+      const n = 8, ranges = [2, 1, 2, 0, 1, 3, 0, 1, 2], items = ranges.map((r, i) => [Math.max(0, i - r), Math.min(n, i + r)] as [number, number]), frames: IntervalsFrame[] = [], open: number[] = [];
       const reach = Array(n + 1).fill(0), who = Array(n + 1).fill(-1); items.forEach(([lo, hi], i) => { if (hi > reach[lo] || who[lo] < 0) { reach[lo] = Math.max(reach[lo], hi); who[lo] = i; } });
-      let taps = 0, end = 0, far = 0, farTap = -1;
-      frames.push({ note: `each bar is the stretch a tap waters; cover 0..${n}`, tones: {} });
+      let taps = 0, end = 0, far = 0, farTap = -1, bad = false;
+      frames.push({ note: `Goal: water the garden 0..${n} with the fewest taps; each bar is the stretch one tap covers. For each start point, reach[] holds the furthest end of a tap starting there`, tones: {} });
       for (let i = 0; i < n; i++) {
-        if (reach[i] > far) { far = reach[i]; farTap = who[i]; }
+        const was = far; if (reach[i] > far) { far = reach[i]; farTap = who[i]; }
+        const grew = far > was ? `a tap starting at ${i} stretches the furthest reach ${was} → ${far}` : `furthest reach stays ${far}`;
         if (i === end) {
-          if (far <= i) { frames.push({ note: `nothing reaches past ${i} → -1`, tones: tn(open, "found"), line: i }); break; }
+          if (far <= i) { bad = true; frames.push({ note: `At ${i} the watered part ends and nothing reaches past it, so the garden cannot be covered: -1`, tones: tn(open, "found"), line: i }); break; }
           taps++; end = far; open.push(farTap);
-          frames.push({ note: `at ${i} the watered part ends; open tap ${farTap} (covers [${items[farTap].join(", ")}]) → watered up to ${end}, ${taps} tap${taps === 1 ? "" : "s"}`, tones: { ...tn(open, "found"), [farTap]: "active" }, line: end });
-        }
+          frames.push({ note: `At ${i} the watered part ends (${grew}), so open tap ${farTap} covering [${items[farTap].join(", ")}]: watered up to ${end}, ${taps} tap${taps === 1 ? "" : "s"}`, tones: { ...tn(open, "found"), [farTap]: "active" }, line: end });
+        } else frames.push({ note: `At ${i}, still inside the watered part up to ${end}: ${grew}`, tones: { ...tn(open, "found"), ...(farTap >= 0 ? { [farTap]: "window" } : {}) }, line: i });
       }
-      frames.push({ note: `${taps} taps water the whole garden`, tones: tn(open, "found") });
-      return { kind: "intervals", title: `Garden of ${n}: ${taps} taps`, items, frames };
+      if (!bad) frames.push({ note: `The watered part reaches ${end}, the end of the garden, using ${taps} taps`, tones: tn(open, "found"), line: n });
+      return { kind: "intervals", title: `Garden of ${n}: ${bad ? -1 : taps} taps`, items, frames };
     },
   },
 
@@ -1906,17 +1938,17 @@ def shortestAlternatingPaths(n, redEdges, blueEdges):
     return num`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const d = "98368".split(""), last: Record<string, number> = {}; d.forEach((x, i) => (last[x] = i));
-      const frames: CellsFrame[] = [{ note: `last index of each digit: ${Object.entries(last).sort().map(([k, v]) => `${k}→${v}`).join(", ")}`, rows: [[...d]] }];
+      const num = "998368", d = num.split(""), last: Record<string, number> = {}; d.forEach((x, i) => (last[x] = i));
+      const frames: CellsFrame[] = [{ note: `Goal: swap two digits of ${num} at most once to make it as large as possible. First record the last index of each digit: ${Object.entries(last).sort().map(([k, v]) => `${k}→${v}`).join(", ")}`, rows: [[...d]] }];
       let done = false;
       for (let i = 0; i < d.length && !done; i++) {
         let j = -1; for (let big = 9; big > +d[i]; big--) if ((last[big] ?? -1) > i) { j = last[big]; break; }
-        if (j < 0) { frames.push({ note: `position ${i} ('${d[i]}'): no bigger digit to its right, keep it`, rows: [[...d]], tones: { [`0:${i}`]: "done" }, marks: [{ i, label: "i" }] }); continue; }
-        frames.push({ note: `position ${i} ('${d[i]}'): bigger digit '${d[j]}' last appears at ${j} → swap`, rows: [[...d]], tones: { [`0:${i}`]: "active", [`0:${j}`]: "active" }, marks: [{ i, label: "i" }, { i: j, label: "j" }] });
+        if (j < 0) { frames.push({ note: `Position ${i}, digit '${d[i]}': no larger digit appears later, so keep it`, rows: [[...d]], tones: { [`0:${i}`]: "done" }, marks: [{ i, label: "i" }] }); continue; }
+        frames.push({ note: `Position ${i}, digit '${d[i]}': the largest later digit is '${d[j]}', last seen at index ${j}, so swap positions ${i} and ${j}`, rows: [[...d]], tones: { [`0:${i}`]: "active", [`0:${j}`]: "active" }, marks: [{ i, label: "i" }, { i: j, label: "j" }] });
         [d[i], d[j]] = [d[j], d[i]]; done = true;
-        frames.push({ note: `answer ${d.join("")}`, rows: [[...d]], tones: { [`0:${i}`]: "found", [`0:${j}`]: "found" } });
+        frames.push({ note: `After the swap the number is ${d.join("")}, and no single swap can do better`, rows: [[...d]], tones: { [`0:${i}`]: "found", [`0:${j}`]: "found" } });
       }
-      return cells(`98368 → ${d.join("")}`, [d], frames);
+      return cells(`${num} → ${d.join("")}`, [num.split("")], frames);
     },
   },
 
@@ -1955,21 +1987,20 @@ def leastInterval(tasks, n):
     return max(len(tasks), (top - 1) * (n + 1) + ties)`,
     lang: "python", time: "O(len(tasks))", space: "O(1) (26 letters)",
     viz: () => {
-      const tasks = "AAABBBC".split(""), n = 2, cnt: Record<string, number> = {}; tasks.forEach((t) => (cnt[t] = (cnt[t] || 0) + 1));
+      const tasks = "AAAABBC".split(""), n = 2, cnt: Record<string, number> = {}; tasks.forEach((t) => (cnt[t] = (cnt[t] || 0) + 1));
       const order = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a]), top = cnt[order[0]], ties = order.filter((t) => cnt[t] === top).length;
-      const grid: Cell[][] = Array.from({ length: top }, () => Array(n + 1).fill(null)), frames: TableFrame[] = [];
-      frames.push({ note: `top count ${top} (task ${order[0]}): ${top - 1} blocks of ${n + 1} slots, then a last block`, cells: copy(grid) });
-      let col = 0; const free: [number, number][] = [];
+      const grid: Cell[][] = Array.from({ length: top }, () => Array(n + 1).fill(null)), free: [number, number][] = [];
+      const frames: TableFrame[] = [{ note: `Goal: run ${tasks.length} tasks (${order.map((t) => `${t}×${cnt[t]}`).join(", ")}) with at least ${n} other slots between two equal tasks. ${order[0]} is most frequent (${top}), so it makes ${top - 1} blocks of ${n + 1} slots plus a last block`, cells: copy(grid) }];
+      let col = 0, built = false;
       for (const t of order) {
-        if (cnt[t] === top) { for (let r = 0; r < top; r++) grid[r][col] = t; col++; frames.push({ note: `${t} appears ${top} times: one per block, column ${col - 1}`, cells: copy(grid), tones: tn(Array.from({ length: top }, (_, r) => `${r}:${col - 1}`), "active") }); continue; }
-        if (!free.length) for (let c = col; c <= n; c++) for (let r = 0; r < top - 1; r++) free.push([r, c]);
-        const used = free.splice(0, cnt[t]); used.forEach(([r, c]) => (grid[r][c] = t));
-        frames.push({ note: `${t} (${cnt[t]}) fills idle slots`, cells: copy(grid), tones: tn(used.map(([r, c]) => `${r}:${c}`), "active") });
+        if (cnt[t] === top) { for (let r = 0; r < top; r++) grid[r][col] = t; col++; frames.push({ note: `${t} appears ${top} times, as often as the top task, so one copy goes at the start of each block (column ${col - 1})`, cells: copy(grid), tones: tn(Array.from({ length: top }, (_, r) => `${r}:${col - 1}`), "active") }); continue; }
+        if (!built) { built = true; for (let c = col; c <= n; c++) for (let r = 0; r < top - 1; r++) free.push([r, c]); }
+        for (let k = 1; k <= cnt[t] && free.length; k++) { const [r, c] = free.shift()!; grid[r][c] = t; frames.push({ note: `${t} (copy ${k} of ${cnt[t]}) takes the next free slot, block ${r} slot ${c}, ${c} step${c === 1 ? "" : "s"} after that block's start`, cells: copy(grid), tones: { [`${r}:${c}`]: "active" } }); }
       }
       const idle: string[] = []; for (let r = 0; r < top - 1; r++) for (let c = 0; c <= n; c++) if (grid[r][c] == null) { grid[r][c] = "idle"; idle.push(`${r}:${c}`); }
-      const ans = Math.max(tasks.length, (top - 1) * (n + 1) + ties);
-      frames.push({ note: `(${top} - 1) × ${n + 1} + ${ties} tied = ${(top - 1) * (n + 1) + ties}, vs ${tasks.length} tasks → ${ans} slots`, cells: copy(grid), tones: tn(idle, "muted") });
-      return table(`Tasks AAABBBC, n = ${n}: ${ans}`, heads(top, "block "), heads(n + 1, "slot "), frames);
+      const formula = (top - 1) * (n + 1) + ties, ans = Math.max(tasks.length, formula);
+      frames.push({ note: `Slots left empty in the full blocks are idle (${idle.length}). Total = (${top} - 1) × ${n + 1} + ${ties} = ${formula}, and with only ${tasks.length} tasks that is the answer, ${ans}`, cells: copy(grid), tones: { ...tn(idle, "muted"), [`${top - 1}:0`]: "found" } });
+      return table(`Tasks ${tasks.join("")}, n = ${n}: ${ans}`, heads(top, "block "), heads(n + 1, "slot "), frames);
     },
   },
 
@@ -2014,17 +2045,18 @@ def isNStraightHand(hand, groupSize):
     return True`,
     lang: "python", time: "O(n log n)", space: "O(n)",
     viz: () => {
-      const hand = [1, 2, 3, 6, 2, 3, 4, 7, 8], W = 3, vals = [...new Set(hand)].sort((a, b) => a - b), cnt = vals.map((v) => hand.filter((h) => h === v).length), frames: TableFrame[] = [];
-      frames.push({ note: `counts of each card; groups of ${W} consecutive values`, cells: [[...cnt]] });
+      const hand = [1, 2, 3, 6, 2, 3, 4, 7, 8], W = 3, vals = [...new Set(hand)].sort((a, b) => a - b), cnt = vals.map((v) => hand.filter((h) => h === v).length);
+      const frames: TableFrame[] = [{ note: `Goal: split [${hand.join(", ")}] into groups of ${W} consecutive cards. Count each value; the smallest card left must start a group`, cells: [[...cnt]] }];
       let ok = true;
       for (let i = 0; i < vals.length && ok; i++) {
-        const k = cnt[i]; if (!k) continue;
+        const k = cnt[i];
+        if (!k) { frames.push({ note: `Card ${vals[i]} has no copies left, so it starts no group`, cells: [[...cnt]], tones: { [`0:${i}`]: "muted" } }); continue; }
         const span = Array.from({ length: W }, (_, d) => vals.indexOf(vals[i] + d));
-        if (span.some((j) => j < 0 || cnt[j] < k)) { ok = false; frames.push({ note: `${vals[i]} starts ${k} group${k === 1 ? "" : "s"}, but some value up to ${vals[i] + W - 1} has fewer than ${k} cards → false`, cells: [[...cnt]], tones: tn(span.filter((j) => j >= 0).map((j) => `0:${j}`), "bad") }); break; }
+        if (span.some((j) => j < 0 || cnt[j] < k)) { ok = false; frames.push({ note: `${vals[i]} starts ${k} group${k === 1 ? "" : "s"}, but some value up to ${vals[i] + W - 1} has fewer than ${k} cards, so the answer is false`, cells: [[...cnt]], tones: tn(span.filter((j) => j >= 0).map((j) => `0:${j}`), "bad") }); break; }
         span.forEach((j) => (cnt[j] -= k));
-        frames.push({ note: `smallest card ${vals[i]} starts ${k} group${k === 1 ? "" : "s"} ${vals[i]}..${vals[i] + W - 1}; subtract ${k} from each`, cells: [[...cnt]], tones: tn(span.map((j) => `0:${j}`), "active") });
+        frames.push({ note: `Smallest card ${vals[i]} (${k} left) starts ${k} group${k === 1 ? "" : "s"} ${vals[i]}..${vals[i] + W - 1}; subtract ${k} from each of those counts`, cells: [[...cnt]], tones: tn(span.map((j) => `0:${j}`), "active") });
       }
-      if (ok) frames.push({ note: "every card used in a straight → true", cells: [[...cnt]], tones: tn(vals.map((_, j) => `0:${j}`), "found") });
+      if (ok) frames.push({ note: "Every count is zero, so all cards were used in straights: true", cells: [[...cnt]], tones: tn(vals.map((_, j) => `0:${j}`), "found") });
       return table(`Hand into groups of ${W}: ${ok}`, ["left"], vals.map(String), frames);
     },
   },
@@ -2072,14 +2104,15 @@ def isNStraightHand(hand, groupSize):
     return child`,
     lang: "python", time: "O(n log n + m log m)", space: "O(1) extra",
     viz: () => {
-      const g = [1, 2, 3, 4], s = [1, 1, 3, 5], frames: CellsFrame[] = [], happy: Record<string, Tone> = {}; let child = 0;
+      const rawG = [7, 2, 5, 1, 8, 3], rawS = [2, 6, 1, 9, 2, 3], g = [...rawG].sort((a, b) => a - b), s = [...rawS].sort((a, b) => a - b), happy: Record<string, Tone> = {}; let child = 0;
+      const frames: CellsFrame[] = [{ note: `Goal: give each child at most one cookie; a child with greed g is content with a cookie of size at least g. Greed [${rawG.join(", ")}], cookies [${rawS.join(", ")}]`, rows: [rawG, rawS] }, { note: "Sort both lists: offer the smallest cookie to the least greedy child still waiting", rows: [g, s], marks: [{ i: 0, label: "child", row: 0 }, { i: 0, label: "cookie", row: 1 }] }];
       s.forEach((c, j) => {
         const ok = child < g.length && c >= g[child];
-        frames.push({ note: ok ? `cookie ${c} ≥ greed ${g[child]} → child ${child} is content` : `cookie ${c} < greed ${g[child]} → too small for anyone left, skip`, rows: [g, s], tones: { ...happy, [`1:${j}`]: ok ? "found" : "bad", ...(child < g.length ? { [`0:${child}`]: "active" } : {}) }, marks: [{ i: Math.min(child, g.length - 1), label: "child", row: 0 }, { i: j, label: "cookie", row: 1 }] });
+        frames.push({ note: ok ? `Cookie ${c} is at least greed ${g[child]}, so child ${child} is content and the next child is up` : `Cookie ${c} is smaller than greed ${g[child]}, so it feeds nobody left; try the next cookie`, rows: [g, s], tones: { ...happy, [`1:${j}`]: ok ? "found" : "bad", ...(child < g.length ? { [`0:${child}`]: "active" } : {}) }, marks: [{ i: Math.min(child, g.length - 1), label: "child", row: 0 }, { i: j, label: "cookie", row: 1 }] });
         if (ok) { happy[`0:${child}`] = "found"; happy[`1:${j}`] = "done"; child++; }
       });
-      frames.push({ note: `${child} content children`, rows: [g, s], tones: happy });
-      return cells(`Content children: ${child}`, [g, s], frames, ["greed", "cookie"]);
+      frames.push({ note: `The cookies are used up and ${child} of ${g.length} children are content`, rows: [g, s], tones: happy });
+      return cells(`Content children: ${child}`, [rawG, rawS], frames, ["greed", "cookie"]);
     },
   },
 
@@ -2115,14 +2148,15 @@ def isNStraightHand(hand, groupSize):
     return boats`,
     lang: "python", time: "O(n log n)", space: "O(1) extra",
     viz: () => {
-      const p = [3, 5, 3, 4, 1, 2].sort((a, b) => a - b), limit = 5, frames: CellsFrame[] = [], gone: Record<string, Tone> = {}; let i = 0, j = p.length - 1, boats = 0;
+      const raw = [5, 1, 4, 2, 3, 3, 2, 5], p = [...raw].sort((a, b) => a - b), limit = 6, gone: Record<string, Tone> = {}; let i = 0, j = p.length - 1, boats = 0;
+      const frames: CellsFrame[] = [{ note: `Goal: boats carry at most two people with total weight at most ${limit}; use as few boats as possible. Weights [${raw.join(", ")}]`, rows: [raw] }, { note: "Sort the weights. The heaviest person goes in each boat, and the lightest joins them if they fit", rows: [p], marks: [{ i, label: "i" }, { i: j, label: "j" }] }];
       while (i <= j) {
         const pair = i < j && p[i] + p[j] <= limit; boats++;
-        frames.push({ note: i === j ? `${p[j]} is the last one → boat ${boats}` : pair ? `${p[i]} + ${p[j]} = ${p[i] + p[j]} ≤ ${limit} → share boat ${boats}` : `${p[i]} + ${p[j]} = ${p[i] + p[j]} > ${limit} → ${p[j]} goes alone in boat ${boats}`, tones: { ...gone, [`0:${j}`]: "active", ...(pair ? { [`0:${i}`]: "active" } : {}) }, marks: [{ i, label: "i" }, { i: j, label: "j" }] });
+        frames.push({ note: i === j ? `Only ${p[j]} is left, so boat ${boats} carries them alone` : pair ? `${p[i]} + ${p[j]} = ${p[i] + p[j]} fits in ${limit}, so they share boat ${boats}` : `${p[i]} + ${p[j]} = ${p[i] + p[j]} is over ${limit}, so ${p[j]} rides alone in boat ${boats}`, rows: [p], tones: { ...gone, [`0:${j}`]: "active", ...(pair ? { [`0:${i}`]: "active" } : {}) }, marks: [{ i, label: "i" }, { i: j, label: "j" }] });
         gone[`0:${j}`] = "done"; if (pair) { gone[`0:${i}`] = "done"; i++; } j--;
       }
-      frames.push({ note: `${boats} boats`, tones: gone });
-      return cells(`Limit ${limit}: ${boats} boats`, [p], frames);
+      frames.push({ note: `Everyone is on a boat after ${boats} boats`, rows: [p], tones: Object.fromEntries(p.map((_, k) => [`0:${k}`, "found"])) });
+      return cells(`Limit ${limit}: ${boats} boats`, [raw], frames);
     },
   },
   "maximum-units-on-a-truck": {
@@ -2139,12 +2173,13 @@ def isNStraightHand(hand, groupSize):
     return total`,
     lang: "python", time: "O(n log n)", space: "O(1) extra",
     viz: () => {
-      const B = [[5, 10], [2, 5], [4, 7], [3, 9]].sort((x, y) => y[1] - x[1]), rows: Cell[][] = B.map(([b, u]) => [b, u, null]), frames: TableFrame[] = [];
-      let room = 10, total = 0;
-      frames.push({ note: `truck holds ${room} boxes; best units per box first`, cells: copy(rows) });
-      for (let i = 0; i < B.length && room; i++) { const take = Math.min(B[i][0], room); total += take * B[i][1]; room -= take; rows[i][2] = take; frames.push({ note: `take ${take} of ${B[i][0]} boxes with ${B[i][1]} units → +${take * B[i][1]}, total ${total}, room ${room}`, cells: copy(rows), active: [i, 2] }); }
-      frames.push({ note: `truck full: ${total} units`, cells: copy(rows), tones: tn(rows.flatMap((r, i) => (r[2] ? [`${i}:2`] : [])), "found") });
-      return table(`Units loaded: ${total}`, heads(B.length, "type "), ["boxes", "units", "taken"], frames);
+      const raw = [[1, 3], [2, 2], [3, 1], [5, 10], [2, 5], [4, 7], [3, 9]], B = [...raw].sort((x, y) => y[1] - x[1]), cap = 15, rows: Cell[][] = raw.map(([b, u]) => [b, u, null]), frames: TableFrame[] = [{ note: `Goal: load a truck of ${cap} boxes with the most units. Each row is a box type: how many boxes, units per box`, cells: copy(rows) }];
+      rows.splice(0, rows.length, ...B.map(([b, u]) => [b, u, null] as Cell[]));
+      frames.push({ note: "Sort the types by units per box, highest first, since every box takes the same space", cells: copy(rows) });
+      let room = cap, total = 0;
+      for (let i = 0; i < B.length && room; i++) { const take = Math.min(B[i][0], room); total += take * B[i][1]; room -= take; rows[i][2] = take; frames.push({ note: `Take ${take} of the ${B[i][0]} box${B[i][0] === 1 ? "" : "es"} worth ${B[i][1]} unit${B[i][1] === 1 ? "" : "s"} each: +${take * B[i][1]}, total ${total}, ${room} box${room === 1 ? "" : "es"} of room left`, cells: copy(rows), active: [i, 2] }); }
+      frames.push({ note: `The truck is full, carrying ${total} units`, cells: copy(rows), tones: tn(rows.flatMap((r, i) => (r[2] ? [`${i}:2`] : [])), "found") });
+      return table(`Units loaded: ${total}`, heads(B.length, "row "), ["boxes", "units", "taken"], frames);
     },
   },
 

@@ -89,10 +89,18 @@ export const BATCH2: Record<string, Solution> = {
     return max(best, len(seats) - 1 - prev)`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const s = [0, 1, 0, 0, 0, 0, 0, 1, 0, 0], frames: CellsFrame[] = []; let prev = -1, best = 0;
-      s.forEach((x, i) => { if (!x) return; const d = prev < 0 ? i : Math.floor((i - prev) / 2); best = Math.max(best, d); frames.push({ note: prev < 0 ? `first person at ${i}: sit at seat 0, distance ${i} (best ${best})` : `gap between ${prev} and ${i}: middle seat ${prev + d} is ${d} away (best ${best})`, tones: { ...(prev < 0 ? range(0, i - 1) : range(prev + 1, i - 1)), [`0:${i}`]: "active", [`0:${prev < 0 ? 0 : prev + d}`]: "found" } }); prev = i; });
-      const tail = s.length - 1 - prev; best = Math.max(best, tail);
-      frames.push({ note: `last person at ${prev}: seat ${s.length - 1} is ${tail} away → answer ${best}`, tones: { ...range(prev + 1, s.length - 1), [`0:${s.length - 1}`]: "found" } });
+      const s = [0, 1, 0, 0, 0, 0, 1, 0, 0, 0], frames: CellsFrame[] = []; let prev = -1, best = 0;
+      frames.push({ note: "Seats 1 = taken, 0 = empty. Scan left to right, tracking the previous person; the best seat is the middle of a gap or an end", marks: [] });
+      s.forEach((x, i) => {
+        if (!x) { frames.push({ note: `seat ${i} is empty, keep scanning (last person at ${prev < 0 ? "none yet" : prev})`, tones: { [`0:${i}`]: "muted" }, marks: [{ i, label: "i" }, ...(prev >= 0 ? [{ i: prev, label: "prev" }] : [])] }); return; }
+        const d = prev < 0 ? i : Math.floor((i - prev) / 2), old = best; best = Math.max(best, d);
+        const seat = prev < 0 ? 0 : prev + d;
+        frames.push({ note: prev < 0 ? `person at seat ${i} is the first: sitting at seat 0 is ${i} away, best = max(${old}, ${i}) = ${best}` : `person at seat ${i}, previous at ${prev}: the middle seat ${seat} is (${i} - ${prev}) // 2 = ${d} from both, best = max(${old}, ${d}) = ${best}`, tones: { ...(prev < 0 ? range(0, i - 1) : range(prev + 1, i - 1)), [`0:${i}`]: "active", [`0:${seat}`]: "found" }, marks: [{ i, label: "i" }, ...(prev >= 0 ? [{ i: prev, label: "prev" }] : [])] });
+        prev = i;
+      });
+      const tail = s.length - 1 - prev, old = best; best = Math.max(best, tail);
+      frames.push({ note: `scan done: the last seat ${s.length - 1} is ${s.length - 1} - ${prev} = ${tail} from person ${prev}, best = max(${old}, ${tail}) = ${best}`, tones: { ...range(prev + 1, s.length - 1), [`0:${s.length - 1}`]: "found" }, marks: [{ i: prev, label: "prev" }] });
+      frames.push({ note: `The answer is ${best}: the largest of the first-seat, middle-of-gap and last-seat distances`, tones: { [`0:${prev}`]: "active", [`0:${s.length - 1}`]: "found" } });
       return cells(`Farthest seat from everyone: ${best}`, [s], frames);
     },
   },
@@ -260,8 +268,14 @@ def fullBloomFlowers(flowers, people):
     return [bisect_right(starts, t) - bisect_left(ends, t) for t in people]`,
     lang: "python", time: "O((n + m) log n)", space: "O(n)",
     viz: () => {
-      const fl: [number, number][] = [[1, 6], [3, 7], [9, 12], [4, 13]], people = [2, 3, 7, 11], st = fl.map((f) => f[0]).sort((a, b) => a - b), en = fl.map((f) => f[1]).sort((a, b) => a - b), frames: IntervalsFrame[] = [], out: number[] = [];
-      for (const t of people) { const started = st.filter((s) => s <= t).length, over = en.filter((e) => e < t).length; out.push(started - over); frames.push({ note: `t = ${t}: ${started} started, ${over} already ended → ${started - over} blooming`, line: t, tones: Object.fromEntries(fl.map(([s, e], i) => [i, s <= t && t <= e ? "found" : s > t ? "muted" : "done"])) as Record<number, Tone> }); }
+      const fl: [number, number][] = [[1, 6], [3, 7], [9, 12], [4, 13], [8, 8]], people = [2, 3, 7, 11, 14], st = fl.map((f) => f[0]).sort((a, b) => a - b), en = fl.map((f) => f[1]).sort((a, b) => a - b), frames: IntervalsFrame[] = [], out: number[] = [];
+      frames.push({ note: `Flowers bloom over [start, end]. starts sorted = [${st.join(", ")}], ends sorted = [${en.join(", ")}]; for each visit time, blooming = started - ended`, tones: tones(fl.map((_, k) => k), "muted") });
+      for (const t of people) {
+        const started = st.filter((s) => s <= t).length, over = en.filter((e) => e < t).length; out.push(started - over);
+        frames.push({ note: `t = ${t}: bisect_right(starts, ${t}) = ${started}, that many flowers have started`, line: t, tones: Object.fromEntries(fl.map(([s], k) => [k, s <= t ? "window" : "muted"])) as Record<number, Tone> });
+        frames.push({ note: `t = ${t}: bisect_left(ends, ${t}) = ${over} have already ended, so ${started} - ${over} = ${started - over} in bloom`, line: t, tones: Object.fromEntries(fl.map(([s, e], k) => [k, s > t ? "muted" : e < t ? "done" : "found"])) as Record<number, Tone> });
+      }
+      frames.push({ note: `Answers for visits [${people.join(", ")}] are [${out.join(", ")}]`, tones: tones(fl.map((_, k) => k), "found") });
       return { kind: "intervals", title: `Blooming counts: [${out.join(", ")}]`, items: fl, frames };
     },
   },
@@ -309,12 +323,16 @@ def fullBloomFlowers(flowers, people):
     return ans`,
     lang: "python", time: "O(n · bits)", space: "O(n)",
     viz: () => {
-      const a = [3, 10, 5, 25, 2, 8], top = Math.max(...a).toString(2).length, rows: (string | number | null)[][] = [], frames: TableFrame[] = []; let ans = 0;
+      const a = [3, 10, 5, 40, 2, 8], top = Math.max(...a).toString(2).length, rows: (string | number | null)[][] = [], frames: TableFrame[] = []; let ans = 0;
+      const pad = () => Array.from({ length: top - rows.length }, () => a.map(() => null)), snap = () => [...rows.map((x) => [...x]), ...pad()];
+      frames.push({ note: `Numbers [${a.join(", ")}] need ${top} bits. Build the answer from the top bit down: try to make each bit 1 and check if two prefixes can reach it`, cells: snap() });
       for (let b = top - 1; b >= 0; b--) {
         ans <<= 1; const pre = a.map((x) => x >> b), set = new Set(pre), cand = ans | 1, hit = pre.find((p) => set.has(cand ^ p)); if (hit != null) ans = cand;
         rows.push(pre.map((p) => p.toString(2))); const r = rows.length - 1, j1 = hit == null ? -1 : pre.indexOf(hit), j2 = hit == null ? -1 : pre.indexOf(hit ^ cand);
-        frames.push({ note: `bit ${b}: want ${cand.toString(2)}. ${hit != null ? `${hit.toString(2)} ^ ${(hit ^ cand).toString(2)} = ${cand.toString(2)} (${a[j1]} and ${a[j2]}), keep the 1` : "no pair gives it, this bit is 0"} → answer so far ${ans.toString(2)}`, cells: [...rows.map((x) => [...x]), ...Array.from({ length: top - rows.length }, () => a.map(() => null))], tones: hit != null ? keys([`${r}:${j1}`, `${r}:${j2}`], "found") : keys(a.map((_, j) => `${r}:${j}`), "muted") });
+        frames.push({ note: `bit ${b}: want ${cand.toString(2)}. ${hit != null ? `${hit.toString(2)} ^ ${(hit ^ cand).toString(2)} = ${cand.toString(2)} (from ${a[j1]} and ${a[j2]}), keep the 1` : "no two prefixes xor to it, this bit stays 0"} so answer so far is ${ans.toString(2)}`, cells: snap(), tones: hit != null ? keys([`${r}:${j1}`, `${r}:${j2}`], "found") : keys(a.map((_, j) => `${r}:${j}`), "muted") });
       }
+      const pi = a.findIndex((x, i) => a.some((y, j) => j !== i && (x ^ y) === ans)), pj = a.findIndex((y, j) => j !== pi && (a[pi] ^ y) === ans), last = rows.length - 1;
+      frames.push({ note: `Done: ${a[pi]} ^ ${a[pj]} = ${ans}, the largest xor of any pair`, cells: snap(), tones: keys([`${last}:${pi}`, `${last}:${pj}`], "found") });
       return { kind: "table", title: `Max XOR of [${a.join(", ")}] = ${ans}`, rowHead: Array.from({ length: top }, (_, i) => `bit ${top - 1 - i}`), colHead: a.map(String), frames };
     },
   },
@@ -335,16 +353,17 @@ def minRefuelStops(target, startFuel, stations):
     return stops`,
     lang: "python", time: "O(n log n)", space: "O(n)",
     viz: () => {
-      const target = 100, st = [[10, 60], [20, 30], [30, 30], [60, 40]], heap: number[] = [], frames: StackFrame[] = []; let fuel = 10, stops = 0, i = 0;
+      const target = 150, st = [[10, 40], [20, 30], [30, 20], [60, 40], [90, 30], [130, 50]], heap: number[] = [], frames: StackFrame[] = []; let fuel = 10, stops = 0, i = 0, ok = true;
       const show = () => [...heap].sort((a, b) => a - b).map((f) => `${f} fuel`);
+      frames.push({ note: `Start with 10 fuel, target mile ${target}. Stations (mile, fuel): ${st.map(([m, f]) => `${m}:${f}`).join(", ")}. Remember every station we drive past, refuel at the biggest only when needed`, items: [], side: "stops: 0" });
       while (fuel < target) {
-        const passed: number[] = []; while (i < st.length && st[i][0] <= fuel) { heap.push(st[i][1]); passed.push(st[i][0]); i++; }
-        if (passed.length) frames.push({ note: `fuel reaches mile ${fuel}: pass station${passed.length > 1 ? "s" : ""} at ${passed.join(", ")} and remember ${passed.length > 1 ? "them" : "it"}`, items: show(), side: `stops: ${stops}` });
-        if (!heap.length) { frames.push({ note: "stuck and no station left to use → -1", items: [], side: `stops: ${stops}` }); break; }
+        while (i < st.length && st[i][0] <= fuel) { heap.push(st[i][1]); frames.push({ note: `we can reach mile ${fuel}, so we pass the station at mile ${st[i][0]} (${st[i][1]} fuel) and add it to the pool`, items: show(), incoming: `${st[i][1]} fuel`, side: `reach: ${fuel}, stops: ${stops}` }); i++; }
+        if (!heap.length) { frames.push({ note: `reach ${fuel} is below ${target} and no passed station is left, so the answer is -1`, items: [], side: `stops: ${stops}` }); ok = false; break; }
         heap.sort((a, b) => a - b); const best = heap.pop()!; fuel += best; stops++;
-        frames.push({ note: `cannot reach ${target}: use the biggest passed station (+${best}) → can reach mile ${fuel}`, items: show(), popped: [best], side: `stops: ${stops}` });
+        frames.push({ note: `mile ${fuel - best} is short of ${target}: use the biggest passed station (+${best}) to reach ${fuel}, that is stop ${stops}`, items: show(), popped: [`${best} fuel`], side: `reach: ${fuel}, stops: ${stops}` });
       }
-      return { kind: "stack", title: `Target ${target} from 10 fuel: ${stops} stops`, frames };
+      if (ok) frames.push({ note: `reach ${fuel} is at least ${target}, so ${stops} refuelling stops are enough`, items: show(), side: `stops: ${stops}` });
+      return { kind: "stack", title: `Target ${target} from 10 fuel: ${ok ? stops + " stops" : "-1"}`, frames };
     },
   },
 
@@ -431,9 +450,18 @@ def getSkyline(buildings):
     return sort(nums)[1]`,
     lang: "python", time: "O(n log n)", space: "O(n)",
     viz: () => {
-      const a = [2, 4, 3, 5, 1], cur = [...a], frames: CellsFrame[] = []; let total = 0;
-      const sort = (lo: number, hi: number) => { if (hi - lo <= 1) return; const m = (lo + hi) >> 1; sort(lo, m); sort(m, hi); const L = cur.slice(lo, m), R = cur.slice(m, hi); let j = 0, c = 0; const pairs: string[] = []; for (const v of L) { while (j < R.length && v > 2 * R[j]) j++; c += j; R.slice(0, j).forEach((r) => pairs.push(`${v} > 2·${r}`)); } total += c; cur.splice(lo, hi - lo, ...[...L, ...R].sort((p, q) => p - q)); frames.push({ note: `merge [${L.join(", ")}] + [${R.join(", ")}]: ${c ? pairs.join(", ") : "no pairs"} → +${c} (total ${total})`, rows: [[...cur]], tones: { ...range(lo, m - 1), ...range(m, hi - 1, 0, "active") } }); };
+      const a = [5, 3, 2, 6, 1, 4], cur = [...a], frames: CellsFrame[] = []; let total = 0;
+      frames.push({ note: `Count pairs i < j with nums[i] > 2 * nums[j] in [${a.join(", ")}]: split into halves, count pairs across the halves with a moving pointer, then merge sorted`, rows: [[...cur]] });
+      const sort = (lo: number, hi: number) => {
+        if (hi - lo <= 1) return; const m = (lo + hi) >> 1; sort(lo, m); sort(m, hi);
+        const L = cur.slice(lo, m), R = cur.slice(m, hi); let j = 0, c = 0; const per = L.map((v) => { while (j < R.length && v > 2 * R[j]) j++; c += j; return j; });
+        total += c;
+        frames.push({ note: `halves [${L.join(", ")}] and [${R.join(", ")}]: ${c ? L.map((v, k) => `${v} beats ${per[k]} on the right`).join(", ") + `, so +${c} (total ${total})` : `no left value is more than double a right value (total ${total})`}`, rows: [[...cur]], tones: { ...range(lo, m - 1), ...range(m, hi - 1, 0, "active") } });
+        cur.splice(lo, hi - lo, ...[...L, ...R].sort((p, q) => p - q));
+        frames.push({ note: `merge them in order: [${cur.slice(lo, hi).join(", ")}]`, rows: [[...cur]], tones: range(lo, hi - 1, 0, "done") });
+      };
       sort(0, a.length);
+      frames.push({ note: `Fully sorted and counted: ${total} reverse pairs`, rows: [[...cur]], tones: range(0, a.length - 1, 0, "found") });
       return cells(`Reverse pairs in [${a.join(", ")}]: ${total}`, [a], frames);
     },
   },
@@ -471,9 +499,18 @@ def getSkyline(buildings):
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
       const a = [6, 0, 8, 2, 1, 5], st: number[] = [], frames: CellsFrame[] = []; let best = 0;
-      a.forEach((x, i) => { if (!st.length || a[st[st.length - 1]] > x) st.push(i); });
-      frames.push({ note: `left-end candidates (decreasing values): indices [${st.join(", ")}]`, tones: keys(st.map((i) => `0:${i}`), "window") });
-      for (let j = a.length - 1; j >= 0; j--) { const got: string[] = []; while (st.length && a[st[st.length - 1]] <= a[j]) { const i = st.pop()!; best = Math.max(best, j - i); got.push(`(${i}, ${j}) width ${j - i}`); } frames.push({ note: `j = ${j} (${a[j]}): ${got.length ? `ramps ${got.join(", ")}` : "no candidate ≤ it"} → best ${best}`, tones: { ...keys(st.map((i) => `0:${i}`), "window"), [`0:${j}`]: "active" }, marks: [{ i: j, label: "j" }] }); if (!st.length) break; }
+      const stk = () => keys(st.map((i) => `0:${i}`), "window");
+      frames.push({ note: `Find the widest j - i with i < j and nums[i] <= nums[j] in [${a.join(", ")}]. First keep the candidate left ends: each new strict minimum`, marks: [] });
+      a.forEach((x, i) => {
+        if (!st.length || a[st[st.length - 1]] > x) { st.push(i); frames.push({ note: `i = ${i}: ${x} is ${st.length === 1 ? "the first value" : `below the last candidate ${a[st[st.length - 2]]}`}, so index ${i} becomes a candidate`, tones: { ...stk(), [`0:${i}`]: "active" }, marks: [{ i, label: "i" }] }); }
+        else frames.push({ note: `i = ${i}: ${x} is not below the last candidate ${a[st[st.length - 1]]}, a smaller i already beats it`, tones: { ...stk(), [`0:${i}`]: "muted" }, marks: [{ i, label: "i" }] });
+      });
+      for (let j = a.length - 1; j >= 0 && st.length; j--) {
+        const got: string[] = [], top = st[st.length - 1];
+        while (st.length && a[st[st.length - 1]] <= a[j]) { const i = st.pop()!; best = Math.max(best, j - i); got.push(`candidate i = ${i} (${a[i]}) is at most ${a[j]}, width ${j - i}`); }
+        frames.push({ note: got.length ? `j = ${j} (${a[j]}): ${got.join("; ")}, best ${best}` : `j = ${j} (${a[j]}): top candidate ${a[top]} is larger, no ramp ends here`, tones: { ...stk(), [`0:${j}`]: got.length ? "found" : "active" }, marks: [{ i: j, label: "j" }] });
+      }
+      frames.push({ note: `${st.length ? "Scan finished" : "No candidates left"}: the widest ramp has width ${best}`, tones: {} });
       return cells(`Max width ramp: ${best}`, [a], frames);
     },
   },
@@ -575,10 +612,18 @@ def isEvenOddTree(root):
       // tree [1,2,5,3,4,null,6]; ids are preorder positions, so value v sits at id v - 1
       const left = [1, 2, -1, -1, -1, -1], right = [4, 3, -1, -1, 5, -1], frames: ListFrame[] = [];
       const lefts = () => left.map((l, i) => (l >= 0 ? `${i + 1}.left = ${l + 1}` : "")).filter(Boolean).join(", ") || "none";
-      frames.push({ note: `right pointers drawn; left children: ${lefts()}`, next: [...right], ptrs: [{ i: 0, label: "node" }] });
+      frames.push({ note: `Tree [1,2,5,3,4,null,6]: only right pointers are drawn. Left children: ${lefts()}. Goal: every node's left becomes null and the right chain follows preorder`, next: [...right], ptrs: [{ i: 0, label: "node" }] });
       let node = 0;
-      while (node >= 0) { if (left[node] >= 0) { let pre = left[node]; while (right[pre] >= 0) pre = right[pre]; right[pre] = right[node]; right[node] = left[node]; left[node] = -1; frames.push({ note: `node ${node + 1}: rightmost of its left subtree is ${pre + 1}; ${pre + 1}.right = old right, ${node + 1}.right = its left child; left children now: ${lefts()}`, next: [...right], ptrs: [{ i: node, label: "node" }, { i: pre, label: "pre" }], tones: { [node]: "active", [pre]: "window" } }); } node = right[node]; }
-      frames.push({ note: "every node now has only a right pointer, in preorder", next: [...right], ptrs: [], tones: tones([0, 1, 2, 3, 4, 5], "found") });
+      while (node >= 0) {
+        if (left[node] >= 0) {
+          let pre = left[node]; while (right[pre] >= 0) pre = right[pre];
+          frames.push({ note: `node ${node + 1} has a left child ${left[node] + 1}: walk right from it to the last node of that subtree, which is ${pre + 1}`, next: [...right], ptrs: [{ i: node, label: "node" }, { i: pre, label: "pre" }], tones: { [node]: "active", [pre]: "window" } });
+          right[pre] = right[node]; right[node] = left[node]; left[node] = -1;
+          frames.push({ note: `${pre + 1}.right takes node ${node + 1}'s old right, then ${node + 1}.right = its left child and the left is cleared; left children now: ${lefts()}`, next: [...right], ptrs: [{ i: node, label: "node" }, { i: pre, label: "pre" }], tones: { [node]: "active", [pre]: "found" } });
+        } else frames.push({ note: `node ${node + 1} has no left child, move to its right (${right[node] >= 0 ? right[node] + 1 : "end"})`, next: [...right], ptrs: [{ i: node, label: "node" }], tones: { [node]: "active" } });
+        node = right[node];
+      }
+      frames.push({ note: "Every node has only a right pointer, in preorder: 1, 2, 3, 4, 5, 6", next: [...right], ptrs: [], tones: tones([0, 1, 2, 3, 4, 5], "found") });
       return { kind: "list", title: "Flatten [1,2,5,3,4,null,6] in place", values: [1, 2, 3, 4, 5, 6], frames };
     },
   },
@@ -616,8 +661,13 @@ def isEvenOddTree(root):
     return arrows`,
     lang: "python", time: "O(n log n)", space: "O(1)",
     viz: () => {
-      const items = ([[10, 16], [2, 8], [1, 6], [7, 12]] as [number, number][]).sort((p, q) => p[1] - q[1]), frames: IntervalsFrame[] = [], tn: Record<number, Tone> = {}; let arrows = 0, x = -1;
-      items.forEach(([s, e], i) => { if (s > x || arrows === 0) { arrows++; x = e; tn[i] = "found"; frames.push({ note: `[${s}, ${e}] starts after the last arrow: arrow ${arrows} at x = ${e}`, tones: { ...tn, [i]: "active" }, line: x }); } else { tn[i] = "done"; frames.push({ note: `[${s}, ${e}] starts at ${s} ≤ ${x}: already burst by arrow ${arrows}`, tones: { ...tn }, line: x }); } });
+      const raw: [number, number][] = [[8, 10], [1, 3], [6, 9], [11, 14], [2, 5], [13, 15], [4, 7]], items = [...raw].sort((p, q) => p[1] - q[1]), frames: IntervalsFrame[] = [], tn: Record<number, Tone> = {}; let arrows = 0, x: number | null = null;
+      frames.push({ note: `Balloons as [start, end]; sort by end so an arrow placed at an end bursts as many earlier-starting balloons as possible`, tones: tones(items.map((_, i) => i), "muted") });
+      items.forEach(([s, e], i) => {
+        if (x === null || s > x) { arrows++; x = e; tn[i] = "found"; frames.push({ note: `[${s}, ${e}] ${arrows === 1 ? "is the first balloon" : `starts at ${s}, past the last arrow`}: shoot arrow ${arrows} at x = ${e}`, tones: { ...tn }, line: x }); }
+        else { tn[i] = "done"; frames.push({ note: `[${s}, ${e}] starts at ${s}, not past x = ${x}, so arrow ${arrows} already bursts it`, tones: { ...tn }, line: x }); }
+      });
+      frames.push({ note: `All balloons burst with ${arrows} arrows`, tones: { ...tn }, line: x ?? undefined });
       return { kind: "intervals", title: `Arrows needed: ${arrows}`, items, frames };
     },
   },
@@ -692,9 +742,19 @@ def isEvenOddTree(root):
     viz: () => {
       const E = [[2, 1], [3, 1], [4, 2], [1, 4]], nodes = [{ id: 1, label: "1", x: 50, y: 50 }, { id: 2, label: "2", x: 20, y: 15 }, { id: 3, label: "3", x: 85, y: 20 }, { id: 4, label: "4", x: 20, y: 85 }].map((nd) => ({ ...nd, id: nd.id - 1 }));
       const par = Array(5).fill(0), frames: GraphFrame[] = []; let c1: number[] | null = null, c2: number[] | null = null;
-      for (const [u, v] of E) { if (par[v]) { c1 = [par[v], v]; c2 = [u, v]; frames.push({ note: `${v} already has parent ${par[v]}, now ${u} too: candidates [${c1.join(",")}] and [${c2.join(",")}]`, tones: { [v - 1]: "bad" }, edgeTones: { [ek(c1[0] - 1, v - 1)]: "bad", [ek(u - 1, v - 1)]: "bad" } }); } else par[v] = u; }
+      frames.push({ note: "Directed edges 2→1, 3→1, 4→2, 1→4: one edge too many. First pass: look for a node with two parents" });
+      for (const [u, v] of E) {
+        if (par[v]) { c1 = [par[v], v]; c2 = [u, v]; frames.push({ note: `edge ${u}→${v}: ${v} already has parent ${par[v]}, so candidates are [${c1.join(",")}] (older) and [${c2.join(",")}] (newer)`, tones: { [v - 1]: "bad" }, edgeTones: { [ek(c1[0] - 1, v - 1)]: "bad", [ek(u - 1, v - 1)]: "bad" } }); }
+        else { par[v] = u; frames.push({ note: `edge ${u}→${v}: ${v} has no parent yet, record ${u}`, tones: { [v - 1]: "active" }, edgeTones: { [ek(u - 1, v - 1)]: "active" } }); }
+      }
       const uf = [0, 1, 2, 3, 4], find = (x: number): number => (uf[x] === x ? x : (uf[x] = find(uf[x]))), et: Record<string, Tone> = {}; let ans: number[] = c2!;
-      for (const [u, v] of E) { if (c2 && u === c2[0] && v === c2[1]) { frames.push({ note: `skip candidate [${u},${v}] for now`, edgeTones: { ...et, [ek(u - 1, v - 1)]: "muted" } }); continue; } const ru = find(u), rv = find(v); if (ru === rv) { ans = c1 ?? [u, v]; frames.push({ note: `${u} → ${v} closes a cycle with [${c2!.join(",")}] left out, so the earlier candidate [${ans.join(",")}] must go`, edgeTones: { ...et, [ek(u - 1, v - 1)]: "active", [ek(ans[0] - 1, ans[1] - 1)]: "bad" } }); break; } uf[rv] = ru; et[ek(u - 1, v - 1)] = "found"; frames.push({ note: `${u} → ${v}: different groups, join them`, edgeTones: { ...et } }); }
+      for (const [u, v] of E) {
+        if (c2 && u === c2[0] && v === c2[1]) { et[ek(u - 1, v - 1)] = "muted"; frames.push({ note: `second pass: skip the newer candidate [${u},${v}] and test whether the rest forms a cycle`, edgeTones: { ...et } }); continue; }
+        const ru = find(u), rv = find(v);
+        if (ru === rv) { ans = c1 ?? [u, v]; frames.push({ note: `edge ${u}→${v}: both ends are already connected, a cycle even without [${c2!.join(",")}], so the older candidate [${ans.join(",")}] is the culprit`, edgeTones: { ...et, [ek(ans[0] - 1, ans[1] - 1)]: "bad", [ek(u - 1, v - 1)]: "active" } }); break; }
+        uf[rv] = ru; et[ek(u - 1, v - 1)] = "found"; frames.push({ note: `edge ${u}→${v}: ${u} and ${v} are in different groups, join them`, edgeTones: { ...et } });
+      }
+      frames.push({ note: `Remove [${ans.join(", ")}]: it is the edge that makes the graph a tree again`, edgeTones: { ...et, [ek(ans[0] - 1, ans[1] - 1)]: "bad" } });
       return { kind: "graph", title: `Remove [${ans.join(", ")}]`, nodes, edges: E.map(([a, b]) => ({ a: a - 1, b: b - 1, directed: true })), frames };
     },
   },
@@ -726,11 +786,21 @@ def isEvenOddTree(root):
     return [k for k in range(n) if find(k) == find(0)]`,
     lang: "python", time: "O(m log m + m α(n))", space: "O(n)",
     viz: () => {
-      const n = 6, M = [[1, 2, 5], [2, 3, 8], [1, 5, 10], [4, 5, 2]].sort((a, b) => a[2] - b[2]);
-      const nodes = [{ id: 0, label: "0", x: 10, y: 50 }, { id: 1, label: "1", x: 35, y: 15 }, { id: 2, label: "2", x: 65, y: 15 }, { id: 3, label: "3", x: 90, y: 50 }, { id: 4, label: "4", x: 35, y: 85 }, { id: 5, label: "5", x: 65, y: 85 }];
-      const p = [...Array(n).keys()], find = (x: number): number => { while (p[x] !== x) { p[x] = p[p[x]]; x = p[x]; } return x; }, know = () => [...Array(n).keys()].filter((k) => find(k) === find(0));
-      p[1] = 0; const frames: GraphFrame[] = [{ note: "person 0 tells person 1 at time 0", tones: tones(know(), "found") }], et: Record<string, Tone> = {};
-      for (let i = 0; i < M.length;) { let j = i; while (j < M.length && M[j][2] === M[i][2]) j++; const g = M.slice(i, j); g.forEach(([x, y]) => (p[find(x)] = find(y))); g.forEach(([x, y]) => [x, y].forEach((z) => { if (find(z) !== find(0)) p[z] = z; })); g.forEach(([x, y]) => (et[ek(x, y)] = find(x) === find(0) ? "found" : "muted")); frames.push({ note: `time ${M[i][2]}: ${g.map(([x, y]) => `${x} meets ${y}`).join(", ")} → ${g.some(([x]) => find(x) === find(0)) ? "secret shared" : "neither knows, reset them"}; knowers {${know().join(", ")}}`, tones: { ...tones(know(), "found"), ...tones(g.flatMap(([x, y]) => [x, y]).filter((z) => find(z) === find(0)), "active") }, edgeTones: { ...et } }); i = j; }
+      const n = 7, M = [[1, 2, 2], [3, 4, 2], [3, 5, 5], [2, 3, 5], [5, 6, 8]].sort((a, b) => a[2] - b[2]);
+      const nodes = [{ id: 0, label: "0", x: 8, y: 50 }, { id: 1, label: "1", x: 28, y: 15 }, { id: 2, label: "2", x: 50, y: 15 }, { id: 3, label: "3", x: 50, y: 85 }, { id: 4, label: "4", x: 28, y: 85 }, { id: 5, label: "5", x: 72, y: 85 }, { id: 6, label: "6", x: 92, y: 50 }];
+      const p = [...Array(n).keys()], find = (x: number): number => { while (p[x] !== x) { p[x] = p[p[x]]; x = p[x]; } return x; }, know = () => [...Array(n).keys()].filter((k) => find(k) === find(0)), et: Record<string, Tone> = {};
+      p[1] = 0; const frames: GraphFrame[] = [{ note: "Person 0 knows the secret and tells person 1 at time 0; edge labels are meeting times. Process meetings time by time", tones: tones(know(), "found") }];
+      for (let i = 0; i < M.length;) {
+        let j = i; while (j < M.length && M[j][2] === M[i][2]) j++; const g = M.slice(i, j), t = M[i][2], ids = g.flatMap(([x, y]) => [x, y]);
+        g.forEach(([x, y]) => (p[find(x)] = find(y)));
+        const hit = [...new Set(ids)].filter((z) => find(z) === find(0));
+        frames.push({ note: `time ${t}: ${g.map(([x, y]) => `${x} meets ${y}`).join(", ")}. Union everyone who meets at once; ${hit.length ? `${hit.join(", ")} end up in person 0's group, so they get the secret` : "nobody joins person 0's group"}`, tones: { ...tones(know(), "found"), ...tones(ids, "active") }, edgeTones: { ...et, ...keys(g.map(([x, y]) => ek(x, y)), "active") } });
+        const reset = [...new Set(ids)].filter((z) => find(z) !== find(0)); reset.forEach((z) => (p[z] = z));
+        g.forEach(([x, y]) => (et[ek(x, y)] = find(x) === find(0) ? "found" : "bad"));
+        frames.push({ note: reset.length ? `time ${t}: ${reset.join(" and ")} ${reset.length > 1 ? "are" : "is"} not connected to 0, so ${reset.length > 1 ? "they" : "it"} learned nothing and ${reset.length > 1 ? "are" : "is"} detached again` : `time ${t}: everyone in these meetings is connected to 0, all of them keep the secret`, tones: tones(know(), "found"), edgeTones: { ...et } });
+        i = j;
+      }
+      frames.push({ note: `Everyone connected to person 0 knows the secret: [${know().join(", ")}]`, tones: tones(know(), "found"), edgeTones: { ...et } });
       return { kind: "graph", title: `Know the secret: [${know().join(", ")}]`, nodes, edges: M.map(([a, b, t]) => ({ a, b, w: t })), frames };
     },
   },
@@ -761,10 +831,17 @@ def findLonely(nums):
     return [x for x in nums if cnt[x] == 1 and x - 1 not in cnt and x + 1 not in cnt]`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const a = [10, 6, 5, 8, 3], cnt = new Map<number, number>(), frames: CellsFrame[] = [], out: number[] = [], tn: Record<string, Tone> = {};
+      const a = [10, 6, 5, 8, 3, 3, 12, 7, 20], cnt = new Map<number, number>(), frames: CellsFrame[] = [], out: number[] = [], tn: Record<string, Tone> = {};
       a.forEach((x) => cnt.set(x, (cnt.get(x) || 0) + 1));
-      a.forEach((x, i) => { const why = cnt.get(x)! > 1 ? "appears twice" : cnt.has(x - 1) ? `${x - 1} is present` : cnt.has(x + 1) ? `${x + 1} is present` : ""; if (!why) out.push(x); tn[`0:${i}`] = why ? "bad" : "found"; frames.push({ note: `${x}: ${why || "single, no neighbour value"} → ${why ? "not lonely" : "lonely"}`, tones: { ...tn } }); });
-      return cells(`Lonely: [${out.join(", ")}]`, [a], frames);
+      const counts = a.map((x) => cnt.get(x)!);
+      frames.push({ note: `Count every value first (second row), then keep x if it appears once and neither x - 1 nor x + 1 is in the array`, rows: [a, counts] });
+      a.forEach((x, i) => {
+        const why = cnt.get(x)! > 1 ? `it appears ${cnt.get(x)} times (index ${i})` : cnt.has(x - 1) ? `${x - 1} is in the array` : cnt.has(x + 1) ? `${x + 1} is in the array` : "";
+        if (!why) out.push(x); tn[`0:${i}`] = why ? "bad" : "found";
+        frames.push({ note: why ? `${x} is not lonely: ${why}` : `${x} is lonely: it appears once and ${x - 1} and ${x + 1} are both missing (answer so far [${out.join(", ")}])`, rows: [a, counts], tones: { ...tn } });
+      });
+      frames.push({ note: `Lonely numbers in input order: [${out.join(", ")}]`, rows: [a, counts], tones: { ...tn } });
+      return cells(`Lonely: [${out.join(", ")}]`, [a, counts], frames, ["nums", "count"]);
     },
   },
 
@@ -777,9 +854,11 @@ def findLonely(nums):
     return "".join(next(it) if c in "aeiouAEIOU" else c for c in s)`,
     lang: "python", time: "O(n log n)", space: "O(n)",
     viz: () => {
-      const s = [..."lEetcOde"], isV = (c: string) => "aeiouAEIOU".includes(c), vs = s.filter(isV).sort(), out = [...s], frames: CellsFrame[] = [];
-      frames.push({ note: `vowels [${s.filter(isV).join(", ")}] sorted by code → [${vs.join(", ")}]`, rows: [s, [...out]], tones: keys(s.map((c, i) => (isV(c) ? `0:${i}` : "")).filter(Boolean), "window") });
-      let k = 0; s.forEach((c, i) => { if (!isV(c)) return; out[i] = vs[k++]; frames.push({ note: `slot ${i}: put ${out[i]}`, rows: [s, [...out]], tones: { [`0:${i}`]: "window", [`1:${i}`]: "found" } }); });
+      const s = [..."lEetcOdeUp"], isV = (c: string) => "aeiouAEIOU".includes(c), vs = s.filter(isV).sort(), out: (string | number)[] = s.map((c) => (isV(c) ? "" : c)), frames: CellsFrame[] = [];
+      frames.push({ note: `Pick out the vowels in order: [${s.filter(isV).join(", ")}]. Consonants stay where they are`, rows: [s, [...out]], tones: keys(s.map((c, i) => (isV(c) ? `0:${i}` : "")).filter(Boolean), "window") });
+      frames.push({ note: `Sort the vowels by character code (capitals first): [${vs.join(", ")}]`, rows: [s, [...out]], tones: keys(s.map((c, i) => (isV(c) ? `0:${i}` : "")).filter(Boolean), "window") });
+      let k = 0; s.forEach((c, i) => { if (!isV(c)) return; out[i] = vs[k]; frames.push({ note: `slot ${i} held ${c}: write the next sorted vowel ${vs[k]} (vowel ${k + 1} of ${vs.length})`, rows: [s, [...out]], tones: { [`0:${i}`]: "window", [`1:${i}`]: "found" } }); k++; });
+      frames.push({ note: `Result "${out.join("")}": every vowel slot filled, consonants unchanged`, rows: [s, [...out]], tones: range(0, s.length - 1, 1, "found") });
       return cells(`"${s.join("")}" → "${out.join("")}"`, [s, s], frames, ["input", "output"]);
     },
   },
@@ -800,8 +879,14 @@ def findLonely(nums):
     return best`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const a = [4, 2, 4, 5, 6], seen = new Set<number>(), frames: CellsFrame[] = []; let left = 0, cur = 0, best = 0;
-      a.forEach((x, r) => { const drop: number[] = []; while (seen.has(x)) { seen.delete(a[left]); cur -= a[left]; drop.push(a[left]); left++; } seen.add(x); cur += x; best = Math.max(best, cur); frames.push({ note: `add ${x}${drop.length ? ` after dropping ${drop.join(", ")}` : ""}: window [${left}..${r}] sums to ${cur} (best ${best})`, tones: { ...range(left, r), [`0:${r}`]: "active" }, marks: [{ i: left, label: "L" }, { i: r, label: "R" }] }); });
+      const a = [4, 2, 4, 5, 6, 2, 4, 3], seen = new Set<number>(), frames: CellsFrame[] = []; let left = 0, cur = 0, best = 0;
+      frames.push({ note: `Find the subarray of distinct values with the largest sum in [${a.join(", ")}]: grow a window on the right and shrink from the left whenever a value repeats`, marks: [] });
+      a.forEach((x, r) => {
+        const drop: number[] = []; while (seen.has(x)) { seen.delete(a[left]); cur -= a[left]; drop.push(a[left]); left++; }
+        seen.add(x); cur += x; const old = best; best = Math.max(best, cur);
+        frames.push({ note: `${x} ${drop.length ? `repeats, so drop ${drop.join(", ")} from the left first` : "is new"}: window [${left}..${r}] sums to ${cur}${best > old ? `, a new best` : `, best stays ${best}`}`, tones: { ...range(left, r), [`0:${r}`]: "active" }, marks: [{ i: left, label: "L" }, { i: r, label: "R" }] });
+      });
+      frames.push({ note: `The largest sum over distinct windows is ${best}`, tones: {} });
       return cells(`Max erasure value: ${best}`, [a], frames);
     },
   },
@@ -823,10 +908,17 @@ def findLonely(nums):
     return head`,
     lang: "python", time: "O(n + m)", space: "O(n + m)",
     viz: () => {
-      const A = [7, 2, 4, 3], B = [5, 6, 4], W = 5, pad = (x: number[]) => [...blank(W - x.length), ...x], out: (string | number)[] = blank(W), frames: CellsFrame[] = []; let carry = 0;
+      const A = [9, 2, 4, 3, 9], B = [5, 6, 7], W = 6, pad = (x: number[]) => [...blank(W - x.length), ...x], out: (string | number)[] = blank(W), frames: CellsFrame[] = []; let carry = 0;
       const a = [...A], b = [...B];
-      for (let col = W - 1; a.length || b.length || carry; col--) { const x = a.pop() ?? 0, y = b.pop() ?? 0, s = carry + x + y; out[col] = s % 10; frames.push({ note: `${x} + ${y}${carry ? " + carry 1" : ""} = ${s} → digit ${s % 10}${s >= 10 ? ", carry 1" : ""}; prepend it`, rows: [pad(A), pad(B), [...out]], tones: { [`0:${col}`]: "active", [`1:${col}`]: "active", [`2:${col}`]: "found" } }); carry = s >= 10 ? 1 : 0; }
-      return cells("7243 + 564 = 7807", [pad(A), pad(B), blank(W)], frames, ["l1", "l2", "sum"]);
+      frames.push({ note: `Digits are stored most significant first, so push each list on a stack: popping gives the ones digit first. ${A.join("")} + ${B.join("")}`, rows: [pad(A), pad(B), [...out]] });
+      let sum = 0, place = 1;
+      for (let col = W - 1; a.length || b.length || carry; col--) {
+        const x = a.pop() ?? 0, y = b.pop() ?? 0, s = carry + x + y; out[col] = s % 10; sum += (s % 10) * place; place *= 10;
+        frames.push({ note: `pop ${x} and ${y}${carry ? " plus carry 1" : ""}: ${x} + ${y}${carry ? " + 1" : ""} = ${s}, digit ${s % 10}${s >= 10 ? " carry 1" : ", no carry"}; prepend ${s % 10} to the result`, rows: [pad(A), pad(B), [...out]], tones: { [`0:${col}`]: "active", [`1:${col}`]: "active", [`2:${col}`]: "found" } });
+        carry = s >= 10 ? 1 : 0;
+      }
+      frames.push({ note: `Both stacks are empty and no carry is left: the list reads ${out.filter((v) => v !== "").join("")}`, rows: [pad(A), pad(B), [...out]], tones: Object.fromEntries(out.map((v, i) => [`2:${i}`, v === "" ? "muted" : "found"])) as Record<string, Tone> });
+      return cells(`${A.join("")} + ${B.join("")} = ${sum}`, [pad(A), pad(B), blank(W)], frames, ["l1", "l2", "sum"]);
     },
   },
 
@@ -845,8 +937,15 @@ def findLonely(nums):
     return ans`,
     lang: "python", time: "O(n · digits)", space: "O(n)",
     viz: () => {
-      const a = [18, 43, 36, 13, 7], ds = a.map((x) => [...String(x)].reduce((s, c) => s + +c, 0)), best = new Map<number, number>(), shown: (string | number)[] = blank(a.length), frames: CellsFrame[] = []; let ans = -1;
-      a.forEach((x, i) => { const d = ds[i]; shown[i] = d; let note: string; if (best.has(d)) { const b = best.get(d)!; ans = Math.max(ans, b + x); note = `${x} has digit sum ${d}, pairs with ${b}: ${b + x} (best ${ans})`; best.set(d, Math.max(b, x)); } else { best.set(d, x); note = `${x} has digit sum ${d}, first in its group`; } frames.push({ note, rows: [a, [...shown]], tones: { [`0:${i}`]: "active", ...keys(ds.slice(0, i).map((v, j) => (v === d ? `0:${j}` : "")).filter(Boolean), "window") } }); });
+      const a = [51, 71, 17, 42, 33, 13, 61, 24], ds = a.map((x) => [...String(x)].reduce((s, c) => s + +c, 0)), best = new Map<number, number>(), shown: (string | number)[] = blank(a.length), frames: CellsFrame[] = []; let ans = -1;
+      frames.push({ note: `Group numbers by digit sum and, per group, keep the largest value seen so far; each new number pairs with that value`, rows: [a, [...shown]] });
+      a.forEach((x, i) => {
+        const d = ds[i]; shown[i] = d; let note: string;
+        if (best.has(d)) { const b = best.get(d)!, old = ans; ans = Math.max(ans, b + x); note = `${x} has digit sum ${d} and group max ${b}: pair sum ${b + x}, ${ans > old ? `new best ${ans}` : `best stays ${ans}`}; group max becomes ${Math.max(b, x)}`; best.set(d, Math.max(b, x)); }
+        else { best.set(d, x); note = `${x} has digit sum ${d}, the first of its group, so remember ${x}`; }
+        frames.push({ note, rows: [a, [...shown]], tones: { [`0:${i}`]: "active", ...keys(ds.slice(0, i).map((v, j) => (v === d ? `0:${j}` : "")).filter(Boolean), "window") } });
+      });
+      frames.push({ note: `No more numbers: the best pair sum is ${ans}`, rows: [a, [...shown]], tones: {} });
       return cells(`Best pair sum: ${ans}`, [a, blank(a.length)], frames, ["nums", "digit sum"]);
     },
   },
@@ -952,9 +1051,18 @@ def findLonely(nums):
     return cams + (root_state == 0)`,
     lang: "python", time: "O(n)", space: "O(h)",
     viz: () => {
-      const vals = [0, 0, null, 0, 0, null, null, 0], { nodes, kids } = T(vals), frames: TreeFrame[] = [], tn: Record<number, Tone> = {}, badges: Record<number, string> = {}, name = ["needs cover", "camera", "covered"]; let cams = 0;
-      const dfs = (i: number | null): number => { if (i == null) return 2; const l = dfs(kids[i][0]), r = dfs(kids[i][1]); let st: number; if (l === 0 || r === 0) { cams++; st = 1; } else st = l === 1 || r === 1 ? 2 : 0; tn[i] = st === 1 ? "found" : st === 2 ? "done" : "bad"; badges[i] = name[st]; frames.push({ note: `node ${i}: children report ${name[l]} / ${name[r]} → ${st === 1 ? `place a camera (total ${cams})` : name[st]}`, tones: { ...tn, [i]: st === 1 ? "found" : "active" }, badges: { ...badges } }); return st; };
-      if (dfs(0) === 0) { cams++; tn[0] = "found"; badges[0] = "camera"; frames.push({ note: `root still needs cover: one more camera (total ${cams})`, tones: { ...tn }, badges: { ...badges } }); }
+      const vals = [0, 0, 0, 0, null, null, 0, 0, 0, null, null, null, null, 0], { nodes, kids } = T(vals), frames: TreeFrame[] = [], tn: Record<number, Tone> = {}, badges: Record<number, string> = {}, name = ["needs cover", "camera", "covered"]; let cams = 0;
+      frames.push({ note: "Every node must be watched by a camera on itself, a child or its parent. Post-order: each node reports needs cover, camera or covered, and a camera goes one level above a node that needs cover", tones: {} });
+      const dfs = (i: number | null): number => {
+        if (i == null) return 2; const l = dfs(kids[i][0]), r = dfs(kids[i][1]); let st: number;
+        if (l === 0 || r === 0) { cams++; st = 1; } else st = l === 1 || r === 1 ? 2 : 0;
+        const kn = [kids[i][0], kids[i][1]].filter((c) => c != null).length;
+        tn[i] = st === 1 ? "found" : st === 2 ? "done" : "bad"; badges[i] = name[st];
+        frames.push({ note: !kn ? `leaf ${i}: nothing below it, so it needs cover from its parent` : `node ${i}: children report ${[kids[i][0], kids[i][1]].map((c) => (c == null ? "none" : name[c === kids[i][0] ? l : r])).join(" and ")}, so ${st === 1 ? `a child needs cover: place a camera here (cameras: ${cams})` : st === 2 ? "a child has a camera and covers this node" : "no camera below and none needed yet, it needs cover from its parent"}`, tones: { ...tn, [i]: st === 1 ? "found" : "active" }, badges: { ...badges } });
+        return st;
+      };
+      if (dfs(0) === 0) { cams++; tn[0] = "found"; badges[0] = "camera"; frames.push({ note: `root 0 still needs cover and has no parent: put one more camera on it (cameras: ${cams})`, tones: { ...tn }, badges: { ...badges } }); }
+      frames.push({ note: `All nodes are watched with ${cams} cameras`, tones: { ...tn }, badges: { ...badges } });
       return tree(`Cameras needed: ${cams}`, nodes, frames);
     },
   },
@@ -1037,8 +1145,14 @@ def findLonely(nums):
     return ops`,
     lang: "python", time: "O(n log n)", space: "O(1)",
     viz: () => {
-      const a = [3, 1, 3, 4, 3, 2, 5].sort((p, q) => p - q), k = 6, frames: CellsFrame[] = [], tn: Record<string, Tone> = {}; let i = 0, j = a.length - 1, ops = 0;
-      while (i < j) { const s = a[i] + a[j]; if (s === k) { ops++; tn[`0:${i}`] = tn[`0:${j}`] = "found"; } frames.push({ note: `${a[i]} + ${a[j]} = ${s} ${s === k ? `= ${k}: pair ${ops}` : s < k ? `< ${k}: move left` : `> ${k}: move right`}`, tones: { ...tn, [`0:${i}`]: s === k ? "found" : "active", [`0:${j}`]: s === k ? "found" : "active" }, marks: [{ i, label: "i" }, { i: j, label: "j" }] }); if (s === k) { i++; j--; } else if (s < k) i++; else j--; }
+      const a = [3, 1, 3, 4, 3, 2, 5, 1, 4, 6].sort((p, q) => p - q), k = 6, frames: CellsFrame[] = [], tn: Record<string, Tone> = {}; let i = 0, j = a.length - 1, ops = 0;
+      frames.push({ note: `Sort to [${a.join(", ")}], then walk two pointers in from both ends looking for pairs that add to ${k}`, marks: [{ i: 0, label: "i" }, { i: j, label: "j" }] });
+      while (i < j) {
+        const s = a[i] + a[j]; if (s === k) { ops++; tn[`0:${i}`] = tn[`0:${j}`] = "found"; }
+        frames.push({ note: s === k ? `${a[i]} + ${a[j]} = ${k}: use that pair (pair ${ops}) and move both pointers in` : s < k ? `${a[i]} + ${a[j]} = ${s} is below ${k}, so move i right for a bigger left value` : `${a[i]} + ${a[j]} = ${s} is above ${k}, so move j left for a smaller right value`, tones: { ...tn, [`0:${i}`]: s === k ? "found" : "active", [`0:${j}`]: s === k ? "found" : "active" }, marks: [{ i, label: "i" }, { i: j, label: "j" }] });
+        if (s === k) { i++; j--; } else if (s < k) i++; else j--;
+      }
+      frames.push({ note: `The pointers met, so ${ops} pairs add to ${k}`, tones: { ...tn } });
       return cells(`Pairs summing to ${k}: ${ops}`, [a], frames);
     },
   },
@@ -1115,9 +1229,16 @@ def minOperations(target, arr):
     return best`,
     lang: "python", time: "O(n log n)", space: "O(n)",
     viz: () => {
-      const s = "banana", frames: CellsFrame[] = []; let lo = 1, hi = s.length - 1, best = "";
+      const s = "mississipp", frames: CellsFrame[] = []; let lo = 1, hi = s.length - 1, best = "";
       const dup = (L: number) => { const seen = new Map<string, number>(); for (let i = 0; i + L <= s.length; i++) { const w = s.slice(i, i + L); if (seen.has(w)) return [seen.get(w)!, i]; seen.set(w, i); } return null; };
-      while (lo <= hi) { const mid = (lo + hi) >> 1, d = dup(mid); if (d) { best = s.slice(d[1], d[1] + mid); frames.push({ note: `length ${mid}: "${best}" appears at ${d[0]} and ${d[1]} → try longer (lo = ${mid + 1})`, tones: { ...range(d[0], d[0] + mid - 1), ...range(d[1], d[1] + mid - 1, 0, "found") } }); lo = mid + 1; } else { frames.push({ note: `length ${mid}: every window is unique → try shorter (hi = ${mid - 1})`, tones: range(0, s.length - 1, 0, "muted") }); hi = mid - 1; } }
+      frames.push({ note: `Binary search the length L of the longest repeated substring in "${s}": if some length L repeats, shorter ones do too. Start with lo = ${lo}, hi = ${hi}`, tones: {} });
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1, d = dup(mid);
+        frames.push({ note: `lo = ${lo}, hi = ${hi}, mid = ${mid}: slide a window of length ${mid} across the string and look for a repeat`, tones: range(0, mid - 1, 0, "active"), marks: [] });
+        if (d) { best = s.slice(d[1], d[1] + mid); frames.push({ note: `length ${mid}: "${best}" appears at ${d[0]} and again at ${d[1]}, so try longer with lo = ${mid + 1}`, tones: { ...range(d[0], d[0] + mid - 1), ...range(d[1], d[1] + mid - 1, 0, "found") } }); lo = mid + 1; }
+        else { frames.push({ note: `length ${mid}: all ${s.length - mid + 1} windows are different, so try shorter with hi = ${mid - 1}`, tones: range(0, s.length - 1, 0, "muted") }); hi = mid - 1; }
+      }
+      frames.push({ note: `lo passed hi: the longest repeated substring is "${best}" (length ${best.length})`, tones: range(s.indexOf(best), s.indexOf(best) + best.length - 1, 0, "found") });
       return cells(`Longest repeat in "${s}": "${best}"`, [[...s]], frames);
     },
   },
@@ -1219,8 +1340,13 @@ def criticalConnections(n, connections):
     return total`,
     lang: "python", time: "O(32 n)", space: "O(1)",
     viz: () => {
-      const a = [4, 14, 2], W = 4, bits = a.map((x) => x.toString(2).padStart(W, "0").split("").map(Number)), frames: TableFrame[] = []; let total = 0;
-      for (let b = 0; b < W; b++) { const c = W - 1 - b, ones = a.filter((x) => (x >> b) & 1).length; total += ones * (a.length - ones); frames.push({ note: `bit ${b}: ${ones} one${ones === 1 ? "" : "s"}, ${a.length - ones} zero${a.length - ones === 1 ? "" : "s"} → ${ones} × ${a.length - ones} = ${ones * (a.length - ones)} (total ${total})`, cells: bits, tones: keys(a.map((_, r) => `${r}:${c}`), "window") }); }
+      const a = [4, 14, 2, 25, 9], W = 5, n = a.length, bits = a.map((x) => x.toString(2).padStart(W, "0").split("").map(Number)), frames: TableFrame[] = []; let total = 0;
+      frames.push({ note: `Sum of bit differences over all pairs of [${a.join(", ")}] (5 bits shown). Each bit position is independent: ones * zeros pairs differ there`, cells: bits });
+      for (let b = 0; b < W; b++) {
+        const c = W - 1 - b, ones = a.filter((x) => (x >> b) & 1).length; total += ones * (n - ones);
+        frames.push({ note: `bit ${b}: ${ones} number${ones === 1 ? " has" : "s have"} a 1 and ${n - ones} ${n - ones === 1 ? "has" : "have"} a 0, so ${ones} * ${n - ones} = ${ones * (n - ones)} differing pairs (total ${total})`, cells: bits, tones: Object.fromEntries(a.map((x, r) => [`${r}:${c}`, (x >> b) & 1 ? "found" : "muted"])) as Record<string, Tone> });
+      }
+      frames.push({ note: `All bit positions added up: the total Hamming distance is ${total}`, cells: bits, tones: keys(a.flatMap((_, r) => bits[r].map((__, c) => `${r}:${c}`)), "window") });
       return { kind: "table", title: `Total Hamming distance of [${a.join(", ")}]: ${total}`, rowHead: a.map(String), colHead: Array.from({ length: W }, (_, i) => `bit ${W - 1 - i}`), frames };
     },
   },
@@ -1243,9 +1369,20 @@ def largestValues(root):
     return out`,
     lang: "python", time: "O(n)", space: "O(width)",
     viz: () => {
-      const vals = [1, 3, 2, 5, 3, null, 9], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], out: number[] = [], won: number[] = []; let q = [0], lv = 0;
-      while (q.length) { const best = Math.max(...q.map(val)), bi = q.find((i) => val(i) === best)!; out.push(best); won.push(bi); frames.push({ note: `level ${lv}: [${q.map(val).join(", ")}] → max ${best}; answer [${out.join(", ")}]`, tones: { ...tones(q, "window"), ...tones(won, "found") } }); q = q.flatMap((i) => kids[i].filter((c): c is number => c != null)); lv++; }
-      return tree(`Row maxima: [${out.join(", ")}]`, nodes, trail(frames));
+      const vals = [1, 3, 2, 5, 3, null, 9, 6], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], out: number[] = [], won: number[] = [];
+      frames.push({ note: "BFS one row at a time: pop every node of the row, keep the largest, then queue the children", tones: { 0: "active" } });
+      let q = [0], lv = 0;
+      while (q.length) {
+        let best = -Infinity, bi = -1; const seen: number[] = [];
+        for (const i of q) {
+          seen.push(i); if (val(i) > best) { best = val(i); bi = i; }
+          const last = i === q[q.length - 1]; if (last) { out.push(best); won.push(bi); }
+          frames.push({ note: last ? `row ${lv}: pop ${val(i)}, the row max is ${best}, so the answer is [${out.join(", ")}]` : `row ${lv}: pop ${val(i)}, row max so far ${best}`, tones: { ...tones(won.slice(0, last ? won.length - 1 : won.length), "found"), ...tones(seen, "window"), ...(last ? { [bi]: "found" as Tone } : { [i]: "active" as Tone }) } });
+        }
+        q = q.flatMap((i) => kids[i].filter((c): c is number => c != null)); lv++;
+      }
+      frames.push({ note: `The queue is empty: the largest value in each row is [${out.join(", ")}]`, tones: tones(won, "found") });
+      return tree(`Row maxima: [${out.join(", ")}]`, nodes, frames);
     },
   },
 
@@ -1325,11 +1462,19 @@ def countPaths(n, roads):
     return ways[n - 1]`,
     lang: "python", time: "O(E log V)", space: "O(V + E)",
     viz: () => {
-      const n = 5, R = [[0, 1, 1], [0, 2, 2], [1, 2, 1], [1, 3, 2], [2, 3, 1], [3, 4, 1]], nodes = [{ id: 0, label: "0", x: 5, y: 50 }, { id: 1, label: "1", x: 35, y: 15 }, { id: 2, label: "2", x: 35, y: 85 }, { id: 3, label: "3", x: 65, y: 50 }, { id: 4, label: "4", x: 95, y: 50 }];
+      const n = 7, R = [[0, 6, 7], [0, 1, 2], [1, 2, 3], [1, 3, 3], [6, 3, 3], [3, 5, 1], [6, 5, 1], [2, 5, 1], [0, 4, 5], [4, 6, 2]], nodes = [{ id: 0, label: "0", x: 5, y: 50 }, { id: 1, label: "1", x: 28, y: 20 }, { id: 2, label: "2", x: 55, y: 6 }, { id: 3, label: "3", x: 52, y: 46 }, { id: 4, label: "4", x: 30, y: 88 }, { id: 5, label: "5", x: 85, y: 28 }, { id: 6, label: "6", x: 80, y: 72 }];
       const g: [number, number][][] = Array.from({ length: n }, () => []); R.forEach(([u, v, t]) => { g[u].push([v, t]); g[v].push([u, t]); });
       const dist = Array(n).fill(-1), ways = Array(n).fill(0), done: number[] = [], frames: GraphFrame[] = []; dist[0] = 0; ways[0] = 1; let pq: [number, number][] = [[0, 0]];
-      const badges = () => Object.fromEntries(dist.map((d, i) => [i, d < 0 ? "?" : `d${d} ×${ways[i]}`])) as Record<number, string>;
-      while (pq.length) { pq.sort((a, b) => a[0] - b[0]); const [d, u] = pq.shift()!; if (d > dist[u]) continue; done.push(u); const notes: string[] = []; for (const [v, t] of g[u]) { const nd = d + t; if (dist[v] < 0 || nd < dist[v]) { dist[v] = nd; ways[v] = ways[u]; pq.push([nd, v]); notes.push(`${v}: shorter (${nd}), ways = ${ways[v]}`); } else if (nd === dist[v]) { ways[v] += ways[u]; notes.push(`${v}: tie at ${nd}, ways += ${ways[u]} → ${ways[v]}`); } } frames.push({ note: `pop ${u} (distance ${d}). ${notes.join("; ") || "nothing improves"}`, tones: { ...tones(done, "done"), [u]: "active" }, badges: badges() }); }
+      const badges = () => Object.fromEntries(dist.map((d, i) => [i, d < 0 ? "?" : `${d} x${ways[i]}`])) as Record<number, string>;
+      frames.push({ note: "Dijkstra from 0, but keep a second number per node: how many shortest routes reach it (badge = distance x ways). Edge labels are travel times", tones: { 0: "active" }, badges: badges() });
+      while (pq.length) {
+        pq.sort((a, b) => a[0] - b[0]); const [d, u] = pq.shift()!;
+        if (d > dist[u]) { frames.push({ note: `pop (${d}, node ${u}) but node ${u} is already settled at ${dist[u]}: stale entry, skip`, tones: { ...tones(done, "done") }, badges: badges() }); continue; }
+        done.push(u); const notes: string[] = [];
+        for (const [v, t] of g[u]) { const nd = d + t; if (dist[v] < 0 || nd < dist[v]) { dist[v] = nd; ways[v] = ways[u]; pq.push([nd, v]); notes.push(`${v} gets distance ${nd} with ${ways[v]} way${ways[v] > 1 ? "s" : ""}`); } else if (nd === dist[v]) { ways[v] += ways[u]; notes.push(`${v} ties at ${nd}, adding ${ways[u]} more way${ways[u] > 1 ? "s" : ""} (now ${ways[v]})`); } }
+        frames.push({ note: `pop node ${u} at distance ${d}: ${notes.join("; ") || "no neighbour improves"}`, tones: { ...tones(done, "done"), [u]: "active" }, badges: badges() });
+      }
+      frames.push({ note: `All nodes settled: ${ways[n - 1]} shortest routes reach node ${n - 1}`, tones: { ...tones(done, "done"), [n - 1]: "found" }, badges: badges() });
       return { kind: "graph", title: `Shortest ways to ${n - 1}: ${ways[n - 1]}`, nodes, edges: R.map(([a, b, w]) => ({ a, b, w })), frames };
     },
   },
@@ -1353,11 +1498,27 @@ def countPaths(n, roads):
     return dfs(sr, sc, need)`,
     lang: "python", time: "O(3^cells)", space: "O(cells)",
     viz: () => {
-      const g = [[1, 0, 0, 0], [0, 0, 0, 0], [0, 0, 2, -1]], R = 3, C = 4, need = g.flat().filter((x) => x === 0).length + 1, path: [number, number][] = [], frames: TableFrame[] = []; let count = 0, dead = 0;
+      const g = [[1, 0, 0, 0], [0, 0, -1, 0], [2, 0, 0, 0]], R = 3, C = 4, need = g.flat().filter((x) => x === 0).length + 1, path: [number, number][] = [], frames: TableFrame[] = []; let count = 0;
       const base = g.map((r) => r.map((x) => (x === 1 ? "S" : x === 2 ? "E" : x < 0 ? "#" : ""))) as (string | number | null)[][];
-      const dfs = (r: number, c: number, left: number) => { if (r < 0 || r >= R || c < 0 || c >= C || g[r][c] < 0) return; if (g[r][c] === 2) { const show = base.map((x) => [...x]); path.forEach(([pr, pc], k) => { if (k) show[pr][pc] = k; }); if (left === 0) { count++; frames.push({ note: `reached the end after covering every cell: path ${count}`, cells: show, tones: keys([...path.map(([a, b]) => `${a}:${b}`), `${r}:${c}`], "found") }); } else if (dead++ < 2) frames.push({ note: `reached the end with ${left} cell${left > 1 ? "s" : ""} still unvisited: not counted`, cells: show, tones: { ...keys(path.map(([a, b]) => `${a}:${b}`), "window"), [`${r}:${c}`]: "bad" } }); return; } const keep = g[r][c]; g[r][c] = -1; path.push([r, c]); for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) dfs(r + dr, c + dc, left - 1); path.pop(); g[r][c] = keep; };
+      const shot = () => { const sh = base.map((x) => [...x]); path.forEach(([pr, pc], k) => { if (k) sh[pr][pc] = k; }); return sh; };
+      const ptone = (t: Tone) => keys(path.map(([a, b]) => `${a}:${b}`), t);
+      frames.push({ note: `Walk from S to E touching every empty square exactly once (# is a wall). There are ${need - 1} empty squares; try the four directions in turn and back out of dead ends`, cells: base });
+      const dfs = (r: number, c: number, left: number) => {
+        if (r < 0 || r >= R || c < 0 || c >= C || g[r][c] < 0) return;
+        if (g[r][c] === 2) {
+          const walk = path.map(([a, b]) => `${a}${b}`).join(">");
+          if (left === 0) { count++; frames.push({ note: `reached E with 0 squares left after walking ${walk}: path ${count} is valid`, cells: shot(), tones: { ...ptone("found"), [`${r}:${c}`]: "found" } }); }
+          else frames.push({ note: `reached E via ${walk} but ${left} empty square${left > 1 ? "s are" : " is"} still unvisited, so this walk does not count`, cells: shot(), tones: { ...ptone("window"), [`${r}:${c}`]: "bad" } });
+          return;
+        }
+        const keep = g[r][c]; g[r][c] = -1; path.push([r, c]);
+        const free = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dr, dc]) => { const nr = r + dr, nc = c + dc; return nr >= 0 && nr < R && nc >= 0 && nc < C && g[nr][nc] >= 0; }).length;
+        if (!free) frames.push({ note: `dead end at (${r},${c}): every neighbour is a wall or already used and this is not E, so back up`, cells: shot(), tones: { ...ptone("window"), [`${r}:${c}`]: "bad" } });
+        for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) dfs(r + dr, c + dc, left - 1);
+        path.pop(); g[r][c] = keep;
+      };
       dfs(0, 0, need);
-      frames.push({ note: `${count} paths walk over every empty square exactly once`, cells: base });
+      frames.push({ note: `Every route is tried: ${count} paths cover all ${need - 1} empty squares`, cells: base });
       return { kind: "table", title: `Unique paths III: ${count}`, rowHead: heads(R, "r"), colHead: heads(C, "c"), frames };
     },
   },
@@ -1383,8 +1544,18 @@ def maxEvents(events):
     return ans`,
     lang: "python", time: "O(n log n)", space: "O(n)",
     viz: () => {
-      const items = ([[1, 2], [1, 2], [2, 3], [3, 4], [1, 1]] as [number, number][]).sort((a, b) => a[0] - b[0] || a[1] - b[1]), frames: IntervalsFrame[] = [], tn: Record<number, Tone> = {}; let heap: number[] = [], i = 0, day = 0, ans = 0;
-      while (i < items.length || heap.length) { if (!heap.length) day = Math.max(day, items[i][0]); while (i < items.length && items[i][0] <= day) heap.push(i++); heap.sort((a, b) => items[a][1] - items[b][1]); const e = heap.shift()!; ans++; tn[e] = "found"; const missed = heap.filter((x) => items[x][1] < day + 1); missed.forEach((x) => (tn[x] = "bad")); heap = heap.filter((x) => items[x][1] >= day + 1); frames.push({ note: `day ${day}: attend [${items[e].join(", ")}] (ends soonest), total ${ans}${missed.length ? `; ${missed.length} event${missed.length > 1 ? "s" : ""} expired` : ""}`, tones: { ...tones(heap, "window"), ...tn, [e]: "active" }, line: day }); day++; }
+      const items = ([[1, 4], [4, 4], [2, 2], [3, 4], [1, 1], [2, 3], [5, 5]] as [number, number][]).sort((a, b) => a[0] - b[0] || a[1] - b[1]), frames: IntervalsFrame[] = [], tn: Record<number, Tone> = {}; let heap: number[] = [], i = 0, day = 0, ans = 0;
+      frames.push({ note: "Sorted by start. Each day, add the events that have started to a pool, attend the one that ends soonest, and drop any that can no longer be attended", tones: tones(items.map((_, k) => k), "muted") });
+      while (i < items.length || heap.length) {
+        if (!heap.length) day = Math.max(day, items[i][0]);
+        const added: number[] = []; while (i < items.length && items[i][0] <= day) { heap.push(i); added.push(i++); }
+        heap.sort((a, b) => items[a][1] - items[b][1]);
+        if (added.length) frames.push({ note: `day ${day}: ${added.map((k) => `[${items[k].join(", ")}]`).join(" and ")} ${added.length > 1 ? "have" : "has"} started, so ${added.length > 1 ? "they join" : "it joins"} the pool (${heap.length} in pool)`, tones: { ...tn, ...tones(heap, "window"), ...tones(added, "active") }, line: day });
+        const e = heap.shift()!; ans++; tn[e] = "found"; day++;
+        const gone = heap.filter((x) => items[x][1] < day); gone.forEach((x) => (tn[x] = "bad")); heap = heap.filter((x) => items[x][1] >= day);
+        frames.push({ note: `attend [${items[e].join(", ")}] on day ${day - 1} because it ends soonest, ${ans} attended${gone.length ? `; ${gone.map((x) => `[${items[x].join(", ")}]`).join(" and ")} ended before day ${day} and ${gone.length > 1 ? "are" : "is"} dropped` : ""}`, tones: { ...tn, ...tones(heap, "window") }, line: day - 1 });
+      }
+      frames.push({ note: `The pool and the list are both empty: ${ans} events attended`, tones: { ...tn } });
       return { kind: "intervals", title: `Events attended: ${ans}`, items, frames };
     },
   },
@@ -1403,9 +1574,14 @@ def maxEvents(events):
     return lo`,
     lang: "python", time: "O(n log(min·trips))", space: "O(1)",
     viz: () => {
-      const time = [1, 2, 3], goal = 5, frames: CellsFrame[] = []; let lo = 1, hi = Math.min(...time) * goal;
-      while (lo < hi) { const mid = (lo + hi) >> 1, per = time.map((t) => Math.floor(mid / t)), s = per.reduce((a, b) => a + b, 0); frames.push({ note: `T = ${mid}: trips [${per.join(", ")}] = ${s} ${s >= goal ? `≥ ${goal}, try smaller (hi = ${mid})` : `< ${goal}, need more (lo = ${mid + 1})`}`, rows: [time, per], tones: range(0, time.length - 1, 1, s >= goal ? "found" : "bad") }); if (s >= goal) hi = mid; else lo = mid + 1; }
-      frames.push({ note: `lo = hi = ${lo}: the least time`, rows: [time, time.map((t) => Math.floor(lo / t))], tones: range(0, time.length - 1, 1, "found") });
+      const time = [2, 3, 5], goal = 12, frames: CellsFrame[] = []; let lo = 1, hi = Math.min(...time) * goal;
+      frames.push({ note: `Each bus needs [${time.join(", ")}] time per trip; find the least T where the buses finish ${goal} trips. T = ${hi} always works (fastest bus alone), so search lo = ${lo}, hi = ${hi}`, rows: [time, blank(time.length)] });
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1, per = time.map((t) => Math.floor(mid / t)), s = per.reduce((a, b) => a + b, 0);
+        frames.push({ note: `lo = ${lo}, hi = ${hi}, T = ${mid}: trips [${per.join(", ")}] add to ${s}, ${s >= goal ? `at least ${goal}, so ${mid} may work: hi = ${mid}` : `below ${goal}, so ${mid} is too little: lo = ${mid + 1}`}`, rows: [time, per], tones: range(0, time.length - 1, 1, s >= goal ? "found" : "bad") });
+        if (s >= goal) hi = mid; else lo = mid + 1;
+      }
+      frames.push({ note: `lo = hi = ${lo}: the least time for ${goal} trips is ${lo}`, rows: [time, time.map((t) => Math.floor(lo / t))], tones: range(0, time.length - 1, 1, "found") });
       return cells(`Least time for ${goal} trips: ${lo}`, [time, blank(time.length)], frames, ["bus time", "trips by T"]);
     },
   },
@@ -1422,8 +1598,14 @@ def maxEvents(events):
     return total`,
     lang: "python", time: "O(R·C)", space: "O(1)",
     viz: () => {
-      const g = [[0, 0, 1, 1], [1, 0, 1, 0], [1, 1, 0, 0]], R = 3, C = 4, m = g.map((r) => (r[0] ? [...r] : r.map((x) => 1 - x))), frames: TableFrame[] = [{ note: "flip rows that start with 0", cells: grid(m), tones: keys(g.flatMap((r, i) => (r[0] ? [] : Array.from({ length: C }, (_, c) => `${i}:${c}`))), "window") }]; let total = 0;
-      for (let c = 0; c < C; c++) { const ones = m.filter((r) => r[c]).length, flip = ones * 2 < R; if (flip) m.forEach((r) => (r[c] = 1 - r[c])); const v = Math.max(ones, R - ones) << (C - 1 - c); total += v; frames.push({ note: `column ${c}: ${ones} one${ones === 1 ? "" : "s"}${flip ? ", flip it" : ""} → ${Math.max(ones, R - ones)} × ${1 << (C - 1 - c)} = ${v} (total ${total})`, cells: grid(m), tones: keys(m.map((_, r) => `${r}:${c}`), flip ? "active" : "found") }); }
+      const g = [[0, 0, 1, 1, 0], [1, 0, 1, 0, 1], [1, 1, 0, 0, 0], [0, 1, 1, 0, 1]], R = 4, C = 5, m = g.map((r) => (r[0] ? [...r] : r.map((x) => 1 - x))), frames: TableFrame[] = [{ note: "Each row is a binary number, so the left column matters most: flip every row that starts with 0 to make it start with 1", cells: grid(g) }];
+      frames.push({ note: `Rows ${g.map((r, i) => (r[0] ? -1 : i)).filter((i) => i >= 0).join(" and ")} started with 0 and are flipped. Now every row starts with 1`, cells: grid(m), tones: keys(g.flatMap((r, i) => (r[0] ? [] : Array.from({ length: C }, (_, c) => `${i}:${c}`))), "window") });
+      let total = 0;
+      for (let c = 0; c < C; c++) {
+        const ones = m.filter((r) => r[c]).length, flip = ones * 2 < R, keep = Math.max(ones, R - ones), v = keep << (C - 1 - c); if (flip) m.forEach((r) => (r[c] = 1 - r[c])); total += v;
+        frames.push({ note: `column ${c}: ${ones} one${ones === 1 ? "" : "s"} out of ${R}${c === 0 ? ", already all ones" : flip ? `, fewer than half, so flip the column to get ${keep}` : `, at least half, so leave it`}; ${keep} x ${1 << (C - 1 - c)} = ${v}, total ${total}`, cells: grid(m), tones: keys(m.map((_, r) => `${r}:${c}`), flip ? "active" : "found") });
+      }
+      frames.push({ note: `Rows now read ${m.map((r) => parseInt(r.join(""), 2)).join(" + ")} = ${total}, the maximum score`, cells: grid(m), tones: keys(m.flatMap((r, i) => r.map((_, c) => `${i}:${c}`)), "found") });
       return { kind: "table", title: `Max score: ${total}`, rowHead: heads(R, "r"), colHead: heads(C, "c"), frames };
     },
   },
@@ -1441,9 +1623,15 @@ def maxEvents(events):
     return ops`,
     lang: "python", time: "O(n log n)", space: "O(1)",
     viz: () => {
-      const a = [1, 1, 2, 2, 3, 5].sort((p, q) => p - q), st: (string | number)[] = blank(a.length), frames: CellsFrame[] = []; let ops = 0, steps = 0; st[0] = 0;
-      for (let i = 1; i < a.length; i++) { if (a[i] !== a[i - 1]) steps++; ops += steps; st[i] = steps; frames.push({ note: `${a[i]} has ${steps} distinct smaller value${steps === 1 ? "" : "s"} → ${steps} operation${steps === 1 ? "" : "s"} (total ${ops})`, rows: [a, [...st]], tones: { [`1:${i}`]: "active", [`0:${i}`]: "active" } }); }
-      return cells(`Operations: ${ops}`, [a, blank(a.length)], frames, ["sorted", "ops"]);
+      const raw = [5, 1, 3, 3, 2, 5, 7, 1], a = [...raw].sort((p, q) => p - q), st: (string | number)[] = blank(a.length), frames: CellsFrame[] = []; let ops = 0, steps = 0; st[0] = 0;
+      frames.push({ note: `Each operation lowers one largest value to the next smaller value. Sort first: ${raw.join(", ")}`, rows: [raw, blank(raw.length)] });
+      frames.push({ note: `Sorted: [${a.join(", ")}]. A value with k distinct smaller values needs exactly k operations`, rows: [a, [...st]], tones: { "1:0": "found" } });
+      for (let i = 1; i < a.length; i++) {
+        const up = a[i] !== a[i - 1]; if (up) steps++; ops += steps; st[i] = steps;
+        frames.push({ note: `${a[i]} vs ${a[i - 1]}: ${up ? `a new larger value, so steps rises to ${steps}` : `the same value, steps stays ${steps}`}; this element costs ${steps}, total ${ops}`, rows: [a, [...st]], tones: { [`1:${i}`]: "active", [`0:${i}`]: "active", [`0:${i - 1}`]: "window" } });
+      }
+      frames.push({ note: `Added over every element: ${ops} operations`, rows: [a, [...st]], tones: range(0, a.length - 1, 1, "found") });
+      return cells(`Operations: ${ops}`, [raw, blank(raw.length)], frames, ["sorted", "ops"]);
     },
   },
 
@@ -1468,10 +1656,22 @@ def maxEvents(events):
     return max(0, dp[n - 1][n - 1])`,
     lang: "python", time: "O(n³)", space: "O(n²)",
     viz: () => {
-      const g = [[0, 1, -1], [1, 0, -1], [1, 1, 1]], n = 3, NEG = -1e9, frames: TableFrame[] = []; let dp = Array.from({ length: n }, () => Array(n).fill(NEG)); dp[0][0] = g[0][0];
+      const g = [[1, 1, -1, 1], [1, 0, -1, 1], [1, 1, 1, 1], [0, 1, 1, 1]], n = 4, NEG = -1e9, frames: TableFrame[] = []; let dp = Array.from({ length: n }, () => Array(n).fill(NEG)); dp[0][0] = g[0][0];
       const show = grid(g).map((r) => r.map((x) => (x === -1 ? "#" : x)));
-      for (let t = 1; t < 2 * n - 1; t++) { const nx = Array.from({ length: n }, () => Array(n).fill(NEG)); let bv = NEG, b1 = 0, b2 = 0; for (let r1 = Math.max(0, t - n + 1); r1 < Math.min(n, t + 1); r1++) for (let r2 = Math.max(0, t - n + 1); r2 < Math.min(n, t + 1); r2++) { const c1 = t - r1, c2 = t - r2; if (g[r1][c1] < 0 || g[r2][c2] < 0) continue; let best = NEG; for (const a of [r1 - 1, r1]) for (const b of [r2 - 1, r2]) if (a >= 0 && b >= 0) best = Math.max(best, dp[a][b]); if (best <= NEG / 2) continue; nx[r1][r2] = best + g[r1][c1] + (r1 !== r2 ? g[r2][c2] : 0); if (nx[r1][r2] > bv) { bv = nx[r1][r2]; b1 = r1; b2 = r2; } } dp = nx; const diag = Array.from({ length: n }, (_, r) => r).filter((r) => t - r >= 0 && t - r < n).map((r) => `${r}:${t - r}`); frames.push({ note: `step ${t}: best so far ${bv} with walkers at (${b1},${t - b1}) and (${b2},${t - b2})`, cells: show, tones: { ...keys(diag, "window"), ...keys([`${b1}:${t - b1}`, `${b2}:${t - b2}`], "found") } }); }
+      frames.push({ note: `Two walkers go from (0,0) to (3,3) at the same time, one step right or down each, so after t steps both are on the diagonal r + c = t. State = (row of walker 1, row of walker 2); # is a thorn. Start holds ${g[0][0]}`, cells: show, tones: { "0:0": "found" } });
+      for (let t = 1; t < 2 * n - 1; t++) {
+        const nx = Array.from({ length: n }, () => Array(n).fill(NEG)); let bv = NEG, b1 = 0, b2 = 0, live = 0;
+        for (let r1 = Math.max(0, t - n + 1); r1 < Math.min(n, t + 1); r1++) for (let r2 = Math.max(0, t - n + 1); r2 < Math.min(n, t + 1); r2++) {
+          const c1 = t - r1, c2 = t - r2; if (g[r1][c1] < 0 || g[r2][c2] < 0) continue;
+          let best = NEG; for (const a of [r1 - 1, r1]) for (const b of [r2 - 1, r2]) if (a >= 0 && b >= 0) best = Math.max(best, dp[a][b]);
+          if (best <= NEG / 2) continue; live++;
+          nx[r1][r2] = best + g[r1][c1] + (r1 !== r2 ? g[r2][c2] : 0); if (nx[r1][r2] > bv) { bv = nx[r1][r2]; b1 = r1; b2 = r2; }
+        }
+        dp = nx; const diag = Array.from({ length: n }, (_, r) => r).filter((r) => t - r >= 0 && t - r < n).map((r) => `${r}:${t - r}`);
+        frames.push({ note: `after step ${t}: ${live} reachable state${live === 1 ? "" : "s"} on the diagonal; the richest has ${bv} cherries with walkers at (${b1},${t - b1}) and (${b2},${t - b2})${b1 === b2 ? ", on the same square so it counts once" : ""}`, cells: show, tones: { ...keys(diag, "window"), ...keys([`${b1}:${t - b1}`, `${b2}:${t - b2}`], "found") } });
+      }
       const ans = Math.max(0, dp[n - 1][n - 1]);
+      frames.push({ note: `Both walkers arrive at (${n - 1},${n - 1}) with ${ans} cherries picked in total`, cells: show, tones: { [`${n - 1}:${n - 1}`]: "found" } });
       return { kind: "table", title: `Cherries collected: ${ans}`, rowHead: heads(n, "r"), colHead: heads(n, "c"), frames };
     },
   },
@@ -1497,8 +1697,17 @@ def maxEvents(events):
     return best`,
     lang: "python", time: "O(n²)", space: "O(1)",
     viz: () => {
-      const a = [-1, 2, 1, -4, 3].sort((p, q) => p - q), target = 1, frames: CellsFrame[] = []; let best = a[0] + a[1] + a[2];
-      outer: for (let i = 0; i < a.length - 2; i++) { let j = i + 1, k = a.length - 1; while (j < k) { const s = a[i] + a[j] + a[k]; if (Math.abs(s - target) < Math.abs(best - target)) best = s; frames.push({ note: `${a[i]} + ${a[j]} + ${a[k]} = ${s} (best ${best})${s < target ? ", too small: j++" : s > target ? ", too big: k--" : ", exact"}`, tones: { [`0:${i}`]: "found", [`0:${j}`]: "active", [`0:${k}`]: "active" }, marks: [{ i, label: "i" }, { i: j, label: "j" }, { i: k, label: "k" }] }); if (s < target) j++; else if (s > target) k--; else break outer; } }
+      const a = [-5, -2, 1, 3, 4, 8].sort((p, q) => p - q), target = 11, frames: CellsFrame[] = []; let best = a[0] + a[1] + a[2];
+      frames.push({ note: `Sorted [${a.join(", ")}], target ${target}. Fix i, then move j and k inward; best starts as the first three, ${a[0]} + ${a[1]} + ${a[2]} = ${best}`, marks: [] });
+      outer: for (let i = 0; i < a.length - 2; i++) {
+        let j = i + 1, k = a.length - 1;
+        while (j < k) {
+          const s = a[i] + a[j] + a[k], better = Math.abs(s - target) < Math.abs(best - target); if (better) best = s;
+          frames.push({ note: `${a[i]} + ${a[j]} + ${a[k]} = ${s}, ${Math.abs(s - target)} from ${target}${better ? `, closer than before so best = ${best}` : `, best stays ${best}`}; ${s < target ? "below target, move j right" : s > target ? "above target, move k left" : "exact hit, stop"}`, tones: { [`0:${i}`]: "found", [`0:${j}`]: "active", [`0:${k}`]: "active" }, marks: [{ i, label: "i" }, { i: j, label: "j" }, { i: k, label: "k" }] });
+          if (s < target) j++; else if (s > target) k--; else break outer;
+        }
+      }
+      frames.push({ note: `Every i is done: the sum closest to ${target} is ${best}`, tones: {} });
       return cells(`Closest to ${target}: ${best}`, [a], frames);
     },
   },
@@ -1519,9 +1728,21 @@ def maxEvents(events):
     return out`,
     lang: "python", time: "O(n · L²)", space: "O(n · L)",
     viz: () => {
-      const words = ["abcd", "dcba", "lls", "s", "sssll"], idx = new Map(words.map((w, i) => [[...w].reverse().join(""), i])), pal = (x: string) => x === [...x].reverse().join(""), frames: TableFrame[] = [], out: number[][] = [];
-      words.forEach((w, i) => { for (let k = 0; k <= w.length; k++) { const pre = w.slice(0, k), suf = w.slice(k); if (pal(pre) && idx.has(suf) && idx.get(suf) !== i) { const j = idx.get(suf)!; out.push([j, i]); frames.push({ note: `"${w}": prefix "${pre}" is a palindrome and "${words[j]}" reverses the rest → "${words[j]}${w}"`, cells: [words], tones: { ["0:" + j]: "active", ["0:" + i]: "found" } }); } if (k !== w.length && pal(suf) && idx.has(pre) && idx.get(pre) !== i) { const j = idx.get(pre)!; out.push([i, j]); frames.push({ note: `"${w}": suffix "${suf}" is a palindrome and "${words[j]}" reverses "${pre}" → "${w}${words[j]}"`, cells: [words], tones: { ["0:" + i]: "found", ["0:" + j]: "active" } }); } } });
-      return { kind: "table", title: `Pairs: ${out.map((p) => `[${p.join(",")}]`).join(" ")}`, rowHead: ["words"], colHead: heads(words.length), frames };
+      const words = ["abcd", "dcba", "lls", "s", "sssll"], rev = (x: string) => [...x].reverse().join(""), idx = new Map(words.map((w, i) => [rev(w), i])), pal = (x: string) => x === rev(x), frames: TableFrame[] = [], out: number[][] = [], found: (string | number)[] = words.map(() => "");
+      const snap = () => [words, [...found]] as (string | number | null)[][];
+      frames.push({ note: `Map each reversed word to its index: ${words.map((w, i) => `"${rev(w)}" is ${i}`).join(", ")}. For every word try each split into prefix and suffix`, cells: snap() });
+      words.forEach((w, i) => {
+        const hits: string[] = [], mine: string[] = [], used: number[] = [];
+        for (let k = 0; k <= w.length; k++) {
+          const pre = w.slice(0, k), suf = w.slice(k);
+          if (pal(pre) && idx.has(suf) && idx.get(suf) !== i) { const j = idx.get(suf)!; out.push([j, i]); mine.push(`[${j},${i}]`); used.push(j); hits.push(`prefix "${pre}" is a palindrome and "${suf}" is the reverse of "${words[j]}", so "${words[j]}${w}" works`); }
+          if (k !== w.length && pal(suf) && idx.has(pre) && idx.get(pre) !== i) { const j = idx.get(pre)!; out.push([i, j]); mine.push(`[${i},${j}]`); used.push(j); hits.push(`suffix "${suf}" is a palindrome and "${pre}" is the reverse of "${words[j]}", so "${w}${words[j]}" works`); }
+        }
+        found[i] = mine.join(" ");
+        frames.push({ note: hits.length ? `"${w}": ${hits.join("; ")}` : `"${w}": none of its ${w.length + 1} splits has a palindrome side whose other side is a reversed word`, cells: snap(), tones: hits.length ? { [`0:${i}`]: "found", ...keys(used.map((j) => `0:${j}`), "active") } : { [`0:${i}`]: "muted" } });
+      });
+      frames.push({ note: `All words checked: pairs ${out.map((p) => `[${p.join(",")}]`).join(" ")}`, cells: snap(), tones: keys(words.map((_, i) => `0:${i}`), "found") });
+      return { kind: "table", title: `Pairs: ${out.map((p) => `[${p.join(",")}]`).join(" ")}`, rowHead: ["words", "pairs"], colHead: heads(words.length), frames };
     },
   },
   "find-the-original-array-of-prefix-xor": {
@@ -1531,8 +1752,13 @@ def maxEvents(events):
     return [pref[0]] + [pref[i] ^ pref[i - 1] for i in range(1, len(pref))]`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const p = [5, 2, 0, 3, 1], out: (string | number)[] = blank(p.length), frames: CellsFrame[] = [];
-      p.forEach((x, i) => { out[i] = i ? x ^ p[i - 1] : x; frames.push({ note: i ? `arr[${i}] = ${x} ^ ${p[i - 1]} = ${out[i]}` : `arr[0] = pref[0] = ${x}`, rows: [p, [...out]], tones: { [`0:${i}`]: "active", ...(i ? { [`0:${i - 1}`]: "window" as Tone } : {}), [`1:${i}`]: "found" } }); });
+      const p = [5, 2, 0, 3, 1, 4, 6, 7], out: (string | number)[] = blank(p.length), frames: CellsFrame[] = [];
+      frames.push({ note: `pref[i] = arr[0] ^ ... ^ arr[i]. XOR cancels itself, so pref[i] ^ pref[i-1] leaves only arr[i]`, rows: [p, [...out]] });
+      p.forEach((x, i) => {
+        out[i] = i ? x ^ p[i - 1] : x;
+        frames.push({ note: i ? `arr[${i}] = pref[${i}] ^ pref[${i - 1}] = ${x} ^ ${p[i - 1]} = ${out[i]}` : `arr[0] = pref[0] = ${x}, there is nothing before it`, rows: [p, [...out]], tones: { [`0:${i}`]: "active", ...(i ? { [`0:${i - 1}`]: "window" as Tone } : {}), [`1:${i}`]: "found" } });
+      });
+      frames.push({ note: `Original array is [${out.join(", ")}]; XOR-ing it up from the left reproduces pref`, rows: [p, [...out]], tones: range(0, p.length - 1, 1, "found") });
       return cells(`Original: [${out.join(", ")}]`, [p, blank(p.length)], frames, ["pref", "arr"]);
     },
   },
@@ -1559,9 +1785,22 @@ def maxEvents(events):
         level = {t[:i] + t[i + 1:] for t in level for i in range(len(t)) if t[i] in "()"}`,
     lang: "python", time: "O(n · 2ⁿ) worst case", space: "O(2ⁿ)",
     viz: () => {
-      const s = "()())()", valid = (t: string) => { let b = 0; for (const c of t) { if (c === "(") b++; else if (c === ")" && --b < 0) return false; } return b === 0; }, frames: TableFrame[] = [], rows: string[][] = [];
-      let level = [s]; const W = 6;
-      for (let d = 0; ; d++) { const good = level.filter(valid); rows.push(level.slice(0, W)); const cellsNow = rows.map((r) => [...r, ...Array(W - r.length).fill(null)]); frames.push({ note: good.length ? `level ${d}: valid strings ${good.map((g) => `"${g}"`).join(", ")} → stop` : `level ${d}: ${level.length} string${level.length > 1 ? "s" : ""}, none valid → remove one more bracket`, cells: cellsNow, tones: keys(level.slice(0, W).map((t, j) => (valid(t) ? `${d}:${j}` : "")).filter(Boolean), "found") }); if (good.length) break; level = [...new Set(level.flatMap((t) => [...t].map((c, i) => (c === "(" || c === ")" ? t.slice(0, i) + t.slice(i + 1) : "")).filter((x, i) => "()".includes(t[i]))))]; }
+      const s = "()())()", W = 6, frames: TableFrame[] = [], rows: string[][] = [], tn: Record<string, Tone> = {};
+      const why = (t: string) => { let b = 0; for (let i = 0; i < t.length; i++) { b += t[i] === "(" ? 1 : t[i] === ")" ? -1 : 0; if (b < 0) return `the ")" at position ${i} has no "(" before it`; } return b ? `${b} "(" never closed` : ""; };
+      const snap = () => rows.map((r) => [...r, ...Array(W - r.length).fill(null)]) as (string | number | null)[][];
+      let level = [s], found: string[] = [];
+      frames.push({ note: `Remove the fewest brackets from "${s}" to make it balanced. Check the string as it is, then every string with one bracket removed, and so on, stopping at the first level with a valid string`, cells: [Array(W).fill(null)] });
+      for (let d = 0; !found.length; d++) {
+        rows.push(level.slice(0, W));
+        if (d) frames.push({ note: `Remove one bracket in every possible place: ${level.length} different string${level.length > 1 ? "s" : ""} (level ${d})`, cells: snap() });
+        level.slice(0, W).forEach((t, j) => {
+          const bad = why(t); tn[`${d}:${j}`] = bad ? "bad" : "found"; if (!bad) found.push(t);
+          frames.push({ note: bad ? `"${t}" is not valid: ${bad}` : `"${t}" is valid, balanced all the way`, cells: snap(), tones: { ...tn, [`${d}:${j}`]: bad ? "bad" : "found" } });
+        });
+        if (found.length) break;
+        level = [...new Set(level.flatMap((t) => [...t].map((c, i) => (c === "(" || c === ")" ? t.slice(0, i) + t.slice(i + 1) : "")).filter(Boolean)))];
+      }
+      frames.push({ note: `The first level with valid strings has them: ${found.map((g) => `"${g}"`).join(" and ")}, after removing ${rows.length - 1} bracket${rows.length > 2 ? "s" : ""}`, cells: snap(), tones: { ...tn } });
       return { kind: "table", title: `Fewest removals from "${s}"`, rowHead: rows.map((_, d) => `${d} removed`), colHead: heads(W), frames };
     },
   },
@@ -1603,12 +1842,17 @@ def maximumLength(s):
     return best if best > 0 else -1`,
     lang: "python", time: "O(n log n)", space: "O(n)",
     viz: () => {
-      const s = "aaabaacaa", runs = new Map<string, number[]>(), frames: TableFrame[] = []; let best = -1;
+      const s = "aabbbaaccdccccbcceee", runs = new Map<string, number[]>(), frames: TableFrame[] = []; let best = -1;
       for (let i = 0; i < s.length;) { let j = i; while (j < s.length && s[j] === s[i]) j++; runs.set(s[i], [...(runs.get(s[i]) || []), j - i]); i = j; }
       const letters = [...runs.keys()], rows: (string | number | null)[][] = letters.map(() => [null, null, null, null]);
-      letters.forEach((ch, r) => { const [a, b, c] = [...runs.get(ch)!.sort((x, y) => y - x), 0, 0].slice(0, 3), v = Math.max(a - 2, Math.min(a - 1, b), c); best = Math.max(best, v); rows[r] = [a, b, c, v]; frames.push({ note: `'${ch}' runs ${a}, ${b}, ${c}: max(${a} - 2, min(${a - 1}, ${b}), ${c}) = ${v} (best ${best})`, cells: rows.map((x) => [...x]), active: [r, 3] }); });
+      frames.push({ note: `Cut "${s}" into runs of one letter: ${letters.map((ch) => `${ch}: [${runs.get(ch)!.join(", ")}]`).join("; ")}. A run of length L holds the length L - 2 block 3 times, so only the 3 longest runs of a letter matter`, cells: rows.map((x) => [...x]) });
+      letters.forEach((ch, r) => {
+        const [a, b, c] = [...runs.get(ch)!.sort((x, y) => y - x), 0, 0].slice(0, 3), v = Math.max(a - 2, Math.min(a - 1, b), c), old = best; best = Math.max(best, v); rows[r] = [a, b, c, v];
+        frames.push({ note: `'${ch}' longest runs ${a}, ${b}, ${c}: max(${a} - 2 inside the longest, min(${a - 1}, ${b}) from the top two, ${c} from three runs) = ${v}${v > old ? `, a new best` : `, best stays ${best}`}`, cells: rows.map((x) => [...x]), active: [r, 3] });
+      });
       const ans = best > 0 ? best : -1;
-      return { kind: "table", title: `"${s}": ${ans}`, rowHead: letters, colHead: ["a", "b", "c", "length"], frames };
+      frames.push({ note: ans > 0 ? `Best over all letters is ${best}, so the answer is ${ans}` : "No letter has a block occurring three times, so the answer is -1", cells: rows.map((x) => [...x]), tones: keys(rows.map((_, r) => `${r}:3`), "found") });
+      return { kind: "table", title: `"${s}": ${ans}`, rowHead: letters, colHead: ["longest", "2nd", "3rd", "best"], frames };
     },
   },
 
@@ -1660,10 +1904,15 @@ def maximumLength(s):
     return lo`,
     lang: "python", time: "O(n log max)", space: "O(1)",
     viz: () => {
-      const b = [7, 7, 7, 7, 12, 7, 7], m = 2, k = 3, frames: CellsFrame[] = []; let lo = Math.min(...b), hi = Math.max(...b);
+      const b = [1, 10, 3, 10, 2, 4, 7, 12, 5], m = 3, k = 2, frames: CellsFrame[] = []; let lo = Math.min(...b), hi = Math.max(...b);
       const test = (d: number) => { let made = 0, run = 0; const tn: Record<string, Tone> = {}; b.forEach((x, i) => { run = x <= d ? run + 1 : 0; tn[`0:${i}`] = x <= d ? "window" : "muted"; if (run === k) { made++; run = 0; for (let j = i - k + 1; j <= i; j++) tn[`0:${j}`] = "found"; } }); return { made, tn }; };
-      while (lo < hi) { const mid = (lo + hi) >> 1, { made, tn } = test(mid); frames.push({ note: `day ${mid}: ${made} bouquet${made === 1 ? "" : "s"} ${made >= m ? `≥ ${m}, try earlier (hi = ${mid})` : `< ${m}, wait longer (lo = ${mid + 1})`}`, tones: tn }); if (made >= m) hi = mid; else lo = mid + 1; }
-      frames.push({ note: `answer: day ${lo}`, tones: test(lo).tn });
+      frames.push({ note: `Flower i blooms on day b[i]. Need ${m} bouquets of ${k} adjacent flowers: ${m * k} flowers out of ${b.length}, so it is possible. Binary search the day between ${lo} and ${hi}`, tones: {} });
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1, { made, tn } = test(mid);
+        frames.push({ note: `lo = ${lo}, hi = ${hi}, day ${mid}: ${made} bouquet${made === 1 ? "" : "s"} of ${k} adjacent bloomed flowers, ${made >= m ? `at least ${m}, so day ${mid} works: hi = ${mid}` : `fewer than ${m}, so wait longer: lo = ${mid + 1}`}`, tones: tn });
+        if (made >= m) hi = mid; else lo = mid + 1;
+      }
+      frames.push({ note: `lo = hi = ${lo}: the earliest day with ${m} bouquets is day ${lo}`, tones: test(lo).tn });
       return cells(`${m} bouquets of ${k}: day ${lo}`, [b], frames);
     },
   },
@@ -1713,9 +1962,15 @@ def shortestPath(grid, k):
     return out`,
     lang: "python", time: "O(2ⁿ · n)", space: "O(2ⁿ · n)",
     viz: () => {
-      const s = "a1b2", frames: TableFrame[] = [], rows: string[][] = []; let out = [""];
-      for (const c of s) { const opts = /[a-z]/i.test(c) ? [c.toLowerCase(), c.toUpperCase()] : [c]; out = out.flatMap((p) => opts.map((x) => p + x)); rows.push([...out]); frames.push({ note: `'${c}': ${opts.length > 1 ? "letter, every string splits in two" : "digit, append it"} → ${out.length} string${out.length > 1 ? "s" : ""}`, cells: rows.map((r) => [...r, ...Array(4 - r.length).fill(null)]), tones: keys(out.map((_, j) => `${rows.length - 1}:${j}`), "found") }); }
-      return { kind: "table", title: `"${s}": ${out.join(", ")}`, rowHead: [...s].map((c) => `after ${c}`), colHead: heads(4), frames };
+      const s = "a1b2c", W = 8, frames: TableFrame[] = [], rows: string[][] = []; let out = [""];
+      const snap = () => rows.map((r) => [...r, ...Array(W - r.length).fill(null)]) as (string | number | null)[][];
+      frames.push({ note: `Build the answer one character at a time: a letter doubles every string (lower and upper), a digit is just appended. Start from one empty string`, cells: [Array(W).fill(null)] });
+      for (const c of s) {
+        const opts = /[a-z]/i.test(c) ? [c.toLowerCase(), c.toUpperCase()] : [c]; out = out.flatMap((p) => opts.map((x) => p + x)); rows.push([...out]);
+        frames.push({ note: `'${c}' is ${opts.length > 1 ? `a letter: each string gets "${opts[0]}" and "${opts[1]}", so ${out.length / 2} becomes ${out.length}` : `a digit: append it to each of the ${out.length} string${out.length > 1 ? "s" : ""}, the count stays ${out.length}`}`, cells: snap(), tones: keys(out.map((_, j) => `${rows.length - 1}:${j}`), "found") });
+      }
+      frames.push({ note: `All ${s.length} characters done: ${out.length} strings, 2 choices for each of the ${[...s].filter((c) => /[a-z]/i.test(c)).length} letters`, cells: snap(), tones: keys(out.map((_, j) => `${rows.length - 1}:${j}`), "window") });
+      return { kind: "table", title: `"${s}": ${out.join(", ")}`, rowHead: [...s].map((c) => `after ${c}`), colHead: heads(W), frames };
     },
   },
 
@@ -1733,10 +1988,15 @@ def shortestPath(grid, k):
     return sum(sums[left - 1:right]) % (10**9 + 7)`,
     lang: "python", time: "O(n² log n)", space: "O(n²)",
     viz: () => {
-      const a = [1, 2, 3, 4], n = 4, L = 1, Rt = 5, M: (number | null)[][] = a.map(() => Array(n).fill(null)), frames: TableFrame[] = [], sums: number[] = [];
-      for (let i = 0; i < n; i++) { let s = 0; for (let j = i; j < n; j++) { s += a[j]; M[i][j] = s; sums.push(s); } frames.push({ note: `start ${i}: running sums ${M[i].filter((x) => x != null).join(", ")}`, cells: M.map((r) => [...r]), tones: keys(Array.from({ length: n - i }, (_, d) => `${i}:${i + d}`), "window") }); }
-      const sorted = [...sums].sort((p, q) => p - q), pick = sorted.slice(L - 1, Rt), tot = pick.reduce((p, q) => p + q, 0);
-      frames.push({ note: `sorted: [${sorted.join(", ")}]; positions ${L}..${Rt} are [${pick.join(", ")}] → ${tot}`, cells: M, tones: keys(M.flatMap((r, i) => r.map((v, j) => (v != null && pick.includes(v) ? `${i}:${j}` : ""))).filter(Boolean), "found") });
+      const a = [1, 2, 3, 4, 5], n = 5, L = 3, Rt = 7, M: (number | null)[][] = a.map(() => Array(n).fill(null)), frames: TableFrame[] = [], sums: { v: number; i: number; j: number }[] = [];
+      frames.push({ note: `List the sum of every subarray of [${a.join(", ")}] (row = start, column = end), sort all ${n * (n + 1) / 2} sums, and add the ${L}rd to ${Rt}th`, cells: M.map((r) => [...r]) });
+      for (let i = 0; i < n; i++) {
+        let s = 0; for (let j = i; j < n; j++) { s += a[j]; M[i][j] = s; sums.push({ v: s, i, j }); }
+        frames.push({ note: `start ${i}: extend one element at a time, running sums ${M[i].filter((x) => x != null).join(", ")}`, cells: M.map((r) => [...r]), tones: keys(Array.from({ length: n - i }, (_, d) => `${i}:${i + d}`), "window") });
+      }
+      const sorted = [...sums].sort((p, q) => p.v - q.v), pick = sorted.slice(L - 1, Rt), tot = pick.reduce((p, q) => p + q.v, 0);
+      frames.push({ note: `Sorted, the ${sums.length} sums read [${sorted.map((x) => x.v).join(", ")}]`, cells: M.map((r) => [...r]), tones: keys(sums.map((x) => `${x.i}:${x.j}`), "window") });
+      frames.push({ note: `Positions ${L} to ${Rt} are [${pick.map((x) => x.v).join(", ")}], which add to ${tot}`, cells: M.map((r) => [...r]), tones: keys(pick.map((x) => `${x.i}:${x.j}`), "found") });
       return { kind: "table", title: `Sum of sorted positions ${L}..${Rt}: ${tot}`, rowHead: heads(n, "from "), colHead: heads(n, "to "), frames };
     },
   },
@@ -1755,8 +2015,14 @@ def shortestPath(grid, k):
     return lo`,
     lang: "python", time: "O(m log(sum/n))", space: "O(1)",
     viz: () => {
-      const n = 2, bat = [3, 3, 3], frames: CellsFrame[] = []; let lo = 0, hi = Math.floor(bat.reduce((a, b) => a + b, 0) / n);
-      while (lo < hi) { const mid = (lo + hi + 1) >> 1, cap = bat.map((b) => Math.min(b, mid)), s = cap.reduce((a, b) => a + b, 0), ok = s >= n * mid; frames.push({ note: `T = ${mid}: capped supply ${cap.join(" + ")} = ${s} ${ok ? `≥ ${n} × ${mid}, works (lo = ${mid})` : `< ${n} × ${mid}, too long (hi = ${mid - 1})`}`, rows: [bat, cap], tones: range(0, bat.length - 1, 1, ok ? "found" : "bad") }); if (ok) lo = mid; else hi = mid - 1; }
+      const n = 3, bat = [1, 9, 3, 6, 5, 2, 8], frames: CellsFrame[] = []; let lo = 0, hi = Math.floor(bat.reduce((a, b) => a + b, 0) / n);
+      frames.push({ note: `${n} computers, batteries [${bat.join(", ")}] that can be swapped any time. Total charge ${bat.reduce((a, b) => a + b, 0)} split ${n} ways caps the run time at ${hi}; binary search the time T from ${lo} to ${hi}`, rows: [bat, blank(bat.length)] });
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1, cap = bat.map((b) => Math.min(b, mid)), s = cap.reduce((a, b) => a + b, 0), ok = s >= n * mid;
+        frames.push({ note: `lo = ${lo}, hi = ${hi}, T = ${mid}: a battery gives at most ${mid}, usable total ${cap.join(" + ")} = ${s}, ${ok ? `at least ${n} x ${mid} = ${n * mid}, so ${mid} works: lo = ${mid}` : `below ${n} x ${mid} = ${n * mid}, so ${mid} is too long: hi = ${mid - 1}`}`, rows: [bat, cap], tones: range(0, bat.length - 1, 1, ok ? "found" : "bad") });
+        if (ok) lo = mid; else hi = mid - 1;
+      }
+      frames.push({ note: `lo = hi = ${lo}: ${n} computers can run for ${lo} minutes`, rows: [bat, bat.map((b) => Math.min(b, lo))], tones: range(0, bat.length - 1, 1, "found") });
       return cells(`${n} computers run for ${lo} minutes`, [bat, blank(bat.length)], frames, ["battery", "min(b, T)"]);
     },
   },
@@ -1785,10 +2051,19 @@ def shortestPath(grid, k):
     return leaves`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const n = 6, E = [[3, 0], [3, 1], [3, 2], [3, 4], [5, 4]], nodes = [{ id: 0, label: "0", x: 10, y: 15 }, { id: 1, label: "1", x: 10, y: 50 }, { id: 2, label: "2", x: 10, y: 85 }, { id: 3, label: "3", x: 40, y: 50 }, { id: 4, label: "4", x: 70, y: 50 }, { id: 5, label: "5", x: 95, y: 50 }];
+      const n = 9, E = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [3, 6], [6, 7], [2, 8]], nodes = [{ id: 0, label: "0", x: 5, y: 50 }, { id: 1, label: "1", x: 22, y: 50 }, { id: 2, label: "2", x: 40, y: 50 }, { id: 3, label: "3", x: 58, y: 50 }, { id: 4, label: "4", x: 76, y: 50 }, { id: 5, label: "5", x: 95, y: 50 }, { id: 6, label: "6", x: 58, y: 85 }, { id: 7, label: "7", x: 82, y: 85 }, { id: 8, label: "8", x: 40, y: 15 }];
       const g = Array.from({ length: n }, () => new Set<number>()); E.forEach(([a, b]) => { g[a].add(b); g[b].add(a); });
-      let leaves = [...g.keys()].filter((i) => g[i].size === 1), left = n; const gone: number[] = [], et: Record<string, Tone> = {}, frames: GraphFrame[] = [];
-      while (left > 2) { frames.push({ note: `trim leaves ${leaves.join(", ")}`, tones: { ...tones(gone, "muted"), ...tones(leaves, "bad") }, edgeTones: { ...et } }); left -= leaves.length; const nx: number[] = []; for (const x of leaves) { const y = [...g[x]][0]; g[x].delete(y); g[y].delete(x); et[ek(x, y)] = "muted"; gone.push(x); if (g[y].size === 1) nx.push(y); } leaves = nx; }
+      let leaves = [...g.keys()].filter((i) => g[i].size === 1), left = n, round = 0; const gone: number[] = [], et: Record<string, Tone> = {}, frames: GraphFrame[] = [];
+      frames.push({ note: `The best roots sit in the middle of the longest path. Peel off all leaves (degree 1) round by round until at most 2 nodes remain. Leaves now: ${leaves.join(", ")}`, tones: tones(leaves, "active") });
+      while (left > 2) {
+        round++; left -= leaves.length; const nx: number[] = [], batch = leaves;
+        for (const x of batch) {
+          const y = [...g[x]][0]; g[x].delete(y); g[y].delete(x); et[ek(x, y)] = "muted"; gone.push(x);
+          if (g[y].size === 1) nx.push(y);
+          frames.push({ note: `round ${round}: remove leaf ${x}; its neighbour ${y} now has ${g[y].size} neighbour${g[y].size === 1 ? "" : "s"}${g[y].size === 1 ? ", so it becomes a leaf for the next round" : ""}`, tones: { ...tones(gone, "muted"), ...tones(batch.filter((l) => !gone.includes(l)), "active"), ...tones(nx, "window"), [x]: "bad" }, edgeTones: { ...et } });
+        }
+        leaves = nx;
+      }
       frames.push({ note: `${left} node${left > 1 ? "s" : ""} left: [${leaves.join(", ")}] are the roots of minimum height`, tones: { ...tones(gone, "muted"), ...tones(leaves, "found") }, edgeTones: { ...et } });
       return { kind: "graph", title: `Minimum height roots: [${leaves.join(", ")}]`, nodes, edges: E.map(([a, b]) => ({ a, b })), frames };
     },

@@ -9,6 +9,8 @@ const THEMES = [
   { name: "classic-dark", look: "classic", mode: "dark" },
   { name: "frieren", look: "frieren", mode: "light" }, // light picture theme
   { name: "starfall", look: "starfall", mode: "dark" }, // dark picture theme
+  { name: "tokyo", look: "tokyo", mode: "dark" }, // solid dark theme
+  { name: "sepia", look: "sepia", mode: "light" }, // solid light theme
 ] as const;
 const WIDTHS = [1280, 375] as const;
 const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void> }[] = [

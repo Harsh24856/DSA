@@ -20,6 +20,12 @@ function trail(frames: TreeFrame[], keep: Tone = "done"): TreeFrame[] {
   const seen: Record<number, Tone> = {};
   return frames.map((f) => { const out = { ...f, tones: { ...seen, ...f.tones } }; Object.keys(f.tones || {}).forEach((k) => { if (f.tones![+k] !== "muted") seen[+k] = f.tones![+k] === "found" ? "found" : keep; }); return out; });
 }
+/** BST built by inserting `vals` in order: node id = index in `vals`, so deeper trees need no null padding. */
+function B(vals: number[]) {
+  const nodes: TNode[] = [], kids: Record<number, [number | null, number | null]> = {};
+  vals.forEach((v, id) => { kids[id] = [null, null]; let p = 0, go = 0; if (id) for (;;) { go = v < vals[p] ? 0 : 1; const c = kids[p][go]; if (c == null) break; p = c; } if (id) kids[p][go] = id; nodes.push({ id, label: String(v), parent: id ? p : null, side: id ? (go ? "R" : "L") : undefined }); });
+  return { nodes, kids, val: (i: number) => vals[i] };
+}
 /** Show only the cells already filled (row by row up to (r, c)). */
 const upto = <X,>(dp: X[][], r: number, c: number) => dp.map((row, i) => row.map((v, j) => (i < r || (i === r && j <= c) ? v : null)));
 
@@ -41,14 +47,19 @@ export const PATTERN2: Record<string, Solution> = {
     return best`,
     lang: "python", time: "O(n)", space: "O(width)",
     viz: () => {
-      const vals: V = [1, 3, 2, 5, null, null, 9, 6, null, null, null, null, null, 7], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [];
-      let level: [number, number][] = [[0, 0]], best = 0, d = 0; const badges: Record<number, string> = {};
+      const vals: V = [1, 3, 2, 5, null, null, 9, 6, null, null, null, null, null, 7], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], badges: Record<number, string> = { 0: "#0" };
+      let level: [number, number][] = [[0, 0]], best = 0, bestD = 0, bestIds: number[] = [], d = 0;
+      frames.push({ note: "Find the widest level, counting the empty slots between nodes. The root is position 0; a node at position p gives its left child 2p and its right child 2p + 1", tones: { 0: "active" }, badges: { ...badges } });
       while (level.length) {
-        const w = level[level.length - 1][1] - level[0][1] + 1; best = Math.max(best, w);
-        level.forEach(([i, p]) => (badges[i] = `#${p}`));
-        frames.push({ note: `depth ${d}: [${level.map(([i]) => val(i)).join(", ")}] at positions ${level.map(([, p]) => p).join(", ")} → width ${level[level.length - 1][1]} - ${level[0][1]} + 1 = ${w} (best ${best})`, tones: all(level.map(([i]) => i), w === best ? "found" : "active"), badges: { ...badges } });
-        level = level.flatMap(([i, p]) => [kids[i][0] != null ? [kids[i][0]!, 2 * p] : null, kids[i][1] != null ? [kids[i][1]!, 2 * p + 1] : null].filter((x): x is [number, number] => x != null)); d++;
+        const ids = level.map(([i]) => i), lo = level[0][1], hi = level[level.length - 1][1], w = hi - lo + 1, better = w > best;
+        if (better) { best = w; bestD = d; bestIds = ids; }
+        frames.push({ note: `depth ${d}: positions ${level.map(([, p]) => p).join(", ")}, so width = ${hi} - ${lo} + 1 = ${w}${better ? ", a new best" : `, not above the best ${best}`}`, tones: all(ids, "active"), badges: { ...badges } });
+        const nxt: [number, number][] = [], says: string[] = [];
+        for (const [i, p] of level) kids[i].forEach((c, s) => { if (c != null) { nxt.push([c, 2 * p + s]); badges[c] = `#${2 * p + s}`; says.push(`${val(c)} gets ${2 * p + s}`); } });
+        if (nxt.length) frames.push({ note: `children of depth ${d}: ${says.join(", ")} (2p for a left child, 2p + 1 for a right one)`, tones: { ...all(ids, "done"), ...all(nxt.map(([c]) => c), "window") }, badges: { ...badges } });
+        level = nxt; d++;
       }
+      frames.push({ note: `no more levels: the widest was depth ${bestD} with width ${best}, so return ${best}`, tones: all(bestIds, "found"), badges: { ...badges } });
       return tree(`Maximum width: ${best}`, nodes, trail(frames));
     },
   },
@@ -64,13 +75,17 @@ export const PATTERN2: Record<string, Solution> = {
     return out`,
     lang: "python", time: "O(n)", space: "O(width)",
     viz: () => {
-      const vals: V = [3, 9, 20, null, null, 15, 7], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], out: number[] = [];
-      let level = [0];
+      const vals: V = [3, 9, 20, 4, 8, 15, 7, null, 6, null, null, 2, null, null, 13], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], out: number[] = [], badges: Record<number, string> = {};
+      frames.push({ note: "Average each level from the top. The queue holds exactly one level at a time, starting with the root", tones: { 0: "active" } });
+      let level = [0], d = 0;
       while (level.length) {
-        const s = level.reduce((x, i) => x + val(i), 0); out.push(s / level.length);
-        frames.push({ note: `level [${level.map(val).join(", ")}]: sum ${s} / ${level.length} = ${s / level.length} → [${out.join(", ")}]`, tones: all(level, "active") });
-        level = level.flatMap((i) => kids[i].filter((c): c is number => c != null));
+        const vs = level.map(val), s = vs.reduce((x, y) => x + y, 0), avg = s / level.length;
+        frames.push({ note: `level ${d} holds [${vs.join(", ")}]: sum = ${vs.length > 1 ? `${vs.join(" + ")} = ` : ""}${s}`, tones: all(level, "active"), badges: { ...badges } });
+        out.push(avg); level.forEach((i) => (badges[i] = `avg ${avg}`));
+        frames.push({ note: `${s} / ${level.length} nodes = ${avg}, so the answer so far is [${out.join(", ")}]`, tones: all(level, "found"), badges: { ...badges } });
+        level = level.flatMap((i) => kids[i].filter((c): c is number => c != null)); d++;
       }
+      frames.push({ note: `the queue is empty after ${d} levels: averages [${out.join(", ")}]`, tones: all(nodes.map((n) => n.id), "found"), badges: { ...badges } });
       return tree(`Level averages: [${out.join(", ")}]`, nodes, trail(frames));
     },
   },
@@ -91,20 +106,28 @@ export const PATTERN2: Record<string, Solution> = {
     return root`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const vals: V = [1, 2, 3, 4, 5, 6, 7], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], next: Record<number, number | null> = { 0: null }, badges: Record<number, string> = { 0: "→ #" };
+      const vals: V = [1, 2, 3, 4, 5, 6, 7], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], next: Record<number, number | null> = {}, badges: Record<number, string> = {};
+      nodes.forEach((n) => { next[n.id] = null; badges[n.id] = "→ #"; });
+      const snap = (note: string, tones: Record<number, Tone>) => frames.push({ note, tones, badges: { ...badges } });
+      snap("Every next pointer starts as null (#). Link each level left to right using the pointers of the level above, with no queue", { 0: "active" });
       let leftmost: number | null = 0;
       while (leftmost != null && kids[leftmost][0] != null) {
         let node: number | null = leftmost;
         while (node != null) {
-          const [l, r] = kids[node] as [number, number]; next[l] = r; badges[l] = `→ ${val(r)}`;
-          const nx: number | null = next[node]; next[r] = nx != null ? kids[nx][0] : null; badges[r] = next[r] != null ? `→ ${val(next[r]!)}` : "→ #";
-          frames.push({ note: `at ${val(node)}: ${val(l)}.next = ${val(r)}; ${val(r)}.next = ${nx != null ? `${val(nx)}.left = ${val(kids[nx][0]!)}` : "null (no node to the right)"}`, tones: { [node]: "active", [l]: "found", [r]: "found" }, badges: { ...badges } });
+          const [l, r] = kids[node] as [number, number], nx: number | null = next[node];
+          next[l] = r; badges[l] = `→ ${val(r)}`;
+          snap(`at ${val(node)}: ${val(l)}.next = ${val(r)}, its sibling under the same parent`, { [node]: "active", [l]: "found", [r]: "window" });
+          if (nx != null) { const nl = kids[nx][0] as number; next[r] = nl; badges[r] = `→ ${val(nl)}`; snap(`${val(node)}.next is ${val(nx)}, so ${val(r)}.next = ${val(nx)}.left = ${val(nl)}, crossing over to the next parent`, { [node]: "active", [nx]: "window", [r]: "found", [nl]: "window" }); }
+          else snap(`${val(node)}.next is null, so ${val(r)}.next stays null: nothing lies to its right`, { [node]: "active", [r]: "found" });
           node = nx;
         }
-        leftmost = kids[leftmost][0];
+        const down = kids[leftmost][0] as number;
+        snap(`the level starting at ${val(leftmost)} is wired; leftmost moves down to ${val(down)}${kids[down][0] == null ? ", which has no children, so the loop ends" : ""}`, { [leftmost]: "done", [down]: "active" });
+        leftmost = down;
       }
-      frames.push({ note: "Every level is now a linked list read left to right: 1 # 2 3 # 4 5 6 7 #", tones: all(nodes.map((n) => n.id), "done"), badges: { ...badges } });
-      return tree("Next right pointers, no queue", nodes, trail(frames));
+      const chain = (h: number | null) => { const o: number[] = []; for (let c = h; c != null; c = next[c]) o.push(val(c)); return [...o, "#"].join(" "); };
+      frames.push({ note: `every level is now a linked list read left to right: ${[0, 1, 3].map(chain).join(" | ")}`, tones: all(nodes.map((n) => n.id), "found"), badges: { ...badges } });
+      return tree("Next right pointers, no queue", nodes, frames);
     },
   },
 
@@ -177,14 +200,15 @@ export const PATTERN2: Record<string, Solution> = {
     return hasPathSum(root.left, rem) or hasPathSum(root.right, rem)`,
     lang: "python", time: "O(n)", space: "O(h)",
     viz: () => {
-      const vals: V = [5, 4, 8, 11, null, 13, 4, 7, 2, null, null, null, null, null, 1], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], path: number[] = [];
+      const vals: V = [5, 4, 8, 11, null, 13, 4, 7, 2, null, null, null, null, null, 1], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], path: number[] = [], goal = 18;
+      frames.push({ note: `Is there a root-to-leaf path summing to ${goal}? Carry the remaining target down and compare it with each leaf`, tones: {}, badges: { 0: String(goal) } });
       const go = (i: number | null, t: number): boolean => {
         if (i == null) return false; path.push(i); const leaf = kids[i][0] == null && kids[i][1] == null, hit = leaf && val(i) === t;
-        frames.push({ note: leaf ? `leaf ${val(i)}: need ${t} → ${hit ? "match, path found" : "no match, back up"}` : `at ${val(i)}: need ${t}, pass ${t - val(i)} down`, tones: all(path, hit ? "found" : leaf ? "bad" : "active"), badges: { [i]: String(t) } });
+        frames.push({ note: leaf ? `leaf ${val(i)}: ${t} remains, ${hit ? `which equals ${val(i)}, so this path sums to ${goal}` : `which is not ${val(i)}, so no match here; back up`}` : `at ${val(i)}: ${t} remains, pass ${t} - ${val(i)} = ${t - val(i)} to the children`, tones: all(path, hit ? "found" : leaf ? "bad" : "active"), badges: { [i]: String(t) } });
         const ok = hit || (!leaf && (go(kids[i][0], t - val(i)) || go(kids[i][1], t - val(i)))); path.pop(); return ok;
       };
-      const ok = go(0, 22);
-      return tree(`Has a root-to-leaf path summing to 22: ${ok}`, nodes, frames);
+      const ok = go(0, goal);
+      return tree(`Has a root-to-leaf path summing to ${goal}: ${ok}`, nodes, frames);
     },
   },
 
@@ -205,14 +229,19 @@ export const PATTERN2: Record<string, Solution> = {
     return go(0, len(inorder) - 1)`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const pre = [3, 9, 20, 15, 7], ino = [9, 3, 15, 20, 7], nodes: TNode[] = [], frames: TreeFrame[] = []; let p = 0;
+      const pre = [1, 2, 4, 5, 3, 6, 7], ino = [4, 2, 5, 1, 6, 3, 7], nodes: TNode[] = [], frames: TreeFrame[] = []; let p = 0;
       const go = (lo: number, hi: number, parent: number | null, side?: "L" | "R"): void => {
         if (lo > hi) return; const v = pre[p++], m = ino.indexOf(v), id = nodes.length; nodes.push({ id, label: String(v), parent, side });
-        frames.push({ note: `preorder[${p - 1}] = ${v} is the root of inorder [${ino.slice(lo, hi + 1).join(", ")}]: left [${ino.slice(lo, m).join(", ")}], right [${ino.slice(m + 1, hi + 1).join(", ")}]`, tones: { [id]: "active" } });
+        frames.push({ note: `preorder[${p - 1}] = ${v} is the root of inorder [${ino.slice(lo, hi + 1).join(", ")}]: left part [${ino.slice(lo, m).join(", ")}], right part [${ino.slice(m + 1, hi + 1).join(", ")}]`, tones: { [id]: "active" } });
         go(lo, m - 1, id, "L"); go(m + 1, hi, id, "R");
       };
       go(0, ino.length - 1, null);
-      return tree("Tree from preorder + inorder", nodes, frames.map((f, k) => ({ ...f, tones: { ...all(nodes.slice(0, k).map((n) => n.id), "done"), ...all(nodes.slice(k + 1).map((n) => n.id), "muted"), ...f.tones } })));
+      const ids = nodes.map((n) => n.id);
+      return tree("Tree from preorder + inorder", nodes, [
+        { note: `Rebuild a tree from preorder [${pre.join(", ")}] and inorder [${ino.join(", ")}]: preorder hands out roots, inorder says what lies left and right of each`, tones: all(ids, "muted") },
+        ...frames.map((f, k) => ({ ...f, tones: { ...all(ids.slice(0, k), "done"), ...all(ids.slice(k + 1), "muted"), ...f.tones } })),
+        { note: `preorder is used up and every range is empty: all ${ids.length} nodes are placed`, tones: all(ids, "found") },
+      ]);
     },
   },
 
@@ -232,14 +261,19 @@ export const PATTERN2: Record<string, Solution> = {
     return go(0, len(inorder) - 1)`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const ino = [9, 3, 15, 20, 7], post = [9, 15, 7, 20, 3], stack = [...post], nodes: TNode[] = [], frames: TreeFrame[] = [];
+      const ino = [4, 2, 5, 1, 6, 3, 7], post = [4, 5, 2, 6, 7, 3, 1], stack = [...post], nodes: TNode[] = [], frames: TreeFrame[] = [];
       const go = (lo: number, hi: number, parent: number | null, side?: "L" | "R"): void => {
         if (lo > hi) return; const v = stack.pop()!, m = ino.indexOf(v), id = nodes.length; nodes.push({ id, label: String(v), parent, side });
-        frames.push({ note: `pop ${v} from the end of postorder: root of [${ino.slice(lo, hi + 1).join(", ")}]; build right [${ino.slice(m + 1, hi + 1).join(", ")}] first, then left [${ino.slice(lo, m).join(", ")}]`, tones: { [id]: "active" } });
+        frames.push({ note: `pop ${v} from the end of postorder: it is the root of [${ino.slice(lo, hi + 1).join(", ")}]${hi > lo ? `; build the right part [${ino.slice(m + 1, hi + 1).join(", ")}] first, then the left part [${ino.slice(lo, m).join(", ")}]` : ", a single value with no children"}`, tones: { [id]: "active" } });
         go(m + 1, hi, id, "R"); go(lo, m - 1, id, "L");
       };
       go(0, ino.length - 1, null);
-      return tree("Tree from inorder + postorder", nodes, frames.map((f, k) => ({ ...f, tones: { ...all(nodes.slice(0, k).map((n) => n.id), "done"), ...all(nodes.slice(k + 1).map((n) => n.id), "muted"), ...f.tones } })));
+      const ids = nodes.map((n) => n.id);
+      return tree("Tree from inorder + postorder", nodes, [
+        { note: `Rebuild a tree from inorder [${ino.join(", ")}] and postorder [${post.join(", ")}]: the last postorder value is a root, and reading backwards gives root, right part, left part`, tones: all(ids, "muted") },
+        ...frames.map((f, k) => ({ ...f, tones: { ...all(ids.slice(0, k), "done"), ...all(ids.slice(k + 1), "muted"), ...f.tones } })),
+        { note: `postorder is empty and every range is used: all ${ids.length} nodes are placed`, tones: all(ids, "found") },
+      ]);
     },
   },
 
@@ -314,14 +348,18 @@ export const PATTERN2: Record<string, Solution> = {
     return ok(root, float("-inf"), float("inf"))`,
     lang: "python", time: "O(n)", space: "O(h)",
     viz: () => {
-      const vals: V = [5, 4, 6, null, null, 3, 7], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], f = (x: number | null, neg: boolean) => (x == null ? (neg ? "-∞" : "∞") : String(x));
+      const vals: V = [10, 5, 15, 3, 7, 12, 20, null, null, null, null, 9], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], f = (x: number | null, neg: boolean) => (x == null ? (neg ? "-∞" : "∞") : String(x)), good: number[] = [], ranges: Record<number, string> = { 0: "(-∞, ∞)" };
+      let bad = -1;
+      frames.push({ note: "Check that every node lies strictly inside the open range its ancestors allow, starting with (-∞, ∞) at the root", tones: {}, badges: { ...ranges } });
       const ok = (i: number | null, lo: number | null, hi: number | null): boolean => {
-        if (i == null) return true; const v = val(i), good = (lo == null || lo < v) && (hi == null || v < hi);
-        frames.push({ note: `${v} must be in (${f(lo, true)}, ${f(hi, false)}) → ${good ? "ok" : `fails: it sits in the right subtree of ${lo} but is smaller`}`, tones: { [i]: good ? "active" : "bad" }, badges: { [i]: `(${f(lo, true)}, ${f(hi, false)})` } });
-        return good && ok(kids[i][0], lo, v) && ok(kids[i][1], v, hi);
+        if (i == null) return true; const v = val(i), pass = (lo == null || lo < v) && (hi == null || v < hi); ranges[i] = `(${f(lo, true)}, ${f(hi, false)})`;
+        if (pass) good.push(i); else bad = i;
+        frames.push({ note: pass ? `${v} must be inside ${ranges[i]} and is: going left the upper bound becomes ${v}, going right the lower bound becomes ${v}` : `${v} must be inside ${ranges[i]} but is not ${lo != null && v <= lo ? `above ${lo}` : `below ${hi}`}, so the tree is invalid`, tones: { ...all(good, "done"), [i]: pass ? "active" : "bad" }, badges: { ...ranges } });
+        return pass && ok(kids[i][0], lo, v) && ok(kids[i][1], v, hi);
       };
-      const res = ok(0, null, null);
-      return tree(`Valid BST: ${res}`, nodes, trail(frames));
+      const res = ok(0, null, null), par = nodes[nodes.findIndex((n) => n.id === bad)].parent as number;
+      frames.push({ note: `return False: ${val(bad)} is smaller than its parent ${val(par)}, which is fine for a left child, yet an ancestor's bound rules it out`, tones: { ...all(good, "found"), [bad]: "bad" }, badges: { ...ranges } });
+      return tree(`Valid BST: ${res}`, nodes, frames);
     },
   },
 
@@ -341,16 +379,17 @@ export const PATTERN2: Record<string, Solution> = {
         node = node.right`,
     lang: "python", time: "O(h + k)", space: "O(h)",
     viz: () => {
-      const vals: V = [5, 3, 6, 2, 4, null, null, 1], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], K = 3, stack: number[] = [], badges: Record<number, string> = {};
+      const vals: V = [5, 3, 6, 2, 4, null, null, 1], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], K = 4, stack: number[] = [], badges: Record<number, string> = {}, ord = `${K}th`;
+      frames.push({ note: `Find the ${ord} smallest value. Inorder visits a BST in increasing order, so count pops and stop at ${K}`, tones: {} });
       let node: number | null = 0, k = K, ans = 0;
       while (true) {
-        while (node != null) { stack.push(node); node = kids[node][0]; }
-        const top = stack.pop()!; k--; badges[top] = `#${K - k}`;
-        frames.push({ note: `pop ${val(top)}: it is number ${K - k} in sorted order${k === 0 ? ` → the ${K}rd smallest is ${val(top)}` : `; stack now [${stack.map(val).join(", ")}]`}`, tones: { ...all(stack, "window"), [top]: k === 0 ? "found" : "active" }, badges: { ...badges } });
+        if (node != null) { const pushed: number[] = []; while (node != null) { stack.push(node); pushed.push(node); node = kids[node][0]; } frames.push({ note: `go left as far as possible, pushing ${pushed.map(val).join(", ")}: stack is [${stack.map(val).join(", ")}]`, tones: { ...all(stack, "window"), [pushed[pushed.length - 1]]: "active" }, badges: { ...badges } }); }
+        const top = stack.pop()!, rt = kids[top][1]; k--; badges[top] = `#${K - k}`;
+        frames.push({ note: `pop ${val(top)}: it is number ${K - k} in sorted order, ${k} more to go${k === 0 ? `, so the ${ord} smallest is ${val(top)}` : rt != null ? `; now visit its right child ${val(rt)}` : "; it has no right child, so pop the next one"}`, tones: { ...all(stack, "window"), [top]: k === 0 ? "found" : "active" }, badges: { ...badges } });
         if (k === 0) { ans = val(top); break; }
-        node = kids[top][1];
+        node = rt;
       }
-      return tree(`${K}rd smallest: ${ans}`, nodes, trail(frames));
+      return tree(`${ord} smallest: ${ans}`, nodes, trail(frames));
     },
   },
 
@@ -368,13 +407,14 @@ export const PATTERN2: Record<string, Solution> = {
             return node`,
     lang: "python", time: "O(h)", space: "O(1)",
     viz: () => {
-      const vals: V = [6, 2, 8, 0, 4, 7, 9, null, null, 3, 5], { nodes, kids, val } = T(vals), frames: TreeFrame[] = [], p = 3, q = 5, pq = nodes.filter((n) => +n.label === p || +n.label === q).map((n) => n.id);
+      const { nodes, kids, val } = B([50, 30, 70, 20, 40, 25, 23, 22, 24]), frames: TreeFrame[] = [], p = 22, q = 24, pq = nodes.filter((n) => +n.label === p || +n.label === q).map((n) => n.id);
+      frames.push({ note: `Find the lowest common ancestor of ${p} and ${q}: from the root, go left while both are smaller, right while both are larger`, tones: all(pq, "window") });
       let i: number | null = 0, ans = 0;
       while (i != null) {
         const v = val(i);
-        if (p < v && q < v) { frames.push({ note: `${p} and ${q} are both below ${v} → go left`, tones: { ...all(pq, "window"), [i]: "active" } }); i = kids[i][0]; }
-        else if (p > v && q > v) { frames.push({ note: `${p} and ${q} are both above ${v} → go right`, tones: { ...all(pq, "window"), [i]: "active" } }); i = kids[i][1]; }
-        else { ans = v; frames.push({ note: `${p} < ${v} < ${q}: they split here, so ${v} is the LCA`, tones: { ...all(pq, "window"), [i]: "found" } }); break; }
+        if (p < v && q < v) { frames.push({ note: `${p} and ${q} are both below ${v}, so they are both in its left subtree: go left`, tones: { ...all(pq, "window"), [i]: "active" } }); i = kids[i][0]; }
+        else if (p > v && q > v) { frames.push({ note: `${p} and ${q} are both above ${v}, so they are both in its right subtree: go right`, tones: { ...all(pq, "window"), [i]: "active" } }); i = kids[i][1]; }
+        else { ans = v; frames.push({ note: `${p} is below ${v} and ${q} is above it, so the two split here and ${v} is the lowest common ancestor`, tones: { ...all(pq, "window"), [i]: "found" } }); break; }
       }
       return tree(`LCA of ${p} and ${q}: ${ans}`, nodes, trail(frames));
     },
@@ -393,11 +433,13 @@ export const PATTERN2: Record<string, Solution> = {
     return root`,
     lang: "python", time: "O(h)", space: "O(h)",
     viz: () => {
-      const vals: V = [4, 2, 7, 1, 3], { nodes, kids, val } = T(vals), x = 5, frames: TreeFrame[] = []; let i: number | null = 0, parent = 0, side: "L" | "R" = "L", id = 0;
-      while (i != null) { const go: number = x < val(i) ? 0 : 1; frames.push({ note: `${x} ${go ? ">" : "<"} ${val(i)} → go ${go ? "right" : "left"}${kids[i][go] == null ? " (empty)" : ""}`, tones: { [i]: "active" } }); parent = i; side = go ? "R" : "L"; id = 2 * i + 1 + go; i = kids[i][go]; }
-      const all2 = [...nodes, { id, label: String(x), parent, side }];
-      frames.push({ note: `attach ${x} as the ${side === "L" ? "left" : "right"} child of ${val(parent)}`, tones: { [id]: "found" } });
-      return tree(`Insert ${x}`, all2, trail(frames).map((f, k) => (k < frames.length - 1 ? { ...f, tones: { ...f.tones, [id]: "muted" } } : f)));
+      const base = [40, 20, 60, 10, 30, 50, 70, 45, 55], { nodes, kids, val } = B(base), x = 47, nid = base.length, ghost: Record<number, Tone> = { [nid]: "muted" }, frames: TreeFrame[] = [];
+      frames.push({ note: `Insert ${x}. Search for it like a lookup; the search ends at an empty child, and that empty spot is where the new node goes`, tones: { ...ghost } });
+      let i: number | null = 0, parent = 0, side: "L" | "R" = "L";
+      while (i != null) { const go: number = x < val(i) ? 0 : 1; frames.push({ note: `${x} ${go ? ">" : "<"} ${val(i)}, so go ${go ? "right" : "left"}${kids[i][go] == null ? ": that child is empty, so stop here" : ""}`, tones: { ...ghost, [i]: "active" } }); parent = i; side = go ? "R" : "L"; i = kids[i][go]; }
+      nodes.push({ id: nid, label: String(x), parent, side });
+      frames.push({ note: `attach ${x} as the ${side === "L" ? "left" : "right"} child of ${val(parent)}; no other node moves, so the BST order still holds`, tones: { [nid]: "found", [parent]: "active" } });
+      return tree(`Insert ${x}`, nodes, trail(frames));
     },
   },
 
@@ -424,14 +466,18 @@ export const PATTERN2: Record<string, Solution> = {
     return root`,
     lang: "python", time: "O(h)", space: "O(h)",
     viz: () => {
-      const vals: V = [5, 3, 6, 2, 4, null, 7], { nodes, kids, val } = T(vals), key = 3, frames: TreeFrame[] = [];
-      let i: number = 0;
-      while (val(i) !== key) { const go = key < val(i) ? 0 : 1; frames.push({ note: `${key} ${go ? ">" : "<"} ${val(i)} → go ${go ? "right" : "left"}`, tones: { [i]: "active" } }); i = kids[i][go]!; }
-      frames.push({ note: `found ${key}: it has two children, so look for its successor`, tones: { [i]: "bad" } });
-      let s = kids[i][1]!; while (kids[s][0] != null) s = kids[s][0]!;
-      frames.push({ note: `successor = leftmost of the right subtree = ${val(s)}`, tones: { [i]: "bad", [s]: "window" } });
-      frames.push({ note: `copy ${val(s)} into the node, then delete the old ${val(s)} leaf from the right subtree`, tones: { [i]: "found", [s]: "muted" }, labels: { [i]: String(val(s)) } });
-      frames.push({ note: `result [5, 4, 6, 2, null, null, 7]: still a valid BST`, tones: { [i]: "found", [s]: "muted" }, labels: { [i]: String(val(s)), [s]: "" } });
+      const { nodes, kids, val } = B([50, 30, 70, 20, 40, 35, 45, 60, 80]), key = 30, frames: TreeFrame[] = [];
+      frames.push({ note: `Delete ${key}. Find it first; a node with two children is replaced by its in-order successor, the smallest value to its right`, tones: {} });
+      let i = 0;
+      while (val(i) !== key) { const go = key < val(i) ? 0 : 1; frames.push({ note: `${key} ${go ? ">" : "<"} ${val(i)}, so go ${go ? "right" : "left"}`, tones: { [i]: "active" } }); i = kids[i][go] as number; }
+      const [l, r] = kids[i] as [number, number];
+      frames.push({ note: `found ${key}: it has two children (${val(l)} and ${val(r)}), so it cannot simply be cut out`, tones: { [i]: "bad" } });
+      let s = r;
+      for (;;) { const sl = kids[s][0]; frames.push({ note: sl != null ? `${val(s)} has a left child ${val(sl)}, so keep going left` : `${val(s)} has no left child: it is the smallest value in the right subtree, the successor`, tones: { [i]: "bad", [s]: sl != null ? "window" : "found" } }); if (sl == null) break; s = sl; }
+      frames.push({ note: `copy ${val(s)} into the node that held ${key}`, tones: { [i]: "found", [s]: "window" }, labels: { [i]: String(val(s)) } });
+      for (let t = r; t !== s; t = kids[t][0] as number) frames.push({ note: `now delete ${val(s)} from the right subtree: ${val(s)} < ${val(t)}, so go left`, tones: { [i]: "found", [t]: "active", [s]: "window" }, labels: { [i]: String(val(s)) } });
+      frames.push({ note: `${val(s)} has no left child, so it is replaced by its right child, which is empty: the old leaf disappears`, tones: { [i]: "found", [s]: "muted" }, labels: { [i]: String(val(s)), [s]: "" } });
+      frames.push({ note: `done: ${val(s)} now sits where ${key} was, ${val(r)} keeps only its right child ${val(kids[r][1] as number)}, and every value is still on the correct side`, tones: { [i]: "found", [s]: "muted", [r]: "done" }, labels: { [i]: String(val(s)), [s]: "" } });
       return tree(`Delete ${key}`, nodes, frames);
     },
   },
@@ -538,10 +584,15 @@ export const PATTERN2: Record<string, Solution> = {
     return dfs(root)`,
     lang: "python", time: "O(n)", space: "O(n)",
     viz: () => {
-      const vals: V = [5, 3, 6, 2, 4, null, 7], { nodes, kids, val } = T(vals), k = 9, seen: number[] = [], frames: TreeFrame[] = [];
-      const dfs = (i: number | null): boolean => { if (i == null) return false; const need = k - val(i), hit = seen.includes(need); frames.push({ note: hit ? `${val(i)}: need ${need}, already seen → ${need} + ${val(i)} = ${k}` : `${val(i)}: need ${need}, not seen yet; add ${val(i)} → {${[...seen, val(i)].join(", ")}}`, tones: hit ? { [i]: "found", [nodes.find((n) => +n.label === need)!.id]: "found" } : { [i]: "active" } }); if (hit) return true; seen.push(val(i)); return dfs(kids[i][0]) || dfs(kids[i][1]); };
+      const vals: V = [5, 3, 6, 2, 4, null, 7], { nodes, kids, val } = T(vals), k = 13, seen: number[] = [], frames: TreeFrame[] = [], idOf = (v: number) => nodes.find((n) => +n.label === v)!.id;
+      frames.push({ note: `Do two values add up to ${k}? Visit nodes in preorder, keep the values seen in a set, and stop when ${k} - value is already in it`, tones: {} });
+      const dfs = (i: number | null): boolean => {
+        if (i == null) return false; const v = val(i), need = k - v, hit = seen.includes(need);
+        frames.push({ note: hit ? `${v}: need ${need}, which is in the set {${seen.join(", ")}}, so ${need} + ${v} = ${k}` : `${v}: need ${need}, which is not in the set {${seen.join(", ")}}; add ${v} to the set`, tones: hit ? { [i]: "found", [idOf(need)]: "found" } : { ...all(seen.map(idOf), "done"), [i]: "active" } });
+        if (hit) return true; seen.push(v); return dfs(kids[i][0]) || dfs(kids[i][1]);
+      };
       const ok = dfs(0);
-      return tree(`Two values summing to ${k}: ${ok}`, nodes, trail(frames));
+      return tree(`Two values summing to ${k}: ${ok}`, nodes, frames);
     },
   },
   "number-of-1-bits": {
@@ -555,10 +606,11 @@ export const PATTERN2: Record<string, Solution> = {
     return count`,
     lang: "python", time: "O(set bits)", space: "O(1)",
     viz: () => {
-      let n = 11, c = 0; const frames: CellsFrame[] = [{ note: `n = ${n} = ${bin(n).join("")}`, rows: [bin(n)] }];
-      while (n) { const low = n & -n, m = n & (n - 1); c++; frames.push({ note: `${n} & ${n - 1} = ${m}: clears the bit worth ${low} → count ${c}`, rows: [bin(m)], tones: { [`0:${7 - Math.log2(low)}`]: "bad", ...all(bin(m).map((b, i) => (b === "1" ? `0:${i}` : "")).filter(Boolean), "found") } }); n = m; }
-      frames.push({ note: `n is 0 after ${c} steps → 11 has ${c} set bits`, rows: [bin(0)] });
-      return cells(`Set bits in 11: ${c}`, [bin(11)], frames, ["n"]);
+      const n0 = 0b10110101, blank = Array(8).fill(""), frames: CellsFrame[] = [{ note: `Count the set bits of ${n0} = ${bin(n0).join("")}. Each n & (n - 1) clears the lowest 1, so count the rounds until n reaches 0`, rows: [bin(n0), blank, blank] }];
+      let n = n0, c = 0;
+      while (n) { const low = n & -n, m = n & (n - 1), col = 7 - Math.log2(low); c++; frames.push({ note: `n = ${n}: n - 1 = ${n - 1} turns the lowest 1 (worth ${low}) into 0 and the zeros below it into 1s, so n & (n - 1) = ${m}; count = ${c}`, rows: [bin(n), bin(n - 1), bin(m)], tones: { ...range(col, 7, 1, "window"), [`0:${col}`]: "bad", [`2:${col}`]: "found" } }); n = m; }
+      frames.push({ note: `n is 0 after ${c} rounds, so ${n0} has ${c} set bits`, rows: [bin(0), blank, blank], tones: range(0, 7, 0, "found") });
+      return cells(`Set bits in ${n0}: ${c}`, [bin(n0), blank, blank], frames, ["n", "n - 1", "n & (n - 1)"]);
     },
   },
 
@@ -615,11 +667,12 @@ export const PATTERN2: Record<string, Solution> = {
     return bin(x ^ y).count("1")`,
     lang: "python", time: "O(1)", space: "O(1)",
     viz: () => {
-      const x = 1, y = 4, z = x ^ y, frames: CellsFrame[] = [];
-      frames.push({ note: `x = ${x}, y = ${y}`, rows: [bin(x, 4), bin(y, 4), bin(0, 4)] });
-      frames.push({ note: `x ^ y = ${z}: 1 where the bits differ`, rows: [bin(x, 4), bin(y, 4), bin(z, 4)], tones: all(bin(z, 4).map((b, i) => (b === "1" ? i : -1)).filter((i) => i >= 0).flatMap((i) => [`0:${i}`, `1:${i}`, `2:${i}`]), "found") });
-      frames.push({ note: `two set bits in ${z} → distance 2`, rows: [bin(x, 4), bin(y, 4), bin(z, 4)], tones: { "2:1": "found", "2:3": "found" } });
-      return cells(`Hamming distance of ${x} and ${y}: 2`, [bin(x, 4), bin(y, 4), bin(0, 4)], frames, ["x", "y", "x ^ y"]);
+      const x = 93, y = 47, z = x ^ y, W = 8, blank = Array(W).fill(""), frames: CellsFrame[] = [], ones = bin(z, W).map((b, i) => (b === "1" ? i : -1)).filter((i) => i >= 0), rows = [bin(x, W), bin(y, W), bin(z, W)];
+      frames.push({ note: `x = ${x} and y = ${y}: count the bit positions where they differ`, rows: [bin(x, W), bin(y, W), blank] });
+      frames.push({ note: `x ^ y = ${z}: XOR is 1 exactly where the two bits differ, and ${ones.length} of the ${W} columns do`, rows, tones: all(ones.map((i) => `2:${i}`), "window") });
+      ones.forEach((i, k) => frames.push({ note: `bit ${W - 1 - i}: x has ${rows[0][i]} and y has ${rows[1][i]}, so they differ; count = ${k + 1}`, rows, tones: { ...all(ones.slice(0, k).map((j) => `2:${j}`), "done"), [`0:${i}`]: "active", [`1:${i}`]: "active", [`2:${i}`]: "found" } }));
+      frames.push({ note: `${ones.length} set bits in ${z}, so the Hamming distance of ${x} and ${y} is ${ones.length}`, rows, tones: all(ones.map((j) => `2:${j}`), "found") });
+      return cells(`Hamming distance of ${x} and ${y}: ${ones.length}`, [bin(x, W), bin(y, W), blank], frames, ["x", "y", "x ^ y"]);
     },
   },
 
@@ -668,11 +721,12 @@ export const PATTERN2: Record<string, Solution> = {
     return x`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const a = [3, 0, 1], idx = a.map((_, i) => i), frames: CellsFrame[] = []; let x = a.length;
-      frames.push({ note: `start with n = ${x}`, rows: [idx, a] });
-      a.forEach((v, i) => { x ^= i ^ v; frames.push({ note: `x ^= index ${i} ^ value ${v} → ${x}`, rows: [idx, a], tones: { [`0:${i}`]: "active", [`1:${i}`]: "active" } }); });
-      frames.push({ note: `0, 1, 3 cancelled in pairs → missing ${x}`, rows: [idx, a], tones: all(idx.map((i) => `1:${i}`), "done") });
-      return cells(`Missing number: ${x}`, [idx, a], frames, ["index", "nums"]);
+      const a = [5, 0, 3, 1, 4], idx = a.map((_, i) => i), frames: CellsFrame[] = []; let x = a.length;
+      const rows = () => [idx, a, bin(x, 3)];
+      frames.push({ note: `nums holds the numbers 0..${a.length} with one missing. Start with x = n = ${x}, then XOR in every index and every value`, rows: rows() });
+      a.forEach((v, i) => { const prev = x; x ^= i ^ v; frames.push({ note: `index ${i}, value ${v}: x = ${prev} ^ ${i} ^ ${v} = ${x}`, rows: rows(), tones: { [`0:${i}`]: "active", [`1:${i}`]: "active", ...range(0, 2, 2, "window") } }); });
+      frames.push({ note: `every number from 0 to ${a.length} except one met itself once as an index (or n) and once as a value, so they cancelled: ${x} is missing`, rows: rows(), tones: range(0, 2, 2, "found") });
+      return cells(`Missing number: ${x}`, [idx, a, bin(a.length, 3)], frames, ["index", "nums", "x in binary"]);
     },
   },
 
@@ -703,10 +757,11 @@ export const PATTERN2: Record<string, Solution> = {
     return out`,
     lang: "python", time: "O(n · 2^n)", space: "O(n · 2^n)",
     viz: () => {
-      const a = [1, 2, 3], out: number[][] = [[]], frames: TableFrame[] = [], view = () => out.map((s, i) => [`[${s.join(", ")}]`, i === 0 ? "start" : `+ ${s[s.length - 1]}`]);
-      frames.push({ note: "start with the empty subset", cells: view() });
-      for (const x of a) { const n = out.length; out.push(...out.map((s) => [...s, x])); frames.push({ note: `add ${x} to each of the ${n} subsets → ${out.length} subsets`, cells: view(), tones: Object.fromEntries(Array.from({ length: n }, (_, k) => [`${n + k}:0`, "found"])) as Record<string, Tone> }); }
-      return table(`All ${out.length} subsets of [1, 2, 3]`, nums(8), ["subset", "made by"], frames.map((f) => ({ ...f, cells: [...f.cells, ...Array(8 - f.cells.length).fill([null, null])] })));
+      const a = [1, 2, 3], out: number[][] = [[]], by: string[] = ["start"], frames: TableFrame[] = [], view = () => Array.from({ length: 8 }, (_, i) => (i < out.length ? [`[${out[i].join(", ")}]`, by[i]] : [null, null]));
+      frames.push({ note: "Start with one subset, the empty one. For each number, copy every existing subset and append the number to the copy", cells: view() });
+      for (const x of a) { const n = out.length; for (let k = 0; k < n; k++) { const s = [...out[k], x]; out.push(s); by.push(`[${out[k].join(", ")}] + ${x}`); frames.push({ note: `x = ${x}: copy [${out[k].join(", ")}] and append ${x} to get [${s.join(", ")}] (${out.length} subsets so far)`, cells: view(), tones: { [`${out.length - 1}:0`]: "found" } }); } }
+      frames.push({ note: `each of the ${a.length} numbers doubled the list, so ${out.length} subsets in total`, cells: view(), tones: all(out.map((_, i) => `${i}:0`), "found") });
+      return table(`All ${out.length} subsets of [1, 2, 3]`, nums(8), ["subset", "made by"], frames);
     },
   },
 
@@ -792,16 +847,19 @@ export const PATTERN2: Record<string, Solution> = {
     return max(n for _, n in combos)`,
     lang: "python", time: "O(2^n)", space: "O(2^n)",
     viz: () => {
-      const arr = ["un", "iq", "ue"], combos: string[] = [""], frames: TableFrame[] = [], view = () => [...combos.map((c) => [c || "(empty)", c.length]), ...Array(6 - combos.length).fill([null, null])];
-      frames.push({ note: "start with the empty combination", cells: view() });
+      const arr = ["un", "aa", "iq", "ue"], combos: string[] = [""], frames: TableFrame[] = [], view = () => Array.from({ length: 6 }, (_, i) => (i < combos.length ? [combos[i] || "(empty)", combos[i].length] : [null, null]));
+      frames.push({ note: `Words ${arr.map((w) => `"${w}"`).join(", ")}: grow a list of valid combinations, starting with the empty one`, cells: view() });
       for (const w of arr) {
-        const add: string[] = [], clash: string[] = [];
-        for (const c of combos) ([...w].some((ch) => c.includes(ch)) ? clash : add).push(c);
-        const n = combos.length; combos.push(...add.map((c) => c + w));
-        frames.push({ note: `"${w}": join with ${add.map((c) => `"${c}"`).join(", ")}${clash.length ? `; ${clash.map((c) => `"${c}"`).join(", ")} share a letter, skip` : ""}`, cells: view(), tones: Object.fromEntries(add.map((_, k) => [`${n + k}:0`, "found"])) as Record<string, Tone> });
+        if (new Set(w).size < w.length) { frames.push({ note: `"${w}" repeats a letter, so it can never be used: skip it`, cells: view() }); continue; }
+        const n = combos.length;
+        for (let k = 0; k < n; k++) {
+          const c = combos[k], share = [...w].find((ch) => c.includes(ch));
+          if (share) frames.push({ note: `"${w}" with "${c}": both contain "${share}", so skip`, cells: view(), tones: { [`${k}:0`]: "bad" } });
+          else { combos.push(c + w); frames.push({ note: `"${w}" with ${c ? `"${c}"` : "the empty combination"}: no shared letter, so add "${c + w}" (length ${c.length + w.length})`, cells: view(), tones: { [`${k}:0`]: "active", [`${combos.length - 1}:0`]: "found" } }); }
+        }
       }
-      const best = Math.max(...combos.map((c) => c.length));
-      frames.push({ note: `longest combination has ${best} letters`, cells: view(), tones: Object.fromEntries(combos.map((c, i) => [`${i}:1`, c.length === best ? "found" : "muted"])) as Record<string, Tone> });
+      const best = Math.max(...combos.map((c) => c.length)), top = combos.filter((c) => c.length === best);
+      frames.push({ note: `the longest combinations have ${best} letters (${top.map((c) => `"${c}"`).join(", ")}), so return ${best}`, cells: view(), tones: Object.fromEntries(combos.map((c, i) => [`${i}:1`, c.length === best ? "found" : "muted"])) as Record<string, Tone> });
       return table(`Longest unique concatenation: ${best}`, nums(6), ["combination", "length"], frames);
     },
   },
@@ -813,8 +871,15 @@ export const PATTERN2: Record<string, Solution> = {
     return n > 0 and n & (n - 1) == 0`,
     lang: "python", time: "O(1)", space: "O(1)",
     viz: () => {
-      const xs = [1, 16, 3, 24], frames: CellsFrame[] = xs.map((x) => { const ok = (x & (x - 1)) === 0; return { note: `${x} & ${x - 1} = ${x & (x - 1)} → ${ok ? "one set bit, power of two" : "more than one set bit, not a power of two"}`, rows: [bin(x), bin(x - 1), bin(x & (x - 1))], tones: range(0, 7, 2, ok ? "found" : "bad") }; });
-      return cells("n & (n - 1) clears the only set bit", [bin(1), bin(0), bin(0)], frames, ["n", "n - 1", "n & (n-1)"]);
+      const xs = [64, 0, 12], blank = Array(8).fill(""), b8 = (v: number) => bin(v & 255), frames: CellsFrame[] = [{ note: "A power of two has exactly one set bit. Check n > 0 first, then n & (n - 1) == 0, which clears the lowest set bit", rows: [bin(64), blank, blank] }], good: number[] = [];
+      for (const x of xs) {
+        if (x <= 0) { frames.push({ note: `${x} is not above 0, so the guard rejects it (without the guard, 0 & -1 = 0 would wrongly pass)`, rows: [bin(x), b8(x - 1), bin(x & (x - 1))], tones: range(0, 7, 0, "bad") }); continue; }
+        const ok = (x & (x - 1)) === 0; if (ok) good.push(x);
+        frames.push({ note: `${x} > 0 passes the guard; now clear its lowest set bit with ${x} & ${x - 1}`, rows: [bin(x), b8(x - 1), blank], tones: range(0, 7, 1, "window") });
+        frames.push({ note: `${x} & ${x - 1} = ${x & (x - 1)}: ${ok ? "nothing is left, so exactly one bit was set and it is a power of two" : "bits remain, so more than one was set and it is not a power of two"}`, rows: [bin(x), b8(x - 1), bin(x & (x - 1))], tones: range(0, 7, 2, ok ? "found" : "bad") });
+      }
+      frames.push({ note: `among ${xs.join(", ")} only ${good.join(", ")} ${good.length === 1 ? "is a power of two" : "are powers of two"}`, rows: [bin(good[0]), b8(good[0] - 1), bin(0)], tones: range(0, 7, 2, "found") });
+      return cells("n & (n - 1) clears the only set bit", [bin(64), blank, blank], frames, ["n", "n - 1", "n & (n - 1)"]);
     },
   },
 
@@ -825,8 +890,16 @@ export const PATTERN2: Record<string, Solution> = {
     return n > 0 and n & (n - 1) == 0 and n & 0x55555555 != 0`,
     lang: "python", time: "O(1)", space: "O(1)",
     viz: () => {
-      const mask = 0x55, xs = [16, 8, 5], frames: CellsFrame[] = xs.map((x) => { const one = (x & (x - 1)) === 0, even = (x & mask) !== 0, ok = one && even; return { note: `${x}: ${one ? "one set bit" : "more than one set bit"}${one ? (even ? ", at an even position (mask keeps it) → power of four" : ", at an odd position (mask clears it) → not a power of four") : " → not a power of four"}`, rows: [bin(x), bin(mask), bin(x & mask)], tones: range(0, 7, 2, ok ? "found" : "bad") }; });
-      return cells("Power of four: one bit, at an even position", [bin(16), bin(mask), bin(0)], frames, ["n", "0x55 mask", "n & mask"]);
+      const mask = 0x55, xs = [16, 8, 5], blank = Array(8).fill(""), frames: CellsFrame[] = [{ note: "A power of four has one set bit, at an even position. Test n & (n - 1) == 0 for one bit, then n & mask for the position (an 8-bit mask 0x55 here, 0x55555555 in the real code)", rows: [bin(16), blank, blank] }], good: number[] = [];
+      for (const x of xs) {
+        const one = (x & (x - 1)) === 0, even = (x & mask) !== 0;
+        frames.push({ note: one ? `${x} & ${x - 1} = 0, so ${x} has exactly one set bit; next check where that bit sits` : `${x} & ${x - 1} = ${x & (x - 1)}, which is not 0, so ${x} has more than one set bit and cannot be a power of four`, rows: [bin(x), bin(x - 1), bin(x & (x - 1))], tones: range(0, 7, 2, one ? "window" : "bad") });
+        if (!one) continue;
+        if (even) good.push(x);
+        frames.push({ note: `${x} & 0x55 = ${x & mask}: ${even ? "the set bit is at an even position, so the mask keeps it and it is a power of four" : "the set bit is at an odd position, so the mask wipes it out and it is not a power of four"}`, rows: [bin(x), bin(mask), bin(x & mask)], tones: range(0, 7, 2, even ? "found" : "bad") });
+      }
+      frames.push({ note: `among ${xs.join(", ")} only ${good.join(", ")} ${good.length === 1 ? "is a power of four" : "are powers of four"}`, rows: [bin(good[0]), bin(mask), bin(good[0] & mask)], tones: range(0, 7, 2, "found") });
+      return cells("Power of four: one bit, at an even position", [bin(16), blank, blank], frames, ["n", "n - 1 or mask", "AND"]);
     },
   },
 
@@ -882,10 +955,18 @@ export const PATTERN2: Record<string, Solution> = {
     return -q if neg else q`,
     lang: "python", time: "O(log² n)", space: "O(1)",
     viz: () => {
-      let a = 100, q = 0; const b = 7, rows: (string | number)[][] = [], frames: TableFrame[] = [];
-      while (a >= b) { let t = b, m = 1; while (a >= t << 1) { t <<= 1; m <<= 1; } rows.push([a, `${t} (= ${m} x ${b})`, a - t, q + m]); frames.push({ note: `${a} left: biggest doubled divisor that fits is ${t} = ${m} x ${b}; subtract → ${a - t}, quotient ${q + m}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 1] }); a -= t; q += m; }
-      frames.push({ note: `${a} < ${b}: stop. 100 / 7 = ${q} (remainder ${a})`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:3`]: "found" } });
-      return table(`100 / 7 = ${q} with shifts`, rows.map((_, i) => `round ${i + 1}`), ["left", "subtract", "after", "quotient"], frames);
+      const dividend = -29, divisor = 3, neg = (dividend < 0) !== (divisor < 0), b = Math.abs(divisor), rows: (string | number)[][] = [], heads: string[] = [], frames: TableFrame[] = [];
+      let a = Math.abs(dividend), q = 0, round = 0;
+      const push = (h: string, r: (string | number)[], note: string, tones?: Record<string, Tone>) => { heads.push(h); rows.push(r); frames.push({ note, cells: rows.map((x) => [...x]), active: [rows.length - 1, 3], tones }); };
+      while (a >= b) {
+        let t = b, m = 1; round++;
+        push(round === 1 ? "start" : `round ${round}`, [a, t, m, q], round === 1 ? `${dividend} / ${divisor}: the signs differ, so work on ${a} / ${b} and negate at the end; t = ${t} is 1 x ${b}` : `${a} is still at least ${b}, so another round restarts from t = ${t}, m = 1`);
+        while (a >= t << 1) { t <<= 1; m <<= 1; push("double", [a, t, m, q], `${t / 2} doubled is ${t}, which still fits in ${a}, so t = ${t} = ${m} x ${b}`); }
+        const before = a; a -= t; q += m;
+        push("subtract", [a, t, m, q], `doubling again would give ${t << 1}, more than ${before}, so keep t = ${t}: ${before} - ${t} = ${a}, and add ${m} to the quotient → ${q}`);
+      }
+      frames.push({ note: `${a} is less than ${b}, so stop: the quotient ${q} gets its sign back, giving ${neg ? -q : q}`, cells: rows.map((x) => [...x]), tones: { [`${rows.length - 1}:3`]: "found" } });
+      return table(`${dividend} / ${divisor} = ${neg ? -q : q} with shifts`, heads, ["left", "t", "m", "quotient"], frames);
     },
   },
 
@@ -899,12 +980,12 @@ export const PATTERN2: Record<string, Solution> = {
     return [X[r + 1] ^ X[l] for l, r in queries]`,
     lang: "python", time: "O(n + q)", space: "O(n)",
     viz: () => {
-      const a = [1, 3, 4, 8], Q = [[0, 1], [1, 2], [0, 3], [3, 3]], X = [0], frames: CellsFrame[] = [], pad = (r: (string | number)[]) => [...r, ...Array(X.length - r.length).fill("")];
-      a.forEach((v) => X.push(X[X.length - 1] ^ v));
-      frames.push({ note: `prefix XOR X = [${X.join(", ")}]`, rows: [pad(a), X] });
-      const out: number[] = [];
-      for (const [l, r] of Q) { out.push(X[r + 1] ^ X[l]); frames.push({ note: `query [${l}, ${r}]: X[${r + 1}] ^ X[${l}] = ${X[r + 1]} ^ ${X[l]} = ${out[out.length - 1]}`, rows: [pad(a), X], tones: { ...range(l, r, 0), [`1:${r + 1}`]: "found", [`1:${l}`]: "bad" } }); }
-      return cells(`Answers: [${out.join(", ")}]`, [pad(a), X], frames, ["arr", "X"]);
+      const a = [1, 3, 4, 8], Q = [[0, 1], [1, 2], [0, 3], [3, 3]], X: (string | number)[] = [0], frames: CellsFrame[] = [], pad = (r: (string | number)[]) => [...r, ...Array(a.length + 1 - r.length).fill("")], out: number[] = [];
+      frames.push({ note: `arr = [${a.join(", ")}], queries ${Q.map(([l, r]) => `[${l}, ${r}]`).join(", ")}. Build the prefix XOR X once, starting with X[0] = 0`, rows: [pad(a), pad(X)] });
+      a.forEach((v, i) => { X.push(+X[i] ^ v); frames.push({ note: `X[${i + 1}] = X[${i}] ^ arr[${i}] = ${X[i]} ^ ${v} = ${X[i + 1]}`, rows: [pad(a), pad(X)], tones: { [`0:${i}`]: "active", [`1:${i}`]: "window", [`1:${i + 1}`]: "found" } }); });
+      for (const [l, r] of Q) { out.push(+X[r + 1] ^ +X[l]); frames.push({ note: `query [${l}, ${r}]: X[${r + 1}] ^ X[${l}] = ${X[r + 1]} ^ ${X[l]} = ${out[out.length - 1]}, because the shared prefix cancels`, rows: [pad(a), pad(X)], tones: { ...range(l, r, 0), [`1:${r + 1}`]: "found", [`1:${l}`]: "bad" } }); }
+      frames.push({ note: `every query took one XOR of two prefix values: answers [${out.join(", ")}]`, rows: [pad(a), pad(X)], tones: range(0, a.length, 1, "found") });
+      return cells(`Answers: [${out.join(", ")}]`, [pad(a), pad(X)], frames, ["arr", "X"]);
     },
   },
 
@@ -947,11 +1028,12 @@ export const PATTERN2: Record<string, Solution> = {
     return a`,
     lang: "python", time: "O(n + log m)", space: "O(1)",
     viz: () => {
-      const arr = [12, 30, 18, 42], hi = Math.max(...arr), lo = Math.min(...arr), rows: (string | number)[][] = [], frames: TableFrame[] = [];
-      frames.push({ note: `[${arr.join(", ")}]: max ${hi}, min ${lo}`, cells: [] });
+      const arr = [24, 30, 39, 27, 33], hi = Math.max(...arr), lo = Math.min(...arr), rows: (string | number)[][] = [], frames: TableFrame[] = [];
+      frames.push({ note: `nums = [${arr.join(", ")}]: only the smallest and largest numbers matter, so find them and then run Euclid's algorithm`, cells: [] });
+      frames.push({ note: `one pass finds the largest ${hi} and the smallest ${lo}`, cells: [] });
       let a = hi, b = lo;
-      while (b) { rows.push([a, b, a % b]); frames.push({ note: `gcd(${a}, ${b}) = gcd(${b}, ${a} mod ${b} = ${a % b})`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); [a, b] = [b, a % b]; }
-      frames.push({ note: `remainder 0 → gcd = ${a}`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:1`]: "found" } });
+      while (b) { rows.push([a, b, a % b]); frames.push({ note: `${a} mod ${b} = ${a % b}, so gcd(${a}, ${b}) becomes gcd(${b}, ${a % b})`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); [a, b] = [b, a % b]; }
+      frames.push({ note: `the remainder is 0, so the gcd of ${lo} and ${hi} is ${a}`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:1`]: "found" } });
       return table(`gcd(${lo}, ${hi}) = ${a}`, rows.map((_, i) => `step ${i + 1}`), ["a", "b", "a mod b"], frames.map((f) => ({ ...f, cells: [...f.cells, ...Array(rows.length - f.cells.length).fill([null, null, null])] })));
     },
   },
@@ -965,11 +1047,14 @@ def hasGroupsSizeX(deck):
     return reduce(gcd, Counter(deck).values()) >= 2`,
     lang: "python", time: "O(n log n)", space: "O(n)",
     viz: () => {
-      const deck = [1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3], cnt = new Map<number, number>(), rows: (string | number)[][] = [], frames: TableFrame[] = [];
-      const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a); deck.forEach((v) => cnt.set(v, (cnt.get(v) || 0) + 1));
-      let g = 0; for (const [v, c] of cnt) { g = gcd(g, c); rows.push([v, c, g]); frames.push({ note: `value ${v} appears ${c} times → gcd so far ${g}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); }
-      frames.push({ note: `gcd ${g} ≥ 2 → split every value into groups of ${g}`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:2`]: "found" } });
-      return table(`Groups of size ${g}: true`, rows.map((_, i) => String(i)), ["value", "count", "gcd so far"], frames.map((f) => ({ ...f, cells: [...f.cells, ...Array(rows.length - f.cells.length).fill([null, null, null])] })));
+      const counts = [6, 9, 12, 18], gcd = (x: number, y: number): number => (y ? gcd(y, x % y) : x), gs: number[] = [], frames: TableFrame[] = [];
+      let g = 0; counts.forEach((c) => { g = gcd(g, c); gs.push(g); });
+      const view = (nc: number, ng: number) => counts.map((c, i) => [i + 1, i < nc ? c : null, i < ng ? gs[i] : null]);
+      frames.push({ note: `A deck of ${counts.reduce((x, y) => x + y, 0)} cards has ${counts.length} different values. Can every value be split into groups of the same size X, with X at least 2?`, cells: view(0, 0) });
+      frames.push({ note: `count each value: ${counts.map((c, i) => `${i + 1} appears ${c} times`).join(", ")}; X must divide every count`, cells: view(counts.length, 0) });
+      counts.forEach((c, i) => frames.push({ note: `reduce with gcd: gcd(${i ? gs[i - 1] : 0}, ${c}) = ${gs[i]}${i ? "" : " (gcd with 0 is the other number)"}`, cells: view(counts.length, i + 1), active: [i, 2] }));
+      frames.push({ note: `the gcd of all counts is ${g}, at least 2, so every value splits into groups of ${g}: return True`, cells: view(counts.length, counts.length), tones: { [`${counts.length - 1}:2`]: "found" } });
+      return table(`Groups of size ${g}: true`, counts.map((_, i) => `value ${i + 1}`), ["value", "count", "gcd so far"], frames);
     },
   },
 
@@ -983,11 +1068,15 @@ def gcdOfStrings(str1, str2):
     return str1[:gcd(len(str1), len(str2))]`,
     lang: "python", time: "O(m + n)", space: "O(m + n)",
     viz: () => {
-      const a = "ABABAB", b = "ABAB", x = [...(a + b)], y = [...(b + a)], frames: CellsFrame[] = [];
-      frames.push({ note: `s1 + s2 = "${a + b}", s2 + s1 = "${b + a}"`, rows: [x, y] });
-      frames.push({ note: "same string both ways → both are repeats of one block", rows: [x, y], tones: { ...range(0, x.length - 1, 0, "done"), ...range(0, y.length - 1, 1, "done") } });
-      frames.push({ note: `gcd(${a.length}, ${b.length}) = 2 → answer "${a.slice(0, 2)}"`, rows: [x, y], tones: { ...range(0, 1, 0, "found"), ...range(0, 1, 1, "found") } });
-      return cells(`gcd("${a}", "${b}") = "AB"`, [x, y], frames, ["s1 + s2", "s2 + s1"]);
+      const a = "ABABAB", b = "ABAB", x = [...(a + b)], y = [...(b + a)], blank = x.map(() => ""), frames: CellsFrame[] = [];
+      frames.push({ note: `str1 = "${a}", str2 = "${b}": a common divisor block exists only if joining them in either order gives the same string`, rows: [blank, blank] });
+      frames.push({ note: `str1 + str2 = "${a + b}"`, rows: [x, blank], tones: { ...range(0, a.length - 1, 0, "window"), ...range(a.length, x.length - 1, 0, "active") } });
+      frames.push({ note: `str2 + str1 = "${b + a}"`, rows: [x, y], tones: { ...range(0, a.length - 1, 0, "window"), ...range(a.length, x.length - 1, 0, "active"), ...range(0, b.length - 1, 1, "active"), ...range(b.length, y.length - 1, 1, "window") } });
+      frames.push({ note: `the two strings match at all ${x.length} positions, so both are repeats of one block`, rows: [x, y], tones: { ...range(0, x.length - 1, 0, "done"), ...range(0, y.length - 1, 1, "done") } });
+      let p = a.length, r = b.length;
+      while (r) { frames.push({ note: `block length is the gcd of the lengths: ${p} mod ${r} = ${p % r}, so gcd(${p}, ${r}) becomes gcd(${r}, ${p % r})`, rows: [x, y], tones: { ...range(0, x.length - 1, 0, "done"), ...range(0, y.length - 1, 1, "done") } }); [p, r] = [r, p % r]; }
+      frames.push({ note: `gcd is ${p}, so the answer is the first ${p} characters, "${a.slice(0, p)}"`, rows: [x, y], tones: { ...range(0, p - 1, 0, "found"), ...range(0, p - 1, 1, "found") } });
+      return cells(`gcd("${a}", "${b}") = "${a.slice(0, p)}"`, [blank, blank], frames, ["s1 + s2", "s2 + s1"]);
     },
   },
 
@@ -1005,12 +1094,18 @@ def gcdOfStrings(str1, str2):
     return sum(is_p)`,
     lang: "python", time: "O(n log log n)", space: "O(n)",
     viz: () => {
-      const n = 20, row = Array.from({ length: n - 2 }, (_, i) => i + 2), comp = new Set<number>(), frames: CellsFrame[] = [];
-      const tones = (p: number) => Object.fromEntries(row.map((x, i) => [`0:${i}`, x === p ? "active" : comp.has(x) ? "muted" : x < p ? "found" : "window"])) as Record<string, Tone>;
-      for (let p = 2; p * p < n; p++) { if (comp.has(p)) continue; const cross: number[] = []; for (let m = p * p; m < n; m += p) if (!comp.has(m)) { comp.add(m); cross.push(m); } frames.push({ note: `${p} is prime → cross out ${cross.join(", ")}`, tones: tones(p) }); }
-      const c = row.filter((x) => !comp.has(x)).length;
-      frames.push({ note: `5² ≥ ${n}, stop. Primes below ${n}: ${row.filter((x) => !comp.has(x)).join(", ")} → ${c}`, tones: Object.fromEntries(row.map((x, i) => [`0:${i}`, comp.has(x) ? "muted" : "found"])) as Record<string, Tone> });
-      return cells(`Primes below ${n}: ${c}`, [row], frames);
+      const n = 16, row = Array.from({ length: n - 2 }, (_, i) => i + 2), comp = new Set<number>(), frames: CellsFrame[] = [];
+      const tn = (p: number, fresh: number[] = []) => Object.fromEntries(row.map((x, i) => [`0:${i}`, x === p ? "active" : fresh.includes(x) ? "bad" : comp.has(x) ? "muted" : "window"])) as Record<string, Tone>;
+      frames.push({ note: `Count the primes below ${n} with a sieve: every number starts marked prime, and each prime p crosses out its multiples from p² on`, tones: {} });
+      for (let p = 2; p * p <= n; p++) {
+        if (comp.has(p)) { frames.push({ note: `${p} is already crossed out (a multiple of a smaller prime), so skip it: its multiples are gone too`, tones: tn(p) }); continue; }
+        frames.push({ note: `${p} is still marked prime; its multiples start at ${p}² = ${p * p}, since smaller ones were crossed by smaller primes`, tones: tn(p) });
+        const cross: number[] = [], fresh: number[] = []; for (let m = p * p; m < n; m += p) { cross.push(m); if (!comp.has(m)) { comp.add(m); fresh.push(m); } }
+        frames.push({ note: `cross out ${cross.join(", ")}${cross.length > fresh.length ? ` (${cross.filter((m) => !fresh.includes(m)).join(", ")} already gone)` : ""}`, tones: tn(p, fresh) });
+      }
+      const pr = row.filter((x) => !comp.has(x));
+      frames.push({ note: `the next prime squared is at least ${n}, so stop: the marks left are ${pr.join(", ")}, which is ${pr.length} primes`, tones: Object.fromEntries(row.map((x, i) => [`0:${i}`, comp.has(x) ? "muted" : "found"])) as Record<string, Tone> });
+      return cells(`Primes below ${n}: ${pr.length}`, [row], frames);
     },
   },
 
@@ -1028,12 +1123,14 @@ def gcdOfStrings(str1, str2):
     return ans`,
     lang: "python", time: "O(n√n)", space: "O(1)",
     viz: () => {
-      const n = 7, row = Array.from({ length: n }, (_, i) => i + 1), isP = (k: number) => k > 1 && Array.from({ length: Math.floor(Math.sqrt(k)) - 1 }, (_, i) => i + 2).every((d) => k % d), primes = row.filter(isP), p = primes.length, fact = (k: number): number => (k <= 1 ? 1 : k * fact(k - 1)), frames: CellsFrame[] = [];
-      frames.push({ note: `positions 1..${n}: primes ${primes.join(", ")} → p = ${p}`, tones: Object.fromEntries(row.map((k, i) => [`0:${i}`, isP(k) ? "found" : "muted"])) as Record<string, Tone> });
-      frames.push({ note: `the ${p} primes swap among prime positions: ${p}! = ${fact(p)}`, tones: all(row.filter(isP).map((k) => `0:${k - 1}`), "active") });
-      frames.push({ note: `the other ${n - p} values swap among the rest: ${n - p}! = ${fact(n - p)}`, tones: all(row.filter((k) => !isP(k)).map((k) => `0:${k - 1}`), "window") });
-      frames.push({ note: `${fact(p)} x ${fact(n - p)} = ${fact(p) * fact(n - p)} arrangements`, tones: range(0, n - 1, 0, "done") });
-      return cells(`n = ${n}: ${fact(p) * fact(n - p)} arrangements`, [row], frames, ["value / index"]);
+      const n = 7, MOD = 1000000007, row = Array.from({ length: n }, (_, i) => i + 1), isP = (k: number) => k > 1 && Array.from({ length: Math.floor(Math.sqrt(k)) - 1 }, (_, i) => i + 2).every((d) => k % d), primes = row.filter(isP), p = primes.length, frames: CellsFrame[] = [];
+      frames.push({ note: `Arrange the numbers 1..${n} so every prime sits on a prime position (1-indexed). Count the primes p, then multiply p! by (n - p)!`, tones: {} });
+      frames.push({ note: `the primes up to ${n} are ${primes.join(", ")}, so p = ${p}; the other ${n - p} numbers are not prime`, tones: Object.fromEntries(row.map((k, i) => [`0:${i}`, isP(k) ? "found" : "muted"])) as Record<string, Tone> });
+      let ans = 1;
+      for (let k = 2; k <= p; k++) { const prev = ans; ans = (ans * k) % MOD; frames.push({ note: `k = ${k}: ans = ${prev} x ${k} = ${ans}${k === p ? `, which is ${p}! ways to order the primes among prime positions` : ""}`, tones: all(primes.map((v) => `0:${v - 1}`), "active") }); }
+      for (let k = 2; k <= n - p; k++) { const prev = ans; ans = (ans * k) % MOD; frames.push({ note: `k = ${k}: ans = ${prev} x ${k} = ${ans}${k === n - p ? `, which multiplies in ${n - p}! ways for the other numbers` : ""}`, tones: all(row.filter((v) => !isP(v)).map((v) => `0:${v - 1}`), "window") }); }
+      frames.push({ note: `${p}! x ${n - p}! = ${ans} arrangements (mod ${MOD})`, tones: range(0, n - 1, 0, "found") });
+      return cells(`n = ${n}: ${ans} arrangements`, [row], frames, ["value / index"]);
     },
   },
 
@@ -1045,8 +1142,10 @@ def gcdOfStrings(str1, str2):
     return sum(bin(x).count("1") in primes for x in range(left, right + 1))`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const L = 6, R = 10, P = new Set([2, 3, 5, 7, 11, 13, 17, 19]), rows: (string | number)[][] = [], frames: TableFrame[] = []; let c = 0;
-      for (let x = L; x <= R; x++) { const b = x.toString(2), k = [...b].filter((d) => d === "1").length, ok = P.has(k); if (ok) c++; rows.push([x, b, k, ok ? "yes" : "no"]); frames.push({ note: `${x} = ${b}: ${k} set bits, ${ok ? "prime" : "not prime"} (count ${c})`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2], tones: { [`${rows.length - 1}:3`]: ok ? "found" : "bad" } }); }
+      const L = 6, R = 12, P = new Set([2, 3, 5, 7, 11, 13, 17, 19]), rows: (string | number)[][] = [], frames: TableFrame[] = []; let c = 0;
+      frames.push({ note: `Count the numbers in [${L}, ${R}] whose binary form has a prime number of 1 bits (the possible counts are small: the primes 2, 3, 5, 7, ...)`, cells: [] });
+      for (let x = L; x <= R; x++) { const b = x.toString(2), k = [...b].filter((d) => d === "1").length, ok = P.has(k); if (ok) c++; rows.push([x, b, k, ok ? "yes" : "no"]); frames.push({ note: `${x} = ${b} has ${k} set bit${k === 1 ? "" : "s"}; ${k === 1 ? "1 is not prime" : ok ? `${k} is prime` : `${k} is not prime`}, count = ${c}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2], tones: { [`${rows.length - 1}:3`]: ok ? "found" : "bad" } }); }
+      frames.push({ note: `${c} of the ${R - L + 1} numbers in [${L}, ${R}] have a prime number of set bits`, cells: rows.map((r) => [...r]), tones: Object.fromEntries(rows.map((r, i) => [`${i}:3`, r[3] === "yes" ? "found" : "muted"])) as Record<string, Tone> });
       return table(`[${L}, ${R}]: ${c} numbers`, rows.map((r) => String(r[0])), ["n", "binary", "bits", "prime?"], frames.map((f) => ({ ...f, cells: [...f.cells, ...Array(R - L + 1 - f.cells.length).fill([null, null, null, null])] })));
     },
   },
@@ -1066,10 +1165,16 @@ def gcdOfStrings(str1, str2):
     return res`,
     lang: "python", time: "O(log n)", space: "O(1)",
     viz: () => {
-      const x0 = 2, n0 = 10, bits = n0.toString(2).split(""), frames: CellsFrame[] = []; let res = 1, x = x0, n = n0, k = 0;
-      while (n) { const b = n & 1; if (b) res *= x; frames.push({ note: `bit ${k} is ${b}: ${b ? `res *= ${x} → ${res}` : "skip"}; then base = ${x}² = ${x * x}`, rows: [bits], tones: { [`0:${bits.length - 1 - k}`]: b ? "found" : "muted" } }); x *= x; n >>= 1; k++; }
-      frames.push({ note: `2^10 = ${res} in ${k} squarings`, rows: [bits], tones: range(0, bits.length - 1, 0, "done") });
-      return cells(`myPow(2, 10) = ${res}`, [bits], frames, ["n = 1010"]);
+      const x0 = 2, n0 = 21, bits = n0.toString(2).split(""), L = bits.length, xr: (string | number)[] = bits.map(() => ""), rr: (string | number)[] = bits.map(() => ""), frames: CellsFrame[] = [];
+      let res = 1, x = x0, n = n0, k = 0;
+      frames.push({ note: `${x0}^${n0}: n = ${n0} is ${bits.join("")} in binary. Read the bits from the lowest: multiply the base into res on a 1, and square the base every round (n is not negative, so no 1/x flip)`, rows: [bits, [...xr], [...rr]] });
+      while (n) {
+        const b = n & 1, col = L - 1 - k, prev = res; xr[col] = x; if (b) res *= x; rr[col] = res;
+        frames.push({ note: `bit ${k} is ${b}: ${b ? `res = ${prev} x ${x} = ${res}` : `skip, res stays ${res}`}; then the base becomes ${x}² = ${x * x}`, rows: [bits, [...xr], [...rr]], tones: { [`0:${col}`]: b ? "found" : "muted", [`1:${col}`]: "active", [`2:${col}`]: "window" } });
+        x *= x; n >>= 1; k++;
+      }
+      frames.push({ note: `n is 0 after ${k} rounds, so ${x0}^${n0} = ${res}`, rows: [bits, [...xr], [...rr]], tones: { [`2:0`]: "found" } });
+      return cells(`myPow(${x0}, ${n0}) = ${res}`, [bits, bits.map(() => ""), bits.map(() => "")], frames, [`n = ${bits.join("")}`, "base x", "res"]);
     },
   },
 
@@ -1084,12 +1189,17 @@ def gcdOfStrings(str1, str2):
     return res`,
     lang: "python", time: "O(len(b))", space: "O(1)",
     viz: () => {
-      const a = 2, b = [1, 0, 2], M = 1337, rows: (string | number)[][] = [], frames: TableFrame[] = [];
+      const a = 2, b = [1, 0, 2], M = 1337, rows: (string | number | null)[][] = b.map(() => [null, null, null, null]), frames: TableFrame[] = [], snap = () => rows.map((r) => [...r]);
       const pw = (x: number, e: number) => { let r = 1; for (let i = 0; i < e; i++) r = (r * x) % M; return r; };
-      let res = 1, B = "";
-      for (const d of b) { const r10 = pw(res, 10), ad = pw(a, d); B += d; const nr = (r10 * ad) % M; rows.push([d, `${r10} x ${ad}`, nr]); frames.push({ note: `digit ${d}: exponent becomes ${B}; res = ${res}^10 x ${a}^${d} mod ${M} = ${r10} x ${ad} mod ${M} = ${nr}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); res = nr; }
-      frames.push({ note: `2^102 mod 1337 = ${res}`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:2`]: "found" } });
-      return table(`superPow(2, [1, 0, 2]) = ${res}`, b.map((_, i) => `digit ${i}`), ["d", "res^10 x a^d", "mod 1337"], frames.map((f) => ({ ...f, cells: [...f.cells, ...Array(b.length - f.cells.length).fill([null, null, null])] })));
+      frames.push({ note: `Compute ${a}^${b.join("")} mod ${M}, where the exponent is given digit by digit: appending a digit d turns the exponent B into 10B + d`, cells: snap() });
+      let res = 1;
+      b.forEach((d, i) => {
+        const r10 = pw(res, 10), ad = pw(a, d), nr = (r10 * ad) % M;
+        rows[i] = [d, r10, null, null]; frames.push({ note: `digit ${d}: the exponent becomes ${b.slice(0, i + 1).join("")}, so first raise the old res to the 10th power: ${res}^10 mod ${M} = ${r10}`, cells: snap(), active: [i, 1] });
+        rows[i] = [d, r10, ad, nr]; frames.push({ note: `then multiply by ${a}^${d} = ${ad}: ${r10} x ${ad} mod ${M} = ${nr}`, cells: snap(), active: [i, 3] }); res = nr;
+      });
+      frames.push({ note: `all digits used: ${a}^${b.join("")} mod ${M} = ${res}`, cells: snap(), tones: { [`${b.length - 1}:3`]: "found" } });
+      return table(`superPow(${a}, [${b.join(", ")}]) = ${res}`, b.map((_, i) => `digit ${i}`), ["d", "res^10", "a^d", "res"], frames);
     },
   },
 
@@ -1103,10 +1213,11 @@ def gcdOfStrings(str1, str2):
     return x`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const n = 5, start = 0, a = Array.from({ length: n }, (_, i) => start + 2 * i), frames: CellsFrame[] = []; let x = 0;
-      const acc: (string | number)[] = a.map(() => "");
-      a.forEach((v, i) => { x ^= v; acc[i] = x; frames.push({ note: `nums[${i}] = ${start} + 2·${i} = ${v}; x ^= ${v} → ${x}`, rows: [a, [...acc]], tones: { [`0:${i}`]: "active", [`1:${i}`]: "found" } }); });
-      return cells(`XOR of [${a.join(", ")}] = ${x}`, [a, a.map(() => "")], frames, ["nums", "x"]);
+      const n = 6, start = 3, a = Array.from({ length: n }, (_, i) => start + 2 * i), blank = a.map(() => ""), acc: (string | number)[] = [...blank], frames: CellsFrame[] = []; let x = 0;
+      frames.push({ note: `nums[i] = ${start} + 2·i gives [${a.join(", ")}]. XOR them all into x, starting from x = 0`, rows: [a, [...acc]] });
+      a.forEach((v, i) => { const prev = x; x ^= v; acc[i] = x; frames.push({ note: `nums[${i}] = ${start} + 2·${i} = ${v}; x = ${prev} ^ ${v} = ${x}`, rows: [a, [...acc]], tones: { [`0:${i}`]: "active", [`1:${i}`]: "found" } }); });
+      frames.push({ note: `all ${n} values are folded in, so the answer is ${x}`, rows: [a, [...acc]], tones: { [`1:${n - 1}`]: "found" } });
+      return cells(`XOR of [${a.join(", ")}] = ${x}`, [a, blank], frames, ["nums", "x so far"]);
     },
   },
 
@@ -1118,10 +1229,12 @@ def gcdOfStrings(str1, str2):
     return pow(5, (n + 1) // 2, MOD) * pow(4, n // 2, MOD) % MOD`,
     lang: "python", time: "O(log n)", space: "O(1)",
     viz: () => {
-      const n = 4, pos = Array.from({ length: n }, (_, i) => i), ch = pos.map((i) => (i % 2 ? 4 : 5)), frames: CellsFrame[] = []; let prod = 1;
-      pos.forEach((i) => { prod *= ch[i]; frames.push({ note: `position ${i} (${i % 2 ? "odd: 2, 3, 5, 7" : "even: 0, 2, 4, 6, 8"}) gives ${ch[i]} choices → ${prod} numbers so far`, rows: [pos, ch], tones: { [`1:${i}`]: "active", ...range(0, i - 1, 1, "done") } }); });
-      frames.push({ note: `5^${(n + 1) >> 1} x 4^${n >> 1} = ${prod}`, rows: [pos, ch], tones: range(0, n - 1, 1, "found") });
-      return cells(`n = ${n}: ${prod} good numbers`, [pos, ch], frames, ["position", "choices"]);
+      const n = 7, MOD = 1000000007, pos = Array.from({ length: n }, (_, i) => i), ch = pos.map((i) => (i % 2 ? 4 : 5)), ev = pos.filter((i) => i % 2 === 0), od = pos.filter((i) => i % 2), frames: CellsFrame[] = [];
+      const fast = (base: number, e0: number, tones: Record<string, Tone>) => { let r = 1, b = base, e = e0, k = 0; while (e) { const bit = e & 1, prev = r; if (bit) r = (r * b) % MOD; frames.push({ note: `${base}^${e0}, exponent bit ${k} is ${bit}: ${bit ? `res = ${prev} x ${b} = ${r}` : "skip"}; the base becomes ${b}² = ${(b * b) % MOD}`, rows: [pos, ch], tones }); b = (b * b) % MOD; e >>= 1; k++; } return r; };
+      frames.push({ note: `n = ${n} digits. Even positions take 0, 2, 4, 6 or 8 (5 choices); odd positions take 2, 3, 5 or 7 (4 choices). That is 5^${ev.length} x 4^${od.length}`, rows: [pos, ch], tones: { ...all(ev.map((i) => `1:${i}`), "active"), ...all(od.map((i) => `1:${i}`), "window") } });
+      const r5 = fast(5, ev.length, all(ev.map((i) => `1:${i}`), "active")), r4 = fast(4, od.length, all(od.map((i) => `1:${i}`), "window")), ans = (r5 * r4) % MOD;
+      frames.push({ note: `${r5} x ${r4} = ${ans} (mod ${MOD}), the number of good digit strings of length ${n}`, rows: [pos, ch], tones: range(0, n - 1, 1, "found") });
+      return cells(`n = ${n}: ${ans} good numbers`, [pos, ch], frames, ["position", "choices"]);
     },
   },
 
@@ -1138,10 +1251,13 @@ def gcdOfStrings(str1, str2):
     return x == rev or x == rev // 10`,
     lang: "python", time: "O(log x)", space: "O(1)",
     viz: () => {
-      let x = 12321, rev = 0; const rows: (string | number)[][] = [], frames: TableFrame[] = [];
-      while (x > rev) { const d = x % 10; rev = rev * 10 + d; x = Math.floor(x / 10); rows.push([d, x, rev]); frames.push({ note: `move digit ${d}: x = ${x}, rev = ${rev}${x > rev ? "" : " → rev reached x, stop"}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); }
-      frames.push({ note: `odd length: x = ${x} vs rev // 10 = ${Math.floor(rev / 10)} → palindrome`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:1`]: "found", [`${rows.length - 1}:2`]: "found" } });
-      return table("Is 12321 a palindrome? true", rows.map((_, i) => `step ${i + 1}`), ["digit", "x", "rev"], frames);
+      const x0 = 1234321; let x = x0, rev = 0; const rows: (string | number)[][] = [], frames: TableFrame[] = [];
+      frames.push({ note: `Is ${x0} a palindrome? Move the last half of its digits onto rev, then compare rev with what is left of x`, cells: [] });
+      frames.push({ note: `${x0} is not negative and does not end in 0, so it can be a palindrome: start with x = ${x}, rev = 0`, cells: [] });
+      while (x > rev) { const d = x % 10; rev = rev * 10 + d; x = Math.floor(x / 10); rows.push([d, x, rev]); frames.push({ note: `move digit ${d} from x to rev: x = ${x}, rev = ${rev}${x > rev ? ", x is still bigger, so continue" : ", rev has caught up with x, so stop"}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); }
+      const ok = x === rev || x === Math.floor(rev / 10);
+      frames.push({ note: `x = ${x}, rev = ${rev}: ${x === rev ? "they are equal" : `an odd length puts the middle digit in rev, so compare x with rev // 10 = ${Math.floor(rev / 10)}`} → ${ok ? "palindrome" : "not a palindrome"}`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:1`]: ok ? "found" : "bad", [`${rows.length - 1}:2`]: ok ? "found" : "bad" } });
+      return table(`Is ${x0} a palindrome? ${ok}`, rows.map((_, i) => `step ${i + 1}`), ["digit", "x", "rev"], frames);
     },
   },
   "reverse-integer": {
@@ -1157,8 +1273,10 @@ def gcdOfStrings(str1, str2):
     lang: "python", time: "O(log x)", space: "O(1)",
     viz: () => {
       const x0 = -1230, rows: (string | number)[][] = [], frames: TableFrame[] = []; let x = Math.abs(x0), rev = 0;
-      while (x) { const d = x % 10; rev = rev * 10 + d; x = Math.floor(x / 10); rows.push([d, x, rev]); frames.push({ note: `pop ${d}: rev = rev * 10 + ${d} = ${rev}, x left ${x}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); }
-      frames.push({ note: `restore the sign → ${-rev}; it fits in 32 bits, so return it (the trailing 0 became a leading 0 and vanished)`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:2`]: "found" } });
+      frames.push({ note: `reverse(${x0}): remember the sign (-) and reverse the digits of ${x}`, cells: [] });
+      while (x) { const d = x % 10, prev = rev; rev = rev * 10 + d; x = Math.floor(x / 10); rows.push([d, x, rev]); frames.push({ note: `pop ${d}: rev = ${prev} * 10 + ${d} = ${rev}, ${x} left in x${d === 0 && !prev ? " (a trailing 0 becomes a leading 0 and vanishes)" : ""}`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); }
+      frames.push({ note: `x is 0, so apply the sign: ${-rev}`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:2`]: "window" } });
+      frames.push({ note: `${-rev} is inside [-2^31, 2^31 - 1], so it fits in 32 bits and ${-rev} is returned`, cells: rows.map((r) => [...r]), tones: { [`${rows.length - 1}:2`]: "found" } });
       return table(`reverse(${x0}) = ${-rev}`, rows.map((_, i) => `step ${i + 1}`), ["digit", "x left", "rev"], frames);
     },
   },
@@ -1175,10 +1293,11 @@ def gcdOfStrings(str1, str2):
     return "".join(reversed(out))`,
     lang: "python", time: "O(log n)", space: "O(log n)",
     viz: () => {
-      let n = 701; const rows: (string | number)[][] = [], frames: TableFrame[] = [], out: string[] = [];
-      while (n) { const m = n - 1, ch = String.fromCharCode(65 + (m % 26)); out.unshift(ch); rows.push([n, m % 26, ch, Math.floor(m / 26)]); frames.push({ note: `n = ${n}: (n - 1) % 26 = ${m % 26} → '${ch}'; n = (n - 1) // 26 = ${Math.floor(m / 26)} → "${out.join("")}"`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); n = Math.floor(m / 26); }
-      frames.push({ note: `n is 0, done: 701 = 26 x 26 + 25 = "${out.join("")}" (Z is 26, Y is 25)`, cells: rows.map((r) => [...r]), tones: { "0:2": "found", "1:2": "found" } });
-      return table(`701 → "${out.join("")}"`, rows.map((_, i) => `step ${i + 1}`), ["n", "(n-1) % 26", "letter", "next n"], frames);
+      const n0 = 2147483647; let n = n0; const rows: (string | number)[][] = [], frames: TableFrame[] = [], out: string[] = [];
+      frames.push({ note: `Column ${n0} as a title: letters are base 26 with A = 1 ... Z = 26, so subtract 1 before taking each letter from the right`, cells: [] });
+      while (n) { const m = n - 1, ch = String.fromCharCode(65 + (m % 26)); out.unshift(ch); rows.push([n, m % 26, ch, Math.floor(m / 26)]); frames.push({ note: `n = ${n}: (n - 1) % 26 = ${m % 26} gives '${ch}', and n becomes (n - 1) // 26 = ${Math.floor(m / 26)}; title so far "${out.join("")}"`, cells: rows.map((r) => [...r]), active: [rows.length - 1, 2] }); n = Math.floor(m / 26); }
+      frames.push({ note: `n is 0, so stop: the letters came out from the right, which gives "${out.join("")}"`, cells: rows.map((r) => [...r]), tones: all(rows.map((_, i) => `${i}:2`), "found") });
+      return table(`${n0} → "${out.join("")}"`, rows.map((_, i) => `step ${i + 1}`), ["n", "(n-1) % 26", "letter", "next n"], frames);
     },
   },
 
@@ -1192,10 +1311,12 @@ def gcdOfStrings(str1, str2):
     return n`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const t = "ZY", frames: CellsFrame[] = []; let n = 0;
-      [...t].forEach((ch, i) => { const v = ch.charCodeAt(0) - 64, prev = n; n = n * 26 + v; frames.push({ note: `'${ch}' = ${v}: ${prev} * 26 + ${v} = ${n}`, rows: [[...t], [...t].map((c, j) => (j <= i ? c.charCodeAt(0) - 64 : ""))], tones: { [`0:${i}`]: "active", [`1:${i}`]: "found" } }); });
-      frames.push({ note: `"${t}" = 26 x 26 + 25 = ${n}`, rows: [[...t], [...t].map((c) => c.charCodeAt(0) - 64)], tones: range(0, t.length - 1, 1, "found") });
-      return cells(`"${t}" = ${n}`, [[...t], [...t].map(() => "")], frames, ["letter", "value"]);
+      const t = "FXSHRXW", L = [...t], vals = L.map((c) => c.charCodeAt(0) - 64), blank = L.map(() => ""), frames: CellsFrame[] = []; let n = 0;
+      const vr: (string | number)[] = [...blank], nr: (string | number)[] = [...blank];
+      frames.push({ note: `Read "${t}" as a base-26 number with A = 1 ... Z = 26: for each letter, n = n * 26 + value`, rows: [L, [...vr], [...nr]] });
+      L.forEach((ch, i) => { const prev = n; n = n * 26 + vals[i]; vr[i] = vals[i]; nr[i] = n; frames.push({ note: `'${ch}' = ${vals[i]}: ${prev} * 26 + ${vals[i]} = ${n}`, rows: [L, [...vr], [...nr]], tones: { [`0:${i}`]: "active", [`1:${i}`]: "window", [`2:${i}`]: "found" } }); });
+      frames.push({ note: `all ${L.length} letters are read, so column "${t}" is number ${n}`, rows: [L, [...vr], [...nr]], tones: { [`2:${L.length - 1}`]: "found" } });
+      return cells(`"${t}" = ${n}`, [L, blank, blank], frames, ["letter", "value", "n so far"]);
     },
   },
 
@@ -1244,10 +1365,16 @@ def gcdOfStrings(str1, str2):
     return "".join(reversed(out))`,
     lang: "python", time: "O(max(m, n))", space: "O(max(m, n))",
     viz: () => {
-      const a = "456", b = "77", W = 4, A = a.padStart(W, " ").split(""), B = b.padStart(W, " ").split(""), S: string[] = Array(W).fill(""), frames: CellsFrame[] = []; let carry = 0;
-      for (let c = W - 1; c >= 0; c--) { const x = A[c] === " " ? 0 : +A[c], y = B[c] === " " ? 0 : +B[c], s = x + y + carry; if (!s && c < W - Math.max(a.length, b.length)) break; S[c] = String(s % 10); frames.push({ note: `${x} + ${y} + carry ${carry} = ${s} → write ${s % 10}, carry ${Math.floor(s / 10)}`, rows: [A, B, [...S]], tones: { [`0:${c}`]: "active", [`1:${c}`]: "active", [`2:${c}`]: "found" } }); carry = Math.floor(s / 10); }
+      const a = "9875", b = "546", W = Math.max(a.length, b.length) + 1, A = a.padStart(W, " ").split(""), B2 = b.padStart(W, " ").split(""), S: string[] = Array(W).fill(""), frames: CellsFrame[] = [];
+      let i = a.length - 1, j = b.length - 1, carry = 0, c = W - 1;
+      frames.push({ note: `Add "${a}" and "${b}" column by column from the right with a carry, as on paper, without turning them into integers`, rows: [A, B2, [...S]] });
+      while (i >= 0 || j >= 0 || carry) {
+        const done = i < 0 && j < 0, x = i >= 0 ? +a[i--] : 0, y = j >= 0 ? +b[j--] : 0, s = x + y + carry;
+        S[c] = String(s % 10); frames.push({ note: `${x} + ${y} + carry ${carry} = ${s}: write ${s % 10}, carry ${Math.floor(s / 10)}${done ? " (both numbers are used up but the carry remains)" : ""}`, rows: [A, B2, [...S]], tones: { [`0:${c}`]: "active", [`1:${c}`]: "active", [`2:${c}`]: "found" } }); carry = Math.floor(s / 10); c--;
+      }
       const r = S.join("").trim();
-      return cells(`"${a}" + "${b}" = "${r}"`, [A, B, S], frames, ["num1", "num2", "sum"]);
+      frames.push({ note: `no digits and no carry are left, so "${a}" + "${b}" = "${r}"`, rows: [A, B2, [...S]], tones: range(W - r.length, W - 1, 2, "found") });
+      return cells(`"${a}" + "${b}" = "${r}"`, [A, B2, S], frames, ["num1", "num2", "sum"]);
     },
   },
 
@@ -1262,12 +1389,12 @@ def gcdOfStrings(str1, str2):
     return n == 1`,
     lang: "python", time: "O(log n) per step", space: "O(number of steps)",
     viz: () => {
-      const f = (x: number) => String(x).split("").reduce((s, d) => s + (+d) ** 2, 0), seq: number[] = []; let n = 19;
-      while (n !== 1 && !seq.includes(n)) { seq.push(n); n = f(n); }
-      seq.push(n);
-      const frames: CellsFrame[] = seq.slice(0, -1).map((v, i) => ({ note: `${v} → ${String(v).split("").map((d) => `${d}²`).join(" + ")} = ${f(v)}`, tones: { ...range(0, i - 1, 0, "done"), [`0:${i}`]: "active" } }));
-      frames.push({ note: "reached 1 → 19 is happy", tones: { ...range(0, seq.length - 2, 0, "done"), [`0:${seq.length - 1}`]: "found" } });
-      return cells("19 is happy", [seq], frames);
+      const f = (x: number) => String(x).split("").reduce((s, d) => s + (+d) ** 2, 0), seq: number[] = [7], seen: number[] = [];
+      let n = 7; while (n !== 1 && !seen.includes(n)) { seen.push(n); n = f(n); seq.push(n); }
+      const row = (k: number) => seq.map((v, i) => (i < k ? v : "")), frames: CellsFrame[] = [{ note: `Is 7 happy? Replace n by the sum of the squares of its digits; stop at 1, or when a value repeats (a loop that never reaches 1)`, rows: [row(1)], tones: { "0:0": "active" } }];
+      seq.slice(0, -1).forEach((v, i) => frames.push({ note: `${v} → ${String(v).split("").map((d) => `${d}²`).join(" + ")} = ${seq[i + 1]}; seen so far {${seq.slice(0, i + 1).join(", ")}}${seq[i + 1] === 1 ? ", and 1 is not a repeat but the goal" : `, and ${seq[i + 1]} is new`}`, rows: [row(i + 2)], tones: { ...range(0, i - 1, 0, "done"), [`0:${i}`]: "window", [`0:${i + 1}`]: "active" } }));
+      frames.push({ note: `the sequence reached 1, so 7 is a happy number`, rows: [row(seq.length)], tones: { ...range(0, seq.length - 2, 0, "done"), [`0:${seq.length - 1}`]: "found" } });
+      return cells("7 is happy", [row(seq.length)], frames);
     },
   },
 
@@ -1325,10 +1452,17 @@ def gcdOfStrings(str1, str2):
     return 0 if num == 0 else 1 + (num - 1) % 9`,
     lang: "python", time: "O(1)", space: "O(1)",
     viz: () => {
-      const seq = [38], frames: CellsFrame[] = []; let n = 38;
-      while (n >= 10) { const s = String(n).split("").reduce((x, d) => x + +d, 0); frames.push({ note: `${n} → ${String(n).split("").join(" + ")} = ${s} (the remainder mod 9 stays ${n % 9})`, rows: [[...seq, s]], tones: { [`0:${seq.length}`]: "active" } }); seq.push(s); n = s; }
-      frames.push({ note: `formula: 1 + (38 - 1) % 9 = ${1 + (37 % 9)}, the same single digit with no loop`, rows: [seq], tones: { [`0:${seq.length - 1}`]: "found" } });
-      return cells(`Digital root of 38: ${n}`, [seq], frames);
+      const ds = (n: number) => [...String(n)].reduce((s, d) => s + +d, 0), nums0 = [38, 45, 0], W = 3, chains = nums0.map((n) => { const c = [n]; while (c[c.length - 1] >= 10) c.push(ds(c[c.length - 1])); return c; });
+      const rows = (ks: number[]) => chains.map((c, r) => Array.from({ length: W }, (_, i) => (i < ks[r] ? c[i] : ""))), fm = (n: number) => 1 + ((n - 1) % 9), frames: CellsFrame[] = [];
+      frames.push({ note: "Add the digits of a number until one digit is left (38 → 11 → 2), then replace that loop by a formula using mod 9", rows: rows([1, 0, 0]), tones: { "0:0": "active" } });
+      frames.push({ note: `38 → 3 + 8 = 11; 38 % 9 = ${38 % 9} and 11 % 9 = ${11 % 9}, so adding digits keeps the remainder mod 9`, rows: rows([2, 0, 0]), tones: { "0:0": "window", "0:1": "active" } });
+      frames.push({ note: `11 → 1 + 1 = 2; 2 % 9 = 2 again, and 2 is a single digit, so the answer for 38 is 2`, rows: rows([3, 0, 0]), tones: { "0:1": "window", "0:2": "found" } });
+      frames.push({ note: `shortcut for 38: 1 + (38 - 1) % 9 = 1 + ${37 % 9} = ${fm(38)}, the same digit with no loop`, rows: rows([3, 0, 0]), tones: { "0:2": "found" } });
+      frames.push({ note: `45 → 4 + 5 = 9, yet 45 % 9 = 0: a plain n % 9 gives 0 for multiples of 9, which is wrong`, rows: rows([3, 2, 0]), tones: { "1:0": "window", "1:1": "bad" } });
+      frames.push({ note: `1 + (45 - 1) % 9 = 1 + ${44 % 9} = ${fm(45)} fixes it: shifting by 1 maps the remainders onto 1..9`, rows: rows([3, 2, 0]), tones: { "1:1": "found" } });
+      frames.push({ note: "0 is special: in Python 1 + (0 - 1) % 9 would give 9, so the code returns 0 first", rows: rows([3, 2, 1]), tones: { "2:0": "found" } });
+      frames.push({ note: `answers: 38 → ${fm(38)}, 45 → ${fm(45)}, 0 → 0, all without looping over digits`, rows: rows([3, 2, 1]), tones: { "0:2": "found", "1:1": "found", "2:0": "found" } });
+      return cells(`Digital root of 38: ${fm(38)}`, rows([3, 2, 1]), frames, ["num 38", "num 45", "num 0"]);
     },
   },
 
@@ -1358,8 +1492,9 @@ def gcdOfStrings(str1, str2):
     return cur`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const a = [2, 7, 9, 3, 1], dp: (string | number)[] = a.map(() => ""), frames: CellsFrame[] = [];
-      a.forEach((x, i) => { const take = x + (i >= 2 ? +dp[i - 2] : 0), skip = i >= 1 ? +dp[i - 1] : 0; dp[i] = Math.max(take, skip); frames.push({ note: `house ${i}: rob ${x} + ${i >= 2 ? dp[i - 2] : 0} = ${take} vs skip ${skip} → ${dp[i]}`, rows: [a, [...dp]], tones: { [`0:${i}`]: "active", [`1:${i}`]: "found", ...(i >= 1 ? { [`1:${i - 1}`]: "window" } : {}), ...(i >= 2 ? { [`1:${i - 2}`]: "window" } : {}) } }); });
+      const a = [5, 3, 4, 11, 2, 7, 1], dp: (string | number)[] = a.map(() => ""), frames: CellsFrame[] = [{ note: `Houses hold [${a.join(", ")}] and no two neighbours can be robbed. dp[i] is the best total using houses 0..i: rob house i on top of dp[i - 2], or skip it and keep dp[i - 1]`, rows: [a, [...dp]] }];
+      a.forEach((x, i) => { const take = x + (i >= 2 ? +dp[i - 2] : 0), skip = i >= 1 ? +dp[i - 1] : 0; dp[i] = Math.max(take, skip); frames.push({ note: `house ${i}: rob ${x} + ${i >= 2 ? dp[i - 2] : 0} = ${take} versus skip ${skip}, so dp[${i}] = ${dp[i]} (${take > skip ? "rob" : "skip"})`, rows: [a, [...dp]], tones: { [`0:${i}`]: "active", [`1:${i}`]: "found", ...(i >= 1 ? { [`1:${i - 1}`]: "window" } : {}), ...(i >= 2 ? { [`1:${i - 2}`]: "window" } : {}) } }); });
+      frames.push({ note: `the last house is decided, so the most money is dp[${a.length - 1}] = ${dp[a.length - 1]}`, rows: [a, [...dp]], tones: { [`1:${a.length - 1}`]: "found" } });
       return cells(`Most money: ${dp[a.length - 1]}`, [a, a.map(() => "")], frames, ["money", "best"]);
     },
   },
@@ -1420,9 +1555,11 @@ def gcdOfStrings(str1, str2):
     return cur`,
     lang: "python", time: "O(n)", space: "O(1)",
     viz: () => {
-      const s = "2261", n = s.length, head = ["", ...s], dp: (string | number)[] = Array(n + 1).fill(""), frames: CellsFrame[] = [];
-      dp[0] = 1; dp[1] = s[0] !== "0" ? 1 : 0; frames.push({ note: `empty prefix: 1 way; "${s[0]}": ${dp[1]} way`, rows: [head, [...dp]], tones: { "1:0": "found", "1:1": "found" } });
-      for (let i = 2; i <= n; i++) { const one = s[i - 1] !== "0", two = +s.slice(i - 2, i) >= 10 && +s.slice(i - 2, i) <= 26; dp[i] = (one ? +dp[i - 1] : 0) + (two ? +dp[i - 2] : 0); frames.push({ note: `"${s[i - 1]}" alone ${one ? `ok (+${dp[i - 1]})` : "invalid"}, "${s.slice(i - 2, i)}" ${two ? `ok (+${dp[i - 2]})` : "invalid"} → ${dp[i]}`, rows: [head, [...dp]], tones: { [`1:${i}`]: "found", ...(one ? { [`1:${i - 1}`]: "window" } : {}), ...(two ? { [`1:${i - 2}`]: "window" } : {}) } }); }
+      const s = "226102", n = s.length, head = ["", ...s], dp: (string | number)[] = Array(n + 1).fill(""), frames: CellsFrame[] = [];
+      frames.push({ note: `Count the ways to read "${s}" as letters (1 = A ... 26 = Z). dp[i] is the number of ways for the first i digits; the last letter uses one digit or two`, rows: [head, [...dp]] });
+      dp[0] = 1; dp[1] = s[0] !== "0" ? 1 : 0; frames.push({ note: `the empty prefix has 1 way and "${s[0]}" alone has ${dp[1]} way`, rows: [head, [...dp]], tones: { "1:0": "found", "1:1": "found" } });
+      for (let i = 2; i <= n; i++) { const one = s[i - 1] !== "0", two = +s.slice(i - 2, i) >= 10 && +s.slice(i - 2, i) <= 26; dp[i] = (one ? +dp[i - 1] : 0) + (two ? +dp[i - 2] : 0); frames.push({ note: `"${s[i - 1]}" alone ${one ? `is valid (+${dp[i - 1]} from dp[${i - 1}])` : "is invalid"}, "${s.slice(i - 2, i)}" ${two ? `is valid (+${dp[i - 2]} from dp[${i - 2}])` : "is invalid"}, so dp[${i}] = ${dp[i]}`, rows: [head, [...dp]], tones: { [`1:${i}`]: "found", ...(one ? { [`1:${i - 1}`]: "window" } : {}), ...(two ? { [`1:${i - 2}`]: "window" } : {}) } }); }
+      frames.push({ note: `all ${n} digits are used, so "${s}" can be decoded in dp[${n}] = ${dp[n]} ways`, rows: [head, [...dp]], tones: { [`1:${n}`]: "found" } });
       return cells(`"${s}" decodes ${dp[n]} ways`, [head, Array(n + 1).fill("")], frames, ["digit", "ways"]);
     },
   },
@@ -1483,10 +1620,11 @@ def gcdOfStrings(str1, str2):
     return can[half]`,
     lang: "python", time: "O(n · total)", space: "O(total)",
     viz: () => {
-      const a = [1, 5, 11, 5], H = a.reduce((x, y) => x + y, 0) / 2, idx = Array.from({ length: H + 1 }, (_, i) => i), can = idx.map((i) => i === 0), frames: CellsFrame[] = [];
+      const a = [2, 3, 4, 5, 6], H = a.reduce((x, y) => x + y, 0) / 2, idx = Array.from({ length: H + 1 }, (_, i) => i), can = idx.map((i) => i === 0), frames: CellsFrame[] = [];
       const row = () => can.map((c) => (c ? "T" : "")), tones = (fresh: number[]) => ({ ...all(idx.filter((i) => can[i]).map((i) => `1:${i}`), "done"), ...all(fresh.map((i) => `1:${i}`), "found") });
-      frames.push({ note: `total ${H * 2}, target half ${H}`, rows: [idx, row()], tones: tones([0]) });
-      for (const x of a) { const fresh: number[] = []; for (let s = H; s >= x; s--) if (!can[s] && can[s - x]) { can[s] = true; fresh.push(s); } frames.push({ note: `number ${x}: newly reachable ${fresh.length ? fresh.sort((p, q) => p - q).join(", ") : "nothing"}${can[H] ? ` → ${H} is reachable` : ""}`, rows: [idx, row()], tones: tones(fresh) }); }
+      frames.push({ note: `Can [${a.join(", ")}] be split into two equal halves? The total is ${H * 2}, so look for a subset summing to ${H}; can[s] marks the sums reachable so far`, rows: [idx, row()], tones: tones([0]) });
+      for (const x of a) { const fresh: number[] = []; for (let s = H; s >= x; s--) if (!can[s] && can[s - x]) { can[s] = true; fresh.push(s); } fresh.sort((p, q) => p - q); frames.push({ note: `number ${x}: ${fresh.length ? `sums ${fresh.join(", ")} become reachable (an old reachable sum plus ${x})` : "no new sum becomes reachable"}${can[H] ? `; ${H} is reachable` : ""}`, rows: [idx, row()], tones: tones(fresh) }); }
+      frames.push({ note: `can[${H}] is ${can[H] ? "True" : "False"}, so the numbers ${can[H] ? "can" : "cannot"} be split into two equal halves`, rows: [idx, row()], tones: { [`1:${H}`]: can[H] ? "found" : "bad" } });
       return cells(`Equal halves: ${can[H]}`, [idx, idx.map(() => "")], frames, ["sum", "reachable"]);
     },
   },

@@ -47,7 +47,7 @@ export function ProblemRow({ i, side, compact, revisit }: Props) {
           {showTopic ? <span>{P[i][5]}</span> : (
             <button type="button" onClick={() => setShowTopic(true)} className="cursor-pointer rounded-md px-1 text-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-ink">show topic</button>
           )}
-          {P[i][0] !== "C" && <SolveButton className="ml-auto" t={{ slug: P[i][2], title: name, level: P[i][3], url: url(i), sql: P[i][0] === "S" }} />}
+          {P[i][0] !== "C" && <SolveButton className="ml-auto" t={{ slug: P[i][2], title: name, level: P[i][3], url: url(i), sql: P[i][0] === "S", i }} />}
         </div>
         {revisit && d?.n && <p className="mt-2 text-sm text-muted">Your insight: {d.n}</p>}
 

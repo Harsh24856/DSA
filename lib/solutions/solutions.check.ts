@@ -10,6 +10,8 @@ for (const [slug, s] of Object.entries(SOLUTIONS)) {
   const d = s.viz();
   const broken = d.frames.find((f) => !f.note || /NaN|undefined|Infinity/.test(f.note));
   if (!d.frames.length || broken) { bad++; console.error("visualiser problem:", slug, broken?.note); }
+  // a visualiser walks the algorithm one decision at a time: Python at least 6 steps, SQL one per clause
+  if (d.frames.length < (s.lang === "python" ? 6 : 3)) { bad++; console.error(`too few steps (${d.frames.length}):`, slug); }
 }
 const py = Object.fromEntries(Object.entries(SOLUTIONS).filter(([, s]) => s.lang === "python").map(([k, s]) => [k, s.code]));
 const r = spawnSync("python3", ["-I", new URL("./solutions_test.py", import.meta.url).pathname], { input: JSON.stringify(py), encoding: "utf8" });

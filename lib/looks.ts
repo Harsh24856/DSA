@@ -1,9 +1,9 @@
-// Theme Studio looks. Picture themes: the owner's images in public/themes (web-sized copies) and free
+// Theme Studio looks. Clear themes: solid colours with strong contrast. Picture themes: the owner's images in public/themes (web-sized copies) and free
 // Unsplash photos (credited). Colours for each live at the end of app/globals.css under data-look="<id>".
 export type Fx = "petals" | "stars" | "rain";
 export type Look = {
   id: string; name: string; blurb: string;
-  group: "Anime" | "Photo" | "Drawn" | "Classic";
+  group: "Clear" | "Anime" | "Photo" | "Drawn" | "Classic";
   photo?: { full: string; small: string; pos?: string; credit?: { author: string; page: string } };
   light?: boolean;      // light glass + lightening overlay instead of dark
   fx?: Fx; fxColor?: string;
@@ -17,6 +17,19 @@ const local = (name: string, pos?: string) => ({ full: `/themes/${name}.jpg`, sm
 
 export const LOOKS: Look[] = [
   { id: "classic", group: "Classic", name: "Classic", blurb: "Your palette, light or dark" },
+
+  { id: "contrast-dark", group: "Clear", name: "Contrast Dark", blurb: "Pure black, brightest text" },
+  { id: "contrast-light", group: "Clear", name: "Contrast Light", blurb: "Pure white, darkest text" },
+  { id: "tokyo", group: "Clear", name: "Tokyo Night", blurb: "Deep indigo, calm blue" },
+  { id: "mocha", group: "Clear", name: "Catppuccin Mocha", blurb: "Soft pastels on warm dark" },
+  { id: "nord", group: "Clear", name: "Nord", blurb: "Arctic blue, low glare" },
+  { id: "gruvbox", group: "Clear", name: "Gruvbox", blurb: "Retro warm, easy at night" },
+  { id: "dracula", group: "Clear", name: "Dracula", blurb: "Vivid purple and green" },
+  { id: "rosepine", group: "Clear", name: "Rosé Pine", blurb: "Muted rose, soft contrast" },
+  { id: "latte", group: "Clear", name: "Catppuccin Latte", blurb: "Soft pastel daylight" },
+  { id: "sepia", group: "Clear", name: "Reading Sepia", blurb: "Warm page, gentle on eyes" },
+  { id: "mint", group: "Clear", name: "Mint Morning", blurb: "Fresh green on clean white" },
+  { id: "sky", group: "Clear", name: "Clear Sky", blurb: "Crisp blue on clean white" },
 
   { id: "starfall", group: "Anime", name: "Starfall", blurb: "Meteors over the clouds", fx: "stars", photo: local("anime-girl-night", "50% 75%") },
   { id: "frieren", group: "Anime", name: "Frieren", blurb: "Warm sand, quiet journey", light: true, photo: local("frieren-beyond", "72% 50%") },
@@ -39,4 +52,4 @@ export const LOOKS: Look[] = [
   { id: "terminal", group: "Drawn", name: "Terminal", blurb: "Monospace, phosphor green" },
 ];
 export const lookById = (id: string) => LOOKS.find((l) => l.id === id) ?? LOOKS[0];
-export const GROUPS = ["Anime", "Photo", "Drawn", "Classic"] as const;
+export const GROUPS = ["Clear", "Classic", "Anime", "Photo", "Drawn"] as const;
