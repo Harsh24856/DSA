@@ -32,6 +32,18 @@ test("search finds a question from the keyboard and opens it", async ({ page }) 
   await expect(page.getByRole("dialog").getByRole("heading", { name: /Course Schedule/ })).toBeVisible();
 });
 
+test("a Codeforces row opens the worked example for its tag", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("region", { name: /Path Sum II/ })).toBeVisible();
+  await page.keyboard.press("ControlOrMeta+k");
+  await page.getByRole("combobox").fill("rating 1200 greedy");
+  await page.keyboard.press("Enter");
+  const sheet = page.getByRole("dialog");
+  await expect(sheet.getByRole("link", { name: /Open on Codeforces/ })).toBeVisible();
+  await expect(sheet.getByText(/Swap up to k pairs/)).toBeVisible();
+  await expect(sheet.locator('[aria-label*="Step "]')).toHaveAttribute("aria-label", /Step 1 of/);
+});
+
 test("landing: the hero player, plan demo and playground work signed out", async ({ page }) => {
   await page.goto("/welcome");
   const player = page.locator('[aria-label*="Step "]').first();

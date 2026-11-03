@@ -8,13 +8,11 @@ import { SOLUTIONS } from "@/lib/solutions";
 import { SOLVE_EXACT, SOLVE_MAP } from "@/lib/patterns/solveMap";
 import { topicById } from "@/lib/patterns";
 import { PLAIN } from "@/lib/patterns/plain";
-import { title, todayPlan, url } from "@/lib/logic";
-import { P } from "@/lib/problems";
+import { CF_PATTERN } from "@/lib/solutions/codeforces";
+import { todayPlan } from "@/lib/logic";
 import { useStore } from "@/lib/store";
 import { Visualizer } from "./Visualizer";
-import type { SolveTarget } from "./SolvePanel";
-
-const targetOf = (i: number): SolveTarget => ({ slug: P[i][2], title: title(i), level: P[i][3], url: url(i), sql: P[i][0] === "S", i });
+import { solveTarget, type SolveTarget } from "./SolvePanel";
 
 export function SolveSheet({ t, onGo, onClose }: { t: SolveTarget; onGo(t: SolveTarget): void; onClose(): void }) {
   const closeBtn = useRef<HTMLButtonElement>(null);
@@ -43,7 +41,7 @@ export function SolveSheet({ t, onGo, onClose }: { t: SolveTarget; onGo(t: Solve
 /** Tick the question and move through today's list without going back to the page. */
 function Footer({ i, onGo }: { i: number; onGo(t: SolveTarget): void }) {
   const { state, now, toggle } = useStore();
-  const list = todayPlan(state, now).main.filter((x) => P[x][0] !== "C");
+  const list = todayPlan(state, now).main;
   const at = list.indexOf(i), done = !!state.done[i];
   const prev = at > 0 ? list[at - 1] : undefined, next = at >= 0 && at < list.length - 1 ? list[at + 1] : undefined;
   return (
@@ -54,8 +52,8 @@ function Footer({ i, onGo }: { i: number; onGo(t: SolveTarget): void }) {
       {at >= 0 && (
         <div className="ml-auto flex items-center gap-2">
           <span className="num text-xs text-muted">{at + 1} of {list.length} today</span>
-          <button type="button" className="btn btn-sm btn-icon" disabled={prev === undefined} onClick={() => prev !== undefined && onGo(targetOf(prev))} aria-label="Previous question"><CaretLeft size={14} aria-hidden /></button>
-          <button type="button" className="btn btn-sm btn-icon" disabled={next === undefined} onClick={() => next !== undefined && onGo(targetOf(next))} aria-label="Next question"><CaretRight size={14} aria-hidden /></button>
+          <button type="button" className="btn btn-sm btn-icon" disabled={prev === undefined} onClick={() => prev !== undefined && onGo(solveTarget(prev))} aria-label="Previous question"><CaretLeft size={14} aria-hidden /></button>
+          <button type="button" className="btn btn-sm btn-icon" disabled={next === undefined} onClick={() => next !== undefined && onGo(solveTarget(next))} aria-label="Next question"><CaretRight size={14} aria-hidden /></button>
         </div>
       )}
     </footer>
@@ -64,7 +62,8 @@ function Footer({ i, onGo }: { i: number; onGo(t: SolveTarget): void }) {
 
 function Body({ t, closeBtn, onClose }: { t: SolveTarget; closeBtn: React.RefObject<HTMLButtonElement | null>; onClose(): void }) {
   const sol = SOLUTIONS[t.slug];
-  const key = SOLVE_MAP[t.slug], [topicId, nStr] = key?.split(":") ?? [], topic = topicId ? topicById(topicId) : undefined, pattern = topic?.patterns.find((p) => p.n === +nStr);
+  const cf = t.slug.startsWith("cf:");
+  const key = SOLVE_MAP[t.slug] ?? CF_PATTERN[t.slug], [topicId, nStr] = key?.split(":") ?? [], topic = topicId ? topicById(topicId) : undefined, pattern = topic?.patterns.find((p) => p.n === +nStr);
   const [tab, setTab] = useState<"solution" | "pattern">(sol ? "solution" : "pattern");
   const [copied, setCopied] = useState(false);
   const diagram = useMemo(() => (tab === "solution" ? sol?.viz() : pattern?.viz.make()), [tab, sol, pattern]);
@@ -78,8 +77,8 @@ function Body({ t, closeBtn, onClose }: { t: SolveTarget; closeBtn: React.RefObj
           <div className="min-w-0 flex-1">
             <h2 id="solve-title" className="t-h2">{t.title}</h2>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-              <span className={`pill lv-${t.level}`}>{t.level}</span>
-              <a href={t.url} target="_blank" rel="noopener" className="inline-flex items-center gap-1 font-medium text-muted transition-colors hover:text-accent">Open on LeetCode<ArrowUpRight size={14} aria-hidden /></a>
+              <span className={`pill lv-${t.level.split(" ")[0]}`}>{t.level}</span>
+              <a href={t.url} target="_blank" rel="noopener" className="inline-flex items-center gap-1 font-medium text-muted transition-colors hover:text-accent">{cf ? "Open on Codeforces" : "Open on LeetCode"}<ArrowUpRight size={14} aria-hidden /></a>
             </div>
           </div>
           <button ref={closeBtn} type="button" onClick={onClose} aria-label="Close" className="btn btn-ghost btn-icon -mr-2 shrink-0"><X size={18} aria-hidden /></button>
@@ -100,13 +99,19 @@ function Body({ t, closeBtn, onClose }: { t: SolveTarget; closeBtn: React.RefObj
             <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }} className="flex flex-col gap-6">
               {tab === "solution" && sol && (
                 <>
+                  {sol.example && (
+                    <div className="tile">
+                      <p className="text-xs text-muted">This row opens your top unsolved problem on Codeforces, which changes as you solve. Here is a worked example of the same tag.</p>
+                      <p className="mt-2 text-sm font-medium leading-relaxed">{sol.example}</p>
+                    </div>
+                  )}
                   <p className="callout text-sm leading-relaxed"><span className="font-semibold">Key move: </span>{sol.approach}</p>
                   <ol className="flex flex-col gap-2">{sol.idea.map((x, i) => <li key={x} className="flex gap-3 text-sm leading-relaxed"><span className="num grid size-6 shrink-0 place-items-center rounded-full bg-surface-2 text-xs font-semibold text-accent">{i + 1}</span>{x}</li>)}</ol>
                 </>
               )}
               {tab === "pattern" && pattern && topic && (
                 <>
-                  <p className="text-sm text-muted">{SOLVE_EXACT.has(t.slug) ? "This question is in this pattern's practice list." : "Closest pattern, matched from the question's LeetCode tags."}</p>
+                  <p className="text-sm text-muted">{cf ? "Closest pattern for this tag." : SOLVE_EXACT.has(t.slug) ? "This question is in this pattern's practice list." : "Closest pattern, matched from the question's LeetCode tags."}</p>
                   {PLAIN[`${topic.id}:${pattern.n}`] && <p className="callout text-sm leading-relaxed">{PLAIN[`${topic.id}:${pattern.n}`].plain}</p>}
                   <p className="text-sm leading-relaxed">{pattern.summary}</p>
                 </>

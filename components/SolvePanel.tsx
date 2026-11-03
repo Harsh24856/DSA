@@ -4,9 +4,16 @@ import dynamic from "next/dynamic";
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { AnimatePresence } from "motion/react";
 import { Lightbulb } from "@phosphor-icons/react";
+import { title, url } from "@/lib/logic";
+import { P } from "@/lib/problems";
 
 /** `i` is the row in the daily plan, when the question has one: it enables ticking and next/previous in the sheet. */
 export type SolveTarget = { slug: string; title: string; level: string; url: string; sql?: boolean; i?: number };
+/** Codeforces rows are filtered lists, so they open the worked example for their tag. */
+export const solveTarget = (i: number): SolveTarget => {
+  const cf = P[i][0] === "C";
+  return { slug: cf ? `cf:${P[i][5]}` : P[i][2], title: cf ? `${title(i)}: ${P[i][5]}` : title(i), level: P[i][3], url: url(i), sql: P[i][0] === "S", i };
+};
 const Ctx = createContext<(t: SolveTarget) => void>(() => {});
 export const useSolve = () => useContext(Ctx);
 

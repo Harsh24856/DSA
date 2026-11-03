@@ -8,7 +8,7 @@ import type { Track } from "@/lib/problems";
 import { P } from "@/lib/problems";
 
 import { ProblemRow } from "@/components/ProblemRow";
-import { SolveButton } from "@/components/SolvePanel";
+import { SolveButton, solveTarget } from "@/components/SolvePanel";
 import { WeekBars } from "@/components/charts";
 import { Bar, Card, Count, Skeleton, Stat } from "@/components/ui";
 
@@ -163,7 +163,7 @@ function NextUp({ i }: { i: number }) {
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <a href={url(i)} target="_blank" rel="noopener" className="btn btn-primary">{lc ? "Open on LeetCode" : "Open on Codeforces"}<ArrowUpRight size={16} aria-hidden /></a>
-        {lc && <SolveButton t={{ slug: P[i][2], title: name, level: P[i][3], url: url(i), sql: P[i][0] === "S", i }} />}
+        <SolveButton t={solveTarget(i)} />
         <button type="button" className="btn" onClick={() => toggle(i, true)}><Check size={16} weight="bold" aria-hidden />Mark solved</button>
       </div>
     </section>

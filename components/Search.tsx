@@ -6,9 +6,8 @@ import { motion } from "motion/react";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { lcUrl, TOPICS } from "@/lib/patterns";
 import { PATTERN_PROBLEMS } from "@/lib/patterns/problems";
-import { title, url } from "@/lib/logic";
 import { P } from "@/lib/problems";
-import { useSolve } from "./SolvePanel";
+import { solveTarget, useSolve } from "./SolvePanel";
 
 type Item = { key: string; label: string; tag: string; go: () => void; text: string };
 
@@ -28,9 +27,8 @@ export function Search({ nav, onClose }: { nav: { href: string; label: string }[
     P.forEach((p, i) => {
       if (seen.has(p[2])) return;
       seen.add(p[2]);
-      const name = title(i), lc = p[0] !== "C";
-      out.push({ key: p[2], label: name, tag: p[0] === "L" ? p[3] : p[0] === "S" ? "SQL" : "Codeforces", text: name.toLowerCase(),
-        go: () => { onClose(); if (lc) solve({ slug: p[2], title: name, level: p[3], url: url(i), sql: p[0] === "S", i }); else window.open(url(i), "_blank", "noopener"); } });
+      const t = solveTarget(i);
+      out.push({ key: p[2], label: t.title, tag: p[0] === "L" ? p[3] : p[0] === "S" ? "SQL" : "Codeforces", text: t.title.toLowerCase(), go: () => { onClose(); solve(t); } });
     });
     for (const [lc, name, slug, lv] of Object.values(PATTERN_PROBLEMS).flatMap((t) => Object.values(t).flat())) {
       if (seen.has(slug)) continue;
