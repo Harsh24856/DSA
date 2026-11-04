@@ -13,7 +13,7 @@ const THEMES = [
   { name: "sepia", look: "sepia", mode: "light" }, // solid light theme
 ] as const;
 const WIDTHS = [1280, 375] as const;
-const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void> }[] = [
+const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void>; prep?: (p: Page) => Promise<void> }[] = [
   { name: "landing", path: "/welcome" },
   { name: "privacy", path: "/privacy" },
   { name: "today", path: "/" },
@@ -22,6 +22,9 @@ const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void> }[]
   { name: "topic", path: "/patterns/array" },
   { name: "pattern", path: "/patterns/array#p-1" },
   { name: "problems", path: "/problems" },
+  { name: "drill", path: "/drill" },
+  { name: "drill-answered", path: "/drill", prep: async (p) => { await p.getByRole("button", { name: "Start round" }).click(); await p.locator("main .btn.h-auto").first().click(); } },
+  { name: "mock", path: "/mock" },
   { name: "other", path: "/other" },
   { name: "other-os", path: "/other/os" },
   { name: "other-oops", path: "/other/oops" },
@@ -31,6 +34,8 @@ const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void> }[]
   { name: "genai-labs-2", path: "/genai/m7" },
   { name: "settings", path: "/", open: (p) => p.locator('button[aria-label="Settings"]:visible').click() },
   { name: "solve", path: "/", open: (p) => p.getByRole("button", { name: /^Solution for/ }).first().click() },
+  { name: "solve-predict", path: "/", open: async (p) => { await p.getByRole("button", { name: /^Solution for/ }).first().click(); await p.getByRole("button", { name: "Skip to full solution" }).click(); await p.getByRole("button", { name: "Predict next step" }).click(); await p.getByRole("dialog").locator(".btn.h-auto").first().click(); } },
+  { name: "solve-puzzle", path: "/", open: async (p) => { await p.getByRole("button", { name: /^Solution for/ }).first().click(); await p.getByRole("button", { name: "Skip to full solution" }).click(); await p.getByRole("button", { name: "Line order puzzle" }).click(); } },
 ];
 
 // Known issues in files the navigation session owns (components/Shell.tsx page transition and email line,
@@ -120,6 +125,7 @@ for (const theme of THEMES)
           await expect(page.locator("main h1")).toBeVisible();
           await expect(page.locator("[aria-busy='true']")).toHaveCount(0);
           if (view.open) { await view.open(page); await expect(page.getByRole("dialog")).toBeVisible(); }
+          await view.prep?.(page);
           await page.evaluate(() => document.fonts.ready);
           await page.waitForTimeout(1200); // picture crossfade (opacity) still runs under reduced motion
 

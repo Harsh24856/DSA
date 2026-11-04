@@ -1,8 +1,9 @@
 // Scheduling and stats. Pure functions over the progress state, ported from the original app.js.
 import { P, type Track } from "./problems.ts";
+import { shuffle } from "./practice.ts";
 
 export type How = "s" | "h" | "e";
-export type Tick = { d: string; h?: How; r?: number; n?: string; t?: number };
+export type Tick = { d: string; h?: How; r?: number; n?: string; t?: number; b?: string };
 /** Daily quota per track: L/S/C on weekdays, wL/wS/wC on Sat and Sun. `start`/`placement` (YYYY-MM-DD) bound the plan. */
 export type Quota = { L: number; S: number; C: number; wL: number; wS: number; wC: number; start: string; placement: string; v?: number };
 export type State = { done: Record<string, Tick>; quota: Quota };
@@ -25,6 +26,7 @@ export const normQuota = (q?: Partial<Quota> | null): Quota => {
 };
 export const quotaFor = (q: Quota, d: Date): Record<Track, number> => (isWeekend(d) ? { L: q.wL, S: q.wS, C: q.wC } : { L: q.L, S: q.S, C: q.C });
 export const REV = [3, 7, 21];
+export const SOLO_REV = 21;
 export const TRACK: Record<Track, string> = { L: "LeetCode", S: "SQL", C: "Codeforces" };
 export const HOW: Record<How, string> = { s: "Solo", h: "Hint", e: "Editorial" };
 /** `end` = last day of the phase, in days from the start of the original 189-day plan (24 Oct 2026 to 1 May 2027). */
@@ -98,17 +100,21 @@ export function windowInfo(s: State, now: Date, tr: Track, ids: number[]) {
   return { from: ids.length ? pos(Math.min(...ids)) : 0, to: ids.length ? pos(Math.max(...ids)) : 0, total, behind, carried: Math.min(behind, ids.length) };
 }
 
+/** Hint and Editorial solves come back at +3, +7, +21 days; solo solves come back once, at +21. Days count from `b` when set, else the solve date. */
 export function revisitsDue(s: State, now: Date) {
-  const out: { i: number; r: number; due: Date }[] = [];
+  const out: { i: number; r: number; due: Date; solo: boolean }[] = [];
   for (const [k, v] of Object.entries(s.done)) {
-    if (!v.h || v.h === "s") continue;
-    const r = v.r || 0;
-    if (r >= REV.length) continue;
-    const due = addDays(parse(v.d), REV[r]);
-    if (diffDays(now, due) >= 0) out.push({ i: +k, r, due });
+    const solo = !v.h || v.h === "s", r = v.r || 0;
+    if (r >= (solo ? 1 : REV.length)) continue;
+    const due = addDays(parse(v.b || v.d), solo ? SOLO_REV : REV[r]);
+    if (diffDays(now, due) >= 0) out.push({ i: +k, r, due, solo });
   }
   return out.sort((a, b) => a.due.getTime() - b.due.getTime());
 }
+
+/** Result of a revisit: solved moves it to the next gap; needing help restarts the gaps from today, as a Hint. */
+export const afterRevisit = (v: Tick, solved: boolean, today: string): Tick =>
+  solved ? { ...v, r: (v.r || 0) + 1 } : { ...v, h: v.h === "e" ? "e" : "h", r: 0, b: today };
 
 export function upcoming(s: State, now: Date, mainToday: number[]) {
   const qs = Object.fromEntries(TRACKS.map((tr) => [tr, queue(s, tr).filter((i) => !mainToday.includes(i))])) as Record<Track, number[]>;
@@ -118,6 +124,17 @@ export function upcoming(s: State, now: Date, mainToday: number[]) {
     days.push({ date: d, items: TRACKS.flatMap((tr) => qs[tr].splice(0, q[tr])) });
   }
   return days;
+}
+
+/** Mock test: 3 unsolved LeetCode problems from the next stretch of the plan, different topics, as many Medium then Hard as the stretch has. */
+export function mockPick(s: State, skip: number[] = [], n = 3, window = 60, rng: () => number = Math.random) {
+  const pool = shuffle(queue(s, "L").filter((i) => !skip.includes(i)).slice(0, window), rng);
+  const want = ["Medium", "Medium", "Hard"], out: number[] = [], tags = new Set<string>();
+  const fresh = (i: number) => !P[i][5].split(", ").some((t) => tags.has(t));
+  const take = (i: number) => { out.push(i); P[i][5].split(", ").forEach((t) => tags.add(t)); };
+  for (const lv of want.slice(0, n)) { const i = pool.find((x) => !out.includes(x) && P[x][3] === lv && fresh(x)) ?? pool.find((x) => !out.includes(x) && P[x][3] === lv); if (i !== undefined) take(i); }
+  for (const i of pool) { if (out.length >= n) break; if (!out.includes(i)) take(i); }
+  return out;
 }
 
 /* ---------- analytics ---------- */
@@ -178,6 +195,33 @@ export function topics(s: State, limit = 12) {
     }
   });
   return [...m.entries()].map(([tag, v]) => ({ tag, ...v })).sort((a, b) => b.total - a.total).slice(0, limit);
+}
+
+/** LeetCode tag to the pattern topic that teaches it. */
+export const TAG_TOPIC: Record<string, string> = {
+  Backtracking: "recursion-backtracking", Recursion: "recursion-backtracking", "Divide and Conquer": "recursion-backtracking",
+  Tree: "binary-tree", "Binary Indexed Tree": "binary-tree", Array: "array", "Hash Table": "array", "Sliding Window": "array", "Two Pointers": "array",
+  "Binary Search": "array", "Prefix Sum": "array", Sorting: "array", Matrix: "array", String: "string", "Rolling Hash": "string",
+  Stack: "stack", Queue: "stack", Design: "stack", "Linked List": "linkedlist", "Heap (Priority Queue)": "heap", Trie: "trie",
+  Math: "bit-and-math", "Bit Manipulation": "bit-and-math", "Number Theory": "bit-and-math", Simulation: "logic-to-code",
+  "Breadth-First Search": "graph", "Depth-First Search": "graph", "Graph Theory": "graph", "Union-Find": "graph", "Heuristic Search": "graph",
+  Greedy: "greedy", "Dynamic Programming": "dp",
+};
+
+/** LeetCode tags with at least `min` solves, weakest solo rate first. Fewer solves first on a tie, since that topic has had less practice. */
+export function weakTopics(s: State, min = 3, limit = 5) {
+  const m = new Map<string, { done: number; solo: number }>();
+  for (const [k, v] of Object.entries(s.done)) {
+    const p = P[+k];
+    if (!p || p[0] !== "L") continue;
+    for (const tag of p[5].split(", ")) {
+      const e = m.get(tag) || { done: 0, solo: 0 };
+      e.done++; if (!v.h || v.h === "s") e.solo++;
+      m.set(tag, e);
+    }
+  }
+  return [...m.entries()].filter(([, v]) => v.done >= min).map(([tag, v]) => ({ tag, ...v, rate: v.solo / v.done, topic: TAG_TOPIC[tag] }))
+    .sort((a, b) => a.rate - b.rate || a.done - b.done).slice(0, limit);
 }
 
 /** Cumulative solved per day from the plan start, plus the straight-line pace that finishes every problem by placements. */

@@ -33,4 +33,5 @@ export async function pushPatterns(set: Record<string, unknown>, del: string[]):
   if (error) throw new Error(error.message);
   return data;
 }
-export type PTick = { d: string };
+/** `s` of `n`: a mock test's score. */
+export type PTick = { d: string; s?: number; n?: number };

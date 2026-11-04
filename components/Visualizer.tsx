@@ -2,8 +2,9 @@
 // Step-through player + renderers for lib/diagram.ts specs. Colors come only from tokens.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowCounterClockwise, CaretLeft, CaretRight, Pause, Play } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, CaretLeft, CaretRight, Check, Pause, Play, X } from "@phosphor-icons/react";
 import type { Diagram, Mark, Tone } from "@/lib/diagram";
+import { nextStepOptions } from "@/lib/practice";
 
 const CELL: Record<Tone | "none", string> = {
   none: "bg-surface text-ink ring-line-strong",
@@ -33,8 +34,14 @@ export function Visualizer({ diagram, input, keys, autoplay }: { diagram: Diagra
   const [speed, setSpeed] = useState(1);
   const reduce = useReducedMotion();
   const box = useRef<HTMLDivElement>(null);
+  // Predict mode: answer what the next step is before you can move to it. Answers are kept per step, so going back does not re-score.
+  const [predict, setPredict] = useState(false);
+  const [picks, setPicks] = useState<Record<number, string>>({});
+  const asked = useRef<Record<number, ReturnType<typeof nextStepOptions>>>({});
+  const notes = useMemo(() => diagram.frames.map((f) => f.note), [diagram]);
+  const canPredict = !autoplay && notes.some((_, k) => nextStepOptions(notes, k));
 
-  useEffect(() => { setStep(0); setPlaying(!!autoplay && !reduce); }, [diagram, autoplay, reduce]);
+  useEffect(() => { setStep(0); setPlaying(!!autoplay && !reduce); setPredict(false); setPicks({}); asked.current = {}; }, [diagram, autoplay, reduce]);
   useEffect(() => {
     if (!playing) return;
     if (step >= n - 1) { setPlaying(false); return; }
@@ -43,9 +50,13 @@ export function Visualizer({ diagram, input, keys, autoplay }: { diagram: Diagra
   }, [playing, step, n, speed]);
 
   const frame = diagram.frames[Math.min(step, n - 1)];
+  const q = predict && step < n - 1 ? (asked.current[step] ??= nextStepOptions(notes, step)) : null;
+  const picked = picks[step];
+  const stuck = !!q && picked === undefined;   // the next step stays hidden until this one is answered
+  const right = Object.entries(picks).filter(([k, v]) => v === notes[+k + 1]).length, tried = Object.keys(picks).length;
   const go = (s: number) => { setPlaying(false); setStep(Math.max(0, Math.min(n - 1, s))); };
-  const by = (d: number) => { setPlaying(false); setStep((s) => Math.max(0, Math.min(n - 1, s + d))); };
-  const onKey = (e: { key: string; preventDefault(): void }) => { if (e.key === "ArrowRight") { e.preventDefault(); by(1); } if (e.key === "ArrowLeft") { e.preventDefault(); by(-1); } if (e.key === " ") { e.preventDefault(); setPlaying((p) => !p); } };
+  const by = (d: number) => { if (d > 0 && stuck) return; setPlaying(false); setStep((s) => Math.max(0, Math.min(n - 1, s + d))); };
+  const onKey = (e: { key: string; preventDefault(): void }) => { if (e.key === "ArrowRight") { e.preventDefault(); by(1); } if (e.key === "ArrowLeft") { e.preventDefault(); by(-1); } if (e.key === " ") { e.preventDefault(); if (!predict) setPlaying((p) => !p); } };
   const onKeyRef = useRef(onKey); onKeyRef.current = onKey;
   useEffect(() => {
     if (!keys) return;
@@ -81,20 +92,41 @@ export function Visualizer({ diagram, input, keys, autoplay }: { diagram: Diagra
           </motion.p>
         </AnimatePresence>
       </div>
+      {q && (
+        <div className="mt-2 flex flex-col gap-2 rounded-control bg-surface p-3">
+          <p className="text-sm font-semibold">What happens next?</p>
+          {q.options.map((o) => {
+            const isRight = picked !== undefined && o === q.answer, isWrong = picked === o && !isRight;
+            return (
+              <button key={o} type="button" aria-pressed={picked === o} onClick={() => { if (picked === undefined) setPicks((p) => ({ ...p, [step]: o })); }}
+                className={`btn btn-sm h-auto justify-start gap-2 py-2 text-left font-normal whitespace-normal ${isRight ? "border-easy text-easy" : isWrong ? "border-hard text-hard" : ""}`}>
+                {isRight && <Check size={14} weight="bold" className="shrink-0" aria-hidden />}{isWrong && <X size={14} weight="bold" className="shrink-0" aria-hidden />}<span>{o}</span>
+              </button>
+            );
+          })}
+          {picked !== undefined && (
+            <div className="flex flex-wrap items-center justify-between gap-2" aria-live="polite">
+              <p className="text-sm">{picked === q.answer ? "Right." : "Not this one. The right step is marked."} <span className="num text-muted">{right} of {tried} so far</span></p>
+              <button type="button" className="btn btn-sm btn-primary" onClick={() => by(1)}>Next step<CaretRight size={14} aria-hidden /></button>
+            </div>
+          )}
+        </div>
+      )}
       <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
         <motion.div className="h-full origin-left rounded-full bg-accent" animate={{ scaleX: (step + 1) / n }} transition={{ duration: reduce ? 0 : 0.35, ease: [0.22, 1, 0.36, 1] }} />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button type="button" className="btn btn-sm btn-icon" onClick={() => go(0)} aria-label="Restart"><ArrowCounterClockwise size={14} aria-hidden /></button>
         <button type="button" className="btn btn-sm btn-icon" onClick={() => by(-1)} disabled={step === 0} aria-label="Previous step"><CaretLeft size={14} aria-hidden /></button>
-        <button type="button" className="btn btn-primary btn-sm min-w-24" onClick={() => { if (step >= n - 1) setStep(0); setPlaying((p) => !p); }}>
+        <button type="button" className="btn btn-primary btn-sm min-w-24" disabled={predict} onClick={() => { if (step >= n - 1) setStep(0); setPlaying((p) => !p); }}>
           {playing ? <><Pause size={14} weight="fill" aria-hidden />Pause</> : <><Play size={14} weight="fill" aria-hidden />{step >= n - 1 ? "Replay" : "Play"}</>}
         </button>
-        <button type="button" className="btn btn-sm btn-icon" onClick={() => by(1)} disabled={step >= n - 1} aria-label="Next step"><CaretRight size={14} aria-hidden /></button>
-        <input type="range" min={0} max={n - 1} value={step} onChange={(e) => go(+e.target.value)} aria-label="Step" className="mx-1 h-1.5 min-w-24 flex-1 cursor-pointer accent-[var(--accent)]" />
+        <button type="button" className="btn btn-sm btn-icon" onClick={() => by(1)} disabled={step >= n - 1 || stuck} aria-label="Next step"><CaretRight size={14} aria-hidden /></button>
+        <input type="range" min={0} max={n - 1} value={step} disabled={predict} onChange={(e) => go(+e.target.value)} aria-label="Step" className="mx-1 h-1.5 min-w-24 flex-1 cursor-pointer accent-[var(--accent)]" />
         <select className="field field-sm w-20 px-2" value={speed} onChange={(e) => setSpeed(+e.target.value)} aria-label="Speed">
           <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
         </select>
+        {canPredict && <button type="button" className="chip" aria-pressed={predict} onClick={() => { setPlaying(false); setPredict((p) => !p); }}>Predict next step</button>}
       </div>
       {keys && <p className="mt-2 hidden text-xs text-muted [@media(hover:hover)]:block">Press ← and → to step, space to play.</p>}
     </div>

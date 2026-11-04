@@ -1,10 +1,12 @@
 "use client";
+import Link from "next/link";
 import { useMemo, useState } from "react";
+import { ArrowRight } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
-import { addDays, bestStreak, byHow, byLevel, diffDays, fmtDay, parse, pace, perDay, topics, ymd } from "@/lib/logic";
+import { addDays, bestStreak, byHow, byLevel, diffDays, fmtDay, parse, pace, perDay, topics, weakTopics, ymd } from "@/lib/logic";
 import { P } from "@/lib/problems";
 import { Donut, Heatmap, PaceChart, TopicBars } from "@/components/charts";
-import { Card, Count, Seg, Skeleton, Stat } from "@/components/ui";
+import { Bar, Card, Count, Seg, Skeleton, Stat } from "@/components/ui";
 
 type Range = "30" | "90" | "all";
 
@@ -31,7 +33,7 @@ export default function Analytics() {
   const shown = range === "all" ? rows : rows.slice(Math.max(0, end - +range), Math.min(rows.length, end + Math.round(+range / 3)));
   const ahead = todayIdx >= 0 ? (rows[todayIdx].solved ?? 0) - rows[todayIdx].target : 0;
 
-  const lv = byLevel(state), how = byHow(state);
+  const lv = byLevel(state), how = byHow(state), weak = weakTopics(state);
 
   return (
     <div className="flex flex-col gap-6">
@@ -59,10 +61,29 @@ export default function Analytics() {
         <Card title="By difficulty" sub="Solved LeetCode and SQL">
           <Donut center="solved" data={[{ name: "Easy", value: lv.Easy, color: "var(--easy)" }, { name: "Medium", value: lv.Medium, color: "var(--medium)" }, { name: "Hard", value: lv.Hard, color: "var(--hard)" }]} />
         </Card>
-        <Card title="How you solved" sub="Hint and Editorial come back as revisits" delay={0.05}>
+        <Card title="How you solved" sub="Everything comes back as a revisit. Hint and Editorial come back sooner and more often." delay={0.05}>
           <Donut center="solved" data={[{ name: "Solo", value: how.s, color: "var(--accent)" }, { name: "Hint", value: how.h, color: "var(--medium)" }, { name: "Editorial", value: how.e, color: "var(--hard)" }]} />
         </Card>
       </div>
+
+      <Card title="Weak spots" sub="Share of solves in each topic with no hint or editorial. Lowest first, from 3 solves up.">
+        {weak.length ? (
+          <ul className="flex flex-col gap-4">
+            {weak.map((w) => (
+              <li key={w.tag} className="flex items-center gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="mb-2 flex items-baseline justify-between gap-2 text-sm">
+                    <span className="truncate font-medium">{w.tag}</span>
+                    <span className="num shrink-0 text-muted"><span className="font-semibold text-ink">{w.solo}</span> of {w.done} solo</span>
+                  </div>
+                  <Bar value={w.solo} max={w.done} />
+                </div>
+                <Link href={`/patterns/${w.topic}`} className="btn btn-sm shrink-0" aria-label={`Study ${w.tag}`}>Study<ArrowRight size={14} aria-hidden /></Link>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="empty">Solve 3 problems in a topic to see how often you needed help.</p>}
+      </Card>
 
       <Card title="Topics" sub="LeetCode tags, most common first. Light bar is the total, dark bar is what you solved.">
         <TopicBars rows={topics(state)} />

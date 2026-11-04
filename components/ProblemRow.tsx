@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
 import { TickBurst } from "./TickBurst";
-import { SolveButton, solveTarget } from "./SolvePanel";
+import { peeked, SolveButton, solveTarget } from "./SolvePanel";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowUpRight, Check } from "@phosphor-icons/react";
+import { ArrowCounterClockwise, ArrowUpRight, Check } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import { HOW, level, title, TRACK, url, type How } from "@/lib/logic";
 import { P } from "@/lib/problems";
@@ -12,7 +12,7 @@ import { Seg } from "./ui";
 type Props = { i: number; side?: string; compact?: boolean; revisit?: boolean };
 
 export function ProblemRow({ i, side, compact, revisit }: Props) {
-  const { state, toggle, setHow, setNote, revisitDone } = useStore();
+  const { state, toggle, setHow, setNote, revisitResult, say } = useStore();
   const [showTopic, setShowTopic] = useState(false);
   const [burst, setBurst] = useState(0);
   const reduce = useReducedMotion();
@@ -22,9 +22,9 @@ export function ProblemRow({ i, side, compact, revisit }: Props) {
 
   return (
     <motion.div layout={!reduce} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-      className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 border-t border-line py-4 first:border-t-0">
-      <button type="button" role="checkbox" aria-checked={checked} aria-label={(revisit ? "Mark revisit done: " : checked ? "Untick " : "Tick ") + name}
-        onClick={() => { if (!checked) setBurst((b) => b + 1); if (revisit) revisitDone(i); else toggle(i, !checked); }}
+      className={`group grid items-start gap-3 border-t border-line py-4 first:border-t-0 ${revisit ? "grid-cols-[minmax(0,1fr)_auto]" : "grid-cols-[auto_minmax(0,1fr)_auto]"}`}>
+      {!revisit && <button type="button" role="checkbox" aria-checked={checked} aria-label={(checked ? "Untick " : "Tick ") + name}
+        onClick={() => { if (!checked) setBurst((b) => b + 1); toggle(i, !checked, peeked.get(i)); }}
         className="tick mt-0.5">
         {burst > 0 && <TickBurst key={burst} />}
         <AnimatePresence>
@@ -34,7 +34,7 @@ export function ProblemRow({ i, side, compact, revisit }: Props) {
             </motion.span>
           )}
         </AnimatePresence>
-      </button>
+      </button>}
 
       <div className="min-w-0">
         <a href={url(i)} target="_blank" rel="noopener"
@@ -47,9 +47,15 @@ export function ProblemRow({ i, side, compact, revisit }: Props) {
           {showTopic ? <span>{P[i][5]}</span> : (
             <button type="button" onClick={() => setShowTopic(true)} className="cursor-pointer rounded-md px-1 text-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-ink">show topic</button>
           )}
-          <SolveButton className="ml-auto" t={solveTarget(i)} />
+          <SolveButton className="ml-auto" t={{ ...solveTarget(i), again: revisit }} />
         </div>
         {revisit && d?.n && <p className="mt-2 text-sm text-muted">Your insight: {d.n}</p>}
+        {revisit && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" className="btn btn-sm" aria-label={`Solved it without help: ${name}`} onClick={() => { revisitResult(i, true); say("Revisit saved."); }}><Check size={14} weight="bold" aria-hidden />Solved it</button>
+            <button type="button" className="btn btn-sm btn-ghost" aria-label={`Needed help: ${name}`} onClick={() => { revisitResult(i, false); say("It comes back in 3 days."); }}><ArrowCounterClockwise size={14} aria-hidden />Needed help</button>
+          </div>
+        )}
 
         <AnimatePresence initial={false}>
           {d && !compact && !revisit && (

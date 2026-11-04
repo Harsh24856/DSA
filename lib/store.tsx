@@ -2,7 +2,7 @@
 // One client store for progress, cloud sync and theme. Progress lives in localStorage key dsa-daily-v1
 // (same keys as the old static site, so existing ticks carry over) and syncs to the signed-in user's row.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { normQuota, validDates, ymd, type Count, type How, type State } from "./logic";
+import { afterRevisit, normQuota, validDates, ymd, type Count, type How, type State } from "./logic";
 import { applyDiff, diff, pushDiff, same } from "./sync";
 import { supabase } from "./supabase/client";
 import { claimLocal, clearLocal } from "./owner";
@@ -26,8 +26,8 @@ const write = (k: string, v: unknown) => { try { if (v == null) localStorage.rem
 
 type Ctx = {
   ready: boolean; state: State; now: Date; status: string; synced: boolean; connected: boolean; email: string | null; authChecked: boolean; signOut(): Promise<void>;
-  toggle(i: number, on: boolean): void; setHow(i: number, h: How): void; setNote(i: number, n: string): void;
-  revisitDone(i: number): void; setQuota(k: Count, v: number): void; setDate(k: "start" | "placement", v: string): void; importState(s: State): void;
+  toggle(i: number, on: boolean, how?: How): void; setHow(i: number, h: How): void; setNote(i: number, n: string): void;
+  revisitResult(i: number, solved: boolean): void; setQuota(k: Count, v: number): void; setDate(k: "start" | "placement", v: string): void; importState(s: State): void;
   palette: Palette; mode: Mode; look: string; setPalette(p: Palette): void; setMode(m: Mode): void; setLook(l: string): void; toast: string | null; say(msg: string): void;
 };
 const Store = createContext<Ctx | null>(null);
@@ -130,16 +130,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<Ctx>(() => ({
     ready, state, now, status, synced, connected: !!email, email, authChecked, palette, mode, toast, say,
-    signOut: async () => { await supabase().auth.signOut(); clearLocal(LS_KEY, "dsa-patterns-v1"); location.href = "/"; },
+    signOut: async () => { await supabase().auth.signOut(); clearLocal(LS_KEY, "dsa-patterns-v1", "dsa-mock-v1"); location.href = "/"; },
     look, setPalette: setPaletteRaw, setMode: setModeRaw, setLook: setLookRaw,
-    toggle: (i, on) => commit((s) => {
+    toggle: (i, on, how = "s") => commit((s) => {
       const done = { ...s.done };
-      if (on) done[i] = { d: ymd(new Date()), h: "s", r: 0, t: Date.now() }; else delete done[i];
+      if (on) done[i] = { d: ymd(new Date()), h: how, r: 0, t: Date.now() }; else delete done[i];
       return { ...s, done };
     }),
     setHow: (i, h) => commit((s) => ({ ...s, done: { ...s.done, [i]: { ...s.done[i], h, r: 0 } } })),
     setNote: (i, n) => commit((s) => ({ ...s, done: { ...s.done, [i]: { ...s.done[i], n: n.slice(0, 200) } } })),
-    revisitDone: (i) => commit((s) => ({ ...s, done: { ...s.done, [i]: { ...s.done[i], r: (s.done[i].r || 0) + 1 } } })),
+    revisitResult: (i, solved) => commit((s) => ({ ...s, done: { ...s.done, [i]: afterRevisit(s.done[i], solved, ymd(new Date())) } })),
     setQuota: (k, v) => commit((s) => ({ ...s, quota: { ...s.quota, [k]: Math.max(0, Math.min(10, v || 0)) } })),
     setDate: (k, v) => { const q = { ...cur.current.quota, [k]: v }; if (validDates(q.start, q.placement)) commit((s) => ({ ...s, quota: q })); },
     importState: (imp) => commit(() => ({ done: imp.done, quota: normQuota(imp.quota) })),

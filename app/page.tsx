@@ -1,14 +1,15 @@
 "use client";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowUpRight, Check, CheckCircle, Plus } from "@phosphor-icons/react";
+import Link from "next/link";
+import { ArrowRight, ArrowUpRight, Check, CheckCircle, Plus } from "@phosphor-icons/react";
 import { useStore } from "@/lib/store";
 import { addDays, isWeekend, level, perDay, queue, revisitsDue, streak, title, todayPlan, TRACK, TRACKS, trackTotals, upcoming, url, weekStart, windowInfo, ymd } from "@/lib/logic";
 import type { Track } from "@/lib/problems";
 import { P } from "@/lib/problems";
 
 import { ProblemRow } from "@/components/ProblemRow";
-import { SolveButton, solveTarget } from "@/components/SolvePanel";
+import { peeked, SolveButton, solveTarget } from "@/components/SolvePanel";
 import { WeekBars } from "@/components/charts";
 import { Bar, Card, Count, Skeleton, Stat } from "@/components/ui";
 
@@ -104,13 +105,19 @@ export default function Today() {
           </Card>
 
           {rev.length > 0 && (
-            <Card title="Revisit" sub="Problems you needed help with. Re-solve them without looking.">
-              {rev.map(({ i, r }) => <ProblemRow key={i} i={i} revisit side={`revisit ${r + 1} of 3`} />)}
+            <Card title="Revisit" sub="Re-solve these without looking, then say how it went. Needing help brings it back sooner.">
+              {rev.map(({ i, r, solo }) => <ProblemRow key={i} i={i} revisit side={solo ? "check-in" : `revisit ${r + 1} of 3`} />)}
             </Card>
           )}
         </div>
 
         <div className="flex min-w-0 flex-col gap-6">
+          <Card title="Practice" sub="Test yourself, away from the plan.">
+            <div className="flex flex-col gap-2">
+              <Link href="/drill" className="btn btn-nav justify-between"><span><span className="block text-xs font-normal text-muted">10 mixed questions</span>Pattern drill</span><ArrowRight size={16} aria-hidden /></Link>
+              <Link href="/mock" className="btn btn-nav justify-between"><span><span className="block text-xs font-normal text-muted">3 problems, 90 minutes</span>Mock OA</span><ArrowRight size={16} aria-hidden /></Link>
+            </div>
+          </Card>
           <Card title="This week" sub={st ? `${st}-day streak` : "Start your streak today"} delay={0.05}>
             <WeekBars data={week} />
           </Card>
@@ -164,7 +171,7 @@ function NextUp({ i }: { i: number }) {
       <div className="flex flex-wrap items-center gap-2">
         <a href={url(i)} target="_blank" rel="noopener" className="btn btn-primary">{lc ? "Open on LeetCode" : "Open on Codeforces"}<ArrowUpRight size={16} aria-hidden /></a>
         <SolveButton t={solveTarget(i)} />
-        <button type="button" className="btn" onClick={() => toggle(i, true)}><Check size={16} weight="bold" aria-hidden />Mark solved</button>
+        <button type="button" className="btn" onClick={() => toggle(i, true, peeked.get(i))}><Check size={16} weight="bold" aria-hidden />Mark solved</button>
       </div>
     </section>
   );

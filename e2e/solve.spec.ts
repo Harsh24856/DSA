@@ -7,6 +7,7 @@ test("Next up, the solve sheet and its keys work from Today", async ({ page }) =
   const sheet = page.getByRole("dialog");
   await expect(sheet.getByRole("heading", { name: "Path Sum II" })).toBeVisible();
 
+  await sheet.getByRole("button", { name: "Skip to full solution" }).click();
   const player = sheet.locator('[aria-label*="Step "]');
   await expect(player).toHaveAttribute("aria-label", /Step 1 of/);
   await page.keyboard.press("ArrowRight");
@@ -41,6 +42,7 @@ test("a Codeforces row opens the worked example for its tag", async ({ page }) =
   const sheet = page.getByRole("dialog");
   await expect(sheet.getByRole("link", { name: /Open on Codeforces/ })).toBeVisible();
   await expect(sheet.getByText(/Swap up to k pairs/)).toBeVisible();
+  await sheet.getByRole("button", { name: "Skip to full solution" }).click();
   await expect(sheet.locator('[aria-label*="Step "]')).toHaveAttribute("aria-label", /Step 1 of/);
 });
 

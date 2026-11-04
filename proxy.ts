@@ -4,7 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_KEY, SUPABASE_URL } from "./lib/supabase/config";
 
-const APP = /^\/(?:(?:analytics|patterns|problems|genai|other)(?:\/.*)?)?$/;   // everything else (/welcome, /privacy, /terms, /auth, a 404) is public
+const APP = /^\/(?:(?:analytics|patterns|problems|drill|mock|genai|other)(?:\/.*)?)?$/;   // everything else (/welcome, /privacy, /terms, /auth, a 404) is public
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });

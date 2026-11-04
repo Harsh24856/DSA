@@ -20,13 +20,15 @@ const NAV = [
   { href: "/analytics", label: "Analytics" },
   { href: "/patterns", label: "Patterns" },
   { href: "/problems", label: "Problems" },
+  { href: "/drill", label: "Practice" },
   { href: "/genai", label: "Gen AI" },
   { href: "/other", label: "CS core" },
 ];
 // pages that stand on their own, without the app's navigation
 const STANDALONE = ["/auth", "/welcome", "/privacy", "/terms"];
-const isAppPath = (p: string) => p === "/" || ["/analytics", "/patterns", "/problems", "/genai", "/other"].some((a) => p === a || p.startsWith(a + "/"));
+const isAppPath = (p: string) => p === "/" || ["/analytics", "/patterns", "/problems", "/drill", "/mock", "/genai", "/other"].some((a) => p === a || p.startsWith(a + "/"));
 const EASE = [0.22, 1, 0.36, 1] as const;
+const SEARCH_NAV = [...NAV.filter((n) => n.href !== "/drill"), { href: "/drill", label: "Pattern drill" }, { href: "/mock", label: "Mock OA" }];
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
@@ -36,7 +38,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [search, setSearch] = useState(false);
   const reduce = useReducedMotion();
   const left = Math.max(0, diffDays(parse(state.quota.placement), now));
-  const isOn = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
+  const isOn = (href: string) => (href === "/" ? path === "/" : path.startsWith(href) || (href === "/drill" && path.startsWith("/mock")));
   const page = NAV.find((n) => isOn(n.href));
 
   useEffect(() => { setMenu(false); setSearch(false); }, [path]);
@@ -131,7 +133,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     </main>
 
     <Settings open={settings} onClose={() => setSettings(false)} />
-    {search && <Search nav={NAV} onClose={() => setSearch(false)} />}
+    {search && <Search nav={SEARCH_NAV} onClose={() => setSearch(false)} />}
     <AnimatePresence>
       {toast && (
         <motion.div role="status" initial={{ opacity: 0, y: 16, x: "-50%" }} animate={{ opacity: 1, y: 0, x: "-50%" }} exit={{ opacity: 0, y: 8, x: "-50%" }}

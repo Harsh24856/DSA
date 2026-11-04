@@ -4,11 +4,13 @@ import dynamic from "next/dynamic";
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { AnimatePresence } from "motion/react";
 import { Lightbulb } from "@phosphor-icons/react";
-import { title, url } from "@/lib/logic";
+import { title, url, type How } from "@/lib/logic";
 import { P } from "@/lib/problems";
 
-/** `i` is the row in the daily plan, when the question has one: it enables ticking and next/previous in the sheet. */
-export type SolveTarget = { slug: string; title: string; level: string; url: string; sql?: boolean; i?: number };
+/** `i` is the row in the daily plan, when the question has one: it enables ticking and next/previous in the sheet. `again`: a revisit, so a solved question still opens covered. */
+export type SolveTarget = { slug: string; title: string; level: string; url: string; sql?: boolean; i?: number; again?: boolean };
+/** What the solve sheet revealed for a daily row, so ticking it counts as help. Lasts until a reload, which is fine: the Solo/Hint/Editorial switch can correct it. */
+export const peeked = new Map<number, How>();
 /** Codeforces rows are filtered lists, so they open the worked example for their tag. */
 export const solveTarget = (i: number): SolveTarget => {
   const cf = P[i][0] === "C";
