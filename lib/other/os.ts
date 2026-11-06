@@ -45,6 +45,7 @@ export const OS: Subject = {
     },
     {
       id: "states",
+      anim: "os-states",
       title: "Process states and context switching",
       summary: "A process moves between a few states as it runs, waits for I/O and gets preempted. The scheduler picks which ready process runs next; the dispatcher performs the switch.",
       diagram: `stateDiagram-v2
@@ -246,6 +247,7 @@ int main() {
     },
     {
       id: "storage",
+      lab: "disk",
       title: "File systems and disk scheduling",
       summary: "A file system maps names to data blocks on disk. On Unix, a file's metadata and block pointers live in an **inode**; a directory is just a table of (name → inode number).",
       diagram: `flowchart TB
@@ -268,6 +270,7 @@ int main() {
     },
     {
       id: "ipc",
+      anim: "os-ipc",
       title: "Inter-process communication",
       summary: "Processes are isolated, so they need the kernel's help to talk. The two families are **shared memory** (fast, needs synchronization) and **message passing** (simpler, more copying).",
       diagram: `flowchart TB

@@ -8,6 +8,7 @@ export const REACT: Subject = {
   chapters: [
     {
       id: "jsx",
+      anim: "react-jsx",
       title: "Components and JSX",
       summary: "A React component is a function that takes **props** and returns **JSX**, a description of the UI. React calls your function, compares the result with the last one, and updates only the parts of the page that changed.",
       points: [
@@ -214,6 +215,7 @@ export function UserCard({ userId }: { userId: number }) {
     },
     {
       id: "forms",
+      anim: "react-controlled",
       title: "Forms: controlled inputs and React 19 actions",
       summary: "A **controlled** input takes its value from state and reports every change, so React is the single source of truth. React 19 adds **actions**: pass an async function to a form and use `useActionState` for its pending state and result.",
       work: ["Validate on the server even if you validate in the browser: client checks are for users, server checks are for security.", "Real forms need disabled states, error messages tied to fields, and protection against double submit."],
@@ -260,6 +262,7 @@ export function SignupForm() {
     },
     {
       id: "context",
+      anim: "react-context",
       title: "Context and reducers",
       summary: "**Context** passes a value to any depth without threading props through every level (theme, current user, locale). **useReducer** moves complex state transitions into one pure function: (state, action) => new state.",
       diagram: `flowchart TB
@@ -326,6 +329,7 @@ export function CartTotal() {
     },
     {
       id: "perf",
+      lab: "rerender",
       title: "Refs and performance",
       summary: "A component re-renders when its state changes, when its parent re-renders, or when a context it reads changes. Most re-renders are cheap. When one is not, `memo`, `useMemo` and `useCallback` let React skip work. `useRef` holds a value or DOM node that survives renders without causing them.",
       work: ["Profile before optimizing: the React DevTools Profiler shows which components actually re-rendered and why.", "Most slowness in production is bundle size and network, not re-renders. Check those first."],
@@ -373,6 +377,7 @@ export function SearchList({ items }: { items: string[] }) {
     },
     {
       id: "hooks",
+      anim: "react-hooks",
       title: "Custom hooks",
       summary: "A custom hook is a function whose name starts with `use` and that calls other hooks. It lets components share stateful logic (not state itself): each component that calls it gets its own copy.",
       diagram: `flowchart TB
@@ -444,6 +449,7 @@ export function useOnline(): boolean {
     },
     {
       id: "server",
+      anim: "react-rsc",
       title: "Server Components, routing and frameworks",
       summary: "Modern React apps run on a framework (Next.js, React Router, TanStack Start) that adds routing, data loading and server rendering. **Server Components** render on the server, can read databases directly, and send no JavaScript for themselves; **Client Components** (marked `\"use client\"`) handle state and events in the browser.",
       diagram: `flowchart LR

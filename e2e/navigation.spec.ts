@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const ROUTES = ["/", "/analytics", "/patterns", "/patterns/array", "/problems", "/drill", "/mock", "/genai", "/other", "/other/oa", "/other", "/other/os"];
+const ROUTES = ["/", "/analytics", "/patterns", "/patterns/array", "/problems", "/drill", "/mock", "/genai", "/other", "/other/oa", "/other", "/other/os", "/other/os/scheduling"];
 
 /** Main content is on screen: it has text, and nothing in the viewport is still faded out. */
 async function visible(page: Page) {
@@ -32,7 +32,7 @@ test("every page shows its content right after a nav click", async ({ page }) =>
     for (const r of ROUTES) {
       // half the time leave the old page scrolled down, which is when blank pages showed up
       if (round % 2) await page.mouse.wheel(0, 3000);
-      if (r === "/patterns/array" || r === "/other/os" || r === "/other/oa" || r === "/mock") await page.locator(`main a[href="${r}"]`).click();   // reached from its hub page
+      if (r === "/patterns/array" || r.startsWith("/other/") || r === "/mock") await page.locator(`main a[href="${r}"]`).first().click();   // reached from its hub page
       else {
         // phones keep the links behind the menu button in the floating bar
         const menu = page.getByRole("button", { name: "Open menu" });

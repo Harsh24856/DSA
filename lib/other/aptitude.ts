@@ -48,6 +48,7 @@ export const APTITUDE: Subject = {
     },
     {
       id: "percent",
+      lab: "apt-percent",
       title: "Percentages, profit and interest",
       summary: "Think in multipliers: a 20% rise is × 1.2, a 15% fall is × 0.85, and successive changes multiply.",
       points: [
@@ -70,6 +71,7 @@ export const APTITUDE: Subject = {
     },
     {
       id: "ratio",
+      lab: "apt-ratio",
       title: "Ratios, averages and mixtures",
       summary: "Averages are totals in disguise: convert to a total, change it, convert back. Mixtures use alligation: the distances to the mean give the ratio.",
       diagram: `flowchart TB
@@ -86,6 +88,7 @@ export const APTITUDE: Subject = {
     },
     {
       id: "work",
+      lab: "apt-work",
       title: "Time and work, pipes and cisterns",
       summary: "The LCM trick avoids fractions: take the total work as the LCM of the individual times, find each person's work per day, then add or subtract.",
       diagram: `flowchart LR
@@ -103,6 +106,7 @@ export const APTITUDE: Subject = {
     },
     {
       id: "speed",
+      lab: "apt-speed",
       title: "Speed, distance, trains and boats",
       summary: "Distance = speed × time. Convert km/h to m/s by multiplying by 5/18. For trains, the distance to cover is the train's length plus whatever it passes; for two moving objects, use their relative speed.",
       diagram: `flowchart LR
@@ -125,6 +129,7 @@ export const APTITUDE: Subject = {
     },
     {
       id: "counting",
+      lab: "apt-counting",
       title: "Permutations, combinations and probability",
       summary: "Permutations count ordered arrangements, combinations count selections. Probability is favourable outcomes over total equally likely outcomes; for \"at least one\", use 1 minus the probability of none.",
       diagram: `flowchart LR
@@ -151,6 +156,7 @@ export const APTITUDE: Subject = {
     },
     {
       id: "reasoning",
+      lab: "clock",
       title: "Logical reasoning",
       summary: "Series, coding, blood relations, clocks, calendars and sets. Each type has a short method; practise until spotting the type is instant.",
       points: [
@@ -174,6 +180,7 @@ export const APTITUDE: Subject = {
     },
     {
       id: "di",
+      anim: "apt-di",
       title: "Data interpretation and estimation",
       summary: "DI sets give a table or chart and several questions. Read the units and the base year first, then estimate: the options are usually far enough apart.",
       diagram: `flowchart TB

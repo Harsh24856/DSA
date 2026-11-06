@@ -1,5 +1,5 @@
 "use client";
-// Ctrl/Cmd + K: jump to any question (opens its solution and visualiser), pattern or page.
+// Ctrl/Cmd + K: jump to any question (opens its solution and visualiser), pattern, CS core chapter or page.
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
@@ -15,6 +15,8 @@ export function Search({ nav, onClose }: { nav: { href: string; label: string }[
   const router = useRouter(), solve = useSolve();
   const [q, setQ] = useState(""), [at, setAt] = useState(0);
   const list = useRef<HTMLUListElement>(null);
+  const [chapters, setChapters] = useState<{ href: string; label: string; tag: string }[]>([]);
+  useEffect(() => { fetch("/search-index").then((r) => r.json()).then(setChapters, () => {}); }, []);
 
   const all = useMemo(() => {
     const out: Item[] = [], seen = new Set<string>();
@@ -24,6 +26,7 @@ export function Search({ nav, onClose }: { nav: { href: string; label: string }[
       out.push({ key: t.id, label: t.name, tag: "Topic", go: open(`/patterns/${t.id}`), text: t.name.toLowerCase() });
       for (const p of t.patterns) out.push({ key: `${t.id}:${p.n}`, label: p.name, tag: t.name, go: open(`/patterns/${t.id}#p-${p.n}`), text: `${p.name} ${t.name}`.toLowerCase() });
     }
+    for (const c of chapters) out.push({ key: c.href, label: c.label, tag: c.tag, go: open(c.href), text: `${c.label} ${c.tag}`.toLowerCase() });
     P.forEach((p, i) => {
       if (seen.has(p[2])) return;
       seen.add(p[2]);
@@ -36,7 +39,7 @@ export function Search({ nav, onClose }: { nav: { href: string; label: string }[
       out.push({ key: slug, label: `${lc}. ${name}`, tag: lv, text: `${lc} ${name}`.toLowerCase(), go: () => { onClose(); solve({ slug, title: name, level: lv, url: lcUrl(slug) }); } });
     }
     return out;
-  }, [nav, onClose, router, solve]);
+  }, [nav, onClose, router, solve, chapters]);
 
   const needle = q.trim().toLowerCase();
   const hits = useMemo(() => {

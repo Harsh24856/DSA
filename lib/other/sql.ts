@@ -47,6 +47,7 @@ FROM employees;`, sqlSetup: SETUP, result: { head: ["all_rows", "with_dept", "de
     },
     {
       id: "nulls",
+      lab: "nulls",
       title: "Filtering and NULLs",
       summary: "NULL means \"unknown\", so comparisons with it are neither true nor false but unknown, and WHERE keeps only rows where the condition is true. This three-valued logic causes the most surprising bugs in SQL.",
       diagram: `flowchart LR
@@ -162,6 +163,7 @@ ORDER BY total DESC;`, sqlSetup: SETUP, result: { head: ["customer", "orders", "
     },
     {
       id: "subqueries",
+      anim: "sql-correlated",
       title: "Subqueries and CTEs",
       summary: "A subquery is a query inside another. A **correlated** subquery refers to the outer row and conceptually runs once per row. A **CTE** (`WITH name AS (...)`) names a subquery so complex queries read top to bottom, and a recursive CTE walks hierarchies.",
       diagram: `flowchart LR
@@ -240,6 +242,7 @@ ORDER BY day, id;`, sqlSetup: SETUP, result: { head: ["day", "amount", "running_
     },
     {
       id: "patterns",
+      anim: "sql-islands",
       title: "Patterns interviewers reuse",
       summary: "A handful of shapes cover most interview questions: Nth highest, top-N per group, running totals, gaps and islands (consecutive streaks), duplicates, and set comparisons.",
       work: ["Most real queries are read by someone else later. Use CTEs and clear names, not one clever line.", "On a large table, test with `EXPLAIN` before running in production, and put a `LIMIT` on exploratory queries."],
@@ -303,6 +306,7 @@ ORDER BY customer;`, sqlSetup: SETUP, result: { head: ["customer"], rows: [["mee
     },
     {
       id: "ddl",
+      anim: "sql-txn",
       title: "DDL, DML, transactions and performance",
       summary: "SQL has sub-languages: **DDL** defines structure (CREATE, ALTER, DROP), **DML** changes data (INSERT, UPDATE, DELETE), **DCL** controls access (GRANT, REVOKE), **TCL** controls transactions (COMMIT, ROLLBACK, SAVEPOINT).",
       diagram: `flowchart TB

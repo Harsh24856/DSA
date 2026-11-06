@@ -8,6 +8,7 @@ export const CN: Subject = {
   chapters: [
     {
       id: "layers",
+      anim: "cn-layers",
       title: "OSI and TCP/IP models",
       summary: "Layering splits networking into jobs that can change independently: an app does not care whether bits travel over Wi-Fi or fibre. The OSI model has seven layers; the Internet actually runs the four-layer TCP/IP model.",
       table: { head: ["OSI layer", "Job", "Unit", "Examples", "TCP/IP layer"], rows: [
@@ -202,6 +203,7 @@ export const CN: Subject = {
     },
     {
       id: "security",
+      anim: "cn-csrf",
       title: "Network security basics",
       summary: "Interviews usually ask about the common attacks and the standard defence for each.",
       real: [

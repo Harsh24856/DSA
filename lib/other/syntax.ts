@@ -8,6 +8,7 @@ export const SYNTAX: Subject = {
   chapters: [
     {
       id: "basics",
+      anim: "syn-types",
       title: "Variables, types and constants",
       summary: "C++ and Java are **statically typed** and compiled: every variable has a fixed type checked before the program runs. Python and JavaScript are **dynamically typed**: values carry types, variables do not. TypeScript adds static types on top of JavaScript and erases them when it runs.",
       real: [
@@ -109,6 +110,7 @@ console.log(name, count, total, ok, tags, point, id);`,
     },
     {
       id: "control",
+      anim: "syn-loop",
       title: "Control flow",
       summary: "If, loops and switch look alike in all five languages. The differences are in the details: Python uses indentation instead of braces, Java and Python have expression-style switch/match, and JavaScript has two different for-loops for values and keys.",
       diagram: `flowchart TB
@@ -309,6 +311,7 @@ console.log(fast(9), fast(9), calls);            // 81 81 1` } },
     },
     {
       id: "strings",
+      anim: "syn-concat",
       title: "Strings",
       summary: "Strings are immutable in Java, Python and JavaScript: every change makes a new string, so build long strings with StringBuilder, a list joined at the end, or join(). C++'s std::string is mutable.",
       diagram: `flowchart TB
@@ -473,6 +476,7 @@ console.log(v.length, freq.get("a"), byLetter, seen.size);`,
     },
     {
       id: "classes",
+      anim: "syn-dispatch",
       title: "Classes, interfaces and inheritance",
       summary: "The same idea in five dialects: a base type with an abstract method, two subclasses, and a loop that calls each one through the base type. See the OOP subject for the theory; this chapter is the syntax.",
       diagram: `flowchart TB
@@ -599,6 +603,7 @@ for (const p of pets) console.log(p.intro());`,
     },
     {
       id: "errors",
+      anim: "syn-finally",
       title: "Errors and exceptions",
       summary: "All five throw and catch exceptions. Java alone forces you to declare or handle checked exceptions; TypeScript code often returns errors as values instead, and async code needs its own handling.",
       real: [
@@ -724,6 +729,7 @@ try { throw new InsufficientFunds("x"); } catch (e: unknown) {          // catch
     },
     {
       id: "generics",
+      anim: "syn-generics",
       title: "Generics and templates",
       summary: "Write code once for many types. C++ templates generate a copy per type at compile time; Java generics are checked at compile time and erased at run time; TypeScript generics exist only for the type checker; Python has type hints; JavaScript simply accepts anything.",
       real: [
@@ -822,6 +828,7 @@ console.log(update(u, { name: "Asha R" }).name, index[1].name);` } },
     },
     {
       id: "functional",
+      anim: "syn-pipeline",
       title: "Map, filter, reduce, streams and comprehensions",
       summary: "Transform collections declaratively: keep the even numbers, square them, add them up. C++ uses algorithm functions, Java uses streams, Python uses comprehensions and generator expressions, JavaScript and TypeScript chain array methods.",
       diagram: `flowchart TB

@@ -8,6 +8,7 @@ export const DESIGN: Subject = {
   chapters: [
     {
       id: "approach",
+      anim: "design-approach",
       title: "How to run a design interview",
       summary: "A 45-minute design round rewards structure. Pin down what to build and how big it is before drawing anything, sketch the simplest design that works, then spend most of the time on the one or two parts that break at scale. Say the trade-offs out loud.",
       work: ["This whole method is a design doc at work: problem, constraints, options with trade-offs, the choice, rollout plan. Reviewers mostly attack the options you did not consider.", "Requirements are negotiated. Asking 'can this be five seconds stale?' often removes the hardest part of a design."],
@@ -35,6 +36,7 @@ export const DESIGN: Subject = {
     },
     {
       id: "estimation",
+      lab: "estimate",
       title: "Back-of-the-envelope estimation",
       summary: "Estimates decide whether one machine is enough or you need a fleet. Round aggressively: a day is about 10^5 seconds, so 1 million requests a day is about 12 per second. Peak is usually 2 to 10 times average.",
       real: [
@@ -82,6 +84,7 @@ assert round(storage_tb_year) == 219`,
     },
     {
       id: "scaling",
+      anim: "design-lb",
       title: "Load balancers and stateless services",
       summary: "**Vertical scaling** buys a bigger machine: simple, but it has a ceiling and one machine is one failure. **Horizontal scaling** adds machines behind a **load balancer**. It only works if the service is **stateless**: any server can handle any request because session data lives in a shared store.",
       real: [
@@ -254,6 +257,7 @@ assert moved < 3_000 < modulo        # about 20% vs about 80%`,
     },
     {
       id: "consistency",
+      lab: "quorum",
       title: "CAP, consistency and quorums",
       summary: "When a network partition splits your replicas, you must choose: refuse some requests (**consistency**) or answer with possibly stale data (**availability**). That is the CAP theorem. PACELC adds the everyday case: even with no partition, you trade **latency** against **consistency**.",
       real: [
@@ -305,6 +309,7 @@ assert moved < 3_000 < modulo        # about 20% vs about 80%`,
     },
     {
       id: "queues",
+      anim: "design-queue",
       title: "Queues, streams and async work",
       summary: "A message queue lets a service hand off work without waiting for it: the request returns fast and workers process jobs at their own pace. Queues absorb traffic spikes, decouple services, and let you retry failures. The cost is eventual completion and duplicate deliveries you must handle.",
       real: [
@@ -404,6 +409,7 @@ print(burst, later)`,
     },
     {
       id: "reliability",
+      lab: "availability",
       title: "Reliability: redundancy, retries and circuit breakers",
       summary: "Everything fails eventually: disks, machines, whole data centres, and the network between them. Reliable systems remove single points of failure, fail fast instead of hanging, retry carefully, and degrade gracefully when a dependency is down.",
       real: [

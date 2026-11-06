@@ -371,3 +371,85 @@ export function rateLimit(algo: RateAlgo, times: number[], limit: number, window
     return { t, ok, level: inWindow + (ok ? 1 : 0) };
   });
 }
+
+/* ---------- disk scheduling ---------- */
+export type DiskAlgo = "fcfs" | "sstf" | "scan" | "cscan" | "look" | "clook";
+/** Order the head visits cylinders (jumps included), and total head movement. SCAN and C-SCAN go to the disk's
+ *  edge (0 or size - 1); LOOK and C-LOOK turn at the last request. `up` = moving toward higher cylinders first.
+ *  C-SCAN and C-LOOK count the return jump as movement, as most textbooks do. */
+export function diskSchedule(reqs: number[], head: number, algo: DiskAlgo, size = 200, up = true): { path: number[]; moved: number } {
+  let path: number[];
+  const lo = reqs.filter((r) => r < head).sort((a, b) => a - b), hi = reqs.filter((r) => r >= head).sort((a, b) => a - b);
+  const [first, second] = up ? [hi, [...lo].reverse()] : [[...lo].reverse(), hi];
+  const edge = up ? size - 1 : 0, far = up ? 0 : size - 1;
+  if (algo === "fcfs") path = [head, ...reqs];
+  else if (algo === "sstf") {
+    path = [head];
+    const left = [...reqs];
+    while (left.length) { const cur = path.at(-1)!; let k = 0; left.forEach((r, i) => { if (Math.abs(r - cur) < Math.abs(left[k] - cur)) k = i; }); path.push(left.splice(k, 1)[0]); }
+  } else if (algo === "scan") path = [head, ...first, ...(second.length ? [edge] : []), ...second];
+  else if (algo === "look") path = [head, ...first, ...second];
+  else if (algo === "cscan") { const wrap = up ? lo : [...hi].reverse(); path = [head, ...first, ...(wrap.length ? [edge, far] : []), ...wrap]; }
+  else { const wrap = up ? lo : [...hi].reverse(); path = [head, ...first, ...wrap]; }
+  path = path.filter((p, i) => i === 0 || p !== path[i - 1]);
+  return { path, moved: path.slice(1).reduce((s, p, i) => s + Math.abs(p - path[i]), 0) };
+}
+
+/* ---------- SQL three-valued logic ---------- */
+export type Tri = "TRUE" | "FALSE" | "NULL";
+const triN = (v: Tri) => (v === "TRUE" ? 1 : v === "FALSE" ? 0 : 0.5);
+const triV = (n: number): Tri => (n === 1 ? "TRUE" : n === 0 ? "FALSE" : "NULL");
+export const triAnd = (a: Tri, b: Tri) => triV(Math.min(triN(a), triN(b)));
+export const triOr = (a: Tri, b: Tri) => triV(Math.max(triN(a), triN(b)));
+export const triNot = (a: Tri) => triV(1 - triN(a));
+/** What `x = y` gives when either side may be NULL. */
+export const triEq = (x: number | null, y: number | null): Tri => (x === null || y === null ? "NULL" : x === y ? "TRUE" : "FALSE");
+
+/* ---------- quorums ---------- */
+/** N replicas, a write waits for W acks and a read asks R replicas. Reads see the latest write when R + W > N. */
+export function quorum(n: number, r: number, w: number) {
+  return { strong: r + w > n, overlap: Math.max(0, r + w - n), writeSurvives: n - w, readSurvives: n - r, noSplitBrain: 2 * w > n };
+}
+
+/* ---------- back-of-the-envelope ---------- */
+export const DAY_S = 86400;
+/** Average and peak request rates and yearly storage for `dau` users doing `writes` and `reads` a day, `bytes` per write. */
+export function estimate(dau: number, writes: number, reads: number, bytes: number, peak = 3) {
+  const wq = (dau * writes) / DAY_S, rq = (dau * reads) / DAY_S;
+  return { writeQps: wq, readQps: rq, peakQps: (wq + rq) * peak, storagePerYear: dau * writes * bytes * 365, servers: Math.ceil(((wq + rq) * peak) / 1000) };
+}
+/** "1.2 K", "3.4 M", "5 TB": what you would say out loud. */
+export function human(v: number, unit = "") {
+  const steps: [number, string][] = unit === "B" ? [[1e15, " PB"], [1e12, " TB"], [1e9, " GB"], [1e6, " MB"], [1e3, " KB"]] : [[1e9, " B"], [1e6, " M"], [1e3, " K"]];
+  for (const [d, s] of steps) if (v >= d) return `${+(v / d).toFixed(v / d < 10 ? 1 : 0)}${s}`;
+  return `${+v.toFixed(v < 10 ? 1 : 0)}${unit === "B" ? " B" : ""}`;
+}
+
+/* ---------- availability ---------- */
+/** Parts in series all have to work (multiply); n copies in parallel fail only if all fail. Availability as a fraction. */
+export const inSeries = (a: number[]) => a.reduce((p, x) => p * x, 1);
+export const inParallel = (a: number, n: number) => 1 - (1 - a) ** n;
+export const downtimeMinutes = (a: number) => (1 - a) * 365 * 24 * 60;
+
+/* ---------- React re-renders ---------- */
+export type RNode = { id: string; parent?: string; memo?: boolean; reads?: boolean };   // reads: uses the context value
+/** Which components render after `changed` updates its own state (or, with `context`, after the provider value changes).
+ *  A child renders when its parent rendered, unless it is wrapped in memo (props are stable here); a context reader always renders. */
+export function rerenders(tree: RNode[], changed: string | null, context = false): string[] {
+  const out = new Set<string>();
+  const visit = (id: string) => { out.add(id); for (const c of tree) if (c.parent === id && !c.memo) visit(c.id); };
+  if (changed) visit(changed);
+  if (context) for (const n of tree) if (n.reads) visit(n.id);
+  return tree.map((n) => n.id).filter((id) => out.has(id));
+}
+
+/* ---------- clocks and calendars ---------- */
+/** Smaller angle between the hands at h:m. */
+export const clockAngle = (h: number, m: number) => { const a = Math.abs(30 * (h % 12) - 5.5 * m); return a > 180 ? 360 - a : a; };
+/** Weekday by counting odd days from 1 Jan 0001 (a Monday in the proleptic Gregorian calendar). */
+export function weekday(y: number, mo: number, d: number) {
+  const leap = (x: number) => (x % 4 === 0 && x % 100 !== 0) || x % 400 === 0;
+  const prev = y - 1, odd = prev + Math.floor(prev / 4) - Math.floor(prev / 100) + Math.floor(prev / 400);
+  const days = [31, leap(y) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31].slice(0, mo - 1).reduce((s, x) => s + x, 0) + d;
+  return { oddYears: odd % 7, day: (odd + days) % 7 };   // 1 = Monday ... 0 = Sunday
+}
