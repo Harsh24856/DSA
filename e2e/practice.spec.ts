@@ -222,3 +222,22 @@ test("CS core ticks: chapters in their sections, questions one by one, with prog
   await page.goto("/other");
   await expect(page.getByRole("link", { name: /System Design/ }).getByText("1 / 40")).toBeVisible();
 });
+
+test("Syntax: the same program in every language, run live, compared and ticked", async ({ page }) => {
+  await page.goto("/syntax#closures");
+  await expect(page.getByRole("heading", { name: "Lambdas, closures, map and filter" })).toBeVisible();
+  const langs = page.getByRole("group", { name: "Language" });
+  await langs.getByRole("button", { name: "JavaScript" }).click();
+  await expect(page.locator(".pg-log")).toContainText("total of evens squared: 20");   // JavaScript runs live in the browser
+  await langs.getByRole("button", { name: "TypeScript" }).click();
+  await expect(page.locator(".pg-log")).toContainText("counter: 1 2 3");
+  await langs.getByRole("button", { name: "C++" }).click();
+  await expect(page.getByRole("button", { name: "Run", exact: true })).toBeVisible();   // compiled languages wait for Run
+  await page.getByRole("combobox").selectOption("rust");
+  await expect(page.getByLabel("Lambdas, closures, map and filter in Rust")).toContainText("move ||");
+  await page.getByRole("button", { name: "Learned in C++" }).click();
+  await expect(page.getByText("1 / 22 learned")).toBeVisible();
+  await page.goto("/syntax#hello");
+  await expect(page.getByRole("heading", { name: "Printing and variables" })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("dsa-syntax-lang"))).toBe("cpp");
+});

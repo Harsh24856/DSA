@@ -5,7 +5,7 @@ import { parse, type Node } from "acorn";
 import { simple } from "acorn-walk";
 import { transform, type Transform } from "sucrase";
 
-export type PlayMode = "js" | "ts" | "node" | "react" | "python" | "sql";
+export type PlayMode = "js" | "ts" | "node" | "react" | "python" | "sql" | "cpp" | "java" | "rust";
 export type Compiled = { js: string; error?: undefined } | { error: string; js?: undefined };
 
 type Loop = Node & { body: Node };

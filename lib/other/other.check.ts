@@ -111,6 +111,8 @@ import { compile, type PlayMode } from "./playground/compile.ts";
 import { STARTERS } from "./playground/starters.ts";
 import { OA } from "./oa/index.ts";
 import { COVERAGE } from "./design-coverage.ts";
+import { CODE as SYN_CODE, OUT as SYN_OUT } from "../syntax/code.ts";
+import { SYN_GROUPS, SYN_TOPICS } from "../syntax/topics.ts";
 import { geohash, matchBuy } from "./flows-design.ts";
 
 const SUBJECTS: Subject[] = [OS, DBMS, CN, SQL, OOPS, APTITUDE, SYNTAX, REACT, NODE, DESIGN];
@@ -250,6 +252,37 @@ for (const s of SUBJECTS) for (const ch of s.chapters) {
     }
   }
   console.log(`OA ok: ${OA.reduce((n, s) => n + s.questions.length, 0)} questions, ${ran} code answers checked by running them`);
+}
+
+// Syntax page: every topic in all six languages, and every version prints exactly the expected output
+{
+  const langs = ["cpp", "java", "python", "js", "ts", "rust"] as const;
+  assert.deepEqual(Object.keys(SYN_CODE).sort(), SYN_TOPICS.map((t) => t.id).sort(), "syntax topics and programs must match");
+  assert.ok(!JSON.stringify([SYN_CODE, SYN_GROUPS]).includes(String.fromCharCode(0x2014)), "no em dashes on the Syntax page");
+  const run = (lang: (typeof langs)[number], src: string) => {
+    const d = mkdtempSync(join(dir, "s-"));
+    const ex = (cmd: string, args: string[]) => execFileSync(cmd, args, { encoding: "utf8", stdio: "pipe", timeout: 30000 });
+    switch (lang) {
+      case "cpp": return runCpp("syntax", src);
+      case "java": return runJava("syntax", src);
+      case "python": writeFileSync(join(d, "m.py"), src); return ex("python3", ["-I", join(d, "m.py")]);
+      case "js": writeFileSync(join(d, "m.mjs"), src); return ex("node", [join(d, "m.mjs")]);
+      case "ts": { const f = join(tsDir, `t${tsFiles++}.ts`); mkdirSync(tsDir, { recursive: true }); writeFileSync(f, src); return ex("node", ["--disable-warning=ExperimentalWarning", f]); }
+      case "rust": writeFileSync(join(d, "m.rs"), src); ex("rustc", ["--edition", "2021", "-o", join(d, "a"), join(d, "m.rs")]); return ex(join(d, "a"), []);
+    }
+  };
+  let ran = 0;
+  for (const t of SYN_TOPICS) for (const lang of langs) {
+    try {
+      assert.equal(run(lang, SYN_CODE[t.id][lang]).replace(/\n$/, ""), SYN_OUT[t.id], `syntax ${t.id} in ${lang}`);
+      ran++;
+    } catch (e) {
+      const err = e as { stderr?: Buffer | string; message: string };
+      console.error(`FAIL syntax ${t.id} ${lang}\n${err.stderr?.toString() || err.message}`);
+      process.exitCode = 1;
+    }
+  }
+  console.log(`syntax ok: ${SYN_TOPICS.length} topics, ${ran} programs print the same output`);
 }
 
 // one strict type-check over every TypeScript and TSX example

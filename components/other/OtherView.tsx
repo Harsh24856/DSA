@@ -51,8 +51,9 @@ function TableView({ t }: { t: Table }) {
   );
 }
 
-/** Which playground can run this language, if any. Java and C++ need a compiler, so they have none. */
+/** Which playground can run this language, if any. Java and C++ run on Compiler Explorer. */
 function playMode(key: string, body: string, subject: string): PlayMode | null {
+  if (key === "cpp" || key === "java") return key;
   if (key === "tsx") return "react";
   if (key === "sql") return "sql";
   if (key === "python") return "python";

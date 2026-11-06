@@ -1,23 +1,29 @@
 "use client";
 // Live code: type on the left, see the result as you type. JavaScript, TypeScript, React and Node run in a sandboxed
-// iframe (public/playground/runtime.js); Python and SQL run in WebAssembly (wasm.ts). Nothing runs on a server.
+// iframe (public/playground/runtime.js); Python and SQL run in WebAssembly (wasm.ts). C++, Java and Rust need a
+// compiler, so they run on Compiler Explorer when you press Run (lib/other/playground/remote.ts).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowCounterClockwise, Play, X } from "@phosphor-icons/react";
 import { compile, type PlayMode } from "@/lib/other/playground/compile";
 import { Editor } from "./Editor";
 import { wasmHost, type WasmMsg } from "./wasm";
+import { REMOTE, runRemote, type RemoteMode } from "@/lib/other/playground/remote";
 
 type Line = { kind: string; text: string };
 type Table = { head: string[]; rows: string[][] };
 type Reply = { status?: number; statusText?: string; headers?: Record<string, string>; body?: string; error?: string };
 
-const DELAY: Record<PlayMode, number> = { js: 350, ts: 350, node: 450, react: 300, python: 700, sql: 350 };
-const LABEL: Record<PlayMode, string> = { js: "JavaScript", ts: "TypeScript", node: "Node + Express", react: "React", python: "Python", sql: "SQL" };
+const DELAY: Record<PlayMode, number> = { js: 350, ts: 350, node: 450, react: 300, python: 700, sql: 350, cpp: 0, java: 0, rust: 0 };
+const LABEL: Record<PlayMode, string> = { js: "JavaScript", ts: "TypeScript", node: "Node + Express", react: "React", python: "Python", sql: "SQL", cpp: "C++", java: "Java", rust: "Rust" };
+const isRemote = (m: PlayMode): m is RemoteMode => m === "cpp" || m === "java" || m === "rust";
 const NOTE: Partial<Record<PlayMode, string>> = {
   node: "Runs in your browser on a small emulation of Node and Express: core modules and routing work, but there is no real network and no npm install.",
   react: "Runs React 19 in your browser. The preview shows the App export, or else the last exported component.",
   python: "Real CPython compiled to WebAssembly. The first run downloads about 10 MB.",
   sql: "Real SQLite compiled to WebAssembly. Each run starts from the same tables.",
+  cpp: `Compiled with ${REMOTE.cpp.name} and run on Compiler Explorer (godbolt.org): your code is sent to their servers. Needs internet.`,
+  java: `Compiled with ${REMOTE.java.name} and run on Compiler Explorer (godbolt.org): your code is sent to their servers. Needs internet.`,
+  rust: `Compiled with ${REMOTE.rust.name} and run on Compiler Explorer (godbolt.org): your code is sent to their servers. Needs internet.`,
 };
 const TOKENS = ["bg", "surface", "surface-2", "ink", "muted", "line", "line-strong", "accent", "accent-ink", "hard"];
 
@@ -78,7 +84,9 @@ export default function Playground({ mode, code, setup, title, onClose }: { mode
   const iframe = useRef<HTMLIFrameElement>(null), runRef = useRef(0), reqId = useRef(0);
   const host = useRef<ReturnType<typeof wasmHost> | null>(null);
   const wasm = mode === "python" || mode === "sql";
-  const [armed, setArmed] = useState(mode !== "python");  // Python downloads 10 MB, so it waits for the first Run press
+  const remote = isRemote(mode);
+  const [armed, setArmed] = useState(mode !== "python" && !remote);  // Python downloads 10 MB, and compiled languages use a server, so both wait for Run
+  const abort = useRef<AbortController | null>(null);
 
   const send = useCallback(() => {
     const win = iframe.current?.contentWindow;
@@ -133,6 +141,27 @@ export default function Playground({ mode, code, setup, title, onClose }: { mode
   }, [wasm, mode, onWasm]);
 
   const run = useCallback((text: string) => {
+    if (isRemote(mode)) {
+      abort.current?.abort();
+      const ctl = new AbortController(), id = ++runRef.current, t = setTimeout(() => ctl.abort(), 30_000);
+      abort.current = ctl;
+      setLines([]); setStatus("Compiling...");
+      runRemote(mode, text, ctl.signal).then((r) => {
+        if (id !== runRef.current) return;
+        const out: Line[] = [];
+        if (r.build) out.push({ kind: "error", text: `Did not compile:\n${r.build}` });
+        if (r.stdout) out.push({ kind: "log", text: r.stdout });
+        if (r.stderr) out.push({ kind: "error", text: r.stderr });
+        if (r.timedOut) out.push({ kind: "error", text: "Stopped: the program ran too long." });
+        else if (!r.build && r.code !== 0) out.push({ kind: "warn", text: `Exited with code ${r.code}.` });
+        setLines(out); setStatus(r.build ? "Compile error" : "Done");
+      }, (e: Error) => {
+        if (id !== runRef.current) return;
+        setStatus("Could not run");
+        setLines([{ kind: "error", text: e.name === "AbortError" ? "No answer from Compiler Explorer within 30 s. Try again." : `${e.message} Check your connection.` }]);
+      }).finally(() => clearTimeout(t));
+      return;
+    }
     if (wasm) {
       setSyntax(null); setLines([]); setTables([]);
       setStatus(mode === "python" ? "Loading Python..." : "Loading SQLite...");
@@ -151,6 +180,7 @@ export default function Playground({ mode, code, setup, title, onClose }: { mode
 
   // live: re-run shortly after the last keystroke
   useEffect(() => {
+    if (remote) { if (!lines.length) setStatus("Press Run"); return; }
     if (!armed) { setStatus("Press Run to load Python"); return; }
     const t = setTimeout(() => run(source), lines.length || frame ? DELAY[mode] : 0);
     return () => clearTimeout(t);
@@ -168,7 +198,7 @@ export default function Playground({ mode, code, setup, title, onClose }: { mode
       <header className="pg-head">
         <div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{title ?? `${LABEL[mode]} playground`}</div></div>
         <span className="pill pill-muted num text-xs" role="status">{status}</span>
-        {mode === "python" && <button type="button" className="btn btn-sm btn-primary" onClick={() => { if (armed) run(source); else setArmed(true); }}><Play size={14} weight="fill" aria-hidden />Run</button>}
+        {(mode === "python" || remote) && <button type="button" className="btn btn-sm btn-primary" onClick={() => { if (remote || armed) run(source); else setArmed(true); }}><Play size={14} weight="fill" aria-hidden />Run</button>}
         <button type="button" className="btn btn-sm btn-icon" aria-label="Reset to the original code" title="Reset" onClick={reset}><ArrowCounterClockwise size={15} aria-hidden /></button>
         {onClose && <button type="button" className="btn btn-sm btn-icon" aria-label="Close the playground" title="Close" onClick={onClose}><X size={15} aria-hidden /></button>}
       </header>
@@ -220,7 +250,7 @@ export default function Playground({ mode, code, setup, title, onClose }: { mode
             <div className="pg-pane-title">{wasm && mode === "sql" ? "Messages" : "Console"}</div>
             <div className="pg-log" role="log" aria-live="polite">
               {lines.length ? lines.map((l, i) => <div key={i} className={l.kind === "error" || l.kind === "rawerr" ? "text-hard" : l.kind === "warn" ? "text-medium" : ""}>{l.kind === "error" || l.kind === "rawerr" ? `Error: ${l.text.replace(/^Error: /, "")}` : l.text}</div>)
-                : <span className="text-muted">{mode === "sql" ? (tables.length ? "No messages." : "Nothing yet.") : mode === "react" ? "console.log output appears here." : "Nothing printed yet."}</span>}
+                : <span className="text-muted">{mode === "sql" ? (tables.length ? "No messages." : "Nothing yet.") : mode === "react" ? "console.log output appears here." : remote ? "Press Run to compile and run." : "Nothing printed yet."}</span>}
             </div>
           </div>
           {NOTE[mode] && <p className="px-1 text-xs text-muted">{NOTE[mode]}</p>}
