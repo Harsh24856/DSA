@@ -2,6 +2,7 @@ import type { Subject } from "./types";
 import { MORE_A } from "./design-more.ts";
 import { MORE_B } from "./design-more2.ts";
 import { EXTRA } from "./design-extra.ts";
+import { READING } from "./design-reading.ts";
 
 const BASE: Subject = {
   id: "design",
@@ -1301,7 +1302,8 @@ export const DESIGN: Subject = {
   ...BASE,
   parts: [["Interview basics", "approach"], ["Building blocks", "scaling"], ["Classic designs", "url"], ["Advanced designs", "proximity"], ["Real-world case studies", "ride"]],
   chapters: ORDER.map((id) => {
-    const c = ALL.get(id)!, x = EXTRA[id];
-    return x ? { ...c, points: [...(c.points ?? []), ...(x.points ?? [])], cards: [...c.cards, ...x.cards] } : c;
+    const c = ALL.get(id)!, x = EXTRA[id], read = READING[id];
+    const merged = x ? { ...c, points: [...(c.points ?? []), ...(x.points ?? [])], cards: [...c.cards, ...x.cards] } : c;
+    return read ? { ...merged, read } : merged;
   }),
 };

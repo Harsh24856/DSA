@@ -32,6 +32,7 @@ const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void>; pr
   { name: "other-oa-review", path: "/other/oa", prep: async (p) => { await p.getByRole("button", { name: "Start the test" }).click(); await p.getByRole("button", { name: "End test" }).click(); await p.getByRole("button", { name: "End test" }).click(); } },
   { name: "other-os", path: "/other/os" },
   { name: "other-design", path: "/other/design" },
+  { name: "other-design-reading", path: "/other/design/kvstore" },
   { name: "other-oops", path: "/other/oops" },
   { name: "other-chapter", path: "/other/os/scheduling" },
   { name: "other-chapter-code", path: "/other/oops/polymorphism" },

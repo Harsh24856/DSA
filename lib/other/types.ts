@@ -23,6 +23,9 @@ export type Card = {
   trap?: string;       // the mistake interviewers wait for
 };
 
+/** A link for further reading: the source's own title, who published it, and where. */
+export type Reading = { title: string; by: string; url: string };
+
 /** Something that really happened, in the company's own words wherever a public write-up exists. */
 export type Story = { who: string; when: string; what: string; lesson: string; url: string };
 
@@ -39,6 +42,7 @@ export type Chapter = {
   real?: Story[];      // real incidents and designs, each with its source
   work?: string[];     // how this is actually done on the job
   anim?: string;       // id of an animated walk-through in lib/other/flows.ts
+  read?: Reading[];    // further reading: papers, engineering blogs, talks
   cards: Card[];
 };
 

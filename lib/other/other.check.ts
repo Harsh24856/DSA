@@ -114,6 +114,12 @@ import { COVERAGE } from "./design-coverage.ts";
 import { geohash, matchBuy } from "./flows-design.ts";
 
 const SUBJECTS: Subject[] = [OS, DBMS, CN, SQL, OOPS, APTITUDE, SYNTAX, REACT, NODE, DESIGN];
+// further reading: https only, no repeats, and only on chapters that exist
+{
+  const urls = DESIGN.chapters.flatMap((c) => (c.read ?? []).map((r) => r.url));
+  assert.ok(urls.length >= 30 && urls.every((u) => u.startsWith("https://")), "reading links must use https");
+  assert.equal(new Set(urls).size, urls.length, "a reading link appears twice");
+}
 // System Design covers every topic on the list: each term appears in the chapter it is mapped to
 for (const { topic, terms } of COVERAGE) for (const [term, id] of terms) {
   const ch = DESIGN.chapters.find((c) => c.id === id);
