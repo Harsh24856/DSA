@@ -56,6 +56,40 @@ export const SYN_GROUPS: { title: string; topics: SynTopic[] }[] = [
       rust: "The last expression without a semicolon is the return value. No default arguments: take an `Option`.",
     } },
   ] },
+  { title: "Strings for DSA", topics: [
+    { id: "char-counts", title: "Letter counts and anagrams", idea: "A 26-slot array indexed by `c - 'a'` counts letters faster than any map: anagrams, first unique character, ransom notes.", notes: {
+      cpp: "`array<int, 26>` compares with `==`, which makes the anagram check one line.",
+      java: "`int[26]` arrays compare by reference: use `Arrays.equals`.",
+      python: "`ord(c) - ord('a')` gives the slot; `Counter` is shorter and compares with `==`.",
+      js: "`charCodeAt(0) - 97` gives the slot. Arrays compare by reference, so compare `join()` results.",
+      ts: "Same as JavaScript.",
+      rust: "Work on `bytes()` for ASCII; fixed arrays `[usize; 26]` compare by value.",
+    } },
+    { id: "char-checks", title: "Character checks and palindromes", idea: "Is it a digit, a letter, upper or lower case? Then the classic two-pointer palindrome that skips symbols.", notes: {
+      cpp: "Pass `unsigned char` to `isdigit`, `isalpha` and `tolower`: a negative `char` is undefined behaviour.",
+      java: "`Character.isDigit`, `isLetter`, `isLetterOrDigit` and `toLowerCase` handle Unicode too.",
+      python: "`str.isdigit`, `isalpha`, `isalnum`, `isupper`; filtering into a list and comparing with its reverse is short and clear.",
+      js: "No character class functions: use regular expressions such as `/[a-z0-9]/i`.",
+      ts: "Same as JavaScript.",
+      rust: "`char` has `is_ascii_digit`, `is_alphabetic` and `to_ascii_lowercase`; index bytes for ASCII two pointers.",
+    } },
+    { id: "string-parse", title: "Parsing and splitting", idea: "Turn \"10, 20,30\" into numbers, reverse the words of a sentence, and know the difference between \"42\" + 7 and 42 + 7.", notes: {
+      cpp: "`getline(stream, part, ',')` splits on a character; `stoi` parses and skips leading spaces.",
+      java: "`split` takes a regular expression (`\\\\s+` for runs of spaces); `Integer.parseInt` rejects spaces, so `trim` first.",
+      python: "`split()` with no argument splits on any whitespace and drops empty parts; `int()` ignores surrounding spaces.",
+      js: "`\"42\" + 7` is `\"427\"` but `\"42\" - 7` is 35. Convert with `Number(...)` before adding.",
+      ts: "The type checker catches many string and number mix-ups that JavaScript allows.",
+      rust: "`parse::<i32>()` returns a `Result`; `trim` first, because spaces make it fail.",
+    } },
+    { id: "substrings", title: "Searching and comparing strings", idea: "Find every occurrence, check prefixes and suffixes, compare strings and sort them by a custom rule.", notes: {
+      cpp: "`find(s, from)` returns `npos` when missing. `starts_with` and `ends_with` arrived in C++20; `<` compares strings.",
+      java: "Strings cannot use `<`: use `compareTo`. `indexOf(s, from)` continues a search.",
+      python: "`find` returns -1 and `index` raises; strings compare with `<` character by character.",
+      js: "`<` compares UTF-16 code units, so capitals come first; `localeCompare` sorts like a dictionary.",
+      ts: "Same as JavaScript.",
+      rust: "`match_indices` skips overlapping matches; slice and search again to find them all.",
+    } },
+  ] },
   { title: "Collections", topics: [
     { id: "arrays", title: "Arrays and lists", idea: "The growable array is the most used data structure in coding rounds: push, index, slice, sum, search.", notes: {
       cpp: "`vector<int>`: `push_back`, `back()`, `size()`. Out-of-range `v[i]` is undefined; `v.at(i)` checks.",
@@ -180,6 +214,32 @@ export const SYN_GROUPS: { title: string; topics: SynTopic[] }[] = [
       rust: "`#[derive(Hash, PartialEq, Eq)]` is all it takes.",
     } },
   ] },
+  { title: "Linked lists, trees and tries", topics: [
+    { id: "linked-list", title: "Linked lists", idea: "A node holds a value and a pointer to the next node. Build a list, reverse it in place, and find the middle with slow and fast pointers.", notes: {
+      cpp: "Raw `Node*` pointers are the interview norm; every `new` needs a `delete` (or use `unique_ptr`).",
+      java: "Objects are references, so `next` is just a field; the garbage collector frees nodes.",
+      python: "A tiny class with `val` and `next`; tuple assignment reverses a list in one line.",
+      js: "A plain object `{ val, next }` is a node; `null` ends the list.",
+      ts: "Type the node `{ val: number; next: ListNode | null }`; `!` tells the compiler a value is not null.",
+      rust: "`Option<Box<Node>>` owns the next node; `take()` moves it out while reversing. Two moving pointers need careful borrowing.",
+    } },
+    { id: "bst", title: "Binary search trees", idea: "Insert into a binary search tree, then walk it in order, in preorder and level by level, and measure its height.", notes: {
+      cpp: "`unique_ptr` children free the whole tree automatically; level order uses a `queue` and its size per level.",
+      java: "Recursive insert returns the (possibly new) subtree root; `ArrayDeque` is the BFS queue.",
+      python: "Recursion reads well for traversals; `deque` drives level order.",
+      js: "Spread syntax builds traversal arrays: short, though it copies on each call.",
+      ts: "A type guard `(c): c is TreeNode` keeps the type when filtering out `null`.",
+      rust: "`Option<Box<Node>>` children; insert takes `&mut Option<Box<Node>>` and recursion replaces the `None`.",
+    } },
+    { id: "trie", title: "Tries (prefix trees)", idea: "Each node has a child per letter and a flag for \"a word ends here\". Insert, search, test a prefix and list every word with a prefix.", notes: {
+      cpp: "26 child pointers per node make lookups an array index; `unique_ptr` frees the tree.",
+      java: "`Trie[] next = new Trie[26]` is the standard layout.",
+      python: "A dict of children saves memory; `setdefault` creates a child in one call.",
+      js: "A `Map` of children; a generator (`function*`) yields matching words one at a time.",
+      ts: "Generators are typed `Generator<string>`.",
+      rust: "`[Option<Box<Trie>>; 26]` with `get_or_insert_with` to create children; `?` returns early on a missing letter.",
+    } },
+  ] },
   { title: "Objects and types", topics: [
     { id: "classes", title: "Classes and structs", idea: "Fields, a constructor, methods, a shared counter and a readable text form.", notes: {
       cpp: "`const` after a method promises not to change the object. Static members are defined once outside the class.",
@@ -276,6 +336,40 @@ export const SYN_GROUPS: { title: string; topics: SynTopic[] }[] = [
       rust: "`mask & (1 << i) != 0` parses as intended in Rust (unlike C). `{:03b}` pads the binary.",
     } },
   ] },
+  { title: "Graphs", topics: [
+    { id: "graph-traversal", title: "Adjacency lists, BFS and DFS", idea: "Store a graph as a list of neighbours per node, then visit it breadth first (shortest path in steps) and depth first.", notes: {
+      cpp: "`vector<vector<int>>` is the usual adjacency list. Mark a node when you queue it, or it can be queued twice.",
+      java: "`List<List<Integer>>` with one inner list per node; `ArrayDeque` is the BFS queue.",
+      python: "`[[] for _ in range(n)]`, never `[[]] * n`, which shares one list. Deep DFS hits the recursion limit.",
+      js: "`Array.from({ length: n }, () => [])` for the lists; walk the BFS queue with an index instead of `shift`.",
+      ts: "Same as JavaScript, typed `number[][]`.",
+      rust: "`vec![Vec::new(); n]`; pass the graph and the visited list into a recursive DFS function.",
+    } },
+    { id: "dijkstra", title: "Dijkstra with a priority queue", idea: "Shortest paths with non-negative weights: always settle the closest unsettled node, then relax its edges.", notes: {
+      cpp: "`priority_queue` with `greater<>` is a min-heap of (distance, node); skip entries older than the best distance.",
+      java: "`PriorityQueue<long[]>` ordered by distance; use `long` so sums do not overflow.",
+      python: "`heapq` with (distance, node) tuples; `float(\"inf\")` marks unreached nodes.",
+      js: "No heap: this version scans for the nearest node, O(V^2), which is fine for small graphs. Use a heap class for big sparse ones.",
+      ts: "Same as JavaScript.",
+      rust: "`BinaryHeap<Reverse<(u64, usize)>>` turns the max-heap into a min-heap.",
+    } },
+    { id: "topo-sort", title: "Topological sort", idea: "Order tasks so every prerequisite comes first (Kahn's algorithm), and detect a cycle when no such order exists.", notes: {
+      cpp: "Count incoming edges, start from the nodes with none, and remove edges as you go.",
+      java: "Same algorithm; if the order is shorter than n, the graph has a cycle.",
+      python: "`deque` of zero in-degree nodes; `graphlib.TopologicalSorter` exists too (3.9+).",
+      js: "An array with a head index works as the queue.",
+      ts: "Edges typed as `[number, number][]`.",
+      rust: "Collect the starting nodes straight into a `VecDeque` with `filter`.",
+    } },
+    { id: "union-find", title: "Union-find (disjoint sets)", idea: "Merge groups and ask whether two items are connected in almost O(1): connected components, Kruskal, and cycle detection.", notes: {
+      cpp: "Path compression in `find` plus union by size keep the trees almost flat.",
+      java: "Two `int` arrays, `parent` and `size`; recursion depth stays small thanks to path compression.",
+      python: "Path halving in a loop avoids the recursion limit.",
+      js: "Same arrays as Java; swap with destructuring.",
+      ts: "Same as JavaScript.",
+      rust: "A struct with `&mut self` methods; `find` changes the parents, so even lookups need `&mut`.",
+    } },
+  ] },
   { title: "Coding-round essentials", topics: [
     { id: "building", title: "Building strings and characters", idea: "Join many pieces efficiently, and convert between characters and numbers.", notes: {
       cpp: "`+=` on a `std::string` is cheap. `'7' - '0'` turns a digit into its value.",
@@ -308,6 +402,14 @@ export const SYN_GROUPS: { title: string; topics: SynTopic[] }[] = [
       js: "Return an array or object and destructure it; `[a, b] = [b, a]` swaps.",
       ts: "Annotate a tuple return type as `[number, number]`.",
       rust: "Tuples are built in; `(a, b) = (b, a)` or `std::mem::swap` swaps.",
+    } },
+    { id: "prefix-sums", title: "Prefix sums", idea: "Precompute running totals once, then answer any range sum in O(1), and count subarrays with a given sum using a map of earlier totals.", notes: {
+      cpp: "Size the prefix array n + 1 so `pre[0] = 0` and range sums need no special case; use `long long`.",
+      java: "Use `long` for the running totals; `getOrDefault` reads the map.",
+      python: "`itertools.accumulate` builds the running totals in one call.",
+      js: "Push `pre.at(-1) + x` to extend the totals.",
+      ts: "Same as JavaScript.",
+      rust: "`pre.last().unwrap()` is the running total; `entry` counts the totals seen.",
     } },
     { id: "bigint", title: "Big numbers and modulo 1e9+7", idea: "Many answers must be given modulo 1,000,000,007. Know your integer limits and fast power.", notes: {
       cpp: "Multiply two values below 1e9+7 in `long long`, then take `%`; `int` would overflow.",
