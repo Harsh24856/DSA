@@ -9,6 +9,7 @@ export const OOPS: Subject = {
   chapters: [
     {
       id: "basics",
+      anim: "oop-object",
       title: "Classes, objects and the four pillars",
       summary: "A **class** is a blueprint: fields (state) and methods (behaviour). An **object** is one instance of it with its own state. OOP rests on four ideas: **encapsulation** (hide state behind methods), **abstraction** (expose what, hide how), **inheritance** (reuse and extend a type) and **polymorphism** (one interface, many behaviours).",
       diagram: `classDiagram
@@ -64,6 +65,7 @@ int main() {
     },
     {
       id: "encapsulation",
+      anim: "oop-encap",
       title: "Encapsulation and access modifiers",
       summary: "Encapsulation keeps an object's state private and exposes methods that enforce its rules (invariants). Access modifiers decide who can see a member.",
       diagram: `flowchart TB
@@ -207,6 +209,7 @@ int main() {
     },
     {
       id: "inheritance",
+      anim: "oop-lookup",
       title: "Inheritance and the diamond problem",
       summary: "Inheritance models an **is-a** relationship and lets a subclass reuse and extend its parent. Java allows one parent class (plus many interfaces); C++ allows multiple inheritance, which brings the diamond problem.",
       diagram: `classDiagram
@@ -310,6 +313,7 @@ int main() {
     },
     {
       id: "abstraction",
+      anim: "oop-interface",
       title: "Abstract classes and interfaces",
       summary: "Both describe what a type can do without fixing how. An **abstract class** can hold state and partial implementation; an **interface** is a pure contract a class promises to fulfil.",
       diagram: `flowchart TB
@@ -384,6 +388,7 @@ int main() {
     },
     {
       id: "static",
+      anim: "oop-static",
       title: "Static members, final and const, binding",
       summary: "**Static** members belong to the class, not to any object: one shared copy. **Final** (Java) and **const** (C++) prevent change. **Static binding** decides the call at compile time; **dynamic binding** at run time.",
       diagram: `flowchart TB
@@ -432,6 +437,7 @@ int main() {
     },
     {
       id: "relationships",
+      anim: "oop-relations",
       title: "Association, aggregation and composition",
       summary: "Objects relate to each other in three strengths. **Association**: they use each other. **Aggregation**: has-a, but the part can live on its own. **Composition**: has-a, and the part's life is owned by the whole.",
       diagram: `classDiagram
@@ -452,6 +458,7 @@ int main() {
     },
     {
       id: "solid",
+      anim: "oop-solid",
       title: "SOLID and common design patterns",
       summary: "SOLID is five rules for classes that stay easy to change. Design patterns are named, reusable solutions to recurring design problems.",
       real: [

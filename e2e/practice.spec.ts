@@ -205,17 +205,20 @@ test("every OA question fits a phone", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
 });
 
-test("CS core ticks: chapters from the contents list, questions one by one, with progress", async ({ page }) => {
+test("CS core ticks: chapters in their sections, questions one by one, with progress", async ({ page }) => {
   await page.goto("/other/design");
   const nav = page.getByRole("navigation", { name: "Chapters" });
-  await expect(nav.getByText("Advanced designs")).toBeVisible();
+  await expect(nav.getByRole("heading", { name: "Advanced designs" })).toBeVisible();
   await nav.getByRole("button", { name: "Done: Design a stock exchange" }).click();
   await expect(nav.getByRole("button", { name: "Done: Design a stock exchange" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText("1 / 40 done")).toBeVisible();
-  await page.locator("#exchange").getByRole("button", { name: /^I can answer: / }).first().click();
-  await expect(page.locator("#exchange").getByText("1 of 5 ticked as answerable")).toBeVisible();
+  await page.goto("/other/design/exchange");
+  await page.getByRole("button", { name: /^I can answer: / }).first().click();
+  await expect(page.getByText("1 of 5", { exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByText(/^1 \/ \d+ ticked$/)).toBeVisible();   // kept in the synced patterns store
+  await expect(page.getByText("1 of 5", { exact: true })).toBeVisible();   // kept in the synced patterns store
+  await page.goto("/other/design");
+  await expect(page.getByText(/^1 \/ \d+ ticked$/)).toBeVisible();
   await page.goto("/other");
   await expect(page.getByRole("link", { name: /System Design/ }).getByText("1 / 40")).toBeVisible();
 });

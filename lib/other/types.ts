@@ -4,7 +4,8 @@
 
 export type Table = { head: string[]; rows: string[][] };
 
-export type OtherLab = "paging" | "scheduling" | "banker" | "tcp" | "subnet" | "btree" | "sqlorder" | "normalize" | "vtable" | "aptitude" | "eventloop" | "hashring" | "ratelimit";
+export type OtherLab = "paging" | "scheduling" | "banker" | "tcp" | "subnet" | "btree" | "sqlorder" | "normalize" | "vtable" | "aptitude" | "eventloop" | "hashring" | "ratelimit"
+  | "disk" | "nulls" | "quorum" | "estimate" | "availability" | "rerender" | "clock" | "apt-percent" | "apt-ratio" | "apt-work" | "apt-speed" | "apt-counting";
 
 /** Code in one or more languages; two or more of cpp, java, python, js, ts show a language switch. check:other runs
  *  every one: SQL in SQLite (rows compared with `result`), Java and C++ compiled and run, Python and JavaScript run,

@@ -63,8 +63,10 @@ export function VtableLab() {
 /* ---------- aptitude drills ---------- */
 const TOPICS: [AptTopic, string][] = [["percent", "Percent change"], ["profit", "Profit and discount"], ["interest", "SI vs CI"], ["work", "Time and work"], ["trains", "Trains"], ["boats", "Boats and streams"], ["pnc", "Combinations"], ["dice", "Probability"], ["mixture", "Mixtures"], ["hcf", "HCF and LCM"]];
 
-export function AptitudeLab() {
-  const [topic, setTopic] = useState<AptTopic>("percent");
+/** `topics` limits the drill to one chapter's topics; without it every topic is offered. */
+export function AptitudeLab({ topics }: { topics?: AptTopic[] }) {
+  const shownTopics = topics ? TOPICS.filter(([k]) => topics.includes(k)) : TOPICS;
+  const [topic, setTopic] = useState<AptTopic>(shownTopics[0][0]);
   const [seed, setSeed] = useState(1);
   const [guess, setGuess] = useState("");
   const [shown, setShown] = useState(false);
@@ -75,7 +77,7 @@ export function AptitudeLab() {
   return (
     <Lab title="Aptitude drill: fresh problems every time" hint="Pick a topic, solve on paper, type the number. Every problem is generated with its answer computed, so you can practise as many as you like.">
       <ul className="flex flex-wrap gap-2" aria-label="Topic">
-        {TOPICS.map(([k, l]) => <li key={k}><button type="button" className="chip" aria-pressed={topic === k} onClick={() => { setTopic(k); setGuess(""); setShown(false); }}>{l}</button></li>)}
+        {shownTopics.map(([k, l]) => <li key={k}><button type="button" className="chip" aria-pressed={topic === k} onClick={() => { setTopic(k); setGuess(""); setShown(false); }}>{l}</button></li>)}
       </ul>
       <AnimatePresence mode="wait">
         <motion.p key={`${topic}-${seed}`} className="rounded-tile bg-surface px-4 py-3 text-sm leading-relaxed" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>{p.q}</motion.p>

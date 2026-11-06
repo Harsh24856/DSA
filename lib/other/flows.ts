@@ -4,6 +4,7 @@
 import { CS_FLOWS } from "./flows-cs.ts";
 import { GENAI_FLOWS } from "./flows-genai.ts";
 import { DESIGN_FLOWS } from "./flows-design.ts";
+import { CORE_FLOWS } from "./flows-core.ts";
 
 export type FlowTone = "ok" | "bad" | "warn" | "hot";
 export type ChainStep = { node: string; note: string; tone?: FlowTone };
@@ -27,6 +28,7 @@ export const FLOWS: Record<string, Flow> = {
   ...CS_FLOWS,
   ...GENAI_FLOWS,
   ...DESIGN_FLOWS,
+  ...CORE_FLOWS,
   caching: {
     title: "A read with cache-aside",
     steps: [
