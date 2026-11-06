@@ -204,7 +204,7 @@ export function SubjectHub({ subject }: { subject: SubjectMeta }) {
         <h2 id="sub-title" className="t-title">{subject.name}</h2>
         <p className="max-w-[72ch] text-sm leading-relaxed text-muted">{subject.blurb}</p>
         <div className="flex items-center gap-3"><Bar value={n} max={chs.length} className="flex-1" /><span className="num text-xs text-muted">{n} / {chs.length} done</span></div>
-        {next && <Link href={href(subject.id, next.id)} className="btn btn-primary w-fit">{n ? "Continue" : "Start"}: {next.title}<ArrowRight size={16} aria-hidden /></Link>}
+        {next && <Link href={href(subject.id, next.id)} className="btn btn-primary w-fit text-accent-ink no-underline">{n ? "Continue" : "Start"}: {next.title}<ArrowRight size={16} aria-hidden /></Link>}
       </section>
       {STARTERS[subject.id] && <SubjectPlayground starters={STARTERS[subject.id]} />}
       <nav aria-label="Chapters">
@@ -285,10 +285,10 @@ export function ChapterPage({ subject, chapter: ch }: { subject: SubjectMeta; ch
       </SubjectCtx.Provider>
 
       <nav className="grid gap-3 sm:grid-cols-2" aria-label="Chapters">
-        {prev ? <Link href={href(subject.id, prev.id)} className="btn btn-nav justify-start gap-3"><ArrowLeft size={16} aria-hidden /><span><span className="block text-xs font-normal text-muted">Previous</span>{prev.title}</span></Link> : <span />}
+        {prev ? <Link href={href(subject.id, prev.id)} className="btn btn-nav text-ink no-underline justify-start gap-3"><ArrowLeft size={16} aria-hidden /><span><span className="block text-xs font-normal text-muted">Previous</span>{prev.title}</span></Link> : <span />}
         {next
-          ? <Link href={href(subject.id, next.id)} onClick={() => { if (!on) toggle(key, true); }} className="btn btn-nav justify-end gap-3 text-right"><span><span className="block text-xs font-normal text-muted">{on ? "Next" : "Done, next"}</span>{next.title}</span><ArrowRight size={16} aria-hidden /></Link>
-          : <Link href={`/other/${subject.id}`} onClick={() => { if (!on) toggle(key, true); }} className="btn btn-nav justify-end gap-3 text-right"><span><span className="block text-xs font-normal text-muted">{on ? "Back to" : "Done, back to"}</span>{subject.name}</span><ArrowRight size={16} aria-hidden /></Link>}
+          ? <Link href={href(subject.id, next.id)} onClick={() => { if (!on) toggle(key, true); }} className="btn btn-nav text-ink no-underline justify-end gap-3 text-right"><span><span className="block text-xs font-normal text-muted">{on ? "Next" : "Done, next"}</span>{next.title}</span><ArrowRight size={16} aria-hidden /></Link>
+          : <Link href={`/other/${subject.id}`} onClick={() => { if (!on) toggle(key, true); }} className="btn btn-nav text-ink no-underline justify-end gap-3 text-right"><span><span className="block text-xs font-normal text-muted">{on ? "Back to" : "Done, back to"}</span>{subject.name}</span><ArrowRight size={16} aria-hidden /></Link>}
       </nav>
     </div>
   );

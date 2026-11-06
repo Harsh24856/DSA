@@ -34,6 +34,7 @@ const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void>; pr
   { name: "other-oops", path: "/other/oops" },
   { name: "other-chapter", path: "/other/os/scheduling" },
   { name: "other-chapter-code", path: "/other/oops/polymorphism" },
+  ...["os/storage", "sql/nulls", "design/estimation", "design/consistency", "design/reliability", "react/perf", "aptitude/reasoning", "cn/layers"].map((c) => ({ name: `other-lab-${c.replace("/", "-")}`, path: `/other/${c}` })),
   { name: "genai", path: "/genai" },
   { name: "genai-module", path: "/genai/m4" },
   { name: "genai-labs", path: "/genai/m2" },

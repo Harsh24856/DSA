@@ -8,6 +8,7 @@ export const DBMS: Subject = {
   chapters: [
     {
       id: "basics",
+      anim: "dbms-schema",
       title: "Why a DBMS, and the three-schema architecture",
       summary: "A file system stores bytes; a DBMS stores data with structure, rules and guarantees. It gives you a query language, concurrent access without corruption, crash recovery, security and integrity constraints.",
       points: [
@@ -28,6 +29,7 @@ export const DBMS: Subject = {
     },
     {
       id: "keys",
+      anim: "dbms-keys",
       title: "Keys and constraints",
       summary: "Keys identify rows and connect tables. Getting the vocabulary exactly right is a common interview filter.",
       diagram: `flowchart TB
@@ -54,6 +56,7 @@ export const DBMS: Subject = {
     },
     {
       id: "er",
+      anim: "dbms-er",
       title: "ER modelling",
       summary: "An entity-relationship diagram is the design step before tables: entities (things), attributes (their properties) and relationships with cardinality.",
       diagram: `erDiagram
@@ -194,6 +197,7 @@ export const DBMS: Subject = {
     },
     {
       id: "scale",
+      anim: "dbms-replica",
       title: "Scaling: replication, sharding and CAP",
       summary: "One database server eventually runs out of capacity. **Replication** copies data to more machines (for reads and availability); **sharding** splits data across machines (for writes and size).",
       real: [

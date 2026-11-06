@@ -84,6 +84,7 @@ assert.equal(aptitude("work", 3).answer, aptitude("work", 3).answer, "determinis
 }
 
 console.log("simulators ok");
+import "./sim-core.check.ts";
 
 /* ---------- content ---------- */
 import { DatabaseSync } from "node:sqlite";
