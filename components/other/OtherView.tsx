@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, ArrowRight, ArrowSquareOut, Briefcase, Buildings, CaretDown, Check, Code as CodeIcon, Flask, Play, WarningCircle } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, ArrowSquareOut, BookOpen, Briefcase, Buildings, CaretDown, Check, Code as CodeIcon, Flask, Play, WarningCircle } from "@phosphor-icons/react";
 import type { Card, Chapter, Code, Table } from "@/lib/other/types";
 import { cardKey, chapterKey, partsOf, type ChapterMeta, type SubjectMeta } from "@/lib/other";
 import { usePatterns } from "@/lib/patternStore";
@@ -51,8 +51,9 @@ function TableView({ t }: { t: Table }) {
   );
 }
 
-/** Which playground can run this language, if any. Java and C++ need a compiler, so they have none. */
+/** Which playground can run this language, if any. Java and C++ run on Compiler Explorer. */
 function playMode(key: string, body: string, subject: string): PlayMode | null {
+  if (key === "cpp" || key === "java") return key;
   if (key === "tsx") return "react";
   if (key === "sql") return "sql";
   if (key === "python") return "python";
@@ -145,6 +146,12 @@ function RealWorld({ ch }: { ch: Chapter }) {
               <a href={s.url} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-1 text-xs text-muted hover:text-accent">Read the source<ArrowSquareOut size={12} aria-hidden /><span className="sr-only"> (opens in a new tab)</span></a>
             </article>
           ))}
+        </div>
+      )}
+      {ch.read && ch.read.length > 0 && (
+        <div className="grid gap-1">
+          <h4 className="flex items-center gap-2"><BookOpen size={16} className="text-accent" aria-hidden />Further reading</h4>
+          <ul>{ch.read.map((r) => <li key={r.url}><a href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1">{r.title}<ArrowSquareOut size={12} aria-label="opens in a new tab" /></a> <span className="text-muted">· {r.by}</span></li>)}</ul>
         </div>
       )}
       {ch.work && ch.work.length > 0 && (

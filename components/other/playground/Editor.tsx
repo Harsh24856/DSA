@@ -3,8 +3,11 @@
 import { useEffect, useRef } from "react";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { cpp } from "@codemirror/lang-cpp";
+import { java } from "@codemirror/lang-java";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
+import { rust } from "@codemirror/lang-rust";
 import { sql, SQLite } from "@codemirror/lang-sql";
 import { bracketMatching, HighlightStyle, indentOnInput, syntaxHighlighting } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
@@ -13,7 +16,8 @@ import { tags as t } from "@lezer/highlight";
 import type { PlayMode } from "@/lib/other/playground/compile";
 
 const LANG = (mode: PlayMode) =>
-  mode === "python" ? python() : mode === "sql" ? sql({ dialect: SQLite }) : javascript({ jsx: mode === "react", typescript: mode === "ts" || mode === "react" });
+  mode === "python" ? python() : mode === "sql" ? sql({ dialect: SQLite }) : mode === "cpp" ? cpp() : mode === "java" ? java() : mode === "rust" ? rust()
+    : javascript({ jsx: mode === "react", typescript: mode === "ts" || mode === "react" });
 
 const COLORS = HighlightStyle.define([
   { tag: [t.keyword, t.operatorKeyword, t.modifier], color: "var(--accent)", fontWeight: "600" },
