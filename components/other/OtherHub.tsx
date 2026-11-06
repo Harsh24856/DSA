@@ -11,7 +11,7 @@ import { ProgressCard } from "../ProgressCard";
 export type SubjectSummary = { id: string; name: string; short: string; blurb: string; chapters: string[]; cards: string[]; labs: number };   // cards: tick keys of its interview questions
 const ICON: Record<string, Icon> = { os: Cpu, dbms: Database, cn: Globe, sql: Table, oops: Cube, aptitude: Calculator, syntax: Code, react: Atom, node: HardDrives, design: ShareNetwork };
 
-export function OtherHub({ subjects, oaCount }: { subjects: SubjectSummary[]; oaCount: number }) {
+export function OtherHub({ subjects, oaCount, syntaxCount }: { subjects: SubjectSummary[]; oaCount: number; syntaxCount: number }) {
   const { done } = usePatterns();
   const doneIn = (s: SubjectSummary) => s.chapters.filter((c) => done[chapterKey(s.id, c)]).length;
   const total = subjects.reduce((n, s) => n + s.chapters.length, 0), finished = subjects.reduce((n, s) => n + doneIn(s), 0);
@@ -33,6 +33,11 @@ export function OtherHub({ subjects, oaCount }: { subjects: SubjectSummary[]; oa
       <Link href="/other/oa" className="card group flex items-center gap-3 p-6 transition hover:border-line-strong hover:bg-surface-2 active:scale-[0.99]">
         <span className="badge-icon size-9 shrink-0"><Exam size={18} aria-hidden /></span>
         <div className="min-w-0 flex-1"><h3 className="t-h3">OA questions</h3><p className="mt-1 text-sm text-muted">{oaCount} multiple-choice questions on OS, DBMS, networks, SQL, OOP and aptitude. Practice by subject or sit a timed test.</p></div>
+        <ArrowRight size={18} className="shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent" aria-hidden />
+      </Link>
+      <Link href="/syntax" className="card group flex items-center gap-3 p-6 transition hover:border-line-strong hover:bg-surface-2 active:scale-[0.99]">
+        <span className="badge-icon size-9 shrink-0"><Code size={18} aria-hidden /></span>
+        <div className="min-w-0 flex-1"><h3 className="t-h3">Syntax in six languages</h3><p className="mt-1 text-sm text-muted">{syntaxCount} runnable programs in C++, Java, Python, JavaScript, TypeScript and Rust, from printing to every DSA map, set and heap.</p></div>
         <ArrowRight size={18} className="shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent" aria-hidden />
       </Link>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

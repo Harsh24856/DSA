@@ -236,8 +236,20 @@ test("Syntax: the same program in every language, run live, compared and ticked"
   await page.getByRole("combobox").selectOption("rust");
   await expect(page.getByLabel("Lambdas, closures, map and filter in Rust")).toContainText("move ||");
   await page.getByRole("button", { name: "Learned in C++" }).click();
-  await expect(page.getByText("1 / 22 learned")).toBeVisible();
+  await expect(page.getByText(/^1 \/ \d+ learned$/)).toBeVisible();
   await page.goto("/syntax#hello");
   await expect(page.getByRole("heading", { name: "Printing and variables" })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("dsa-syntax-lang"))).toBe("cpp");
+});
+
+test("Syntax containers: the table of what exists, and the line that shows what fails", async ({ page }) => {
+  await page.goto("/syntax#map-keys");
+  await page.getByRole("group", { name: "Language" }).getByRole("button", { name: "JavaScript" }).click();
+  await expect(page.locator(".pg-log")).toContainText("array key, equal contents: undefined");
+  await expect(page.locator("pre.code").filter({ hasText: "array key, equal contents: undefined" })).toBeVisible();
+  await page.getByText("Every container in JavaScript").click();
+  await expect(page.getByRole("cell", { name: "write a binary heap" })).toBeVisible();
+  await page.goto("/other");
+  await page.getByRole("link", { name: /Syntax in six languages/ }).click();
+  await expect(page).toHaveURL(/\/syntax$/);
 });

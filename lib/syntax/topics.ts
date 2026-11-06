@@ -114,6 +114,72 @@ export const SYN_GROUPS: { title: string; topics: SynTopic[] }[] = [
       rust: "Indexes are `usize`, which cannot be negative: compute neighbours in `i32`, check, then cast.",
     } },
   ] },
+  { title: "DSA containers", topics: [
+    { id: "map-kinds", title: "Hash, sorted and insertion-ordered maps", idea: "Three kinds of map: a hash map for O(1) lookups, a sorted map for keys in order, and one that remembers insertion order. Not every language has all three.", notes: {
+      cpp: "`unordered_map` is the hash map, `map` the sorted one. No insertion-ordered map: keep a vector of keys.",
+      java: "`HashMap`, `TreeMap` and `LinkedHashMap` cover all three.",
+      python: "`dict` is a hash map that also keeps insertion order. No sorted dict: sort the keys when you need order.",
+      js: "`Map` is a hash map that keeps insertion order. No sorted map: sort the keys.",
+      ts: "Same as JavaScript: `Map<K, V>`, no sorted map.",
+      rust: "`HashMap` and `BTreeMap` (sorted). Insertion order needs the indexmap crate or your own Vec.",
+    } },
+    { id: "map-keys", title: "What can be a key", idea: "Pairs and tuples as keys are common (grid cells, coordinates). Some key types work by value, some only by identity, and some are not allowed at all.", notes: {
+      cpp: "`map<pair<int,int>, V>` works. `unordered_map<pair<int,int>, V>` does not compile without a custom hash.",
+      java: "A record or `List<Integer>` works by value. An `int[]` compiles but compares by identity, so lookups fail.",
+      python: "Tuples, strings and frozensets can be keys. Lists, dicts and sets cannot: `TypeError`.",
+      js: "Object and array keys compare by identity. Encode pairs as a string `\"r,c\"` or a number `r * cols + c`.",
+      ts: "The types allow `Map<number[], V>`, but the lookup still compares identity.",
+      rust: "Tuples, `String` and `Vec` implement `Hash + Eq`. `f64` does not, because NaN is not equal to itself.",
+    } },
+    { id: "ordered", title: "Floor, ceiling and ranges", idea: "Find the largest key at most x, the smallest at least x, or everything in a range, in O(log n). Common in interval and scheduling problems.", notes: {
+      cpp: "`lower_bound(x)` is the first >= x; `prev(upper_bound(x))` is the last <= x (check it is not `begin()`).",
+      java: "`TreeSet` and `TreeMap` have `floor`, `ceiling`, `higher`, `lower`, `subSet` and `headMap` built in.",
+      python: "No sorted container in the standard library: `bisect` on a sorted list (insertion is O(n)). LeetCode also has `sortedcontainers`.",
+      js: "No sorted container: binary search a sorted array; inserting into it is O(n).",
+      ts: "Same as JavaScript.",
+      rust: "`BTreeSet::range(..=x).next_back()` is floor and `range(x..).next()` is ceiling.",
+    } },
+    { id: "multiset", title: "Multisets and counting", idea: "Keep repeated values, count them and remove one copy at a time: sliding-window medians and \"remove one occurrence\" problems.", notes: {
+      cpp: "`multiset` keeps repeats. `erase(x)` removes every copy; `erase(find(x))` removes one.",
+      java: "No multiset: a `TreeMap<value, count>` does the same job.",
+      python: "`Counter` counts values; `elements()` repeats them; missing values count as 0.",
+      js: "No multiset: a `Map` of counts.",
+      ts: "Same as JavaScript.",
+      rust: "No multiset in std: a `BTreeMap<value, count>`.",
+    } },
+    { id: "grouping", title: "Grouping with default values", idea: "Group anagrams: map each key to a list that is created the first time the key appears.", notes: {
+      cpp: "`m[key]` creates an empty vector on first use, which is exactly what grouping needs.",
+      java: "`computeIfAbsent(key, k -> new ArrayList<>())` creates the list once.",
+      python: "`defaultdict(list)` creates the list for you.",
+      js: "No default values: check `has` and set an empty array first.",
+      ts: "`get(key)!` tells the compiler the list exists after you created it.",
+      rust: "`entry(key).or_default()` inserts an empty `Vec` the first time.",
+    } },
+    { id: "pair-sets", title: "Sets of pairs: visited cells", idea: "BFS and DFS on grids keep a set of visited cells. The cell is a pair, so the set needs pair keys.", notes: {
+      cpp: "`set<pair<int,int>>` works; for `unordered_set`, add a hash or store `r * cols + c`.",
+      java: "A record works by value; encoding `r * cols + c` in a `Set<Integer>` is faster.",
+      python: "A set of tuples is the standard way.",
+      js: "A `Set` of arrays compares identity, so `has([0, 1])` is false. Store strings or numbers.",
+      ts: "Same rule as JavaScript.",
+      rust: "`HashSet<(i32, i32)>` hashes tuples by value.",
+    } },
+    { id: "iterate-remove", title: "Removing while iterating", idea: "Delete entries while looping over a map: allowed in some languages, an error in others, and undefined behaviour in C++ if done carelessly.", notes: {
+      cpp: "Use `it = m.erase(it)`; incrementing an erased iterator is undefined behaviour. C++20 adds `std::erase_if`.",
+      java: "Removing inside for-each throws `ConcurrentModificationException`. Use `removeIf` or `Iterator.remove`.",
+      python: "Deleting from a dict while looping raises `RuntimeError`. Build a new dict, or loop over `list(m)`.",
+      js: "Allowed: a `Map` iterator keeps working after deletes.",
+      ts: "Same as JavaScript.",
+      rust: "Does not compile: the loop borrows the map. Use `retain`.",
+    } },
+    { id: "custom-keys", title: "Custom key types and hashing", idea: "Your own type as a key needs equality and a hash that agree. Without them, equal objects are different keys.", notes: {
+      cpp: "Write `operator==` and a hash functor, and pass it as the third template argument.",
+      java: "Records generate `equals` and `hashCode`. A plain class without them compares identity, so `get` returns null.",
+      python: "`@dataclass(frozen=True)` makes a hashable value type. A plain class hashes by identity.",
+      js: "No way to define equality for `Map` keys: use a string or number key.",
+      ts: "Same as JavaScript.",
+      rust: "`#[derive(Hash, PartialEq, Eq)]` is all it takes.",
+    } },
+  ] },
   { title: "Objects and types", topics: [
     { id: "classes", title: "Classes and structs", idea: "Fields, a constructor, methods, a shared counter and a readable text form.", notes: {
       cpp: "`const` after a method promises not to change the object. Static members are defined once outside the class.",
@@ -197,5 +263,64 @@ export const SYN_GROUPS: { title: string; topics: SynTopic[] }[] = [
 ];
 
 export const SYN_TOPICS = SYN_GROUPS.flatMap((g) => g.topics);
+
+/** What each language offers for DSA: need, what to use, its cost, and what is missing or surprising. */
+export const CONTAINERS: Record<SynLang, [need: string, use: string, cost: string, watch: string][]> = {
+  cpp: [
+    ["Hash map / set", "`unordered_map`, `unordered_set`", "O(1) average", "pair and tuple keys need a custom hash"],
+    ["Sorted map / set", "`map`, `set`", "O(log n)", "floor via `prev(upper_bound(x))`"],
+    ["Insertion order", "not available", "", "keep a vector of keys"],
+    ["Repeats allowed", "`multiset`, `multimap`", "O(log n)", "`erase(x)` removes every copy"],
+    ["Default values", "`m[k]` starts at 0 or empty", "", "`[]` inserts even when you only read: use `count` or `find`"],
+    ["Priority queue", "`priority_queue`", "O(log n)", "a max-heap; no decrease-key"],
+    ["Deque", "`deque`", "O(1) at both ends", ""],
+  ],
+  java: [
+    ["Hash map / set", "`HashMap`, `HashSet`", "O(1) average", "`int[]` keys compare by identity"],
+    ["Sorted map / set", "`TreeMap`, `TreeSet`", "O(log n)", "`floor`, `ceiling`, `subSet` built in"],
+    ["Insertion order", "`LinkedHashMap`, `LinkedHashSet`", "O(1)", "access order turns it into an LRU cache"],
+    ["Repeats allowed", "not available", "", "`TreeMap<value, count>`"],
+    ["Default values", "`getOrDefault`, `merge`, `computeIfAbsent`", "", "`get` returns null for a missing key"],
+    ["Priority queue", "`PriorityQueue`", "O(log n)", "a min-heap; `remove(x)` is O(n)"],
+    ["Deque", "`ArrayDeque`", "O(1) at both ends", "no null elements"],
+    ["Primitive keys", "not available", "", "every `int` is boxed to `Integer`: more memory"],
+  ],
+  python: [
+    ["Hash map / set", "`dict`, `set`", "O(1) average", "lists, dicts and sets cannot be keys"],
+    ["Sorted map / set", "not in the standard library", "", "`bisect` on a sorted list; `sortedcontainers` on LeetCode"],
+    ["Insertion order", "`dict` (3.7+)", "O(1)", "`OrderedDict.move_to_end` for an LRU cache"],
+    ["Repeats allowed", "`Counter`", "O(1)", "missing values count as 0"],
+    ["Default values", "`defaultdict`, `get`, `setdefault`", "", ""],
+    ["Priority queue", "`heapq` on a list", "O(log n)", "a min-heap; negate values for a max-heap"],
+    ["Deque", "`collections.deque`", "O(1) at both ends", "`list.pop(0)` is O(n)"],
+  ],
+  js: [
+    ["Hash map / set", "`Map`, `Set`", "O(1) average", "object and array keys compare by identity"],
+    ["Plain object", "`{}`", "O(1) average", "every key becomes a string; inherited keys are a trap"],
+    ["Sorted map / set", "not available", "", "sort keys, or binary search a sorted array"],
+    ["Insertion order", "`Map`, `Set`", "O(1)", "always insertion order"],
+    ["Repeats allowed", "not available", "", "a `Map` of counts"],
+    ["Priority queue", "not available", "", "write a binary heap"],
+    ["Deque", "not available", "", "an array with a head index; `shift` is O(n)"],
+  ],
+  ts: [
+    ["Hash map / set", "`Map<K, V>`, `Set<T>`", "O(1) average", "typed, but keys still compare by identity"],
+    ["Sorted map / set", "not available", "", "sort keys, or binary search a sorted array"],
+    ["Insertion order", "`Map`, `Set`", "O(1)", ""],
+    ["Repeats allowed", "not available", "", "a `Map<number, number>` of counts"],
+    ["Priority queue", "not available", "", "a generic binary heap class"],
+    ["Deque", "not available", "", "an array with a head index"],
+  ],
+  rust: [
+    ["Hash map / set", "`HashMap`, `HashSet`", "O(1) average", "keys need `Hash + Eq`, so `f64` cannot be a key"],
+    ["Sorted map / set", "`BTreeMap`, `BTreeSet`", "O(log n)", "`range(..=x).next_back()` is floor"],
+    ["Insertion order", "not in std", "", "the indexmap crate, or keep a Vec"],
+    ["Repeats allowed", "not available", "", "`BTreeMap<value, count>`"],
+    ["Default values", "`entry().or_insert()`, `or_default()`", "", ""],
+    ["Priority queue", "`BinaryHeap`", "O(log n)", "a max-heap; wrap in `Reverse` for a min-heap"],
+    ["Deque", "`VecDeque`", "O(1) at both ends", ""],
+    ["Change while iterating", "not allowed", "", "`retain`, or collect the keys first"],
+  ],
+};
 /** Tick key for "learned this topic in this language", kept in the synced patterns store. */
 export const synKey = (topic: string, lang: SynLang) => `syntax:${topic}:${lang}`;

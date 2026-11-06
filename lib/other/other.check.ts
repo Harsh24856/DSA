@@ -111,7 +111,7 @@ import { compile, type PlayMode } from "./playground/compile.ts";
 import { STARTERS } from "./playground/starters.ts";
 import { OA } from "./oa/index.ts";
 import { COVERAGE } from "./design-coverage.ts";
-import { CODE as SYN_CODE, OUT as SYN_OUT } from "../syntax/code.ts";
+import { CODE as SYN_CODE, OUT as SYN_OUT, OUT_BY_LANG as SYN_OUT_BY } from "../syntax/code.ts";
 import { SYN_GROUPS, SYN_TOPICS } from "../syntax/topics.ts";
 import { geohash, matchBuy } from "./flows-design.ts";
 
@@ -274,7 +274,7 @@ for (const s of SUBJECTS) for (const ch of s.chapters) {
   let ran = 0;
   for (const t of SYN_TOPICS) for (const lang of langs) {
     try {
-      assert.equal(run(lang, SYN_CODE[t.id][lang]).replace(/\n$/, ""), SYN_OUT[t.id], `syntax ${t.id} in ${lang}`);
+      assert.equal(run(lang, SYN_CODE[t.id][lang]).replace(/\n$/, ""), SYN_OUT_BY[t.id]?.[lang] ?? SYN_OUT[t.id], `syntax ${t.id} in ${lang}`);
       ran++;
     } catch (e) {
       const err = e as { stderr?: Buffer | string; message: string };
@@ -282,7 +282,7 @@ for (const s of SUBJECTS) for (const ch of s.chapters) {
       process.exitCode = 1;
     }
   }
-  console.log(`syntax ok: ${SYN_TOPICS.length} topics, ${ran} programs print the same output`);
+  console.log(`syntax ok: ${SYN_TOPICS.length} topics, ${ran} programs print their expected output`);
 }
 
 // one strict type-check over every TypeScript and TSX example

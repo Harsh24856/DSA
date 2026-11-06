@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
 import { usePatterns } from "@/lib/patternStore";
-import { SYN_GROUPS, SYN_LANGS, SYN_TOPICS, synKey, type SynLang } from "@/lib/syntax/topics";
+import { CONTAINERS, SYN_GROUPS, SYN_LANGS, SYN_TOPICS, synKey, type SynLang } from "@/lib/syntax/topics";
 import { inline } from "./other/Rich";
 import { Bar, Seg } from "./ui";
 
@@ -13,7 +13,7 @@ const Playground = dynamic(() => import("./other/playground/Playground"), { ssr:
 const LANG_KEY = "dsa-syntax-lang";
 const label = (l: SynLang) => SYN_LANGS.find(([k]) => k === l)![1];
 
-export function SyntaxView({ code, out }: { code: Record<string, Record<SynLang, string>>; out: Record<string, string> }) {
+export function SyntaxView({ code, out, outBy }: { code: Record<string, Record<SynLang, string>>; out: Record<string, string>; outBy: Record<string, Partial<Record<SynLang, string>>> }) {
   const { done, toggle } = usePatterns();
   const [lang, setLangRaw] = useState<SynLang>("cpp");
   const [topic, setTopicRaw] = useState(SYN_TOPICS[0].id);
@@ -31,13 +31,14 @@ export function SyntaxView({ code, out }: { code: Record<string, Record<SynLang,
   const i = SYN_TOPICS.findIndex((t) => t.id === topic), t = SYN_TOPICS[i], prev = SYN_TOPICS[i - 1], next = SYN_TOPICS[i + 1];
   const learned = (id: string, l: SynLang) => !!done[synKey(id, l)];
   const count = SYN_TOPICS.filter((x) => learned(x.id, lang)).length, key = synKey(t.id, lang), on = learned(t.id, lang);
+  const expected = outBy[t.id]?.[lang], containers = SYN_GROUPS.find((g) => g.topics.includes(t))?.title === "DSA containers";
 
   return (
     <div className="flex flex-col gap-6">
       <section className="card flex flex-col gap-4 p-6" aria-labelledby="syn-title">
         <div>
           <h2 id="syn-title" className="t-h2">One program, six languages</h2>
-          <p className="mt-1 max-w-[72ch] text-sm leading-relaxed text-muted">The same {SYN_TOPICS.length} small programs in six languages, so you can learn a new one by comparing it with one you know. Every version prints exactly the same output. Edit and run any of them here.</p>
+          <p className="mt-1 max-w-[72ch] text-sm leading-relaxed text-muted">The same {SYN_TOPICS.length} small programs in six languages, so you can learn a new one by comparing it with one you know, including every map, set and heap you need for DSA and what each language lacks. Edit and run any of them here.</p>
         </div>
         <Seg<SynLang> label="Language" value={lang} onChange={setLang} className="flex w-fit flex-wrap" options={SYN_LANGS} />
         <div className="flex items-center gap-3 text-xs text-muted"><span className="shrink-0">{label(lang)}</span><Bar value={count} max={SYN_TOPICS.length} className="flex-1" /><span className="num">{count} / {SYN_TOPICS.length} learned</span></div>
@@ -65,10 +66,21 @@ export function SyntaxView({ code, out }: { code: Record<string, Record<SynLang,
         <h3 id="topic-title" className="t-h2">{t.title}</h3>
         <p className="max-w-[72ch] text-sm leading-relaxed">{t.idea}</p>
         {t.notes[lang] && <p className="callout text-sm leading-relaxed"><b>{label(lang)}:</b> {inline(t.notes[lang]!)}</p>}
+        {containers && (
+          <details className="tile p-4 text-sm">
+            <summary className="cursor-pointer font-semibold">Every container in {label(lang)}: what exists and what does not</summary>
+            <div className="mt-3 overflow-x-auto">
+              <table className="pg-table w-full text-left">
+                <thead><tr><th>Need</th><th>Use</th><th>Cost</th><th>Watch out</th></tr></thead>
+                <tbody>{CONTAINERS[lang].map(([need, use, cost, watch]) => <tr key={need}><td>{need}</td><td className={use.startsWith("not") ? "text-hard" : ""}>{inline(use)}</td><td className="num">{cost}</td><td>{inline(watch)}</td></tr>)}</tbody>
+              </table>
+            </div>
+          </details>
+        )}
         <Playground key={`${t.id}:${lang}`} mode={lang} code={code[t.id][lang]} title={`${t.title} in ${label(lang)}`} />
         <div className="grid gap-1">
-          <p className="text-xs font-semibold text-muted">Expected output, the same in every language</p>
-          <pre className="code overflow-x-auto text-xs" tabIndex={0}>{out[t.id]}</pre>
+          <p className="text-xs font-semibold text-muted">{expected ? `Expected output in ${label(lang)}: the last lines show what happens when you try the version that does not work` : outBy[t.id] ? "Expected output (some languages print an extra line here)" : "Expected output, the same in every language"}</p>
+          <pre className="code overflow-x-auto text-xs" tabIndex={0}>{expected ?? out[t.id]}</pre>
         </div>
         <div className="grid gap-2 border-t border-line pt-4">
           <label className="flex flex-wrap items-center gap-2 text-sm">
