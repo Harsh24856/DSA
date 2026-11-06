@@ -91,7 +91,7 @@ import { DatabaseSync } from "node:sqlite";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { Code, Subject } from "./types.ts";
 import { OS } from "./os.ts";
 import { DBMS } from "./dbms.ts";
@@ -107,7 +107,7 @@ import { DESIGN } from "./design.ts";
 import { FLOWS, type BarStep, type GridStep, type LaneStep } from "./flows.ts";
 import { FLOW_SLOTS } from "../genai/labs.ts";
 import { FACTS } from "../landingFacts.ts";
-import { compile, type PlayMode } from "./playground/compile.ts";
+import { compile, joinFiles, type PlayMode } from "./playground/compile.ts";
 import { STARTERS } from "./playground/starters.ts";
 import { OA } from "./oa/index.ts";
 import { COVERAGE } from "./design-coverage.ts";
@@ -186,12 +186,20 @@ function runPython(where: string, src: string) {
   execFileSync("python3", ["-I", f], { stdio: "pipe", timeout: 20000 });
   compiled++;
 }
-function runJs(where: string, src: string) {
-  const f = join(mkdtempSync(join(dir, "n-")), "main.mjs");
-  writeFileSync(f, src);
-  const local = /from "express"/.test(src) ? join(tsDir, `x${compiled}.mjs`) : f;   // express resolves from this repo's node_modules
-  if (local !== f) writeFileSync(local, src);
-  const serves = /\.listen\([1-9]/.test(src);          // a fixed-port server would block: the preload answers one request and closes it
+function runJs(where: string, src: string, code?: Code) {
+  let local: string, all = src;
+  if (code?.files?.length) {                            // a project: real folder with "type": "module", inside the repo so express resolves
+    const root = join(tsDir, `proj${compiled}`), entry = code.file ?? "server.js";
+    for (const f of [{ name: entry, js: src }, ...code.files]) { mkdirSync(dirname(join(root, f.name)), { recursive: true }); writeFileSync(join(root, f.name), f.js); }
+    writeFileSync(join(root, "package.json"), '{ "type": "module" }');
+    local = join(root, entry); all = joinFiles([{ name: entry, js: src }, ...code.files]);
+  } else {
+    const f = join(mkdtempSync(join(dir, "n-")), "main.mjs");
+    writeFileSync(f, src);
+    local = /from "express"/.test(src) ? join(tsDir, `x${compiled}.mjs`) : f;   // express resolves from this repo's node_modules
+    if (local !== f) writeFileSync(local, src);
+  }
+  const serves = /\.listen\((?!0[,)])/.test(all);      // a fixed-port server would block: the preload answers one request and closes it
   execFileSync("node", [...(serves ? ["--import", join(process.cwd(), "lib/other/express-preload.mjs")] : []), local], { stdio: "pipe", timeout: 20000 });
   compiled++;
 }
@@ -213,7 +221,7 @@ for (const s of SUBJECTS) for (const ch of s.chapters) {
       if (code.java) runJava(where, code.java);
       if (code.cpp) runCpp(where, code.cpp);
       if (code.python) runPython(where, code.python);
-      if (code.js) runJs(where, code.js);
+      if (code.js) runJs(where, code.js, code);
       if (code.ts) runTs(where, code.ts);
       if (code.tsx) runTs(where, code.demo ? `${code.tsx}\n\n${code.demo}` : code.tsx, true);
     } catch (e) {
@@ -333,13 +341,14 @@ for (const tb of NF_STAGES[3].tables) assert.ok(tb.cols.every((c) => closure(tb.
   // anything that runs under real Node with the same output each time must print the same here
   let same = 0, ran = 0;
   for (const s of [NODE, SYNTAX]) for (const ch of s.chapters) for (const code of [ch.code, ...ch.cards.map((x) => x.code)]) {
-    for (const [src, mode] of [[code?.js, "node"], [code?.ts, "ts"]] as const) {
+    const js = code?.js && code.files?.length ? joinFiles([{ name: code.file ?? "server.js", js: code.js }, ...code.files]) : code?.js;
+    for (const [src, mode] of [[js, "node"], [code?.ts, "ts"]] as const) {
       if (!src) continue;
       const where = `${s.id}/${ch.id}`;
       const em = await emulate(src, mode);
       assert.deepEqual(em.errors, [], `playground ${where}: ${em.errors[0]}`);
       ran++;
-      if (/\.listen\(|node:test|node:os|tmpdir/.test(src)) continue;       // servers, test reporters and machine details differ by design
+      if (code?.files?.length || /\.listen\(|node:test|node:os|tmpdir/.test(src)) continue;       // servers, test reporters and machine details differ by design
       const f = join(tsDir, `pg${ran}.${mode === "ts" ? "ts" : "mjs"}`);
       mkdirSync(tsDir, { recursive: true }); writeFileSync(f, src);
       const realRun = () => execFileSync("node", ["--disable-warning=ExperimentalWarning", f], { encoding: "utf8", timeout: 20000, cwd: process.cwd() });
@@ -349,6 +358,19 @@ for (const tb of NF_STAGES[3].tables) assert.ok(tb.cols.every((c) => closure(tb.
       assert.equal(norm(em.out), norm(a), `playground output differs from Node: ${where}`);
       same++;
     }
+  }
+  // a multi-file project in the playground: routes, middleware and controllers in their own files, wired up in app.js
+  {
+    const rest = NODE.chapters.find((c) => c.id === "rest")!.code!;
+    const { node } = await emulate(joinFiles([{ name: rest.file!, js: rest.js! }, ...rest.files!]), "node");
+    const call = (m: string, u: string, b?: object) => node.dispatch(3000, m, u, { "content-type": "application/json" }, b && JSON.stringify(b));
+    assert.equal((await call("POST", "/api/notes", { text: "" })).status, 400, "project: validate middleware");
+    const made = await call("POST", "/api/notes", { text: " heaps " });
+    assert.equal(made.status, 201); assert.equal(made.headers.location, "/api/notes/2", "project: controller sets Location");
+    assert.equal(JSON.parse((await call("PATCH", "/api/notes/2", { done: true })).body.toString()).done, true, "project: loadNote + update");
+    assert.equal((await call("DELETE", "/api/notes/2")).status, 204);
+    assert.equal((await call("GET", "/api/notes/2")).status, 404, "project: loadNote 404");
+    assert.equal((await call("GET", "/nope")).status, 404, "project: notFound middleware");
   }
   // scrypt, SHA-256 and HMAC are real implementations: same bytes as Node's crypto
   const cr = await emulate(`import { scryptSync, createHash, createHmac, pbkdf2Sync } from "node:crypto";
