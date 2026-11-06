@@ -19,6 +19,7 @@ export const SQL: Subject = {
   name: "SQL",
   short: "SQL",
   blurb: "How a query really executes, NULLs, joins, grouping, subqueries and CTEs, window functions, indexes and the patterns that come up again and again. Every query here runs on the sample tables below, and the results shown are checked.",
+  parts: [["Core queries", "order"], ["Advanced queries", "subqueries"], ["Schema and performance", "ddl"]],
   chapters: [
     {
       id: "order",

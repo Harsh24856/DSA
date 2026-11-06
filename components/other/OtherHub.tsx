@@ -8,14 +8,14 @@ import { usePatterns } from "@/lib/patternStore";
 import { Bar, Count } from "../ui";
 import { ProgressCard } from "../ProgressCard";
 
-export type SubjectSummary = { id: string; name: string; short: string; blurb: string; chapters: string[]; cards: number; labs: number };
+export type SubjectSummary = { id: string; name: string; short: string; blurb: string; chapters: string[]; cards: string[]; labs: number };   // cards: tick keys of its interview questions
 const ICON: Record<string, Icon> = { os: Cpu, dbms: Database, cn: Globe, sql: Table, oops: Cube, aptitude: Calculator, syntax: Code, react: Atom, node: HardDrives, design: ShareNetwork };
 
 export function OtherHub({ subjects, oaCount }: { subjects: SubjectSummary[]; oaCount: number }) {
   const { done } = usePatterns();
   const doneIn = (s: SubjectSummary) => s.chapters.filter((c) => done[chapterKey(s.id, c)]).length;
   const total = subjects.reduce((n, s) => n + s.chapters.length, 0), finished = subjects.reduce((n, s) => n + doneIn(s), 0);
-  const cards = subjects.reduce((n, s) => n + s.cards, 0), labs = subjects.reduce((n, s) => n + s.labs, 0);
+  const cards = subjects.reduce((n, s) => n + s.cards.length, 0), labs = subjects.reduce((n, s) => n + s.labs, 0);
   return (
     <div className="flex flex-col gap-6">
       <section className="card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
@@ -46,10 +46,12 @@ export function OtherHub({ subjects, oaCount }: { subjects: SubjectSummary[]; oa
                   <ArrowRight size={18} className="mt-1 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent" aria-hidden />
                 </div>
                 <p className="line-clamp-3 flex-1 text-sm text-muted">{s.blurb}</p>
-                <div className="flex flex-wrap gap-2"><span className="pill pill-muted">{s.chapters.length} chapters</span><span className="pill pill-muted">{s.cards} questions</span>{s.labs > 0 && <span className="pill pill-muted">{s.labs} {s.labs === 1 ? "lab" : "labs"}</span>}</div>
+                <div className="flex flex-wrap gap-2"><span className="pill pill-muted">{s.chapters.length} chapters</span><span className="pill pill-muted">{s.cards.length} questions</span>{s.labs > 0 && <span className="pill pill-muted">{s.labs} {s.labs === 1 ? "lab" : "labs"}</span>}</div>
                 <div>
-                  <div className="mb-2 flex justify-between text-xs text-muted"><span>progress</span><span className="num">{dn} / {s.chapters.length}</span></div>
+                  <div className="mb-2 flex justify-between text-xs text-muted"><span>chapters</span><span className="num">{dn} / {s.chapters.length}</span></div>
                   <Bar value={dn} max={s.chapters.length} />
+                  <div className="mb-2 mt-3 flex justify-between text-xs text-muted"><span>questions ticked</span><span className="num">{s.cards.filter((k) => done[k]).length} / {s.cards.length}</span></div>
+                  <Bar value={s.cards.filter((k) => done[k]).length} max={s.cards.length || 1} />
                 </div>
               </Link>
             </motion.div>

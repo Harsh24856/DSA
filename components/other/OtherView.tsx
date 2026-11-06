@@ -7,7 +7,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, ArrowSquareOut, Briefcase, Buildings, CaretDown, Check, Code as CodeIcon, Flask, WarningCircle } from "@phosphor-icons/react";
 import type { Card, Chapter, Code, Subject, Table } from "@/lib/other/types";
-import { chapterKey } from "@/lib/other";
+import { cardKey, chapterKey, partsOf } from "@/lib/other";
 import { usePatterns } from "@/lib/patternStore";
 import { useStore } from "@/lib/store";
 import { P } from "@/lib/problems";
@@ -86,15 +86,28 @@ function CodeBlock({ code, lang, setLang }: { code: Code; lang: Lang; setLang(l:
   );
 }
 
-function QA({ card, n, lang, setLang }: { card: Card; n: number; lang: Lang; setLang(l: Lang): void }) {
+/** A round tick button. `label` names what it marks, for screen readers. */
+function Tick({ on, label, onClick }: { on: boolean; label: string; onClick(): void }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={on} aria-label={label} className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-control transition-colors hover:bg-surface-2">
+      <span className="tick pointer-events-none size-5" data-on={on || undefined} aria-hidden>{on && <Check size={12} weight="bold" />}</span>
+    </button>
+  );
+}
+
+function QA({ card, n, lang, setLang, tick }: { card: Card; n: number; lang: Lang; setLang(l: Lang): void; tick: string }) {
   const [open, setOpen] = useState(false);
+  const { done, toggle } = usePatterns();
   return (
     <li className="max-w-none overflow-hidden rounded-tile border border-line bg-bg">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left text-sm font-medium transition-colors hover:bg-surface-2">
-        <span className="num pt-0.5 text-xs text-accent">{String(n).padStart(2, "0")}</span>
-        <span className="min-w-0 flex-1">{card.q}</span>
-        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.25 }} className="mt-0.5 text-muted"><CaretDown size={16} aria-hidden /></motion.span>
-      </button>
+      <div className="flex items-start">
+        <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 py-3 pl-4 text-left text-sm font-medium transition-colors hover:bg-surface-2">
+          <span className="num pt-0.5 text-xs text-accent">{String(n).padStart(2, "0")}</span>
+          <span className="min-w-0 flex-1">{card.q}</span>
+          <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.25 }} className="mt-0.5 text-muted"><CaretDown size={16} aria-hidden /></motion.span>
+        </button>
+        <Tick on={!!done[tick]} label={`I can answer: ${card.q}`} onClick={() => toggle(tick, !done[tick])} />
+      </div>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
@@ -141,6 +154,7 @@ function RealWorld({ ch }: { ch: Chapter }) {
 function ChapterView({ subject, ch, n, lang, setLang }: { subject: string; ch: Chapter; n: number; lang: Lang; setLang(l: Lang): void }) {
   const { done, toggle } = usePatterns();
   const key = chapterKey(subject, ch.id), on = !!done[key];
+  const answered = ch.cards.filter((c) => done[cardKey(subject, ch.id, c.id)]).length;
   return (
     <motion.article id={ch.id} className="card gx-slide" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(n, 4) * 0.04, ease: [0.22, 1, 0.36, 1] }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -160,8 +174,8 @@ function ChapterView({ subject, ch, n, lang, setLang }: { subject: string; ch: C
       <RealWorld ch={ch} />
       {ch.cards.length > 0 && (
         <>
-          <h4>Interview questions</h4>
-          <ol className="grid gap-2">{ch.cards.map((c, i) => <QA key={c.id} card={c} n={i + 1} lang={lang} setLang={setLang} />)}</ol>
+          <div className="flex flex-wrap items-baseline justify-between gap-2"><h4>Interview questions</h4><span className="num text-xs text-muted">{answered} of {ch.cards.length} ticked as answerable</span></div>
+          <ol className="grid gap-2">{ch.cards.map((c, i) => <QA key={c.id} card={c} n={i + 1} lang={lang} setLang={setLang} tick={cardKey(subject, ch.id, c.id)} />)}</ol>
         </>
       )}
     </motion.article>
@@ -205,12 +219,14 @@ function SubjectPlayground({ starters }: { starters: Starter[] }) {
 }
 
 export function OtherView({ subject }: { subject: Subject }) {
-  const { done } = usePatterns();
+  const { done, toggle } = usePatterns();
   const [lang, setLangRaw] = useState<Lang>("java");
   useEffect(() => { try { const l = localStorage.getItem(LANG_KEY); if (LANGS.some(([k]) => k === l)) setLangRaw(l as Lang); } catch {} }, []);
   const setLang = (l: Lang) => { setLangRaw(l); try { localStorage.setItem(LANG_KEY, l); } catch {} };
   const n = subject.chapters.filter((c) => done[chapterKey(subject.id, c.id)]).length;
   const cards = subject.chapters.reduce((s, c) => s + c.cards.length, 0);
+  const answered = subject.chapters.reduce((s, c) => s + c.cards.filter((x) => done[cardKey(subject.id, c.id, x.id)]).length, 0);
+  const number = new Map(subject.chapters.map((c, k) => [c.id, k + 1]));
   // languages that appear together anywhere on this page: offer one switch at the top for all of them
   const pageLangs = LANGS.filter(([k]) => subject.chapters.some((c) => (langsIn(c.code).length > 1 && c.code?.[k]) || c.cards.some((x) => langsIn(x.code).length > 1 && x.code?.[k])));
 
@@ -221,19 +237,34 @@ export function OtherView({ subject }: { subject: Subject }) {
         <span className="t-eyebrow">{subject.chapters.length} chapters · {cards} questions</span>
         <h2 id="sub-title" className="t-title">{subject.name}</h2>
         <p className="max-w-[72ch] text-sm leading-relaxed text-muted">{subject.blurb}</p>
-        <div className="flex items-center gap-3"><Bar value={n} max={subject.chapters.length} className="flex-1" /><span className="num text-xs text-muted">{n} / {subject.chapters.length} done</span></div>
+        <div className="grid gap-2 text-xs text-muted">
+          <div className="flex items-center gap-3"><span className="w-20 shrink-0">Chapters</span><Bar value={n} max={subject.chapters.length} className="flex-1" /><span className="num">{n} / {subject.chapters.length} done</span></div>
+          <div className="flex items-center gap-3"><span className="w-20 shrink-0">Questions</span><Bar value={answered} max={cards || 1} className="flex-1" /><span className="num">{answered} / {cards} ticked</span></div>
+        </div>
         {pageLangs.length > 1 && <div className="flex flex-wrap items-center gap-2 text-sm"><span className="text-muted">Code in</span><Seg<Lang> label="Language" value={pageLangs.some(([k]) => k === lang) ? lang : pageLangs[0][0]} onChange={setLang} className="flex flex-wrap" options={pageLangs} /></div>}
-        <nav aria-label="Chapters" className="mt-1 border-t border-line pt-3">
-          <ol className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
-            {subject.chapters.map((c, k) => (
-              <li key={c.id} className="max-w-none">
-                <a href={`#${c.id}`} className="flex gap-3 rounded-control py-1 text-sm text-ink no-underline transition-colors hover:text-accent">
-                  <span className="num w-5 shrink-0 pt-px text-xs text-muted">{String(k + 1).padStart(2, "0")}</span>
-                  <span className="min-w-0 font-medium">{c.title}{c.lab && <Flask size={12} weight="fill" className="ml-2 inline text-accent" aria-label="has a lab" />}{done[chapterKey(subject.id, c.id)] && <Check size={12} weight="bold" className="ml-2 inline text-easy" aria-label="done" />}</span>
-                </a>
-              </li>
-            ))}
-          </ol>
+        <nav aria-label="Chapters" className="mt-1 grid gap-4 border-t border-line pt-3">
+          {partsOf(subject.chapters, subject.parts).map((part) => {
+            const pd = part.chapters.filter((c) => done[chapterKey(subject.id, c.id)]).length;
+            return (
+              <div key={part.title || "all"}>
+                {part.title && <div className="mb-1 flex items-center gap-3"><p className="t-eyebrow shrink-0">{part.title}</p><Bar value={pd} max={part.chapters.length} className="flex-1" /><span className="num text-xs text-muted">{pd} / {part.chapters.length}</span></div>}
+                <ol className="grid gap-x-6 sm:grid-cols-2">
+                  {part.chapters.map((c) => {
+                    const key = chapterKey(subject.id, c.id), on = !!done[key];
+                    return (
+                      <li key={c.id} className="flex max-w-none items-center">
+                        <Tick on={on} label={`Done: ${c.title}`} onClick={() => toggle(key, !on)} />
+                        <a href={`#${c.id}`} className="flex min-w-0 flex-1 gap-3 rounded-control py-2 text-sm text-ink no-underline transition-colors hover:text-accent">
+                          <span className="num w-5 shrink-0 pt-px text-xs text-muted">{String(number.get(c.id)).padStart(2, "0")}</span>
+                          <span className="min-w-0 font-medium">{c.title}{c.lab && <Flask size={12} weight="fill" className="ml-2 inline text-accent" aria-label="has a lab" />}</span>
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            );
+          })}
         </nav>
       </section>
       {STARTERS[subject.id] && <SubjectPlayground starters={STARTERS[subject.id]} />}

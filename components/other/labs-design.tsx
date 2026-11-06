@@ -103,7 +103,7 @@ export function RateLimitLab() {
         ))}
         {steps.map((s, i) => (
           <motion.div key={`${pat}-${i}`} className="num absolute grid size-6 place-items-center rounded-full text-xs font-bold"
-            style={{ left: `calc(${4 + (s.t / SPAN) * 92}% - 12px)`, top: 12 + row(s.t, i) * 26, background: tint(s.ok ? 55 : 40, s.ok ? "var(--easy)" : "var(--hard)"), color: "var(--ink)" }}
+            style={{ left: `calc(${4 + (s.t / SPAN) * 92}% - 12px)`, top: 12 + row(s.t, i) * 26, background: tint(s.ok ? 35 : 40, s.ok ? "var(--easy)" : "var(--hard)"), color: "var(--ink)" }}
             initial={reduce ? false : { opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} transition={{ ...spring, delay: reduce ? 0 : i * 0.04 }}
             title={`${s.t.toFixed(2)}s ${s.ok ? "allowed" : "429"}`}>
             {s.ok ? "✓" : "✕"}

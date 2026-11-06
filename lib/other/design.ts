@@ -1,10 +1,13 @@
 import type { Subject } from "./types";
+import { MORE_A } from "./design-more.ts";
+import { MORE_B } from "./design-more2.ts";
+import { EXTRA } from "./design-extra.ts";
 
-export const DESIGN: Subject = {
+const BASE: Subject = {
   id: "design",
   name: "System Design",
   short: "SD",
-  blurb: "How to run a design interview, estimate load, and scale a service, taught through what really happened: outages at GitHub, AWS and Cloudflare, and the designs behind Twitter, Netflix, Hotstar, WhatsApp, Uber, Swiggy, Ticketmaster and UPI. Every story links to its source. Finishes with how real teams ship and stay up. Interviewers grade the trade-offs you name, not the boxes you draw.",
+  blurb: "How to run a design interview, estimate load, and scale a service, then the building blocks and every classic question: URL shortener, crawler, chat, feed, video, file sync, maps, message queue, metrics, ad clicks, hotel booking, email, object storage, leaderboard, payments, wallet and a stock exchange. Real outages and designs from GitHub, AWS, Cloudflare, Netflix, Hotstar, WhatsApp, Uber and Swiggy link to their sources. Interviewers grade the trade-offs you name, not the boxes you draw.",
   chapters: [
     {
       id: "approach",
@@ -1274,4 +1277,25 @@ print("all rules ok")`,
       ],
     },
   ],
+};
+
+// The full subject: the chapters above plus those in design-more*.ts, with the additions from design-extra.ts merged in,
+// in teaching order. Every chapter id must appear in ORDER exactly once.
+const ORDER = [
+  "approach", "estimation", "growth",
+  "scaling", "caching", "data", "consistency", "kvstore", "ids", "queues", "mq", "ratelimit", "reliability",
+  "url", "crawler", "notifications", "feed", "messaging", "typeahead", "video", "storage",
+  "proximity", "nearby", "maps", "metrics", "adclick", "hotel", "email", "objectstore", "leaderboard", "payments", "wallet", "exchange",
+  "ride", "tickets", "docs", "live", "delivery", "tricky", "production",
+];
+const ALL = new Map([...BASE.chapters, ...MORE_A, ...MORE_B].map((c) => [c.id, c]));
+if (ALL.size !== ORDER.length || ORDER.some((id) => !ALL.has(id))) throw new Error("design: ORDER and the chapter list differ");
+
+export const DESIGN: Subject = {
+  ...BASE,
+  parts: [["Interview basics", "approach"], ["Building blocks", "scaling"], ["Classic designs", "url"], ["Advanced designs", "proximity"], ["Real-world case studies", "ride"]],
+  chapters: ORDER.map((id) => {
+    const c = ALL.get(id)!, x = EXTRA[id];
+    return x ? { ...c, points: [...(c.points ?? []), ...(x.points ?? [])], cards: [...c.cards, ...x.cards] } : c;
+  }),
 };

@@ -109,8 +109,23 @@ import { FACTS } from "../landingFacts.ts";
 import { compile, type PlayMode } from "./playground/compile.ts";
 import { STARTERS } from "./playground/starters.ts";
 import { OA } from "./oa/index.ts";
+import { COVERAGE } from "./design-coverage.ts";
+import { geohash, matchBuy } from "./flows-design.ts";
 
 const SUBJECTS: Subject[] = [OS, DBMS, CN, SQL, OOPS, APTITUDE, SYNTAX, REACT, NODE, DESIGN];
+// System Design covers every topic on the list: each term appears in the chapter it is mapped to
+for (const { topic, terms } of COVERAGE) for (const [term, id] of terms) {
+  const ch = DESIGN.chapters.find((c) => c.id === id);
+  assert.ok(ch, `coverage ${topic}: no chapter ${id}`);
+  assert.ok(JSON.stringify(ch).toLowerCase().includes(term.toLowerCase()), `coverage ${topic}: chapter ${id} never mentions "${term}"`);
+}
+assert.equal(geohash(57.64911, 10.40744, 11), "u4pruydqqvj", "geohash matches the reference implementation");
+assert.deepEqual(matchBuy([{ id: "a", px: 10, qty: 5 }, { id: "b", px: 11, qty: 5 }], 11, 7).fills, [["a", 10, 5], ["b", 11, 2]], "price-time matching");
+// parts: each starts at a real chapter, in order, and the first starts at the first chapter
+for (const s of SUBJECTS) if (s.parts) {
+  const at = s.parts.map(([, from]) => s.chapters.findIndex((c) => c.id === from));
+  assert.ok(at[0] === 0 && at.every((k, i) => k >= 0 && (i === 0 || k > at[i - 1])), `${s.id}: parts must start at chapters in order`);
+}
 const text = JSON.stringify(SUBJECTS);
 assert.ok(!text.includes(String.fromCharCode(0x2014)), "no em dashes in Other content");
 

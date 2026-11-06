@@ -31,6 +31,7 @@ const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void>; pr
   { name: "other-oa-test", path: "/other/oa", prep: async (p) => { await p.getByRole("button", { name: "Start the test" }).click(); await p.locator("main .btn.h-auto").first().click(); } },
   { name: "other-oa-review", path: "/other/oa", prep: async (p) => { await p.getByRole("button", { name: "Start the test" }).click(); await p.getByRole("button", { name: "End test" }).click(); await p.getByRole("button", { name: "End test" }).click(); } },
   { name: "other-os", path: "/other/os" },
+  { name: "other-design", path: "/other/design" },
   { name: "other-oops", path: "/other/oops" },
   { name: "genai", path: "/genai" },
   { name: "genai-module", path: "/genai/m4" },

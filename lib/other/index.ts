@@ -22,3 +22,11 @@ export const loadSubject = async (id: SubjectId): Promise<Subject> => {
 
 /** Tick key for "chapter done", stored in the synced patterns store. */
 export const chapterKey = (subject: string, chapter: string) => `other:${subject}:${chapter}`;
+/** Tick key for "I can answer this interview question". */
+export const cardKey = (subject: string, chapter: string, card: string) => `otherq:${subject}:${chapter}:${card}`;
+/** The subject's chapters split into its parts (one untitled part when it has none). */
+export const partsOf = <C extends { id: string }>(chapters: C[], parts?: [string, string][]) =>
+  (parts?.length ? parts : [["", chapters[0]?.id ?? ""] as [string, string]]).map(([title, from], k, all) => {
+    const start = chapters.findIndex((c) => c.id === from), next = all[k + 1] ? chapters.findIndex((c) => c.id === all[k + 1][1]) : chapters.length;
+    return { title, chapters: chapters.slice(start, next) };
+  });
