@@ -293,6 +293,15 @@ const rsc: Flow = { kind: "lanes", title: "Loading a page with Server Components
   { from: 0, to: 1, label: "server action: like", note: "A click calls a server function; the server updates data and sends back the new UI.", tone: "ok" },
 ] };
 
+const optimistic: Flow = { kind: "lanes", title: "Sending a message with useOptimistic", lanes: ["You", "React", "Server"], steps: [
+  { from: 0, to: 1, label: "submit \"Hi\"", note: "The form calls its action. React runs every form action inside a transition, so isPending turns true." },
+  { from: 1, to: 1, label: "addOptimistic(\"Hi\")", note: "The list shows \"Hi (sending)\" in the same frame. The real state has not changed yet.", tone: "hot" },
+  { from: 1, to: 2, label: "await sendToServer", note: "The request is in flight. The user can keep typing, since nothing is blocked." },
+  { from: 2, to: 1, label: "saved, id 7", note: "setMessages adds the saved copy to the real state.", tone: "ok" },
+  { from: 1, to: 1, label: "action ends", note: "React drops the optimistic copy and shows the real list, which already holds the saved message, so nothing flickers.", tone: "ok" },
+  { from: 2, to: 1, label: "error instead", note: "If the server throws, the real state never changed, so the optimistic copy just disappears. No rollback code to write.", tone: "bad" },
+] };
+
 /* ---------- system design ---------- */
 const approach = (): Flow => {
   const phases: [string, number][] = [["requirements", 5], ["estimates", 5], ["API + data", 5], ["high level", 10], ["deep dive", 15], ["wrap up", 5]];
@@ -329,6 +338,6 @@ export const CORE_FLOWS: Record<string, Flow> = {
   "oop-object": objects, "oop-encap": encapsulation, "oop-lookup": lookup, "oop-interface": abstraction, "oop-static": staticFlow(), "oop-relations": relationships, "oop-solid": openClosed,
   "apt-di": di(),
   "syn-types": typing, "syn-loop": loopTrace(), "syn-concat": concat(), "syn-dispatch": dispatchFlow, "syn-finally": tryFinally, "syn-generics": erasure, "syn-pipeline": pipeline(),
-  "react-jsx": jsx, "react-controlled": controlled, "react-context": contextFlow, "react-hooks": hookSlots, "react-rsc": rsc,
+  "react-jsx": jsx, "react-controlled": controlled, "react-context": contextFlow, "react-hooks": hookSlots, "react-rsc": rsc, "react-optimistic": optimistic,
   "design-approach": approach(), "design-lb": roundRobin(), "design-queue": queues(),
 };

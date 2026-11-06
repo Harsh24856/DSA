@@ -4,7 +4,7 @@ export const REACT: Subject = {
   id: "react",
   name: "React",
   short: "React",
-  blurb: "From JSX and props to effects, context, performance, custom hooks, React 19 actions and Server Components, and how rendering works underneath. Every component here is strict TypeScript and is type-checked against React 19.",
+  blurb: "From JSX and props to effects, context, performance, custom hooks, the React 19 hooks (use, actions, optimistic UI) and Server Components, and how rendering works underneath. Every component here is strict TypeScript and is type-checked against React 19.",
   parts: [["Basics", "jsx"], ["Data and state", "effects"], ["Advanced", "perf"]],
   chapters: [
     {
@@ -259,6 +259,309 @@ export function SignupForm() {
       cards: [
         { id: "controlled", q: "Controlled vs uncontrolled inputs?", a: "Controlled: `value` comes from state and `onChange` updates it; easy to validate and transform on every keystroke. Uncontrolled: the DOM keeps the value and you read it on submit (via a ref or FormData); less code and fewer re-renders. Form libraries such as React Hook Form use uncontrolled inputs for speed." },
         { id: "actions", q: "What do React 19 form actions give you?", a: "The form calls your (possibly async) function with its FormData; React tracks pending state, resets the form after success, and works with Server Functions so the same form can post to the server without client-side fetch code. `useFormStatus` reads the pending state from inside child components like a submit button." },
+      ],
+    },
+    {
+      id: "react19",
+      anim: "react-optimistic",
+      title: "React 19 hooks: use, actions and optimistic UI",
+      summary: "React 19 adds `use` to read a promise or a context during render, and a family of hooks built around **actions** (async functions that run inside a transition): `useActionState`, `useFormStatus`, `useOptimistic` and an async `useTransition`. Smaller additions: `useDeferredValue` takes an initial value, `ref` is a plain prop, and context works as its own provider.",
+      points: [
+        "`use(promise)` suspends the component until the promise settles: the nearest `<Suspense>` shows its fallback, and a rejection goes to the nearest error boundary.",
+        "`use` is the one hook you may call inside an `if` or a loop. It still cannot go inside `try`/`catch`, and it must be called during render, not in a handler.",
+        "The promise must survive re-renders: create it in a parent, a cache or a Server Component. A new promise on every render suspends forever.",
+        "An action is any function passed to a form's `action`, to `useActionState` or to `startTransition`. React tracks its pending state for you.",
+      ],
+      table: {
+        head: ["API", "What it gives you"],
+        rows: [
+          ["use(promise)", "The resolved value, with Suspense while pending. Use it for: data started outside the component"],
+          ["use(context)", "The context value, even inside an if. Use it for: a context needed on one branch only"],
+          ["useActionState", "[state, formAction, isPending]. Use it for: a form whose result you show"],
+          ["useFormStatus", "{ pending, data, method } of the parent form. Use it for: a submit button in its own component"],
+          ["useOptimistic", "A value that shows the change before the server confirms. Use it for: likes, chat messages, toggles"],
+          ["useTransition", "An async startTransition, plus isPending. Use it for: buttons that save without a form"],
+          ["useDeferredValue", "A lagging copy of a value; a second argument sets the first render. Use it for: slow lists behind a fast input"],
+          ["useId", "A stable id, the same on server and client. Use it for: linking a label to its input"],
+          ["useSyncExternalStore", "A store value without tearing. Use it for: subscribing to a store or a browser API"],
+        ],
+      },
+      diagram: `flowchart TB
+  P["parent creates or caches a promise"]:::hot --> C["child calls use(promise)"]
+  C -->|"pending"| S["nearest Suspense shows its fallback"]:::warn
+  S -->|"promise resolves"| C
+  C -->|"resolved"| R["child renders with the value"]:::ok
+  C -->|"rejected"| E["nearest error boundary renders"]:::bad`,
+      caption: "use(promise) lets a component wait for data during render. Suspense handles the waiting, an error boundary the failure.",
+      code: {
+        file: "QuoteCard.tsx",
+        tsx: `import { Suspense, createContext, use, useState } from "react";
+
+type Quote = { id: number; text: string };
+
+// The cache keeps one promise per id, so re-renders reuse it instead of starting a new request.
+const cache = new Map<number, Promise<Quote>>();
+function fetchQuote(id: number): Promise<Quote> {
+  let p = cache.get(id);
+  if (!p) {
+    p = new Promise((resolve) => setTimeout(() => resolve({ id, text: \`Quote number \${id}\` }), 600));
+    cache.set(id, p);
+  }
+  return p;
+}
+
+const Theme = createContext("light");
+
+function QuoteText({ quotePromise, showTheme }: { quotePromise: Promise<Quote>; showTheme: boolean }) {
+  const quote = use(quotePromise);               // suspends until the promise resolves
+  let label = "";
+  if (showTheme) label = \` (theme: \${use(Theme)})\`; // use may sit inside an if; useContext may not
+  return <p>{quote.text}{label}</p>;
+}
+
+export function App() {
+  const [id, setId] = useState(1);
+  const [showTheme, setShowTheme] = useState(false);
+  return (
+    <Theme value="dark">{/* React 19: the context itself is the provider */}
+      <button onClick={() => setId(id + 1)}>Next quote</button>
+      <label>
+        <input type="checkbox" checked={showTheme} onChange={(e) => setShowTheme(e.target.checked)} /> Show theme
+      </label>
+      <Suspense fallback={<p>Loading quote...</p>}>
+        <QuoteText quotePromise={fetchQuote(id)} showTheme={showTheme} />
+      </Suspense>
+    </Theme>
+  );
+}`,
+      },
+      work: [
+        "In Next.js, a Server Component can start a query without awaiting it and pass the promise to a Client Component, which reads it with `use`. The page streams while the data loads.",
+        "Most teams still fetch through TanStack Query or the framework. `use` is the primitive those libraries build on, so knowing it explains how their Suspense mode works.",
+      ],
+      cards: [
+        { id: "use-vs-usecontext", q: "How is `use` different from every other hook?", a: "It can be called conditionally and in loops, because it does not keep a slot in the hook list: it reads a value (a promise or a context) each time it is called. It accepts a promise, which suspends the component until it settles, or a context, which behaves like `useContext` but may sit after an early return or inside an `if`.",
+          trap: "Creating the promise inside the same component (`use(fetch(url))`) makes a new promise on every render, so the component suspends forever. The promise has to come from outside: a parent, a cache or a Server Component." },
+        { id: "use-errors", q: "How do you handle a rejected promise read with `use`?", a: "Wrap the component in an error boundary: a rejection is thrown during render like any other error, and the nearest boundary shows its fallback. `use` cannot sit inside `try`/`catch`. To show a value instead of an error, catch on the promise itself: `fetchQuote(id).catch(() => fallbackQuote)`." },
+        { id: "optimistic", q: "Show an optimistic update with `useOptimistic`.", a: "`useOptimistic(state, update)` returns a copy of `state` that you can change at once while an action runs. When the action ends, React throws the copy away and shows the real `state` again. On success the real state already holds the saved item; on failure it never changed, so the optimistic item simply vanishes with no rollback code.",
+          code: {
+            file: "Chat.tsx",
+            tsx: `import { useOptimistic, useState } from "react";
+
+type Msg = { id: number; text: string; sending?: boolean };
+
+let nextId = 1;
+async function sendToServer(text: string): Promise<Msg> {
+  await new Promise((r) => setTimeout(r, 800));            // stand-in for a network call
+  if (text.toLowerCase().includes("fail")) throw new Error("The server rejected it");
+  return { id: nextId++, text };
+}
+
+export function Chat() {
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [shown, addOptimistic] = useOptimistic(messages, (list: Msg[], text: string) => [
+    ...list,
+    { id: -(list.length + 1), text, sending: true },       // negative ids never clash with saved ones
+  ]);
+  const [error, setError] = useState("");
+
+  async function send(formData: FormData) {
+    const text = String(formData.get("text") ?? "").trim();
+    if (!text) return;
+    setError("");
+    addOptimistic(text);                                   // appears now, before the server answers
+    try {
+      const saved = await sendToServer(text);
+      setMessages((list) => [...list, saved]);
+    } catch (e) {
+      setError((e as Error).message);                      // the optimistic copy disappears by itself
+    }
+  }
+
+  return (
+    <div>
+      <ul>
+        {shown.map((m) => (
+          <li key={m.id} style={{ opacity: m.sending ? 0.5 : 1 }}>{m.text}{m.sending ? " (sending)" : ""}</li>
+        ))}
+      </ul>
+      <form action={send}>
+        <input name="text" placeholder="Type, or include the word fail" />
+        <button>Send</button>
+      </form>
+      {error && <p role="alert">{error}</p>}
+    </div>
+  );
+}`,
+          },
+          trap: "Calling the optimistic setter outside an action or transition does nothing useful: React warns, and the value snaps back on the next render." },
+        { id: "form-status", q: "How does a submit button know its form is submitting, without props?", a: "`useFormStatus()` from `react-dom` reads the status of the nearest parent `<form>`: `pending`, the submitted `data` (FormData), `method` and `action`. It only works in a component rendered inside the form, so the button is usually its own component. This keeps a design-system button reusable across every form.",
+          code: {
+            file: "SaveForm.tsx",
+            tsx: `import { useFormStatus } from "react-dom";
+
+function SubmitButton() {
+  const { pending, data } = useFormStatus();               // status of the form this button sits in
+  return <button disabled={pending}>{pending ? \`Saving \${String(data?.get("title"))}...\` : "Save"}</button>;
+}
+
+async function save(formData: FormData) {
+  await new Promise((r) => setTimeout(r, 800));
+  console.log("saved", formData.get("title"));
+}
+
+export function App() {
+  return (
+    <form action={save}>
+      <input name="title" defaultValue="Revision notes" />
+      <SubmitButton />
+    </form>
+  );
+}`,
+          },
+          trap: "Calling `useFormStatus` in the same component that renders the `<form>` always reports `pending: false`; it looks upward for a parent form." },
+        { id: "async-transition", q: "What changed in `useTransition` in React 19?", a: "`startTransition` accepts an async function. `isPending` stays true from the moment it starts until the whole async function finishes, so one flag covers the request and the re-render. State set after an `await` is no longer inside the transition, so wrap it in `startTransition` again to keep it non-urgent.",
+          code: {
+            file: "Quantity.tsx",
+            tsx: `import { useState, useTransition } from "react";
+
+async function saveQuantity(qty: number): Promise<number> {
+  await new Promise((r) => setTimeout(r, 700));            // stand-in for a PATCH request
+  return qty;
+}
+
+export function App() {
+  const [qty, setQty] = useState(1);
+  const [isPending, startTransition] = useTransition();
+
+  function change(next: number) {
+    startTransition(async () => {
+      const saved = await saveQuantity(next);
+      startTransition(() => setQty(saved));                // after an await, mark the update again
+    });
+  }
+
+  return (
+    <div>
+      <p>Quantity: {qty}{isPending ? " (saving)" : ""}</p>
+      <button onClick={() => change(qty + 1)} disabled={isPending}>Add one</button>
+      <button onClick={() => change(Math.max(1, qty - 1))} disabled={isPending}>Remove one</button>
+    </div>
+  );
+}`,
+          } },
+        { id: "action-state-vs-transition", q: "useActionState or useTransition?", a: "`useActionState(fn, initial)` is for a result you show: it keeps the last return value as state, passes it to the next call as `prev`, and gives a `formAction` for a form. Calls are queued, so two quick submits run in order. `useTransition` is for fire-and-forget saves where the state lives elsewhere and you only need `isPending`. The Forms chapter has a full `useActionState` example." },
+        { id: "deferred-initial", q: "What does the second argument of `useDeferredValue` do?", a: "`useDeferredValue(value, initialValue)` returns `initialValue` on the first render, then re-renders in the background with `value`. The first paint stays cheap (an empty list, a placeholder) instead of blocking on the slow version. Later, when `value` changes, it lags behind exactly like before: the input updates at once and the slow child catches up.",
+          code: {
+            file: "Search.tsx",
+            tsx: `import { memo, useDeferredValue, useState } from "react";
+
+const ITEMS = Array.from({ length: 3000 }, (_, i) => \`topic \${i}\`);
+
+const Results = memo(function Results({ query }: { query: string }) {
+  const hits = ITEMS.filter((t) => t.includes(query));    // 3000 checks and up to 3000 rows: slow on purpose
+  return <ul>{hits.map((t) => <li key={t}>{t}</li>)}</ul>;
+});
+
+export function App() {
+  const [query, setQuery] = useState("12");
+  const deferred = useDeferredValue(query, "none yet");    // first render shows the cheap placeholder query
+  const stale = query !== deferred;
+  return (
+    <div>
+      <input value={query} onChange={(e) => setQuery(e.target.value)} />
+      <p>Showing results for: {deferred}{stale ? " (updating)" : ""}</p>
+      <div style={{ opacity: stale ? 0.5 : 1 }}><Results query={deferred} /></div>
+    </div>
+  );
+}`,
+          } },
+        { id: "use-id", q: "Why use `useId` instead of `Math.random()` for an element id?", a: "`useId` returns an id that is unique per component instance and identical on the server and the client, because it comes from the component's position in the tree. A random id differs between the server HTML and the first client render, which causes a hydration mismatch, and a module counter breaks when components render in a different order.",
+          code: {
+            file: "Field.tsx",
+            tsx: `import { useId } from "react";
+
+function Field({ label, hint, type = "text" }: { label: string; hint: string; type?: string }) {
+  const id = useId();                                      // one per Field, stable across server and client
+  return (
+    <p>
+      <label htmlFor={id}>{label}</label>
+      <input id={id} type={type} aria-describedby={\`\${id}-hint\`} />
+      <small id={\`\${id}-hint\`}>{hint}</small>
+    </p>
+  );
+}
+
+export function App() {
+  return (
+    <form>
+      <Field label="Email" hint="Used for sign in only" type="email" />
+      <Field label="Phone" hint="Optional" type="tel" />
+    </form>
+  );
+}`,
+          },
+          trap: "`useId` is not for list keys. Keys come from your data." },
+        { id: "sync-store", q: "What is `useSyncExternalStore` for?", a: "Reading a value that lives outside React (a store, `navigator.onLine`, `window.innerWidth`) safely. You pass `subscribe`, `getSnapshot` and optionally `getServerSnapshot`. React re-renders when the snapshot changes and, during a concurrent render, makes sure every component sees the same snapshot (no tearing). Zustand and Redux use it under the hood.",
+          code: {
+            file: "store.tsx",
+            tsx: `import { useSyncExternalStore } from "react";
+
+function createStore<T>(initial: T) {
+  let state = initial;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => state,
+    set: (next: T) => { state = next; listeners.forEach((l) => l()); },
+    subscribe: (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; },
+  };
+}
+
+const cart = createStore(0);
+const useCartCount = () => useSyncExternalStore(cart.subscribe, cart.get, cart.get);
+
+function Badge({ where }: { where: string }) {
+  return <p>{where}: {useCartCount()} items</p>;
+}
+
+export function App() {
+  return (
+    <div>
+      <Badge where="Header" />
+      <button onClick={() => cart.set(cart.get() + 1)}>Add to cart</button>
+      <Badge where="Footer" />
+    </div>
+  );
+}`,
+          },
+          trap: "`getSnapshot` must return the same value when nothing changed. Returning a new object each call (`() => ({ count })`) loops forever." },
+        { id: "ref-prop", q: "How do refs change in React 19?", a: "A function component receives `ref` as an ordinary prop, so `forwardRef` is no longer needed (it still works, and will be deprecated). A ref callback may return a cleanup function, which React calls when the element is removed, like an effect cleanup.",
+          code: {
+            file: "TextInput.tsx",
+            tsx: `import { useRef, useState, type Ref } from "react";
+
+function TextInput({ ref, label }: { ref?: Ref<HTMLInputElement>; label: string }) {
+  return <label>{label} <input ref={ref} /></label>;      // ref is just a prop now
+}
+
+export function App() {
+  const input = useRef<HTMLInputElement>(null);
+  const [showBox, setShowBox] = useState(true);
+  return (
+    <div>
+      <TextInput ref={input} label="Search" />
+      <button onClick={() => input.current?.focus()}>Focus search</button>
+      <button onClick={() => setShowBox(!showBox)}>{showBox ? "Remove" : "Add"} box</button>
+      {showBox && (
+        <div ref={(node) => {
+          console.log("attached", node?.tagName);
+          return () => console.log("detached");           // React 19: ref callbacks can clean up
+        }}>A box</div>
+      )}
+    </div>
+  );
+}`,
+          } },
       ],
     },
     {
