@@ -108,6 +108,7 @@ import { FLOW_SLOTS } from "../genai/labs.ts";
 import { FACTS } from "../landingFacts.ts";
 import { compile, type PlayMode } from "./playground/compile.ts";
 import { STARTERS } from "./playground/starters.ts";
+import { OA } from "./oa/index.ts";
 
 const SUBJECTS: Subject[] = [OS, DBMS, CN, SQL, OOPS, APTITUDE, SYNTAX, REACT, NODE, DESIGN];
 const text = JSON.stringify(SUBJECTS);
@@ -137,15 +138,17 @@ function runJava(where: string, src: string) {
   const d = mkdtempSync(join(dir, "j-"));
   writeFileSync(join(d, `${name}.java`), src);
   execFileSync("javac", ["-d", d, join(d, `${name}.java`)], { stdio: "pipe" });
-  execFileSync("java", ["-cp", d, name!], { stdio: "pipe", timeout: 20000 });
+  const out = execFileSync("java", ["-cp", d, name!], { stdio: "pipe", timeout: 20000 }).toString();
   compiled++;
+  return out;
 }
 function runCpp(where: string, src: string) {
   const d = mkdtempSync(join(dir, "c-"));
   writeFileSync(join(d, "main.cpp"), src);
   execFileSync("c++", ["-std=c++17", "-Wall", "-Werror", "-pthread", "-o", join(d, "a.out"), join(d, "main.cpp")], { stdio: "pipe" });
-  execFileSync(join(d, "a.out"), { stdio: "pipe", timeout: 20000 });
+  const out = execFileSync(join(d, "a.out"), { stdio: "pipe", timeout: 20000 }).toString();
   compiled++;
+  return out;
 }
 
 // Python, JavaScript and TypeScript run directly; TS and TSX are also type-checked in one tsc pass below.
@@ -197,6 +200,34 @@ for (const s of SUBJECTS) for (const ch of s.chapters) {
   }
   const ids = new Set<string>();
   for (const c of ch.cards) { assert.ok(!ids.has(c.id), `${s.id}/${ch.id}: duplicate card id ${c.id}`); ids.add(c.id); }
+}
+
+// the OA bank: well-formed options, and every code question answers what the code really does
+{
+  assert.ok(!JSON.stringify(OA).includes(String.fromCharCode(0x2014)), "no em dashes in OA questions");
+  let ran = 0;
+  for (const s of OA) {
+    assert.ok(s.questions.length >= 30, `oa/${s.id}: only ${s.questions.length} questions`);
+    assert.equal(new Set(s.questions.map((q) => q.id)).size, s.questions.length, `oa/${s.id}: duplicate id`);
+    for (const q of s.questions) {
+      const where = `oa/${s.id}/${q.id}`, options = [q.answer, ...q.wrong];
+      assert.equal(new Set(options).size, 4, `${where}: needs 4 different options, got ${options.join(" | ")}`);
+      assert.ok(options.every((o) => o && !/NaN|undefined|Infinity|of the above/.test(o)), `${where}: bad option in ${options.join(" | ")}`);
+      assert.ok(q.q && q.why.length > 15, `${where}: needs a question and an explanation`);
+      if (q.kind !== "output") continue;
+      const c = q.code!;
+      let got: string;
+      if (c.lang === "sql") {
+        const d = new DatabaseSync(":memory:");
+        d.exec(c.setup!);
+        const rows = d.prepare(c.src.replace(/;\s*$/, "")).all() as Record<string, unknown>[];
+        got = rows.length ? rows.map((r) => Object.values(r).map(cell).join(", ")).join("; ") : "no rows";
+      } else got = (c.lang === "java" ? runJava(where, c.src) : runCpp(where, c.src)).trim();
+      assert.equal(got, q.answer, where);
+      ran++;
+    }
+  }
+  console.log(`OA ok: ${OA.reduce((n, s) => n + s.questions.length, 0)} questions, ${ran} code answers checked by running them`);
 }
 
 // one strict type-check over every TypeScript and TSX example

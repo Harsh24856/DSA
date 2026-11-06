@@ -2,7 +2,7 @@
 import assert from "node:assert";
 import { afterRevisit, diffDays, mockPick, normQuota, pace, parse, phases, revisitsDue, TAG_TOPIC, todayPlan, upcoming, weakTopics, windowInfo, ymd, type State } from "./logic.ts";
 import { P } from "./problems.ts";
-import { clock, drillRound, hasPuzzle, mockLeft, nextStepOptions, patternOptions, puzzleLines, puzzleRight, puzzleSolved, puzzleTiles } from "./practice.ts";
+import { clock, drillRound, hasPuzzle, mockLeft, nextStepOptions, oaRound, patternOptions, puzzleLines, puzzleRight, puzzleSolved, puzzleTiles } from "./practice.ts";
 
 const FRI = new Date(2026, 9, 23), SAT = new Date(2026, 9, 24), SUN = new Date(2026, 9, 25), MON = new Date(2026, 9, 26), TUE = new Date(2026, 9, 27);
 const fresh = (): State => ({ done: {}, quota: normQuota() });
@@ -157,3 +157,14 @@ assert.ok(mock.every((i) => P[i][0] === "L" && !s.done[i] && !todayPlan(s, MON).
 assert.deepEqual([clock(mockLeft(0, 0)), clock(mockLeft(0, 90 * 60000 + 5)), clock(1)], ["90:00", "0:00", "0:01"]);
 
 console.log("logic checks pass");
+
+// OA rounds: misses come first, subjects stay even, no question twice
+{
+  const pool = ["a", "b", "c"].flatMap((subject) => Array.from({ length: 30 }, (_, i) => ({ subject, key: `${subject}:${i}` })));
+  const miss = new Set(["a:3", "b:4", "c:5"]), round = oaRound(pool, miss, 9);
+  assert.equal(round.length, 9);
+  assert.equal(new Set(round.map((q) => q.key)).size, 9);
+  for (const k of miss) assert.ok(round.some((q) => q.key === k), `miss ${k} comes back`);
+  for (const s of ["a", "b", "c"]) assert.equal(round.filter((q) => q.subject === s).length, 3);
+  assert.equal(oaRound(pool.filter((q) => q.subject === "a"), miss, 10).length, 10, "one subject fills the round");
+}

@@ -78,6 +78,16 @@ export const puzzleTiles = (code: string, rng: Rng = Math.random) => {
   return [...lines].reverse();
 };
 
+/** An OA round: misses first, shuffled, with subjects kept even so a mixed test covers them all. */
+export function oaRound<T extends { key: string; subject: string }>(pool: T[], missed: Set<string>, n: number, rng: Rng = Math.random) {
+  const cap = Math.ceil(n / new Set(pool.map((q) => q.subject)).size), used = new Map<string, number>(), out: T[] = [];
+  for (const q of [...shuffle(pool.filter((x) => missed.has(x.key)), rng), ...shuffle(pool.filter((x) => !missed.has(x.key)), rng)]) {
+    if (out.length >= n || (used.get(q.subject) || 0) >= cap) continue;
+    out.push(q); used.set(q.subject, (used.get(q.subject) || 0) + 1);
+  }
+  return shuffle(out, rng);
+}
+
 export const MOCK_MINUTES = 90;
 export const mockLeft = (start: number, now: number, minutes = MOCK_MINUTES) => Math.max(0, start + minutes * 60000 - now);
 export const clock = (ms: number) => { const t = Math.ceil(ms / 1000), m = Math.floor(t / 60); return `${m}:${String(t % 60).padStart(2, "0")}`; };

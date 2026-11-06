@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { OA } from "../lib/other/oa/index.ts";
 
 test("try first: the answer stays covered until asked for, and ticking counts the help", async ({ page }) => {
   await page.goto("/");
@@ -125,4 +126,81 @@ test("weak spots on Analytics rank topics by solo rate", async ({ page }) => {
   const card = page.getByRole("region", { name: "Weak spots" });
   await expect(card.getByRole("listitem").filter({ hasText: "Array" })).toContainText("2 of 3 solo");
   await expect(card.getByRole("link", { name: "Study Array" })).toHaveAttribute("href", "/patterns/array");
+});
+
+test("OA practice shows the answer after a pick and saves a miss", async ({ page }) => {
+  await page.goto("/other");
+  await page.locator('main a[href="/other/oa"]').click();
+  await page.getByRole("button", { name: "Practice DBMS" }).click();
+  await expect(page.getByRole("heading", { name: "Question 1 of 10" })).toBeVisible();
+  await expect(page.locator("main .callout")).toBeHidden();
+  const options = page.locator("main .btn.h-auto");
+  await expect(options).toHaveCount(4);
+  await options.first().click();
+  await expect(page.locator("main .callout")).toContainText(/Right|Not this one/);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Question 1 of 10" })).toBeVisible();   // the round survives a reload
+  await expect(page.locator("main .callout")).toBeVisible();
+  await page.getByRole("button", { name: "End round" }).click();
+  await page.getByRole("button", { name: "End round" }).click();
+  await expect(page.getByRole("heading", { name: "Round finished" })).toBeVisible();
+  await expect(page.getByText(/of 1 right/)).toBeVisible();
+});
+
+test("OA timed test hides answers, keeps its clock, and brings misses back first", async ({ page }) => {
+  await page.goto("/other/oa");
+  await page.getByRole("button", { name: "Start the test" }).click();
+  await expect(page.getByRole("heading", { name: "Question 1 of 20" })).toBeVisible();
+  const start = await page.evaluate(() => JSON.parse(localStorage.getItem("dsa-oa-v1")!).start);
+  await page.locator("main .btn.h-auto").first().click();
+  await expect(page.locator("main .btn.h-auto").first()).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("main .callout")).toBeHidden();
+  await page.getByRole("button", { name: "Question 2", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Question 2 of 20" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("timer")).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("dsa-oa-v1")!).start)).toBe(start);
+
+  await page.getByRole("button", { name: "End test" }).click();
+  await page.getByRole("button", { name: "End test" }).click();
+  await expect(page.getByRole("heading", { name: "Test finished" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Review" })).toBeVisible();
+  const missed = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("dsa-patterns-v1")!)).filter((k) => k.startsWith("oa:")));
+  expect(missed.length).toBeGreaterThanOrEqual(19);
+  expect(await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("dsa-patterns-v1")!)).filter((k) => k.startsWith("oatest:")).length)).toBe(1);
+
+  await page.getByRole("button", { name: "Back to OA questions" }).click();
+  await expect(page.getByText(/of 20 right/)).toBeVisible();
+  const sql = missed.filter((k) => k.startsWith("oa:sql:")).map((k) => k.slice(3));
+  await page.getByRole("button", { name: "Practice SQL" }).click();
+  const keys = await page.evaluate(() => JSON.parse(localStorage.getItem("dsa-oa-v1")!).keys as string[]);
+  for (const k of sql) expect(keys).toContain(k);
+});
+
+test("OA test ends itself when the clock runs out", async ({ page }) => {
+  await page.goto("/other/oa");
+  await page.getByRole("button", { name: "Start the test" }).click();
+  await expect(page.getByRole("timer")).toBeVisible();
+  await page.evaluate(() => { const r = JSON.parse(localStorage.getItem("dsa-oa-v1")!); r.start -= 21 * 60000; localStorage.setItem("dsa-oa-v1", JSON.stringify(r)); });
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Test finished" })).toBeVisible();
+});
+
+test("search finds the OA section", async ({ page, isMobile }) => {
+  test.skip(isMobile, "the shortcut needs a keyboard");
+  await page.goto("/");
+  await page.keyboard.press("ControlOrMeta+k");
+  await page.getByRole("dialog").getByRole("combobox").or(page.getByRole("dialog").getByRole("textbox")).or(page.getByRole("dialog").getByRole("searchbox")).first().fill("CS core OA");
+  await page.getByRole("dialog").getByText("CS core OA questions").click();
+  await expect(page).toHaveURL(/\/other\/oa$/);
+});
+
+test("every OA question fits a phone", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  const qs = OA.flatMap((s) => s.questions.map((q) => ({ key: `${s.id}:${q.id}`, options: [q.answer, ...q.wrong] })));
+  await page.addInitScript((run) => localStorage.setItem("dsa-oa-v1", JSON.stringify(run)), { subject: null, start: 1, ended: 2, at: 0, keys: qs.map((q) => q.key), options: qs.map((q) => q.options), picks: qs.map(() => null) });
+  await page.goto("/other/oa");
+  await expect(page.getByRole("heading", { name: "Review" })).toBeVisible();
+  await expect(page.getByRole("main").locator("li pre").first()).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
 });

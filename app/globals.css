@@ -156,7 +156,7 @@
   .chip{display:inline-flex;flex-shrink:0;align-items:center;gap:4px;height:28px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;transition:transform .15s var(--ease),background .2s,border-color .2s,color .2s}
   .chip:hover{color:var(--ink);border-color:var(--line-strong)}
   .chip:active{transform:scale(.96)}
-  .chip:is([aria-pressed=true],[aria-selected=true],[aria-current=page]){background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .chip:is([aria-pressed=true],[aria-selected=true],[aria-current=page],[aria-current=step]){background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
   .chip-accent{border-color:color-mix(in oklab,var(--accent) 50%,transparent);background:var(--accent-soft);color:var(--accent)}
   .chip-accent:hover{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 

@@ -28,7 +28,7 @@ const NAV = [
 const STANDALONE = ["/auth", "/welcome", "/privacy", "/terms"];
 const isAppPath = (p: string) => p === "/" || ["/analytics", "/patterns", "/problems", "/drill", "/mock", "/genai", "/other"].some((a) => p === a || p.startsWith(a + "/"));
 const EASE = [0.22, 1, 0.36, 1] as const;
-const SEARCH_NAV = [...NAV.filter((n) => n.href !== "/drill"), { href: "/drill", label: "Pattern drill" }, { href: "/mock", label: "Mock OA" }];
+const SEARCH_NAV = [...NAV.filter((n) => n.href !== "/drill"), { href: "/drill", label: "Pattern drill" }, { href: "/mock", label: "Mock OA" }, { href: "/other/oa", label: "CS core OA questions" }];
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();

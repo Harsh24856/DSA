@@ -42,3 +42,9 @@ export type Chapter = {
 };
 
 export type Subject = { id: string; name: string; short: string; blurb: string; chapters: Chapter[] };
+
+/** One multiple-choice question for the OA section. `code` is shown with the question. For kind "output", check:other runs it
+ *  (Java, C++, or SQL in SQLite after `setup`) and fails unless the result equals `answer`. Numeric answers are computed, never typed. */
+export type OaCode = { lang: "java" | "cpp" | "sql"; src: string; setup?: string };
+export type OaQuestion = { id: string; kind: "concept" | "numeric" | "output"; q: string; code?: OaCode; answer: string; wrong: string[]; why: string };
+export type OaSubject = { id: string; name: string; questions: OaQuestion[] };

@@ -1,5 +1,5 @@
 "use client";
-// Ticks for pattern-practice problems, keyed by LeetCode number, Gen AI modules done, keyed "genai:<id>", drill misses, keyed "drill:<slug>", and mock scores, keyed "mock:<start ms>". Stored in dsa-patterns-v1 and the
+// Ticks for pattern-practice problems, keyed by LeetCode number, Gen AI modules done, keyed "genai:<id>", drill misses, keyed "drill:<slug>", mock scores, keyed "mock:<start ms>", CS core OA misses, keyed "oa:<subject>:<id>", and OA test scores, keyed "oatest:<start ms>". Stored in dsa-patterns-v1 and the
 // Supabase `patterns` column, never in the daily-plan state, so Today and Analytics stay unaffected.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ymd } from "./logic";

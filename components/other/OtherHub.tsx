@@ -2,7 +2,7 @@
 // Hub of the "Other" section: one card per CS core subject with chapter progress.
 import Link from "next/link";
 import { motion } from "motion/react";
-import { ArrowRight, Atom, Calculator, Code, Cpu, Cube, Database, Globe, HardDrives, ShareNetwork, Table, type Icon } from "@phosphor-icons/react";
+import { ArrowRight, Atom, Calculator, Code, Cpu, Cube, Database, Exam, Globe, HardDrives, ShareNetwork, Table, type Icon } from "@phosphor-icons/react";
 import { chapterKey } from "@/lib/other";
 import { usePatterns } from "@/lib/patternStore";
 import { Bar, Count } from "../ui";
@@ -11,7 +11,7 @@ import { ProgressCard } from "../ProgressCard";
 export type SubjectSummary = { id: string; name: string; short: string; blurb: string; chapters: string[]; cards: number; labs: number };
 const ICON: Record<string, Icon> = { os: Cpu, dbms: Database, cn: Globe, sql: Table, oops: Cube, aptitude: Calculator, syntax: Code, react: Atom, node: HardDrives, design: ShareNetwork };
 
-export function OtherHub({ subjects }: { subjects: SubjectSummary[] }) {
+export function OtherHub({ subjects, oaCount }: { subjects: SubjectSummary[]; oaCount: number }) {
   const { done } = usePatterns();
   const doneIn = (s: SubjectSummary) => s.chapters.filter((c) => done[chapterKey(s.id, c)]).length;
   const total = subjects.reduce((n, s) => n + s.chapters.length, 0), finished = subjects.reduce((n, s) => n + doneIn(s), 0);
@@ -30,6 +30,11 @@ export function OtherHub({ subjects }: { subjects: SubjectSummary[] }) {
           <div><Count value={labs} className="text-2xl font-semibold" /><div className="text-xs text-muted">labs</div></div>
         </div>
       </section>
+      <Link href="/other/oa" className="card group flex items-center gap-3 p-6 transition hover:border-line-strong hover:bg-surface-2 active:scale-[0.99]">
+        <span className="badge-icon size-9 shrink-0"><Exam size={18} aria-hidden /></span>
+        <div className="min-w-0 flex-1"><h3 className="t-h3">OA questions</h3><p className="mt-1 text-sm text-muted">{oaCount} multiple-choice questions on OS, DBMS, networks, SQL, OOP and aptitude. Practice by subject or sit a timed test.</p></div>
+        <ArrowRight size={18} className="shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent" aria-hidden />
+      </Link>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {subjects.map((s, k) => {
           const I = ICON[s.id] ?? Cube, dn = doneIn(s);
