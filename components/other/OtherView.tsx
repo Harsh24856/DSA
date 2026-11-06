@@ -8,7 +8,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, ArrowRight, ArrowSquareOut, Briefcase, Buildings, CaretDown, Check, Code as CodeIcon, Flask, Play, WarningCircle } from "@phosphor-icons/react";
 import type { Card, Chapter, Code, Table } from "@/lib/other/types";
-import { chapterKey, type ChapterMeta, type SubjectMeta } from "@/lib/other";
+import { cardKey, chapterKey, partsOf, type ChapterMeta, type SubjectMeta } from "@/lib/other";
 import { usePatterns } from "@/lib/patternStore";
 import { useStore } from "@/lib/store";
 import { P } from "@/lib/problems";
@@ -87,15 +87,28 @@ function CodeBlock({ code, lang, setLang }: { code: Code; lang: Lang; setLang(l:
   );
 }
 
-function QA({ card, n, lang, setLang }: { card: Card; n: number; lang: Lang; setLang(l: Lang): void }) {
+/** A round tick button. `label` names what it marks, for screen readers. */
+function Tick({ on, label, onClick }: { on: boolean; label: string; onClick(): void }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={on} aria-label={label} className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-control transition-colors hover:bg-surface-2">
+      <span className="tick pointer-events-none size-5" data-on={on || undefined} aria-hidden>{on && <Check size={12} weight="bold" />}</span>
+    </button>
+  );
+}
+
+function QA({ card, n, lang, setLang, tick }: { card: Card; n: number; lang: Lang; setLang(l: Lang): void; tick: string }) {
   const [open, setOpen] = useState(false);
+  const { done, toggle } = usePatterns();
   return (
     <li className="max-w-none overflow-hidden rounded-tile border border-line bg-bg">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex w-full cursor-pointer items-start gap-3 px-4 py-3 text-left text-sm font-medium transition-colors hover:bg-surface-2">
-        <span className="num pt-0.5 text-xs text-accent">{String(n).padStart(2, "0")}</span>
-        <span className="min-w-0 flex-1">{card.q}</span>
-        <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.25 }} className="mt-0.5 text-muted"><CaretDown size={16} aria-hidden /></motion.span>
-      </button>
+      <div className="flex items-start">
+        <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 py-3 pl-4 text-left text-sm font-medium transition-colors hover:bg-surface-2">
+          <span className="num pt-0.5 text-xs text-accent">{String(n).padStart(2, "0")}</span>
+          <span className="min-w-0 flex-1">{card.q}</span>
+          <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.25 }} className="mt-0.5 text-muted"><CaretDown size={16} aria-hidden /></motion.span>
+        </button>
+        <Tick on={!!done[tick]} label={`I can answer: ${card.q}`} onClick={() => toggle(tick, !done[tick])} />
+      </div>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
@@ -189,10 +202,11 @@ const href = (subject: string, chapter: string) => `/other/${subject}/${chapter}
 
 /** One subject: progress, the playground and the list of chapters, each opening on its own page. */
 export function SubjectHub({ subject }: { subject: SubjectMeta }) {
-  const { done } = usePatterns();
+  const { done, toggle } = usePatterns();
   const router = useRouter();
   const chs = subject.chapters, isDone = (c: ChapterMeta) => !!done[chapterKey(subject.id, c.id)];
   const n = chs.filter(isDone).length, cards = chs.reduce((s, c) => s + c.cards, 0), next = chs.find((c) => !isDone(c));
+  const answered = chs.reduce((s, c) => s + c.cardIds.filter((x) => done[cardKey(subject.id, c.id, x)]).length, 0);
   // old links pointed at /other/<subject>#<chapter>: send them to the chapter's own page
   useEffect(() => { const id = location.hash.slice(1); if (chs.some((c) => c.id === id)) router.replace(href(subject.id, id)); }, [chs, router, subject.id]);
 
@@ -203,30 +217,41 @@ export function SubjectHub({ subject }: { subject: SubjectMeta }) {
         <span className="t-eyebrow">{chs.length} chapters · {cards} questions</span>
         <h2 id="sub-title" className="t-title">{subject.name}</h2>
         <p className="max-w-[72ch] text-sm leading-relaxed text-muted">{subject.blurb}</p>
-        <div className="flex items-center gap-3"><Bar value={n} max={chs.length} className="flex-1" /><span className="num text-xs text-muted">{n} / {chs.length} done</span></div>
+        <div className="grid gap-2 text-xs text-muted">
+          <div className="flex items-center gap-3"><span className="w-20 shrink-0">Chapters</span><Bar value={n} max={chs.length} className="flex-1" /><span className="num">{n} / {chs.length} done</span></div>
+          <div className="flex items-center gap-3"><span className="w-20 shrink-0">Questions</span><Bar value={answered} max={cards || 1} className="flex-1" /><span className="num">{answered} / {cards} ticked</span></div>
+        </div>
         {next && <Link href={href(subject.id, next.id)} className="btn btn-primary w-fit text-accent-ink no-underline">{n ? "Continue" : "Start"}: {next.title}<ArrowRight size={16} aria-hidden /></Link>}
       </section>
       {STARTERS[subject.id] && <SubjectPlayground starters={STARTERS[subject.id]} />}
-      <nav aria-label="Chapters">
+      <nav aria-label="Chapters" className="grid gap-6">
+        {partsOf(chs, subject.parts).map((part) => {
+          const pd = part.chapters.filter(isDone).length;
+          return (
+            <div key={part.title || "all"} className="grid gap-3">
+              {part.title && <div className="flex items-center gap-3"><h3 className="t-h3 shrink-0">{part.title}</h3><Bar value={pd} max={part.chapters.length} className="flex-1" /><span className="num text-xs text-muted">{pd} / {part.chapters.length}</span></div>}
         <ol className="grid gap-4 sm:grid-cols-2">
-          {chs.map((c, k) => (
-            <motion.li key={c.id} className="max-w-none" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(k, 6) * 0.03, ease: EASE }}>
-              <Link href={href(subject.id, c.id)} className="card group flex h-full flex-col gap-2 p-6 text-ink no-underline transition hover:border-line-strong hover:bg-surface-2 active:scale-[0.99]">
+          {part.chapters.map((c) => { const k = chs.indexOf(c), key = chapterKey(subject.id, c.id); return (
+            <motion.li key={c.id} className="relative max-w-none" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(k, 6) * 0.03, ease: EASE }}>
+              <Link href={href(subject.id, c.id)} className="card group flex h-full flex-col gap-2 p-6 pr-16 text-ink no-underline transition hover:border-line-strong hover:bg-surface-2 active:scale-[0.99]">
                 <div className="flex items-center gap-3">
                   <span className="num text-xs text-muted">{String(k + 1).padStart(2, "0")}</span>
                   <h3 className="t-h3 min-w-0 flex-1">{c.title}</h3>
-                  {isDone(c) ? <Check size={16} weight="bold" className="shrink-0 text-easy" aria-label="done" /> : <ArrowRight size={16} className="shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent" aria-hidden />}
                 </div>
                 <p className="m-0 line-clamp-2 flex-1 text-sm text-muted">{inline(c.blurb)}</p>
                 <div className="flex flex-wrap gap-2">
                   {c.lab && <span className="pill pill-accent inline-flex items-center gap-1"><Flask size={12} weight="fill" aria-hidden />lab</span>}
                   {c.anim && <span className="pill pill-accent inline-flex items-center gap-1"><Play size={12} weight="fill" aria-hidden />walk-through</span>}
-                  {c.cards > 0 && <span className="pill pill-muted">{c.cards} questions</span>}
+                  {c.cards > 0 && <span className="pill pill-muted">{c.cardIds.filter((x) => done[cardKey(subject.id, c.id, x)]).length} / {c.cards} questions</span>}
                 </div>
               </Link>
+              <div className="absolute right-4 top-4"><Tick on={isDone(c)} label={`Done: ${c.title}`} onClick={() => toggle(key, !isDone(c))} /></div>
             </motion.li>
-          ))}
+          ); })}
         </ol>
+            </div>
+          );
+        })}
       </nav>
       {subject.id === "sql" && <SqlPractice />}
     </div>
@@ -278,8 +303,8 @@ export function ChapterPage({ subject, chapter: ch }: { subject: SubjectMeta; ch
         {ch.cards.length > 0 && (
           <section className="card gx-slide" aria-labelledby="ch-qs">
             <h3 id="ch-qs">Interview questions</h3>
-            <p className="m-0 text-sm text-muted">Answer out loud first, then open the card.</p>
-            <ol className="grid gap-2">{ch.cards.map((c, k) => <QA key={c.id} card={c} n={k + 1} lang={lang} setLang={setLang} />)}</ol>
+            <p className="m-0 text-sm text-muted">Answer out loud first, then open the card. Tick the ones you can answer: <span className="num">{ch.cards.filter((c) => done[cardKey(subject.id, ch.id, c.id)]).length} of {ch.cards.length}</span> so far.</p>
+            <ol className="grid gap-2">{ch.cards.map((c, k) => <QA key={c.id} card={c} n={k + 1} lang={lang} setLang={setLang} tick={cardKey(subject.id, ch.id, c.id)} />)}</ol>
           </section>
         )}
       </SubjectCtx.Provider>

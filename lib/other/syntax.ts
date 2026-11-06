@@ -5,6 +5,7 @@ export const SYNTAX: Subject = {
   name: "Programming languages",
   short: "Syntax",
   blurb: "C++, Java, Python, JavaScript and TypeScript side by side, from variables to concurrency, plus the standard-library toolkit you need for coding rounds. Every example is a complete program; switch languages at the top.",
+  parts: [["Basics", "basics"], ["Structures", "collections"], ["Advanced", "functional"]],
   chapters: [
     {
       id: "basics",

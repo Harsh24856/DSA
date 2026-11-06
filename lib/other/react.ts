@@ -5,6 +5,7 @@ export const REACT: Subject = {
   name: "React",
   short: "React",
   blurb: "From JSX and props to effects, context, performance, custom hooks, the React 19 hooks (use, actions, optimistic UI) and Server Components, and how rendering works underneath. Every component here is strict TypeScript and is type-checked against React 19.",
+  parts: [["Basics", "jsx"], ["Data and state", "effects"], ["Advanced", "perf"]],
   chapters: [
     {
       id: "jsx",

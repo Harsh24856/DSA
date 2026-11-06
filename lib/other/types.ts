@@ -42,7 +42,8 @@ export type Chapter = {
   cards: Card[];
 };
 
-export type Subject = { id: string; name: string; short: string; blurb: string; chapters: Chapter[] };
+/** `parts` groups the chapters into sections for the contents list: each entry is a title and the id of its first chapter, in order. */
+export type Subject = { id: string; name: string; short: string; blurb: string; chapters: Chapter[]; parts?: [title: string, from: string][] };
 
 /** One multiple-choice question for the OA section. `code` is shown with the question. For kind "output", check:other runs it
  *  (Java, C++, or SQL in SQLite after `setup`) and fails unless the result equals `answer`. Numeric answers are computed, never typed. */

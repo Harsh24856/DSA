@@ -5,6 +5,7 @@ export const OS: Subject = {
   name: "Operating Systems",
   short: "OS",
   blurb: "Processes and threads, scheduling, synchronization, deadlock, memory, virtual memory and storage. The OS round checks whether you understand what the machine does between your code and the hardware.",
+  parts: [["Processes and scheduling", "process"], ["Concurrency", "sync"], ["Memory", "memory"], ["Files and IPC", "storage"]],
   chapters: [
     {
       id: "process",

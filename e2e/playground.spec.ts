@@ -1,3 +1,4 @@
+import { loadSubject } from "../lib/other/index.ts";
 import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
 
 // The live code playground: every React sample must render, every Node sample must run without an error,
@@ -28,17 +29,21 @@ test("React: starter renders and updates as you type", async ({ page }) => {
 });
 
 test("React: every sample shows a component", async ({ page }) => {
-  await page.goto("/other/react");
-  const tries = page.locator(".gx-try");
-  const n = await tries.count();
-  expect(n).toBeGreaterThanOrEqual(8);
-  for (let i = 0; i < n; i++) {
-    await openSample(tries.nth(i));
-    const pg = page.locator(".pg").last();
-    await expect(pg.locator(".pg-pane-title").first()).toContainText("<", { timeout: 20_000 });
-    await expect(pg.locator(".pg-log .text-hard")).toHaveCount(0);
-    await tries.nth(i).click();
+  let total = 0;
+  for (const c of (await loadSubject("react")).chapters) {   // one chapter per page
+    await page.goto(`/other/react/${c.id}`);
+    const tries = page.locator(".gx-try");
+    const n = await tries.count();
+    total += n;
+    for (let i = 0; i < n; i++) {
+      await openSample(tries.nth(i));
+      const pg = page.locator(".pg").last();
+      await expect(pg.locator(".pg-pane-title").first()).toContainText("<", { timeout: 20_000 });
+      await expect(pg.locator(".pg-log .text-hard")).toHaveCount(0);
+      await tries.nth(i).click();
+    }
   }
+  expect(total).toBeGreaterThanOrEqual(8);
 });
 
 test("Node: Express starter answers requests", async ({ page }) => {

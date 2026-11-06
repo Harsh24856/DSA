@@ -1,0 +1,33 @@
+// The System Design topic list: 28 standard interview chapters and the key ideas in each, mapped to the chapter here
+// that covers them. check:other fails if a mapped chapter is missing or does not mention its term, so nothing is dropped.
+// The list of topics came from public study notes; every word of the chapters themselves is original.
+export const COVERAGE: { topic: string; terms: [term: string, chapter: string][] }[] = [
+  { topic: "Scale from zero to millions of users", terms: [["one server", "growth"], ["load balancer", "growth"], ["replica", "growth"], ["CDN", "growth"], ["stateless", "growth"], ["GeoDNS", "growth"], ["message queue", "growth"], ["metrics", "growth"], ["shard", "growth"], ["celebrity", "growth"], ["vertical scaling", "scaling"]] },
+  { topic: "Back-of-the-envelope estimation", terms: [["2^30", "estimation"], ["main memory", "estimation"], ["QPS", "estimation"], ["assumptions", "estimation"], ["99.99%", "reliability"]] },
+  { topic: "A framework for design interviews", terms: [["requirements", "approach"], ["high-level design", "approach"], ["deep dive", "approach"], ["wrap up", "approach"], ["avoid", "approach"]] },
+  { topic: "Rate limiter", terms: [["token bucket", "ratelimit"], ["leaking bucket", "ratelimit"], ["fixed window", "ratelimit"], ["sliding window log", "ratelimit"], ["sliding window counter", "ratelimit"], ["429", "ratelimit"], ["Redis", "ratelimit"], ["race", "ratelimit"]] },
+  { topic: "Consistent hashing", terms: [["mod N", "data"], ["ring", "data"], ["virtual nodes", "data"], ["Cassandra", "data"]] },
+  { topic: "Key-value store", terms: [["CAP", "kvstore"], ["quorum", "kvstore"], ["vector clock", "kvstore"], ["gossip", "kvstore"], ["hinted handoff", "kvstore"], ["Merkle", "kvstore"], ["commit log", "kvstore"], ["SSTable", "kvstore"], ["Bloom filter", "kvstore"], ["data centre", "kvstore"]] },
+  { topic: "Unique ID generator", terms: [["multi-master", "ids"], ["UUID", "ids"], ["ticket server", "ids"], ["Snowflake", "ids"], ["NTP", "ids"]] },
+  { topic: "URL shortener", terms: [["301", "url"], ["base62", "url"], ["collision", "url"], ["Bloom filter", "url"]] },
+  { topic: "Web crawler", terms: [["BFS", "crawler"], ["frontier", "crawler"], ["robots.txt", "crawler"], ["polite", "crawler"], ["spider trap", "crawler"], ["recrawl", "crawler"], ["content hash", "crawler"], ["Bloom filter", "crawler"]] },
+  { topic: "Notification system", terms: [["APNs", "notifications"], ["FCM", "notifications"], ["SMS", "notifications"], ["template", "notifications"], ["retried", "notifications"], ["authenticated", "notifications"], ["quiet hours", "notifications"]] },
+  { topic: "News feed", terms: [["fan-out", "feed"], ["celebrit", "feed"], ["social graph", "feed"], ["counters", "feed"]] },
+  { topic: "Chat system", terms: [["WebSocket", "messaging"], ["long polling", "messaging"], ["service discovery", "messaging"], ["heartbeat", "messaging"], ["group", "messaging"], ["sequence number", "messaging"]] },
+  { topic: "Search autocomplete", terms: [["trie", "typeahead"], ["top k", "typeahead"], ["shard map", "typeahead"], ["filter layer", "typeahead"], ["Unicode", "typeahead"], ["trending", "typeahead"]] },
+  { topic: "YouTube", terms: [["transcod", "video"], ["directed acyclic graph", "video"], ["pre-signed", "video"], ["DRM", "video"], ["CDN", "video"], ["non-recoverable", "video"]] },
+  { topic: "Google Drive", terms: [["block", "storage"], ["delta sync", "storage"], ["conflict", "storage"], ["metadata", "storage"], ["cold storage", "storage"], ["long poll", "storage"]] },
+  { topic: "Proximity service", terms: [["geohash", "proximity"], ["quadtree", "proximity"], ["S2", "proximity"], ["read replicas", "proximity"], ["cache", "proximity"]] },
+  { topic: "Nearby friends", terms: [["WebSocket", "nearby"], ["pub/sub", "nearby"], ["TTL", "nearby"], ["hash ring", "nearby"], ["geohash", "nearby"]] },
+  { topic: "Google Maps", terms: [["projection", "maps"], ["geocoding", "maps"], ["tiles", "maps"], ["routing tiles", "maps"], ["ETA", "maps"], ["reroute", "maps"]] },
+  { topic: "Distributed message queue", terms: [["partition", "mq"], ["consumer group", "mq"], ["in-sync", "mq"], ["at least once", "mq"], ["exactly once", "mq"], ["delayed", "mq"], ["ZooKeeper", "mq"]] },
+  { topic: "Metrics monitoring and alerting", terms: [["pull", "metrics"], ["push", "metrics"], ["Kafka", "metrics"], ["time-series", "metrics"], ["rollups", "metrics"], ["alert manager", "metrics"], ["Grafana", "metrics"]] },
+  { topic: "Ad click event aggregation", terms: [["watermark", "adclick"], ["tumbling", "adclick"], ["kappa", "adclick"], ["exactly once", "adclick"], ["reconciliation", "adclick"], ["hot ads", "adclick"]] },
+  { topic: "Hotel reservation", terms: [["overbooking", "hotel"], ["optimistic", "hotel"], ["pessimistic", "hotel"], ["constraint", "hotel"], ["idempotency", "hotel"], ["saga", "hotel"]] },
+  { topic: "Distributed email service", terms: [["SMTP", "email"], ["IMAP", "email"], ["POP", "email"], ["SPF", "email"], ["DKIM", "email"], ["DMARC", "email"], ["attachment", "email"], ["search", "email"]] },
+  { topic: "S3-like object storage", terms: [["bucket", "objectstore"], ["erasure", "objectstore"], ["checksum", "objectstore"], ["version", "objectstore"], ["multipart", "objectstore"], ["garbage collection", "objectstore"]] },
+  { topic: "Real-time gaming leaderboard", terms: [["sorted set", "leaderboard"], ["ZINCRBY", "leaderboard"], ["skip list", "leaderboard"], ["score range", "leaderboard"]] },
+  { topic: "Payment system", terms: [["PSP", "payments"], ["ledger", "payments"], ["reconcil", "payments"], ["idempotency", "payments"], ["PCI DSS", "payments"], ["dead letter", "payments"]] },
+  { topic: "Digital wallet", terms: [["two-phase commit", "wallet"], ["Try-Confirm/Cancel", "wallet"], ["saga", "wallet"], ["event sourcing", "wallet"], ["CQRS", "wallet"], ["snapshot", "wallet"], ["Raft", "wallet"]] },
+  { topic: "Stock exchange", terms: [["order book", "exchange"], ["sequencer", "exchange"], ["price-time priority", "exchange"], ["L2", "exchange"], ["candlestick", "exchange"], ["multicast", "exchange"], ["deterministic", "exchange"], ["standby", "exchange"]] },
+];

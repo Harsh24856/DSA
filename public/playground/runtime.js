@@ -275,17 +275,20 @@
       refresh() { return this; }
       [Symbol.toPrimitive]() { return this.id; }
     }
-    const setTimeout_ = (f, ms, ...a) => { const t = new Timeout(realST(() => { pendingTimers.delete(t); f(...a); }, ms)); pendingTimers.add(t); return t; };
-    const setInterval_ = (f, ms, ...a) => { const t = new Timeout(realSI(() => f(...a), ms), true); return t; };
+    // host timers and the host message queue race, so a timer that fires while the check phase is owed runs it first
+    const setTimeout_ = (f, ms, ...a) => { const t = new Timeout(realST(() => { pendingTimers.delete(t); if (immOwed) flushImm(); f(...a); }, ms)); pendingTimers.add(t); return t; };
+    const setInterval_ = (f, ms, ...a) => { const t = new Timeout(realSI(() => { if (immOwed) flushImm(); f(...a); }, ms), true); return t; };
     const clear = (t) => { if (t == null) return; pendingTimers.delete(t); const id = typeof t === "object" ? t.id : t; if (t && t.repeat) realCI(id); else realCT(id); };
     const immediates = [];
-    let immScheduled = false;
-    const flushImm = () => { immScheduled = false; const q = immediates.splice(0); for (const x of q) if (!x.gone) { pendingTimers.delete(x); x.f(...x.a); } };
+    // immOwed: an immediate was queued from a callback outside the check phase, so Node runs it before the next timers phase.
+    // ponytail: microtasks queued by those immediates run after the timer that forced them; a phase-ordered loop would fix that.
+    let immScheduled = false, immOwed = false, inCheck = false;
+    const flushImm = () => { immScheduled = false; immOwed = false; inCheck = true; const q = immediates.splice(0); try { for (const x of q) if (!x.gone) { pendingTimers.delete(x); x.f(...x.a); } } finally { inCheck = false; } };
     const macro = (fn) => {
       if (typeof MessageChannel !== "undefined") { const c = new MessageChannel(); c.port1.onmessage = () => { c.port1.close(); fn(); }; c.port2.postMessage(0); }
       else realST(fn, 0);
     };
-    const setImmediate_ = (f, ...a) => { const x = { f, a, gone: false }; immediates.push(x); pendingTimers.add(x); if (!immScheduled) { immScheduled = true; macro(flushImm); } return x; };
+    const setImmediate_ = (f, ...a) => { const x = { f, a, gone: false }; immediates.push(x); pendingTimers.add(x); if (!topLevel && !inCheck) immOwed = true; if (!immScheduled) { immScheduled = true; macro(flushImm); } return x; };
     const clearImmediate_ = (x) => { if (x) { x.gone = true; pendingTimers.delete(x); } };
 
     /* process */
