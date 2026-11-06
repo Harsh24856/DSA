@@ -16,7 +16,7 @@ import { ProblemRow } from "../ProblemRow";
 import { useMermaid } from "../useMermaid";
 import { Rich, inline } from "./Rich";
 import { OtherLab } from "./OtherLab";
-import type { PlayMode } from "@/lib/other/playground/compile";
+import { joinFiles, type PlayMode } from "@/lib/other/playground/compile";
 import { STARTERS, type Starter } from "@/lib/other/playground/starters";
 
 const Playground = dynamic(() => import("./playground/Playground"), { ssr: false, loading: () => <div className="pg h-[300px]" aria-hidden /> });
@@ -64,24 +64,29 @@ function CodeBlock({ code, lang, setLang }: { code: Code; lang: Lang; setLang(l:
   const subject = useContext(SubjectCtx);
   const [trying, setTrying] = useState(false);
   const [copied, setCopied] = useState(false);
-  const present = langsIn(code);
-  const pick = present.find(([k]) => k === lang) ?? present[0];
-  const [label, body] = pick ? [pick[1], code[pick[0]]!]
+  const project = code.files?.length && code.js ? [{ name: code.file ?? "server.js", js: code.js }, ...code.files] : null;
+  const [fileAt, setFileAt] = useState("0");
+  const present = project ? [] : langsIn(code);
+  const pick = project ? (["js", "JavaScript"] as const) : present.find(([k]) => k === lang) ?? present[0];
+  const shown = project?.[Number(fileAt)];
+  const [label, body] = shown ? [shown.name, shown.js] : pick ? [pick[1], code[pick[0]]!]
     : code.tsx ? ["React (TSX)", code.tsx] : code.sql ? ["SQL", code.sql] : ["", code.text ?? ""];
   const copy = () => void navigator.clipboard?.writeText(body).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1400); });
   const key = pick ? pick[0] : code.tsx ? "tsx" : code.sql ? "sql" : "";
-  const mode = playMode(key, body, subject);
+  const playBody = project ? joinFiles(project) : body;
+  const mode = playMode(key, playBody, subject);
   return (
     <div className="grid gap-2">
       {present.length > 1 && <Seg<Lang> label="Language" value={pick![0]} onChange={setLang} className="flex w-fit flex-wrap" options={present} />}
+      {project && <Seg<string> label="Files in this project" value={fileAt} onChange={setFileAt} className="flex w-fit flex-wrap" options={project.map((f, i) => [String(i), f.name] as const)} />}
       <div className="gx-code">
-        <div className="gx-code-head"><span>{code.file ?? label}</span>{mode && <button type="button" className="gx-copy gx-try" aria-expanded={trying} onClick={() => setTrying((t) => !t)}><CodeIcon size={13} aria-hidden />{trying ? "Close" : "Try it"}</button>}<button type="button" className="gx-copy" onClick={copy}>{copied ? "Copied" : "Copy"}</button></div>
+        <div className="gx-code-head"><span>{shown ? shown.name : code.file ?? label}</span>{mode && <button type="button" className="gx-copy gx-try" aria-expanded={trying} onClick={() => setTrying((t) => !t)}><CodeIcon size={13} aria-hidden />{trying ? "Close" : project ? "Try the project" : "Try it"}</button>}<button type="button" className="gx-copy" onClick={copy}>{copied ? "Copied" : "Copy"}</button></div>
         <AnimatePresence mode="wait" initial={false}>
           <motion.pre key={label} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}><code>{body}</code></motion.pre>
         </AnimatePresence>
       </div>
       {code.result && <div className="grid gap-1"><span className="t-eyebrow text-xs">Result</span><TableView t={code.result} /></div>}
-      {trying && mode && <Playground key={`${mode}-${label}`} mode={mode} code={key === "tsx" && code.demo ? `${body}\n\n${code.demo}` : body} setup={code.sqlSetup} title={`Edit and run: ${code.file ?? label}`} onClose={() => setTrying(false)} />}
+      {trying && mode && <Playground key={`${mode}-${project ? "project" : label}`} mode={mode} code={key === "tsx" && code.demo ? `${body}\n\n${code.demo}` : playBody} setup={code.sqlSetup} title={`Edit and run: ${project ? "every file, each after its // @file line" : code.file ?? label}`} onClose={() => setTrying(false)} />}
     </div>
   );
 }

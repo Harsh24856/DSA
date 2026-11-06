@@ -9,8 +9,10 @@ export type OtherLab = "paging" | "scheduling" | "banker" | "tcp" | "subnet" | "
 /** Code in one or more languages; two or more of cpp, java, python, js, ts show a language switch. check:other runs
  *  every one: SQL in SQLite (rows compared with `result`), Java and C++ compiled and run, Python and JavaScript run,
  *  TypeScript run with Node's type stripping, TSX type-checked, and Express apps started and stopped.
- *  `demo` is extra TSX added below `tsx` in the playground, for samples that export no ready-to-render App. */
-export type Code = { cpp?: string; java?: string; python?: string; js?: string; ts?: string; tsx?: string; sql?: string; sqlSetup?: string; demo?: string; text?: string; file?: string; result?: Table };
+ *  `demo` is extra TSX added below `tsx` in the playground, for samples that export no ready-to-render App.
+ *  `files` makes a JavaScript project: `file` + `js` is the entry, `files` the other modules it imports by relative path
+ *  ("./routes/notes.routes.js"). check:other writes them as a real folder with "type": "module" and runs the entry. */
+export type Code = { files?: { name: string; js: string }[]; cpp?: string; java?: string; python?: string; js?: string; ts?: string; tsx?: string; sql?: string; sqlSetup?: string; demo?: string; text?: string; file?: string; result?: Table };
 
 export type Card = {
   id: string;

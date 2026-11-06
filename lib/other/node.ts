@@ -139,26 +139,50 @@ console.log(users.length, text.trim().split("\\n"), Buffer.from("hi").toString("
   RT -->|"no match"| NF["404"]:::warn
   H1 -->|"throws or rejects"| EH["error handler: 500 + JSON"]:::bad`,
       caption: "Express sits on top of node:http: middleware first, then the router picks one handler, and errors jump to the error handler.",
+      points: [
+        "**One job per file.** `server.js` only starts listening. `app.js` builds the app: global middleware, then `app.use(path, router)` for each router, then the 404 and error handlers. `routes/` maps a method and path to middleware and a controller. `controllers/` read `req`, do the work and send `res`. `middleware/` holds reusable `(req, res, next)` functions.",
+        "A typical tree: `server.js`, `app.js`, `routes/users.routes.js`, `controllers/users.controller.js`, `middleware/auth.js`, `middleware/errors.js`, `models/user.model.js`. Every example from here on uses it; switch files with the tabs above the code.",
+        "Set `\"type\": \"module\"` in `package.json` so `.js` files are ES modules, and import with the full relative path and extension (`./routes/users.routes.js`): Node does not guess extensions for ES modules.",
+        "`app.js` exports the app without calling `listen()`, so tests can import it and start it on a free port.",
+      ],
       code: {
-        file: "server.mjs",
-        js: `import express from "express";
+        file: "server.js",
+        js: `import app from "./app.js";
+
+const PORT = Number(process.env.PORT) || 3000;
+app.listen(PORT, () => console.log(\`listening on http://localhost:\${PORT}\`));`,
+        files: [
+          { name: "app.js", js: `import express from "express";
+import usersRouter from "./routes/users.routes.js";
 
 const app = express();
-app.use(express.json());                                   // parse JSON request bodies
+app.use(express.json());                     // parse JSON bodies for every route
 
 app.get("/", (req, res) => res.send("ok"));
-app.get("/users/:id", (req, res) => {                      // route parameter
-  const { id } = req.params;
-  const { fields } = req.query;                            // /users/7?fields=name
+app.use("/users", usersRouter);              // every path in this router starts with /users
+
+export default app;                          // no listen() here, so tests can import the app` },
+          { name: "routes/users.routes.js", js: `import { Router } from "express";
+import { createUser, getUser } from "../controllers/users.controller.js";
+
+const router = Router();
+router.get("/:id", getUser);                 // GET /users/7?fields=name
+router.post("/", createUser);                // POST /users
+
+export default router;` },
+          { name: "controllers/users.controller.js", js: `// Controllers read the request, do the work and send the response. No routing in here.
+export function getUser(req, res) {
+  const { id } = req.params;                 // from the path pattern /:id
+  const { fields } = req.query;              // from the query string ?fields=name
   res.json({ id: Number(id), fields: fields ?? "all" });
-});
-app.post("/users", (req, res) => {
-  const { name } = req.body ?? {};
+}
+
+export function createUser(req, res) {
+  const { name } = req.body ?? {};           // from the JSON body
   if (!name) return res.status(400).json({ error: "name is required" });
   res.status(201).json({ id: 8, name });
-});
-
-app.listen(3000, () => console.log("listening on http://localhost:3000"));`,
+}` },
+        ],
       },
       cards: [
         { id: "raw-http", q: "What does Express add over node:http?", a: "Routing by method and path with parameters, a middleware chain, body parsing, helpers (`res.json`, `res.status`, `res.redirect`), static files, and a central error handler. With raw `http` you parse URLs, bodies and headers yourself and write one big if/else on `req.url`.",
@@ -195,37 +219,77 @@ server.listen(3000, () => console.log("raw server up"));` } },
   R1 -->|"next()"| R2
   R2 -->|"no"| T0["200 response"]:::ok`,
       caption: "Each middleware either responds or calls next(). Errors skip ahead to the error handler.",
+      points: [
+        "Three places to attach middleware: `app.use(fn)` in `app.js` for every request, `router.use(fn)` inside a routes file for every route below it, and `router.get(path, fn, controller)` for one route.",
+        "A middleware that needs settings is a **factory**: `requireRole(\"admin\")` returns the real `(req, res, next)` function.",
+        "Keep `notFound` and `errorHandler` in `middleware/errors.js` and register them last in `app.js`, after every router.",
+      ],
       code: {
-        file: "middleware.mjs",
-        js: `import express from "express";
+        file: "server.js",
+        js: `import app from "./app.js";
+
+const PORT = Number(process.env.PORT) || 3000;
+app.listen(PORT, () => console.log(\`listening on http://localhost:\${PORT}\`));`,
+        files: [
+          { name: "app.js", js: `import express from "express";
+import { logger } from "./middleware/logger.js";
+import { errorHandler, notFound } from "./middleware/errors.js";
+import accountRouter from "./routes/account.routes.js";
 
 const app = express();
+app.use(logger);                             // 1. runs for every request, in the order registered
+app.use(express.json());                     // 2. body parser
 
-app.use((req, res, next) => {                          // 1. logger: runs for every request
+app.get("/", (req, res) => res.json({ ok: true }));
+app.use("/account", accountRouter);          // 3. routes
+
+app.use(notFound);                           // 4. no route matched
+app.use(errorHandler);                       // 5. always last
+
+export default app;` },
+          { name: "middleware/logger.js", js: `export function logger(req, res, next) {
   const start = Date.now();
-  res.on("finish", () => console.log(req.method, req.url, res.statusCode, \`\${Date.now() - start}ms\`));
-  next();
-});
-app.use(express.json());                               // 2. body parser
-
-function requireAuth(req, res, next) {                 // 3. route-level middleware
+  res.on("finish", () => console.log(req.method, req.originalUrl, res.statusCode, \`\${Date.now() - start}ms\`));
+  next();                                    // pass control on, or the request hangs
+}` },
+          { name: "middleware/auth.js", js: `export function requireAuth(req, res, next) {
   const token = req.get("authorization")?.replace("Bearer ", "");
   if (token !== "secret-demo-token") return res.status(401).json({ error: "unauthorised" });
-  req.user = { id: 1, role: "admin" };
+  req.user = { id: 1, role: "admin" };       // later middleware and controllers read it
   next();
 }
 
-app.get("/", (req, res) => res.json({ ok: true }));
-app.get("/me", requireAuth, (req, res) => res.json(req.user));
-app.get("/boom", async () => { throw new Error("database down"); });   // Express 5 catches async throws
+export function requireRole(role) {          // a factory: returns a middleware set up for one role
+  return (req, res, next) => (req.user?.role === role ? next() : res.status(403).json({ error: "forbidden" }));
+}` },
+          { name: "middleware/errors.js", js: `// The last two middleware in app.js: one for "no route matched", one for errors.
+export function notFound(req, res) {
+  res.status(404).json({ error: "not found", path: req.originalUrl });
+}
 
-app.use((req, res) => res.status(404).json({ error: "not found" }));    // no route matched
-app.use((err, req, res, next) => {                     // error handler: 4 arguments
-  console.error(err.message);
-  res.status(err.status ?? 500).json({ error: "something went wrong" });
-});
+export function errorHandler(err, req, res, next) {   // 4 arguments: Express treats it as the error handler
+  const status = err.status ?? 500;
+  if (status >= 500) console.error(err.message);      // details go to the logs
+  res.status(status).json({ error: status < 500 ? err.message : "something went wrong" });   // never a stack trace
+}` },
+          { name: "routes/account.routes.js", js: `import { Router } from "express";
+import { requireAuth, requireRole } from "../middleware/auth.js";
+import { boom, me, stats } from "../controllers/account.controller.js";
 
-app.listen(3000);`,
+const router = Router();
+router.get("/boom", boom);                   // public: shows the error handler at work
+router.use(requireAuth);                     // every route below this line needs a token
+router.get("/me", me);
+router.get("/stats", requireRole("admin"), stats);   // route-level middleware, then the controller
+
+export default router;` },
+          { name: "controllers/account.controller.js", js: `export const me = (req, res) => res.json(req.user);
+export const stats = (req, res) => res.json({ users: 42 });
+
+export async function boom() {               // Express 5 sends async throws to the error handler
+  throw new Error("database down");
+}` },
+        ],
       },
       cards: [
         { id: "next-err", q: "What happens if a middleware neither responds nor calls next()?", a: "The request hangs until the client times out. Every path through a middleware must end the response or call `next()` (or `next(err)`)." },
@@ -265,47 +329,96 @@ app.listen(3000);`,
         ["Delete", "DELETE /api/notes/:id", "204", "404"],
       ] },
       code: {
-        file: "notes-api.mjs",
-        js: `import express from "express";
+        file: "server.js",
+        js: `import app from "./app.js";
 
-const notes = new Map([[1, { id: 1, text: "revise joins", done: false }]]);
-let nextId = 2;
-
-function validateNote(body) {                              // validate at the edge (or use zod)
-  if (typeof body?.text !== "string" || body.text.trim() === "") return "text must be a non-empty string";
-  if (body.text.length > 500) return "text is too long";
-  return null;
-}
-
-const router = express.Router();
-router.get("/", (req, res) => {
-  const page = Math.max(1, Number(req.query.page) || 1), size = 20;
-  const all = [...notes.values()];
-  res.json({ items: all.slice((page - 1) * size, page * size), total: all.length, page });
-});
-router.get("/:id", (req, res) => {
-  const note = notes.get(Number(req.params.id));
-  return note ? res.json(note) : res.status(404).json({ error: "note not found" });
-});
-router.post("/", (req, res) => {
-  const problem = validateNote(req.body);
-  if (problem) return res.status(400).json({ error: problem });
-  const note = { id: nextId++, text: req.body.text.trim(), done: false };
-  notes.set(note.id, note);
-  res.status(201).location(\`/api/notes/\${note.id}\`).json(note);
-});
-router.patch("/:id", (req, res) => {
-  const note = notes.get(Number(req.params.id));
-  if (!note) return res.status(404).json({ error: "note not found" });
-  if ("done" in (req.body ?? {})) note.done = Boolean(req.body.done);
-  res.json(note);
-});
-router.delete("/:id", (req, res) => (notes.delete(Number(req.params.id)) ? res.status(204).end() : res.status(404).json({ error: "note not found" })));
+const PORT = Number(process.env.PORT) || 3000;
+app.listen(PORT, () => console.log(\`listening on http://localhost:\${PORT}\`));`,
+        files: [
+          { name: "app.js", js: `import express from "express";
+import notesRouter from "./routes/notes.routes.js";
+import { errorHandler, notFound } from "./middleware/errors.js";
 
 const app = express();
 app.use(express.json());
-app.use("/api/notes", router);
-app.listen(3000);`,
+app.use("/api/notes", notesRouter);
+app.use(notFound);
+app.use(errorHandler);
+
+export default app;` },
+          { name: "routes/notes.routes.js", js: `import { Router } from "express";
+import { loadNote, validateNote } from "../middleware/notes.js";
+import * as notes from "../controllers/notes.controller.js";
+
+const router = Router();
+router.get("/", notes.list);                          // GET    /api/notes?page=2
+router.post("/", validateNote, notes.create);         // POST   /api/notes
+router.get("/:id", loadNote, notes.read);             // GET    /api/notes/1
+router.patch("/:id", loadNote, notes.update);         // PATCH  /api/notes/1
+router.delete("/:id", loadNote, notes.remove);        // DELETE /api/notes/1
+
+export default router;` },
+          { name: "middleware/notes.js", js: `import * as Note from "../models/note.model.js";
+
+export function validateNote(req, res, next) {        // validate at the edge (or use zod)
+  const text = req.body?.text;
+  if (typeof text !== "string" || text.trim() === "") return res.status(400).json({ error: "text must be a non-empty string" });
+  if (text.length > 500) return res.status(400).json({ error: "text is too long" });
+  next();
+}
+
+export function loadNote(req, res, next) {            // finds :id once, so controllers just use req.note
+  req.note = Note.find(Number(req.params.id));
+  return req.note ? next() : res.status(404).json({ error: "note not found" });
+}` },
+          { name: "controllers/notes.controller.js", js: `import * as Note from "../models/note.model.js";
+
+export function list(req, res) {
+  const page = Math.max(1, Number(req.query.page) || 1), size = 20;
+  const all = Note.all();
+  res.json({ items: all.slice((page - 1) * size, page * size), total: all.length, page });
+}
+
+export const read = (req, res) => res.json(req.note);
+
+export function create(req, res) {
+  const note = Note.create(req.body.text.trim());
+  res.status(201).location(\`/api/notes/\${note.id}\`).json(note);
+}
+
+export function update(req, res) {
+  if ("done" in (req.body ?? {})) req.note.done = Boolean(req.body.done);
+  res.json(req.note);
+}
+
+export function remove(req, res) {
+  Note.remove(req.note.id);
+  res.status(204).end();
+}` },
+          { name: "models/note.model.js", js: `// In-memory data. Swap this file for a database later; routes and controllers stay the same.
+const notes = new Map([[1, { id: 1, text: "revise joins", done: false }]]);
+let nextId = 2;
+
+export const all = () => [...notes.values()];
+export const find = (id) => notes.get(id);
+export const remove = (id) => notes.delete(id);
+
+export function create(text) {
+  const note = { id: nextId++, text, done: false };
+  notes.set(note.id, note);
+  return note;
+}` },
+          { name: "middleware/errors.js", js: `// The last two middleware in app.js: one for "no route matched", one for errors.
+export function notFound(req, res) {
+  res.status(404).json({ error: "not found", path: req.originalUrl });
+}
+
+export function errorHandler(err, req, res, next) {   // 4 arguments: Express treats it as the error handler
+  const status = err.status ?? 500;
+  if (status >= 500) console.error(err.message);      // details go to the logs
+  res.status(status).json({ error: status < 500 ? err.message : "something went wrong" });   // never a stack trace
+}` },
+        ],
       },
       cards: [
         { id: "put-patch", q: "PUT vs PATCH?", a: "PUT replaces the whole resource with the body you send (missing fields are cleared) and is idempotent. PATCH changes only the fields you send. Both should return 404 for a missing resource unless your API allows PUT to create." },
@@ -448,23 +561,51 @@ console.log(loadConfig({ PORT: "4000" }), await withRetry(flaky), "after", calls
         ["Secrets in the repo", "environment variables or a secret manager"],
       ] },
       code: {
-        file: "graceful.mjs",
-        js: `import express from "express";
+        file: "server.js",
+        js: `import app from "./app.js";
 
-const app = express();
-app.disable("x-powered-by");                         // do not advertise the framework
-app.get("/", (req, res) => res.json({ ok: true }));
-app.get("/healthz", (req, res) => res.json({ status: "up" }));   // for load balancers and Kubernetes
+const server = app.listen(Number(process.env.PORT) || 3000);
 
-const server = app.listen(3000);
-
-function shutdown(signal) {                          // finish in-flight requests, then exit
+function shutdown(signal) {                  // finish in-flight requests, then exit
   console.log(\`\${signal}: closing server\`);
   server.close(() => process.exit(0));
-  setTimeout(() => process.exit(1), 10_000).unref(); // force exit if something hangs
+  setTimeout(() => process.exit(1), 10_000).unref();   // force exit if something hangs
 }
 process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);`,
+        files: [
+          { name: "app.js", js: `import express from "express";
+import healthRouter from "./routes/health.routes.js";
+import { errorHandler, notFound } from "./middleware/errors.js";
+
+const app = express();
+app.disable("x-powered-by");                 // do not advertise the framework
+app.use(express.json({ limit: "100kb" }));   // refuse huge bodies
+// in a real app: app.use(helmet()), app.use(cors({ origin: [...] })), app.use(rateLimit(...)) go here
+
+app.get("/", (req, res) => res.json({ ok: true }));
+app.use("/healthz", healthRouter);           // for load balancers and Kubernetes
+app.use(notFound);
+app.use(errorHandler);                       // generic message to users, details to the logs
+
+export default app;` },
+          { name: "routes/health.routes.js", js: `import { Router } from "express";
+
+const router = Router();
+router.get("/", (req, res) => res.json({ status: "up", uptime: Math.round(process.uptime()) }));
+
+export default router;` },
+          { name: "middleware/errors.js", js: `// The last two middleware in app.js: one for "no route matched", one for errors.
+export function notFound(req, res) {
+  res.status(404).json({ error: "not found", path: req.originalUrl });
+}
+
+export function errorHandler(err, req, res, next) {   // 4 arguments: Express treats it as the error handler
+  const status = err.status ?? 500;
+  if (status >= 500) console.error(err.message);      // details go to the logs
+  res.status(status).json({ error: status < 500 ? err.message : "something went wrong" });   // never a stack trace
+}` },
+        ],
       },
       cards: [
         { id: "cors", q: "What is CORS, and does it protect your API?", a: "CORS is a browser rule: a page from origin A may read responses from origin B only if B's response headers allow A. It protects users' browsers, not your server: curl or a script ignores it. Restrict origins anyway, and still authenticate every request." },
@@ -474,50 +615,94 @@ process.on("SIGINT", shutdown);`,
     {
       id: "testing",
       title: "Testing an Express API",
-      summary: "Start the app on a random port (`listen(0)`) inside the test, call it with `fetch`, and assert on status codes and JSON. Node ships a test runner (`node:test`), so a small API needs no extra libraries.",
+      summary: "Import `app.js` (not `server.js`), start it on a random port (`listen(0)`) inside the test, call it with `fetch`, and assert on status codes and JSON. Controllers and middleware are plain functions in their own files, so they can also be unit tested directly. Node ships a test runner (`node:test`), so a small API needs no extra libraries.",
       work: ["A test suite earns trust by catching bugs. When a production bug appears, write the failing test first, then fix it.", "Keep the suite fast, or people will stop running it. Flaky tests should be fixed or deleted the same week."],
       diagram: `flowchart TB
-  B["before: app.listen(0)"] --> P["the OS picks a free port"]
-  P --> T1["test: POST /sum with a = 2, b = 3"]
-  P --> T2["test: POST /sum with a = '2'"]
+  B["before: import app.js, app.listen(0)"] --> P["the OS picks a free port"]
+  P --> T1["test: POST /math/sum with a = 2, b = 3"]
+  P --> T2["test: POST /math/sum with a = '2'"]
   T1 --> A1["assert 200 and sum 5"]:::ok
   T2 --> A2["assert 400"]:::ok
   A1 --> AF["after: server.close()"]
   A2 --> AF`,
       caption: "Each test file owns its server: a free port before, real HTTP calls in the tests, close after.",
       code: {
-        file: "api.test.mjs",
+        file: "app.test.js",
         js: `import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import express from "express";
-
-function buildApp() {                                // export a factory so tests get a fresh app
-  const app = express();
-  app.use(express.json());
-  app.post("/sum", (req, res) => {
-    const { a, b } = req.body ?? {};
-    if (typeof a !== "number" || typeof b !== "number") return res.status(400).json({ error: "a and b must be numbers" });
-    res.json({ sum: a + b });
-  });
-  return app;
-}
+import app from "./app.js";                  // the app, never server.js: tests pick their own port
+import { sum } from "./controllers/math.controller.js";
 
 let server, base;
 before(() => new Promise((resolve) => {
-  server = buildApp().listen(0, () => { base = \`http://127.0.0.1:\${server.address().port}\`; resolve(); });
+  server = app.listen(0, () => { base = \`http://127.0.0.1:\${server.address().port}\`; resolve(); });
 }));
 after(() => server.close());
 
+const post = (path, body) => fetch(\`\${base}\${path}\`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+
 test("adds two numbers", async () => {
-  const r = await fetch(\`\${base}/sum\`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ a: 2, b: 3 }) });
+  const r = await post("/math/sum", { a: 2, b: 3 });
   assert.equal(r.status, 200);
   assert.deepEqual(await r.json(), { sum: 5 });
 });
 
-test("rejects bad input", async () => {
-  const r = await fetch(\`\${base}/sum\`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ a: "2" }) });
+test("validation middleware rejects bad input", async () => {
+  const r = await post("/math/sum", { a: "2" });
   assert.equal(r.status, 400);
+});
+
+test("unknown route reaches the 404 middleware", async () => {
+  const r = await fetch(\`\${base}/nope\`);
+  assert.equal(r.status, 404);
+});
+
+test("a controller is a plain function: unit test it with a fake res", () => {
+  let sent;
+  sum({ body: { a: 1, b: 1 } }, { json: (x) => { sent = x; } });
+  assert.deepEqual(sent, { sum: 2 });
 });`,
+        files: [
+          { name: "app.js", js: `import express from "express";
+import mathRouter from "./routes/math.routes.js";
+import { errorHandler, notFound } from "./middleware/errors.js";
+
+const app = express();
+app.use(express.json());
+app.use("/math", mathRouter);
+app.use(notFound);
+app.use(errorHandler);
+
+export default app;` },
+          { name: "routes/math.routes.js", js: `import { Router } from "express";
+import { requireNumbers } from "../middleware/validate.js";
+import { sum } from "../controllers/math.controller.js";
+
+const router = Router();
+router.post("/sum", requireNumbers("a", "b"), sum);
+
+export default router;` },
+          { name: "middleware/validate.js", js: `export function requireNumbers(...keys) {    // factory: which body fields must be numbers
+  return (req, res, next) => {
+    const bad = keys.filter((k) => typeof req.body?.[k] !== "number");
+    return bad.length ? res.status(400).json({ error: \`\${bad.join(" and ")} must be numbers\` }) : next();
+  };
+}` },
+          { name: "controllers/math.controller.js", js: `export function sum(req, res) {
+  const { a, b } = req.body;                 // already checked by requireNumbers
+  res.json({ sum: a + b });
+}` },
+          { name: "middleware/errors.js", js: `// The last two middleware in app.js: one for "no route matched", one for errors.
+export function notFound(req, res) {
+  res.status(404).json({ error: "not found", path: req.originalUrl });
+}
+
+export function errorHandler(err, req, res, next) {   // 4 arguments: Express treats it as the error handler
+  const status = err.status ?? 500;
+  if (status >= 500) console.error(err.message);      // details go to the logs
+  res.status(status).json({ error: status < 500 ? err.message : "something went wrong" });   // never a stack trace
+}` },
+        ],
       },
       cards: [
         { id: "test-pyramid", q: "What should you test in a backend?", a: "Many fast unit tests for business rules (pure functions, services with fake repositories), fewer integration tests that hit the real HTTP layer and a test database, and a handful of end-to-end tests of critical flows. Test error paths and auth, not just the happy path." },
