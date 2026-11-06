@@ -293,7 +293,7 @@ export const SYN_GROUPS: { title: string; topics: SynTopic[] }[] = [
       ts: "A generic `firstIndex<T>` works for any sorted array.",
       rust: "`partition_point` is lower and upper bound; `binary_search` returns `Ok(index)` or `Err(insertion point)`.",
     } },
-    { id: "math", title: "Math helpers: gcd, integer sqrt, ceiling division, infinity", idea: "The small utilities every coding round needs, and the float traps around them.", notes: {
+    { id: "math", title: "Math helpers: gcd, sqrt, ceiling", idea: "The small utilities every coding round needs, and the float traps around them.", notes: {
       cpp: "`gcd` and `lcm` live in `<numeric>` (C++17). `pow` returns a double: use shifts or a loop for integers. `(a + b - 1) / b` is ceiling division.",
       java: "No gcd for ints (BigInteger has one). `Math.pow` returns a double. `Long.MAX_VALUE` is the usual infinity; adding to it overflows.",
       python: "`math.gcd`, `math.lcm`, `math.isqrt` (exact) and `math.inf`. `-(-a // b)` is ceiling division.",

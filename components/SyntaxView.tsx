@@ -47,7 +47,7 @@ export function SyntaxView({ code, out, outBy }: { code: Record<string, Record<S
             <div key={g.title} className="flex flex-wrap items-center gap-2">
               <p className="t-eyebrow w-full sm:w-44 sm:shrink-0">{g.title}</p>
               {g.topics.map((x) => (
-                <button key={x.id} type="button" className="chip" aria-current={x.id === topic ? "step" : undefined} onClick={() => setTopic(x.id)}>
+                <button key={x.id} type="button" className="chip h-auto min-h-7 max-w-full whitespace-normal py-1 text-left" aria-current={x.id === topic ? "step" : undefined} onClick={() => setTopic(x.id)}>
                   {x.title}{learned(x.id, lang) && <Check size={12} weight="bold" aria-label="learned" />}
                 </button>
               ))}
