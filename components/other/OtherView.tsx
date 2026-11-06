@@ -1,13 +1,14 @@
 "use client";
-// One subject page of the "Other" section: header with progress and contents, then chapters. Each chapter has
-// notes, a diagram, code, an optional lab and interview questions whose answers open on demand.
+// The "Other" section's subject page (chapter list with progress) and chapter page (one chapter: notes, a diagram,
+// code, walk-through, lab, stories and interview questions whose answers open on demand, then prev/next).
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, ArrowSquareOut, Briefcase, Buildings, CaretDown, Check, Code as CodeIcon, Flask, WarningCircle } from "@phosphor-icons/react";
-import type { Card, Chapter, Code, Subject, Table } from "@/lib/other/types";
-import { chapterKey } from "@/lib/other";
+import { ArrowLeft, ArrowRight, ArrowSquareOut, Briefcase, Buildings, CaretDown, Check, Code as CodeIcon, Flask, Play, WarningCircle } from "@phosphor-icons/react";
+import type { Card, Chapter, Code, Table } from "@/lib/other/types";
+import { chapterKey, type ChapterMeta, type SubjectMeta } from "@/lib/other";
 import { usePatterns } from "@/lib/patternStore";
 import { useStore } from "@/lib/store";
 import { P } from "@/lib/problems";
@@ -138,36 +139,6 @@ function RealWorld({ ch }: { ch: Chapter }) {
   );
 }
 
-function ChapterView({ subject, ch, n, lang, setLang }: { subject: string; ch: Chapter; n: number; lang: Lang; setLang(l: Lang): void }) {
-  const { done, toggle } = usePatterns();
-  const key = chapterKey(subject, ch.id), on = !!done[key];
-  return (
-    <motion.article id={ch.id} className="card gx-slide" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(n, 4) * 0.04, ease: [0.22, 1, 0.36, 1] }}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="gx-slide-tag"><b>Chapter {n}</b>{ch.lab && <span className="ml-2 inline-flex items-center gap-1 text-accent"><Flask size={12} weight="fill" aria-hidden />lab</span>}</div>
-        <button type="button" onClick={() => toggle(key, !on)} aria-pressed={on} className="btn btn-sm">
-          <span className="tick pointer-events-none size-5" data-on={on || undefined} aria-hidden>{on && <Check size={12} weight="bold" />}</span>Done
-        </button>
-      </div>
-      <h3>{ch.title}</h3>
-      <Rich text={ch.summary} />
-      {ch.points && <ul>{ch.points.map((p) => <li key={p}>{inline(p)}</li>)}</ul>}
-      {ch.diagram && <Mermaid src={ch.diagram} caption={ch.caption} />}
-      {ch.table && <TableView t={ch.table} />}
-      {ch.code && <CodeBlock code={ch.code} lang={lang} setLang={setLang} />}
-      {ch.anim && <FlowPlayer id={ch.anim} />}
-      {ch.lab && <OtherLab kind={ch.lab} />}
-      <RealWorld ch={ch} />
-      {ch.cards.length > 0 && (
-        <>
-          <h4>Interview questions</h4>
-          <ol className="grid gap-2">{ch.cards.map((c, i) => <QA key={c.id} card={c} n={i + 1} lang={lang} setLang={setLang} />)}</ol>
-        </>
-      )}
-    </motion.article>
-  );
-}
-
 function SqlPractice() {
   const { ready } = useStore();
   const seen = new Set<string>();
@@ -204,43 +175,121 @@ function SubjectPlayground({ starters }: { starters: Starter[] }) {
   );
 }
 
-export function OtherView({ subject }: { subject: Subject }) {
-  const { done } = usePatterns();
+
+/** The code language picked last, shared by every code block and remembered across pages. */
+function useLang() {
   const [lang, setLangRaw] = useState<Lang>("java");
   useEffect(() => { try { const l = localStorage.getItem(LANG_KEY); if (LANGS.some(([k]) => k === l)) setLangRaw(l as Lang); } catch {} }, []);
   const setLang = (l: Lang) => { setLangRaw(l); try { localStorage.setItem(LANG_KEY, l); } catch {} };
-  const n = subject.chapters.filter((c) => done[chapterKey(subject.id, c.id)]).length;
-  const cards = subject.chapters.reduce((s, c) => s + c.cards.length, 0);
-  // languages that appear together anywhere on this page: offer one switch at the top for all of them
-  const pageLangs = LANGS.filter(([k]) => subject.chapters.some((c) => (langsIn(c.code).length > 1 && c.code?.[k]) || c.cards.some((x) => langsIn(x.code).length > 1 && x.code?.[k])));
+  return [lang, setLang] as const;
+}
+
+const EASE = [0.22, 1, 0.36, 1] as const;
+const href = (subject: string, chapter: string) => `/other/${subject}/${chapter}`;
+
+/** One subject: progress, the playground and the list of chapters, each opening on its own page. */
+export function SubjectHub({ subject }: { subject: SubjectMeta }) {
+  const { done } = usePatterns();
+  const router = useRouter();
+  const chs = subject.chapters, isDone = (c: ChapterMeta) => !!done[chapterKey(subject.id, c.id)];
+  const n = chs.filter(isDone).length, cards = chs.reduce((s, c) => s + c.cards, 0), next = chs.find((c) => !isDone(c));
+  // old links pointed at /other/<subject>#<chapter>: send them to the chapter's own page
+  useEffect(() => { const id = location.hash.slice(1); if (chs.some((c) => c.id === id)) router.replace(href(subject.id, id)); }, [chs, router, subject.id]);
 
   return (
     <div className="gx flex flex-col gap-6">
       <Link href="/other" className="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted no-underline transition-colors hover:text-accent"><ArrowLeft size={14} aria-hidden />All subjects</Link>
       <section className="card flex flex-col gap-3 p-6" aria-labelledby="sub-title">
-        <span className="t-eyebrow">{subject.chapters.length} chapters · {cards} questions</span>
+        <span className="t-eyebrow">{chs.length} chapters · {cards} questions</span>
         <h2 id="sub-title" className="t-title">{subject.name}</h2>
         <p className="max-w-[72ch] text-sm leading-relaxed text-muted">{subject.blurb}</p>
-        <div className="flex items-center gap-3"><Bar value={n} max={subject.chapters.length} className="flex-1" /><span className="num text-xs text-muted">{n} / {subject.chapters.length} done</span></div>
-        {pageLangs.length > 1 && <div className="flex flex-wrap items-center gap-2 text-sm"><span className="text-muted">Code in</span><Seg<Lang> label="Language" value={pageLangs.some(([k]) => k === lang) ? lang : pageLangs[0][0]} onChange={setLang} className="flex flex-wrap" options={pageLangs} /></div>}
-        <nav aria-label="Chapters" className="mt-1 border-t border-line pt-3">
-          <ol className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
-            {subject.chapters.map((c, k) => (
-              <li key={c.id} className="max-w-none">
-                <a href={`#${c.id}`} className="flex gap-3 rounded-control py-1 text-sm text-ink no-underline transition-colors hover:text-accent">
-                  <span className="num w-5 shrink-0 pt-px text-xs text-muted">{String(k + 1).padStart(2, "0")}</span>
-                  <span className="min-w-0 font-medium">{c.title}{c.lab && <Flask size={12} weight="fill" className="ml-2 inline text-accent" aria-label="has a lab" />}{done[chapterKey(subject.id, c.id)] && <Check size={12} weight="bold" className="ml-2 inline text-easy" aria-label="done" />}</span>
-                </a>
-              </li>
-            ))}
-          </ol>
-        </nav>
+        <div className="flex items-center gap-3"><Bar value={n} max={chs.length} className="flex-1" /><span className="num text-xs text-muted">{n} / {chs.length} done</span></div>
+        {next && <Link href={href(subject.id, next.id)} className="btn btn-primary w-fit">{n ? "Continue" : "Start"}: {next.title}<ArrowRight size={16} aria-hidden /></Link>}
       </section>
       {STARTERS[subject.id] && <SubjectPlayground starters={STARTERS[subject.id]} />}
-      <SubjectCtx.Provider value={subject.id}>
-        {subject.chapters.map((c, k) => <ChapterView key={c.id} subject={subject.id} ch={c} n={k + 1} lang={lang} setLang={setLang} />)}
-      </SubjectCtx.Provider>
+      <nav aria-label="Chapters">
+        <ol className="grid gap-4 sm:grid-cols-2">
+          {chs.map((c, k) => (
+            <motion.li key={c.id} className="max-w-none" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(k, 6) * 0.03, ease: EASE }}>
+              <Link href={href(subject.id, c.id)} className="card group flex h-full flex-col gap-2 p-6 text-ink no-underline transition hover:border-line-strong hover:bg-surface-2 active:scale-[0.99]">
+                <div className="flex items-center gap-3">
+                  <span className="num text-xs text-muted">{String(k + 1).padStart(2, "0")}</span>
+                  <h3 className="t-h3 min-w-0 flex-1">{c.title}</h3>
+                  {isDone(c) ? <Check size={16} weight="bold" className="shrink-0 text-easy" aria-label="done" /> : <ArrowRight size={16} className="shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent" aria-hidden />}
+                </div>
+                <p className="m-0 line-clamp-2 flex-1 text-sm text-muted">{inline(c.blurb)}</p>
+                <div className="flex flex-wrap gap-2">
+                  {c.lab && <span className="pill pill-accent inline-flex items-center gap-1"><Flask size={12} weight="fill" aria-hidden />lab</span>}
+                  {c.anim && <span className="pill pill-accent inline-flex items-center gap-1"><Play size={12} weight="fill" aria-hidden />walk-through</span>}
+                  {c.cards > 0 && <span className="pill pill-muted">{c.cards} questions</span>}
+                </div>
+              </Link>
+            </motion.li>
+          ))}
+        </ol>
+      </nav>
       {subject.id === "sql" && <SqlPractice />}
+    </div>
+  );
+}
+
+/** One chapter on its own page: head with the Done tick, notes, diagram, code, walk-through, lab, stories,
+ *  interview questions, then links to the previous and next chapter. */
+export function ChapterPage({ subject, chapter: ch }: { subject: SubjectMeta; chapter: Chapter }) {
+  const { done, toggle } = usePatterns();
+  const [lang, setLang] = useLang();
+  const chs = subject.chapters, i = chs.findIndex((c) => c.id === ch.id), prev = chs[i - 1], next = chs[i + 1];
+  const key = chapterKey(subject.id, ch.id), on = !!done[key];
+  const n = chs.filter((c) => done[chapterKey(subject.id, c.id)]).length;
+  // languages that appear together on this page: one switch at the top for all of them
+  const pageLangs = LANGS.filter(([k]) => (langsIn(ch.code).length > 1 && ch.code?.[k]) || ch.cards.some((x) => langsIn(x.code).length > 1 && x.code?.[k]));
+
+  return (
+    <div className="gx flex flex-col gap-6">
+      <Link href={`/other/${subject.id}`} className="inline-flex w-fit items-center gap-2 text-sm font-medium text-muted no-underline transition-colors hover:text-accent"><ArrowLeft size={14} aria-hidden />{subject.name}</Link>
+      <section className="card flex flex-col gap-3 p-6" aria-labelledby="ch-title">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="t-eyebrow">Chapter {i + 1} of {chs.length}</span>
+          <button type="button" onClick={() => toggle(key, !on)} aria-pressed={on} className="btn btn-sm">
+            <span className="tick pointer-events-none size-5" data-on={on || undefined} aria-hidden>{on && <Check size={12} weight="bold" />}</span>Chapter done
+          </button>
+        </div>
+        <h2 id="ch-title" className="t-title">{ch.title}</h2>
+        <div className="flex flex-wrap gap-2">
+          {ch.lab && <span className="pill pill-accent inline-flex items-center gap-1"><Flask size={12} weight="fill" aria-hidden />lab</span>}
+          {ch.anim && <span className="pill pill-accent inline-flex items-center gap-1"><Play size={12} weight="fill" aria-hidden />walk-through</span>}
+          {ch.cards.length > 0 && <span className="pill pill-muted">{ch.cards.length} questions</span>}
+        </div>
+        <div className="flex items-center gap-3"><Bar value={n} max={chs.length} className="flex-1" /><span className="num text-xs text-muted">{n} / {chs.length} chapters done</span></div>
+        {pageLangs.length > 1 && <div className="flex flex-wrap items-center gap-2 text-sm"><span className="text-muted">Code in</span><Seg<Lang> label="Language" value={pageLangs.some(([k]) => k === lang) ? lang : pageLangs[0][0]} onChange={setLang} className="flex flex-wrap" options={pageLangs} /></div>}
+      </section>
+
+      <SubjectCtx.Provider value={subject.id}>
+        <motion.article key={ch.id} className="card gx-slide" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: EASE }}>
+          <Rich text={ch.summary} />
+          {ch.points && <ul>{ch.points.map((p) => <li key={p}>{inline(p)}</li>)}</ul>}
+          {ch.diagram && <Mermaid src={ch.diagram} caption={ch.caption} />}
+          {ch.table && <TableView t={ch.table} />}
+          {ch.code && <CodeBlock code={ch.code} lang={lang} setLang={setLang} />}
+          {ch.anim && <FlowPlayer id={ch.anim} />}
+          {ch.lab && <OtherLab kind={ch.lab} />}
+          <RealWorld ch={ch} />
+        </motion.article>
+        {ch.cards.length > 0 && (
+          <section className="card gx-slide" aria-labelledby="ch-qs">
+            <h3 id="ch-qs">Interview questions</h3>
+            <p className="m-0 text-sm text-muted">Answer out loud first, then open the card.</p>
+            <ol className="grid gap-2">{ch.cards.map((c, k) => <QA key={c.id} card={c} n={k + 1} lang={lang} setLang={setLang} />)}</ol>
+          </section>
+        )}
+      </SubjectCtx.Provider>
+
+      <nav className="grid gap-3 sm:grid-cols-2" aria-label="Chapters">
+        {prev ? <Link href={href(subject.id, prev.id)} className="btn btn-nav justify-start gap-3"><ArrowLeft size={16} aria-hidden /><span><span className="block text-xs font-normal text-muted">Previous</span>{prev.title}</span></Link> : <span />}
+        {next
+          ? <Link href={href(subject.id, next.id)} onClick={() => { if (!on) toggle(key, true); }} className="btn btn-nav justify-end gap-3 text-right"><span><span className="block text-xs font-normal text-muted">{on ? "Next" : "Done, next"}</span>{next.title}</span><ArrowRight size={16} aria-hidden /></Link>
+          : <Link href={`/other/${subject.id}`} onClick={() => { if (!on) toggle(key, true); }} className="btn btn-nav justify-end gap-3 text-right"><span><span className="block text-xs font-normal text-muted">{on ? "Back to" : "Done, back to"}</span>{subject.name}</span><ArrowRight size={16} aria-hidden /></Link>}
+      </nav>
     </div>
   );
 }
