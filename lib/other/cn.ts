@@ -5,6 +5,7 @@ export const CN: Subject = {
   name: "Computer Networks",
   short: "CN",
   blurb: "The layer models, addressing and subnetting, TCP and UDP, DNS, HTTP and TLS, routing and the classic \"what happens when you type a URL\". Interviewers want the flow, not memorised acronyms.",
+  parts: [["Foundations", "layers"], ["Protocols", "transport"], ["Routing and security", "routing"]],
   chapters: [
     {
       id: "layers",

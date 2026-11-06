@@ -270,7 +270,7 @@ const controlled: Flow = { kind: "lanes", title: "One keystroke in a controlled 
   { from: 0, to: 1, label: "form action", note: "React 19: <form action={save}> passes FormData to save, and useActionState tracks pending and the result.", tone: "ok" },
 ] };
 
-const contextFlow: Flow = { kind: "lanes", title: "A context update", lanes: ["ThemeProvider", "Page (no theme)", "Button (reads theme)"], steps: [
+const contextFlow: Flow = { kind: "lanes", title: "A context update", lanes: ["Provider", "Page (no theme)", "Button (reads theme)"], steps: [
   { from: 0, to: 0, label: "value: dark", note: "The provider holds the theme in state and passes it as value." },
   { from: 0, to: 2, label: "useContext: dark", note: "Button reads it directly, with no props threaded through Page.", tone: "hot" },
   { from: 0, to: 0, label: "set light", note: "The theme changes: the provider's value is a new object." },

@@ -5,6 +5,7 @@ export const NODE: Subject = {
   name: "Node.js and Express",
   short: "Node",
   blurb: "The Node runtime and its event loop, modules, files and streams, then Express from first route to middleware, REST design, auth, validation, errors, security, testing and production. Every script here runs, and every Express app is started and stopped by the check.",
+  parts: [["Runtime", "runtime"], ["Building APIs", "http"], ["Production", "auth"]],
   chapters: [
     {
       id: "runtime",

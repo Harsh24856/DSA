@@ -5,6 +5,7 @@ export const OOPS: Subject = {
   name: "OOP in Java and C++",
   short: "OOPs",
   blurb: "Classes and objects, the four pillars, constructors and copying, inheritance and the diamond problem, polymorphism and the vtable, abstraction, relationships, SOLID and common patterns. Every example is a complete program in both Java and C++; switch languages at the top.",
+  parts: [["Classes", "basics"], ["Inheritance and polymorphism", "inheritance"], ["Design", "relationships"]],
   chapters: [
     {
       id: "basics",

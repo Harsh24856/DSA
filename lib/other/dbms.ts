@@ -5,6 +5,7 @@ export const DBMS: Subject = {
   name: "DBMS",
   short: "DBMS",
   blurb: "Keys, ER modelling, functional dependencies and normalization, transactions and ACID, concurrency control, recovery and indexing. Expect both definitions and small worked problems.",
+  parts: [["Design", "basics"], ["Transactions", "acid"], ["Storage and scale", "indexing"]],
   chapters: [
     {
       id: "basics",

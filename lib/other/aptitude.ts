@@ -5,6 +5,7 @@ export const APTITUDE: Subject = {
   name: "Aptitude",
   short: "Aptitude",
   blurb: "Number system, percentages and interest, ratios and mixtures, time and work, speed and distance, counting and probability, reasoning and data interpretation. Short formulas, worked examples with fresh numbers, and an unlimited practice drill.",
+  parts: [["Practice", "drill"], ["Quantitative", "numbers"], ["Reasoning and data", "reasoning"]],
   chapters: [
     {
       id: "drill",
