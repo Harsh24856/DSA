@@ -271,7 +271,7 @@ for (const s of SUBJECTS) for (const ch of s.chapters) {
     const d = mkdtempSync(join(dir, "s-"));
     const ex = (cmd: string, args: string[]) => execFileSync(cmd, args, { encoding: "utf8", stdio: "pipe", timeout: 30000 });
     switch (lang) {
-      case "cpp": return runCpp("syntax", src);
+      case "cpp": writeFileSync(join(d, "m.cpp"), src); ex("c++", ["-std=c++20", "-Wall", "-Werror", "-o", join(d, "a"), join(d, "m.cpp")]); return ex(join(d, "a"), []);   // C++20, like the playground
       case "java": return runJava("syntax", src);
       case "python": writeFileSync(join(d, "m.py"), src); return ex("python3", ["-I", join(d, "m.py")]);
       case "js": writeFileSync(join(d, "m.mjs"), src); return ex("node", [join(d, "m.mjs")]);
