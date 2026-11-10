@@ -39,6 +39,7 @@ const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void>; pr
   ...["os/storage", "sql/nulls", "design/estimation", "design/consistency", "design/reliability", "react/perf", "aptitude/reasoning", "cn/layers"].map((c) => ({ name: `other-lab-${c.replace("/", "-")}`, path: `/other/${c}` })),
   { name: "revise", path: "/other/revise" },
   { name: "revise-dsa", path: "/other/revise/dsa" },
+  { name: "revise-dsa-open", path: "/other/revise/dsa", prep: async (p) => { await p.getByRole("button", { name: "Open all topics" }).click(); } },
   { name: "revise-dsa-quiz", path: "/other/revise/dsa#gotchas", prep: async (p) => { await p.getByRole("button", { name: "Hide answers" }).click(); } },
   { name: "revise-genai", path: "/other/revise/genai" },
   { name: "revise-os", path: "/other/revise/os" },

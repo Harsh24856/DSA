@@ -3,8 +3,8 @@
 // "Revised" tick (`revise:<sheet>` in the patterns store).
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowUp, Check, Copy, WarningCircle } from "@phosphor-icons/react";
-import type { Sheet, SheetSummary } from "@/lib/revise";
+import { ArrowLeft, ArrowRight, ArrowUp, CaretDown, Check, Copy, WarningCircle } from "@phosphor-icons/react";
+import type { RevSection, Sheet, SheetSummary } from "@/lib/revise";
 import type { CppTemplate } from "@/lib/revise/cpp";
 import type { Table } from "@/lib/other/types";
 import { usePatterns } from "@/lib/patternStore";
@@ -47,8 +47,8 @@ function TableBlock({ t }: { t: Table }) {
   return (
     <>
       <dl className="grid gap-2 sm:hidden">
-        {t.rows.map((r) => (
-          <div key={r[0]} className="tile p-3 text-sm">
+        {t.rows.map((r, i) => (
+          <div key={i} className="tile p-3 text-sm">
             <dt className="font-semibold">{r[0]}</dt>
             {r.slice(1).map((c, k) => c && <dd key={k} className="m-0"><span className="text-muted">{t.head[k + 1] || t.head[0]}: </span>{inline(c)}</dd>)}
           </div>
@@ -57,12 +57,15 @@ function TableBlock({ t }: { t: Table }) {
       <div className="hidden overflow-x-auto sm:block">
         <table className="pg-table w-full text-left text-sm">
           <thead><tr>{t.head.map((h, k) => <th key={k}>{h}</th>)}</tr></thead>
-          <tbody>{t.rows.map((r) => <tr key={r[0]}>{r.map((c, k) => <td key={k} className={k ? "num" : ""}>{inline(c)}</td>)}</tr>)}</tbody>
+          <tbody>{t.rows.map((r, i) => <tr key={i}>{r.map((c, k) => <td key={k} className={k ? "num" : ""}>{inline(c)}</td>)}</tr>)}</tbody>
         </table>
       </div>
     </>
   );
 }
+
+/** A topic panel is a <details>: opening it before scrolling there means a jump lands on its content. */
+const openSection = (id: string) => { const el = document.getElementById(id); if (el instanceof HTMLDetailsElement) el.open = true; };
 
 /** Follows the reader down a long sheet: shows the section in view and jumps to any other. */
 function SectionJump({ sections }: { sections: { id: string; title: string }[] }) {
@@ -83,7 +86,7 @@ function SectionJump({ sections }: { sections: { id: string; title: string }[] }
     addEventListener("scroll", onScroll, { passive: true });
     return () => { removeEventListener("scroll", onScroll); cancelAnimationFrame(frame); };
   }, [sections]);
-  const go = (id: string) => { setCurrent(id); document.getElementById(id)?.scrollIntoView(); history.replaceState(null, "", `#${id}`); };
+  const go = (id: string) => { setCurrent(id); openSection(id); document.getElementById(id)?.scrollIntoView(); history.replaceState(null, "", `#${id}`); };
   return (
     <div className="card sticky top-24 z-10 flex items-center gap-2 p-2">
       <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
@@ -99,7 +102,7 @@ function SectionJump({ sections }: { sections: { id: string; title: string }[] }
 
 function Answer({ quiz, children }: { quiz: boolean; children: React.ReactNode }) {
   if (!quiz) return <>{children}</>;
-  return <details className="mt-1"><summary className="cursor-pointer text-sm font-medium text-accent">Show answer</summary><div className="mt-1">{children}</div></details>;
+  return <details className="mt-1 border-0 bg-transparent"><summary className="no-count cursor-pointer border-0 px-0 py-1 text-sm font-medium text-accent">Show answer</summary><div className="mt-1">{children}</div></details>;
 }
 
 function CodeCard({ t, quiz }: { t: CppTemplate; quiz: boolean }) {
@@ -119,9 +122,40 @@ function CodeCard({ t, quiz }: { t: CppTemplate; quiz: boolean }) {
   );
 }
 
+function SectionBody({ s, quiz }: { s: RevSection; quiz: boolean }) {
+  return (
+    <>
+      {s.lead && <Rich text={s.lead} className="text-sm text-muted" />}
+      {s.points && s.points.length > 0 && <div className="text-sm"><ul>{s.points.map((p) => <li key={p}>{inline(p)}</li>)}</ul></div>}   {/* a bare ul gets the .gx bullets */}
+      {s.table && <TableBlock t={s.table} />}
+      {s.code && s.code.length > 0 && <ol className="grid grid-cols-1 gap-3">{s.code.map((t) => <CodeCard key={t.id} t={t} quiz={quiz} />)}</ol>}
+      {s.items && (
+        <ol className="grid grid-cols-1 gap-3">
+          {s.items.map((it, k) => (
+            <li key={k} className="max-w-none border-t border-line pt-3 first:border-t-0 first:pt-0">
+              <p className="m-0 font-semibold">{inline(it.q)}</p>
+              <Answer quiz={quiz}>
+                <Rich text={it.a} className="text-sm" />
+                {it.trap && <p className="mt-1 flex gap-1 text-sm text-medium"><WarningCircle size={16} weight="bold" className="mt-0.5 shrink-0" aria-hidden /><span><b>Trap:</b> {inline(it.trap)}</span></p>}
+              </Answer>
+            </li>
+          ))}
+        </ol>
+      )}
+    </>
+  );
+}
+
 export function RevisionView({ sheet, prev, next }: { sheet: Sheet; prev?: SheetSummary; next?: SheetSummary }) {
   const { done, toggle } = usePatterns();
   const [quiz, setQuiz] = useState(false);
+  const [allOpen, setAllOpen] = useState(false);
+  useEffect(() => {                                    // a link to #t-graph opens that topic
+    const fromHash = () => openSection(location.hash.slice(1));
+    fromHash();
+    addEventListener("hashchange", fromHash);
+    return () => removeEventListener("hashchange", fromHash);
+  }, []);
   const on = !!done[tick(sheet.id)];
   return (
     <div className="gx flex min-w-0 flex-col gap-6">
@@ -145,26 +179,28 @@ export function RevisionView({ sheet, prev, next }: { sheet: Sheet; prev?: Sheet
 
       <SectionJump sections={sheet.sections} />
 
-      {sheet.sections.map((s) => (
+      {sheet.sections.some((x) => x.collapsible) && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="m-0 text-sm text-muted">Open a topic to study it: basics, C++ code and its patterns.</p>
+          <button type="button" className="btn btn-sm" onClick={() => setAllOpen((o) => !o)}>{allOpen ? "Close all topics" : "Open all topics"}</button>
+        </div>
+      )}
+
+      {sheet.sections.map((s) => s.collapsible ? (
+        <details key={s.id} id={s.id} className="card group min-w-0 scroll-mt-24 rounded-card bg-surface" open={allOpen || undefined}>
+          <summary className="no-count flex cursor-pointer list-none items-center gap-3 p-6 [&::-webkit-details-marker]:hidden">
+            <div className="min-w-0 flex-1">
+              <h3 id={`h-${s.id}`} className="t-h3">{s.title}</h3>
+              {s.meta && <p className="m-0 mt-1 text-sm text-muted">{s.meta}</p>}
+            </div>
+            <CaretDown size={18} className="shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden />
+          </summary>
+          <div className="gx-slide"><SectionBody s={s} quiz={quiz} /></div>
+        </details>
+      ) : (
         <section key={s.id} id={s.id} className="card gx-slide min-w-0" aria-labelledby={`h-${s.id}`}>
           <h3 id={`h-${s.id}`}>{s.title}</h3>
-          {s.lead && <Rich text={s.lead} className="text-sm text-muted" />}
-          {s.points && s.points.length > 0 && <div className="text-sm"><ul>{s.points.map((p) => <li key={p}>{inline(p)}</li>)}</ul></div>}   {/* a bare ul gets the .gx bullets */}
-          {s.table && <TableBlock t={s.table} />}
-          {s.code && <ol className="grid grid-cols-1 gap-3">{s.code.map((t) => <CodeCard key={t.id} t={t} quiz={quiz} />)}</ol>}
-          {s.items && (
-            <ol className="grid grid-cols-1 gap-3">
-              {s.items.map((it, k) => (
-                <li key={k} className="max-w-none border-t border-line pt-3 first:border-t-0 first:pt-0">
-                  <p className="m-0 font-semibold">{inline(it.q)}</p>
-                  <Answer quiz={quiz}>
-                    <Rich text={it.a} className="text-sm" />
-                    {it.trap && <p className="mt-1 flex gap-1 text-sm text-medium"><WarningCircle size={16} weight="bold" className="mt-0.5 shrink-0" aria-hidden /><span><b>Trap:</b> {inline(it.trap)}</span></p>}
-                  </Answer>
-                </li>
-              ))}
-            </ol>
-          )}
+          <SectionBody s={s} quiz={quiz} />
         </section>
       ))}
 

@@ -262,6 +262,7 @@
   .gx summary{display:flex;gap:12px;padding:12px 16px;font-weight:550;cursor:pointer;list-style:none}
   .gx summary::-webkit-details-marker{display:none}
   .gx summary::before{content:counter(q,decimal-leading-zero);flex:none;padding-top:2px;font-family:var(--mono);font-size:12px;color:var(--accent)}
+  .gx summary.no-count::before{content:none}   /* disclosures that are not numbered questions (revision sheets) */
   .gx details[open] summary{border-bottom:1px solid var(--line)}
   .gx-ans{display:grid;gap:8px;padding:12px 16px 16px}
   .gx-task-list{display:grid;gap:8px;list-style:none;padding:0}

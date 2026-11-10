@@ -258,8 +258,13 @@ test("Revision: the DSA cheat sheet, answers hidden on demand, and sheets ticked
   await page.goto("/drill");
   await page.getByRole("link", { name: "DSA cheat sheet" }).click();
   await expect(page.getByRole("heading", { name: "DSA tech interview cheat sheet" })).toBeVisible({ timeout: 30_000 });   // the dev server compiles the sheet on first visit
-  await expect(page.getByRole("heading", { name: "C++ templates to know by heart" })).toBeVisible();
-  await expect(page.getByText("Use when: Shortest paths with non-negative weights")).toBeVisible();
+  const graphs = page.locator("details#t-graph");
+  await expect(graphs.getByText("Use when: Shortest paths with non-negative weights")).toBeHidden();   // topics start closed
+  await graphs.locator("summary").click();
+  await expect(graphs.getByText("Use when: Shortest paths with non-negative weights")).toBeVisible();
+  await expect(graphs.getByText("Use when: Course schedule")).toBeVisible();                           // every graph template is in its panel
+  await page.goto("/other/revise/dsa#t-linkedlist");                                                    // a link to a topic opens it
+  await expect(page.locator("details#t-linkedlist pre.code").first()).toBeVisible({ timeout: 30_000 });
   const trap = page.getByText("Unsigned size()").locator("..");
   await expect(trap.getByText(/huge number/)).toBeVisible();
   await page.getByRole("button", { name: "Hide answers" }).click();

@@ -10,7 +10,8 @@ import { CPP_TEMPLATES, type CppTemplate } from "./cpp";
 import { htmlQuestions, short, type RevItem } from "./extract";
 import { FACTS } from "./facts";
 
-export type RevSection = { id: string; title: string; lead?: string; points?: string[]; items?: RevItem[]; table?: Table; code?: CppTemplate[] };
+/** `collapsible` sections start closed and open on demand (the DSA topics); `meta` is the line shown while closed. */
+export type RevSection = { id: string; title: string; lead?: string; points?: string[]; items?: RevItem[]; table?: Table; code?: CppTemplate[]; collapsible?: boolean; meta?: string };
 export type Sheet = { id: string; title: string; blurb: string; sections: RevSection[] };
 export type SheetSummary = { id: string; title: string; blurb: string; items: number };
 
@@ -106,20 +107,29 @@ const GOTCHAS: RevItem[] = [
 ];
 
 function dsaSheet(): Sheet {
-  const patterns: RevSection[] = TOPICS.map((t) => ({
-    id: `p-${t.id}`, title: `Patterns: ${t.name}`,
-    items: t.patterns.map((p) => {
-      const key = `${t.id}:${p.n}`;
-      return {
-        q: p.name,
-        a: `**Spot it:** ${p.signals.slice(0, 2).join("; ")}. **Remember:** ${PLAIN[key]?.remember ?? p.summary} **Cost:** ${p.complexity.average} time, ${p.complexity.space} space.`,
-        trap: p.traps[0],
-      };
-    }),
-  }));
+  const codeFor = (topic: string) => CPP_TEMPLATES.filter((c) => c.topics.includes(topic));
+  const topics: RevSection[] = TOPICS.map((t) => {
+    const code = codeFor(t.id);
+    return {
+      id: `t-${t.id}`, title: t.name, collapsible: true, lead: t.blurb, points: t.basics, code,
+      meta: `${code.length ? `${code.length} C++ ${code.length === 1 ? "template" : "templates"} · ` : ""}${t.patterns.length} patterns`,
+      items: t.patterns.map((p) => {
+        const key = `${t.id}:${p.n}`;
+        return {
+          q: p.name,
+          a: `**Spot it:** ${p.signals.slice(0, 2).join("; ")}. **Remember:** ${PLAIN[key]?.remember ?? p.summary} **Cost:** ${p.complexity.average} time, ${p.complexity.space} space.`,
+          trap: p.traps[0],
+        };
+      }),
+    };
+  });
+  const setup = codeFor("setup");
   return {
-    id: "dsa", title: "DSA tech interview cheat sheet", blurb: "How to run a coding interview, which pattern a problem is asking for, the edge cases to test, the C++ mistakes that fail submissions, the complexities to quote, 28 tested C++ templates, and all 85 patterns with their signals and traps.",
+    id: "dsa", title: "DSA tech interview cheat sheet",
+    blurb: `Topic by topic, from arrays to graphs: open a topic for its basics, its tested C++ code (${CPP_TEMPLATES.length} templates in all) and every pattern with how to spot it and its trap. Below the topics: how to run the interview, which pattern a problem asks for, edge cases, C++ mistakes and the complexities to quote.`,
     sections: [
+      { id: "t-setup", title: "C++ setup and fast I/O", collapsible: true, meta: `${setup.length} template`, lead: "Each template on this sheet compiles and passes its own test on every check. Read the comment lines: they are the parts people get wrong.", code: setup },
+      ...topics,
       { id: "method", title: "How to solve it in the interview", items: METHOD },
       { id: "keywords", title: "Which pattern is this?", lead: "The wording of a problem usually gives the pattern away.", table: KEYWORDS },
       { id: "limits", title: "Input size to complexity", lead: "Read the constraints first: they tell you which algorithm the interviewer expects. About 10^8 simple operations run in a second.", table: LIMITS },
@@ -127,8 +137,6 @@ function dsaSheet(): Sheet {
       { id: "gotchas", title: "C++ mistakes that fail submissions", items: GOTCHAS },
       { id: "containers", title: "C++ containers and their costs", table: COMPLEXITY },
       { id: "sorting", title: "Sorting algorithms", table: SORTS },
-      { id: "cpp", title: "C++ templates to know by heart", lead: "Each one compiles and passes its own test on every check. Read the comment lines: they are the parts people get wrong.", code: CPP_TEMPLATES },
-      ...patterns,
     ],
   };
 }
