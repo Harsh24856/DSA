@@ -253,3 +253,20 @@ test("Syntax containers: the table of what exists, and the line that shows what 
   await page.getByRole("link", { name: /Syntax in six languages/ }).click();
   await expect(page).toHaveURL(/\/syntax$/);
 });
+
+test("Revision: the DSA cheat sheet, answers hidden on demand, and sheets ticked off", async ({ page }) => {
+  await page.goto("/drill");
+  await page.getByRole("link", { name: "DSA cheat sheet" }).click();
+  await expect(page.getByRole("heading", { name: "DSA tech interview cheat sheet" })).toBeVisible({ timeout: 30_000 });   // the dev server compiles the sheet on first visit
+  await expect(page.getByRole("heading", { name: "C++ templates to know by heart" })).toBeVisible();
+  await expect(page.getByText("Use when: Shortest paths with non-negative weights")).toBeVisible();
+  const trap = page.getByText("Unsigned size()").locator("..");
+  await expect(trap.getByText(/huge number/)).toBeVisible();
+  await page.getByRole("button", { name: "Hide answers" }).click();
+  await expect(trap.getByText(/huge number/)).toBeHidden();
+  await page.getByRole("button", { name: "Revised" }).click();
+  await page.goto("/other/revise");
+  await expect(page.getByText(/^1 \/ \d+ sheets revised$/)).toBeVisible();
+  await page.locator('main a[href="/other/revise/genai"]').click();
+  await expect(page.getByText("Explain self-attention to a non-ML engineer.")).toBeVisible();
+});

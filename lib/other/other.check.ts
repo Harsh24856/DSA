@@ -114,6 +114,8 @@ import { COVERAGE } from "./design-coverage.ts";
 import { CODE as SYN_CODE, OUT as SYN_OUT, OUT_BY_LANG as SYN_OUT_BY } from "../syntax/code.ts";
 import { SYN_GROUPS, SYN_TOPICS } from "../syntax/topics.ts";
 import { geohash, matchBuy } from "./flows-design.ts";
+import { CPP_TEMPLATES } from "../revise/cpp.ts";
+import { htmlQuestions, short } from "../revise/extract.ts";
 
 const SUBJECTS: Subject[] = [OS, DBMS, CN, SQL, OOPS, APTITUDE, SYNTAX, REACT, NODE, DESIGN];
 // further reading: https only, no repeats, and only on chapters that exist
@@ -291,6 +293,30 @@ for (const s of SUBJECTS) for (const ch of s.chapters) {
     }
   }
   console.log(`syntax ok: ${SYN_TOPICS.length} topics, ${ran} programs print their expected output`);
+}
+
+// revision sheet: every C++ template compiles cleanly and passes its own test; the Gen AI extraction finds the questions
+{
+  let ok = 0;
+  for (const t of CPP_TEMPLATES) {
+    const d = mkdtempSync(join(dir, "r-"));
+    writeFileSync(join(d, "m.cpp"), `${t.code}\n\n${t.test}\n`);
+    try {
+      execFileSync("c++", ["-std=c++20", "-Wall", "-Werror", "-o", join(d, "a"), join(d, "m.cpp")], { stdio: "pipe" });
+      assert.equal(execFileSync(join(d, "a"), { encoding: "utf8", timeout: 20000 }).trim(), "ok", `template ${t.id}`);
+      ok++;
+    } catch (e) {
+      const err = e as { stderr?: Buffer; message: string };
+      console.error(`FAIL template ${t.id}\n${err.stderr?.toString() || err.message}`); process.exitCode = 1;
+    }
+  }
+  assert.ok(!JSON.stringify(CPP_TEMPLATES).includes(String.fromCharCode(0x2014)), "no em dashes in templates");
+  const genaiSrc = readFileSync(join(process.cwd(), "lib/genai/content.ts"), "utf8");
+  const sections = JSON.parse(genaiSrc.slice(genaiSrc.indexOf("= [") + 2).replace(/;\s*$/, "")) as { id: string; html: string }[];
+  const qs = sections.flatMap((g) => htmlQuestions(g.html));
+  assert.ok(qs.length >= 150 && qs.every((q) => q.q && q.a && !/[<>]/.test(q.q)), `Gen AI revision questions: ${qs.length}`);
+  assert.equal(short("One. Two.\n\nThree."), "One. Two.");
+  console.log(`revision ok: ${ok} C++ templates pass their tests, ${qs.length} Gen AI questions`);
 }
 
 // one strict type-check over every TypeScript and TSX example
