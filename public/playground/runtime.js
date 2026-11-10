@@ -264,6 +264,13 @@
   function createNode(write) {
     let pending = 0, topLevel = true;
     const pendingTimers = new Set();
+    // like Node: once nothing is left to wait for, the process emits "exit" (listeners set with process.on("exit"))
+    let exited = false, exiting = false;
+    const maybeExit = () => { if (!topLevel && !exited && !exiting && !pendingTimers.size) { exiting = true; macro(() => { exiting = false; if (!exited && !pendingTimers.size) { exited = true; process_.emit("exit", process_.exitCode ?? 0); } }); } };
+    const del = pendingTimers.delete.bind(pendingTimers);
+    pendingTimers.delete = (x) => { const r = del(x); if (!pendingTimers.size) maybeExit(); return r; };
+    // after every callback Node drains the nextTick queue before any promise callback
+    const after = (f, a) => { f(...a); if (ticks.length) flushTicks(); };
     const realST = globalThis.setTimeout, realCT = globalThis.clearTimeout, realSI = globalThis.setInterval, realCI = globalThis.clearInterval;
 
     /* timers */
@@ -276,14 +283,14 @@
       [Symbol.toPrimitive]() { return this.id; }
     }
     // host timers and the host message queue race, so a timer that fires while the check phase is owed runs it first
-    const setTimeout_ = (f, ms, ...a) => { const t = new Timeout(realST(() => { pendingTimers.delete(t); if (immOwed) flushImm(); f(...a); }, ms)); pendingTimers.add(t); return t; };
-    const setInterval_ = (f, ms, ...a) => { const t = new Timeout(realSI(() => { if (immOwed) flushImm(); f(...a); }, ms), true); return t; };
+    const setTimeout_ = (f, ms, ...a) => { const t = new Timeout(realST(() => { pendingTimers.delete(t); if (immOwed) flushImm(); after(f, a); }, ms)); pendingTimers.add(t); return t; };
+    const setInterval_ = (f, ms, ...a) => { const t = new Timeout(realSI(() => { if (immOwed) flushImm(); after(f, a); }, ms), true); return t; };
     const clear = (t) => { if (t == null) return; pendingTimers.delete(t); const id = typeof t === "object" ? t.id : t; if (t && t.repeat) realCI(id); else realCT(id); };
     const immediates = [];
     // immOwed: an immediate was queued from a callback outside the check phase, so Node runs it before the next timers phase.
     // ponytail: microtasks queued by those immediates run after the timer that forced them; a phase-ordered loop would fix that.
     let immScheduled = false, immOwed = false, inCheck = false;
-    const flushImm = () => { immScheduled = false; immOwed = false; inCheck = true; const q = immediates.splice(0); try { for (const x of q) if (!x.gone) { pendingTimers.delete(x); x.f(...x.a); } } finally { inCheck = false; } };
+    const flushImm = () => { immScheduled = false; immOwed = false; inCheck = true; const q = immediates.splice(0); try { for (const x of q) if (!x.gone) { pendingTimers.delete(x); after(x.f, x.a); } } finally { inCheck = false; } };
     const macro = (fn) => {
       if (typeof MessageChannel !== "undefined") { const c = new MessageChannel(); c.port1.onmessage = () => { c.port1.close(); fn(); }; c.port2.postMessage(0); }
       else realST(fn, 0);
@@ -487,7 +494,7 @@
       const name = k.replace(/Sync$/, "");
       if (name === "exists") continue;
       fsPromises[name] = async (...a) => { await new Promise((r) => realST(r, 0)); return f(...a); };
-      fs[name] = (...a) => { const cb = a.pop(); pending++; const t = {}; pendingTimers.add(t); macro(() => { pendingTimers.delete(t); pending--; let r, err = null; try { r = f(...a); } catch (e) { err = e; } cb(err, r); }); };
+      fs[name] = (...a) => { const cb = a.pop(); pending++; const t = {}; pendingTimers.add(t); macro(() => { pendingTimers.delete(t); pending--; let r, err = null; try { r = f(...a); } catch (e) { err = e; } after(cb, [err, r]); }); };
     }
     fs.promises = fsPromises;
     fs.createReadStream = (p, o) => {
@@ -803,7 +810,7 @@
     const util = { promisify, format, inspect, isDeepStrictEqual: (a, b) => deepEq(a, b, true), TextEncoder, TextDecoder, types: { isPromise: (p) => p instanceof Promise, isDate: (d) => d instanceof Date, isRegExp: (r) => r instanceof RegExp }, inherits(c, s) { Object.setPrototypeOf(c.prototype, s.prototype); }, deprecate: (f) => f, callbackify: (f) => (...a) => { const cb = a.pop(); f(...a).then((v) => cb(null, v), cb); } };
     const os = { platform: () => "browser", arch: () => "wasm", type: () => "Browser", release: () => "1.0", hostname: () => "playground", homedir: () => "/playground", tmpdir: () => "/tmp", EOL: "\n", uptime: () => (Date.now() - pstart) / 1000, totalmem: () => 2 ** 32, freemem: () => 2 ** 31, loadavg: () => [0, 0, 0], networkInterfaces: () => ({}), userInfo: () => ({ username: "you", homedir: "/playground" }), cpus: () => Array.from({ length: (globalThis.navigator && navigator.hardwareConcurrency) || 4 }, () => ({ model: "browser", speed: 0, times: {} })) };
     const url = { URL, URLSearchParams, fileURLToPath: (u) => decodeURIComponent(new URL(u).pathname), pathToFileURL: (p) => new URL("file://" + path.resolve(p)) };
-    const cb2 = (args, run) => { const cb = args.pop(); const t = {}; pendingTimers.add(t); macro(() => { pendingTimers.delete(t); let r, err = null; try { r = run(...args); } catch (e) { err = e; } cb(err, r); }); };
+    const cb2 = (args, run) => { const cb = args.pop(); const t = {}; pendingTimers.add(t); macro(() => { pendingTimers.delete(t); let r, err = null; try { r = run(...args); } catch (e) { err = e; } after(cb, [err, r]); }); };
     const scryptArgs = (pw, salt, len, o) => { const c = o || {}; return [asBytes(pw), asBytes(salt), c.N ?? c.cost ?? 16384, c.r ?? c.blockSize ?? 8, c.p ?? c.parallelization ?? 1, len]; };
     const crypto_ = {
       randomBytes(n, cb) { const b = new Buffer_(n); for (let i = 0; i < n; i += 65536) globalThis.crypto.getRandomValues(b.subarray(i, i + 65536)); if (cb) { macro(() => cb(null, b)); return undefined; } return b; },
@@ -835,7 +842,7 @@
       throw new Error(`Cannot find package '${name}'. The playground has Node's common core modules and express, but cannot install npm packages.`);
     };
     return { require: require_, process: process_, Buffer: Buffer_, setTimeout: setTimeout_, setInterval: setInterval_, setImmediate: setImmediate_, clearTimeout: clear, clearInterval: clear, clearImmediate: clearImmediate_, fetch: fetch_, global: globalThis,
-      dispatch, ExitSignal, files, endTopLevel() { topLevel = false; }, busy: () => pendingTimers.size > 0 };
+      dispatch, ExitSignal, files, endTopLevel() { topLevel = false; maybeExit(); }, busy: () => pendingTimers.size > 0 || exiting };
   }
 
   /* ---------- running a program ---------- */

@@ -1,11 +1,16 @@
 // The Syntax page: one idea per topic, written as the same small program in six languages, with a note on what is
-// different in each. The programs live in code.ts; check:other runs all of them and requires identical output.
+// different in each, plus tracks for some languages only (tracks.ts). The programs live in code.ts and code-tracks.ts;
+// check:other runs all of them and requires the expected output.
+import { TRACK_GROUPS } from "./tracks.ts";
+
 export type SynLang = "cpp" | "java" | "python" | "js" | "ts" | "rust";
 export const SYN_LANGS: [SynLang, string][] = [["cpp", "C++"], ["java", "Java"], ["python", "Python"], ["js", "JavaScript"], ["ts", "TypeScript"], ["rust", "Rust"]];
 
 export type SynTopic = { id: string; title: string; idea: string; notes: Partial<Record<SynLang, string>> };
+/** `langs`: a track for some languages only (every language when absent); `play`: the playground mode it runs in. */
+export type SynGroup = { title: string; langs?: SynLang[]; play?: "react" | "node"; topics: SynTopic[] };
 
-export const SYN_GROUPS: { title: string; topics: SynTopic[] }[] = [
+export const SYN_GROUPS: SynGroup[] = [
   { title: "Basics", topics: [
     { id: "hello", title: "Printing and variables", idea: "Every program needs output and named values. Compare how each language declares a variable and builds a line of text.", notes: {
       cpp: "`cout << a << b` chains values; `endl` ends the line. Code starts in `main`.",
@@ -422,7 +427,16 @@ export const SYN_GROUPS: { title: string; topics: SynTopic[] }[] = [
   ] },
 ];
 
+SYN_GROUPS.push(...TRACK_GROUPS);
+
 export const SYN_TOPICS = SYN_GROUPS.flatMap((g) => g.topics);
+const groupOf = (id: string) => SYN_GROUPS.find((g) => g.topics.some((t) => t.id === id))!;
+/** The languages a topic is written in. */
+export const langsOf = (id: string): SynLang[] => groupOf(id).langs ?? SYN_LANGS.map(([k]) => k);
+export const groupsFor = (lang: SynLang) => SYN_GROUPS.filter((g) => !g.langs || g.langs.includes(lang));
+export const topicsFor = (lang: SynLang) => groupsFor(lang).flatMap((g) => g.topics);
+/** Playground mode: React topics render in the React preview, Node ones get the Node emulation even in JavaScript. */
+export const playMode = (id: string, lang: SynLang) => { const p = groupOf(id).play; return p === "react" ? "react" : p === "node" && lang === "js" ? "node" : lang; };
 
 /** What each language offers for DSA: need, what to use, its cost, and what is missing or surprising. */
 export const CONTAINERS: Record<SynLang, [need: string, use: string, cost: string, watch: string][]> = {

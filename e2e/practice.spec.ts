@@ -242,6 +242,26 @@ test("Syntax: the same program in every language, run live, compared and ticked"
   expect(await page.evaluate(() => localStorage.getItem("dsa-syntax-lang"))).toBe("cpp");
 });
 
+test("Syntax tracks: Gen AI for Python only, React and Node.js for JavaScript and TypeScript", async ({ page }) => {
+  await page.goto("/syntax#rx-forms");                          // a React topic opens in JavaScript
+  const langs = page.getByRole("group", { name: "Language" }), topics = page.getByRole("navigation", { name: "Topics" });
+  await expect(langs.getByRole("button", { name: "JavaScript" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("heading", { name: "Events and controlled inputs" })).toBeVisible();
+  const preview = page.frameLocator(".pg iframe");
+  await preview.getByRole("textbox").fill("Mock interview");     // the preview is a live React app
+  await preview.getByRole("button", { name: "Add" }).click();
+  await expect(preview.getByText("Mock interview")).toBeVisible();
+  await expect(topics.getByText("Python for Gen AI")).toHaveCount(0);
+  await langs.getByRole("button", { name: "TypeScript" }).click();
+  await topics.getByRole("button", { name: "Express: routes, params and JSON" }).click();
+  await expect(page.locator(".pg-log")).toContainText('POST /notes 201 {"id":2,"text":"tries"}');   // Express runs on the Node emulation
+  await langs.getByRole("button", { name: "Python" }).click();
+  await expect(page.getByRole("heading", { name: "Printing and variables" })).toBeVisible();   // not written in Python: back to the first topic
+  await expect(topics.getByText("React", { exact: true })).toHaveCount(0);
+  await topics.getByRole("button", { name: "Embeddings and cosine similarity" }).click();
+  await expect(page.locator("pre.code").filter({ hasText: "best: cats purr" })).toBeVisible();
+});
+
 test("Syntax containers: the table of what exists, and the line that shows what fails", async ({ page }) => {
   await page.goto("/syntax#map-keys");
   await page.getByRole("group", { name: "Language" }).getByRole("button", { name: "JavaScript" }).click();

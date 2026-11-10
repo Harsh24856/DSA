@@ -47,6 +47,8 @@ const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void>; pr
   { name: "revise-aptitude", path: "/other/revise/aptitude" },
   { name: "syntax", path: "/syntax" },
   { name: "syntax-compare", path: "/syntax#interfaces", prep: async (p) => { await p.getByRole("group", { name: "Language" }).getByRole("button", { name: "Rust" }).click(); await p.getByRole("combobox").selectOption("java"); } },
+  { name: "syntax-react", path: "/syntax#rx-state" },
+  { name: "syntax-genai", path: "/syntax#gx-similarity" },
   { name: "syntax-containers", path: "/syntax#iterate-remove", prep: async (p) => { await p.getByRole("group", { name: "Language" }).getByRole("button", { name: "Java", exact: true }).click(); await p.getByText("Every container in Java").click(); } },
   { name: "genai", path: "/genai" },
   { name: "genai-module", path: "/genai/m4" },
@@ -134,6 +136,7 @@ for (const theme of THEMES)
           // a little progress so solved rows, notes and revisits render too
           const d = today();
           await page.addInitScript(({ look, mode, d }) => {
+            if (window !== window.top) return;   // init scripts run in every frame; the playground's sandboxed frame has no storage
             localStorage.setItem("dsa-daily-look", look);
             localStorage.setItem("dsa-daily-theme", mode);
             localStorage.setItem("dsa-daily-v1:owner", "e2e@test.local");

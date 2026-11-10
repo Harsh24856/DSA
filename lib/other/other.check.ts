@@ -111,8 +111,10 @@ import { compile, joinFiles, type PlayMode } from "./playground/compile.ts";
 import { STARTERS } from "./playground/starters.ts";
 import { OA } from "./oa/index.ts";
 import { COVERAGE } from "./design-coverage.ts";
+import type { SynLang } from "../syntax/topics.ts";
 import { CODE as SYN_CODE, OUT as SYN_OUT, OUT_BY_LANG as SYN_OUT_BY } from "../syntax/code.ts";
-import { SYN_GROUPS, SYN_TOPICS } from "../syntax/topics.ts";
+import { langsOf, SYN_GROUPS, SYN_TOPICS } from "../syntax/topics.ts";
+import { createRequire } from "node:module";
 import { geohash, matchBuy } from "./flows-design.ts";
 import { CPP_TEMPLATES } from "../revise/cpp.ts";
 import { htmlQuestions, short } from "../revise/extract.ts";
@@ -264,27 +266,37 @@ for (const s of SUBJECTS) for (const ch of s.chapters) {
   console.log(`OA ok: ${OA.reduce((n, s) => n + s.questions.length, 0)} questions, ${ran} code answers checked by running them`);
 }
 
-// Syntax page: every topic in all six languages, and every version prints exactly the expected output
+// Syntax page: every topic in each of its languages (all six, or a track's own), and every version prints exactly the
+// expected output. React topics print their first render, made with react-dom/server from the playground's own compile.
 {
-  const langs = ["cpp", "java", "python", "js", "ts", "rust"] as const;
+  const req = createRequire(import.meta.url), React = req("react"), { renderToStaticMarkup } = req("react-dom/server");
+  const render = (src: string) => {
+    const c = compile(src, "react");
+    assert.ok(c.js !== undefined, `compile: ${c.error}`);
+    const mod = { exports: {} as Record<string, unknown> };
+    new Function("require", "module", "exports", "React", "__g", c.js!)(req, mod, mod.exports, React, () => {});
+    return renderToStaticMarkup(React.createElement((mod.exports.default ?? mod.exports.App) as () => unknown));
+  };
   assert.deepEqual(Object.keys(SYN_CODE).sort(), SYN_TOPICS.map((t) => t.id).sort(), "syntax topics and programs must match");
   assert.ok(!JSON.stringify([SYN_CODE, SYN_GROUPS]).includes(String.fromCharCode(0x2014)), "no em dashes on the Syntax page");
-  const run = (lang: (typeof langs)[number], src: string) => {
+  const run = (lang: SynLang, src: string, react: boolean) => {
+    if (react) { if (lang === "ts") writeFileSync(join(tsDir, `t${tsFiles++}.tsx`), src); return render(src); }   // TSX joins the tsc pass
     const d = mkdtempSync(join(dir, "s-"));
     const ex = (cmd: string, args: string[]) => execFileSync(cmd, args, { encoding: "utf8", stdio: "pipe", timeout: 30000 });
     switch (lang) {
       case "cpp": writeFileSync(join(d, "m.cpp"), src); ex("c++", ["-std=c++20", "-Wall", "-Werror", "-o", join(d, "a"), join(d, "m.cpp")]); return ex(join(d, "a"), []);   // C++20, like the playground
       case "java": return runJava("syntax", src);
       case "python": writeFileSync(join(d, "m.py"), src); return ex("python3", ["-I", join(d, "m.py")]);
-      case "js": writeFileSync(join(d, "m.mjs"), src); return ex("node", [join(d, "m.mjs")]);
+      case "js": { const f = join(tsDir, `s${ran}.mjs`); writeFileSync(f, src); return ex("node", [f]); }   // in the repo, so express resolves
       case "ts": { const f = join(tsDir, `t${tsFiles++}.ts`); mkdirSync(tsDir, { recursive: true }); writeFileSync(f, src); return ex("node", ["--disable-warning=ExperimentalWarning", f]); }
       case "rust": writeFileSync(join(d, "m.rs"), src); ex("rustc", ["--edition", "2021", "-o", join(d, "a"), join(d, "m.rs")]); return ex(join(d, "a"), []);
     }
   };
   let ran = 0;
-  for (const t of SYN_TOPICS) for (const lang of langs) {
+  for (const t of SYN_TOPICS) for (const lang of langsOf(t.id)) {
     try {
-      assert.equal(run(lang, SYN_CODE[t.id][lang]).replace(/\n$/, ""), SYN_OUT_BY[t.id]?.[lang] ?? SYN_OUT[t.id], `syntax ${t.id} in ${lang}`);
+      const react = SYN_GROUPS.some((g) => g.play === "react" && g.topics.includes(t));
+      assert.equal(run(lang, SYN_CODE[t.id][lang]!, react).replace(/\n$/, ""), SYN_OUT_BY[t.id]?.[lang] ?? SYN_OUT[t.id], `syntax ${t.id} in ${lang}`);
       ran++;
     } catch (e) {
       const err = e as { stderr?: Buffer | string; message: string };
@@ -384,6 +396,13 @@ for (const tb of NF_STAGES[3].tables) assert.ok(tb.cols.every((c) => closure(tb.
       assert.equal(norm(em.out), norm(a), `playground output differs from Node: ${where}`);
       same++;
     }
+  }
+  // the Node.js syntax track prints exactly what real Node printed (SYN_OUT), servers and the event loop included
+  for (const t of SYN_GROUPS.filter((g) => g.play === "node").flatMap((g) => g.topics)) for (const lang of ["js", "ts"] as const) {
+    const em = await emulate(SYN_CODE[t.id][lang]!, lang === "js" ? "node" : "ts", 3000);
+    assert.deepEqual(em.errors, [], `playground syntax ${t.id} ${lang}: ${em.errors[0]}`);
+    assert.equal(em.out, SYN_OUT[t.id], `playground: syntax ${t.id} in ${lang} differs from Node`);
+    ran++; same++;
   }
   // a multi-file project in the playground: routes, middleware and controllers in their own files, wired up in app.js
   {

@@ -1,8 +1,9 @@
 // Every program must print exactly OUT[topic], or OUT_BY_LANG[topic][lang] where a language behaves differently on
 // purpose (the "not possible" cases). check:other compiles and runs all six versions of each topic and compares them.
+import { TRACK_CODE, TRACK_OUT } from "./code-tracks.ts";
 import type { SynLang } from "./topics.ts";
 
-export const CODE: Record<string, Record<SynLang, string>> = {
+export const CODE: Record<string, Partial<Record<SynLang, string>>> = {
   "hello": {
     "cpp": "#include <iostream>\n#include <string>\nusing namespace std;\n\nint main() {\n    string name = \"Asha\";\n    int age = 21;\n    cout << \"Hello, \" << name << \"!\" << endl;\n    cout << name << \" is \" << age << \" years old.\" << endl;\n}",
     "java": "public class Main {\n    public static void main(String[] args) {\n        String name = \"Asha\";\n        int age = 21;\n        System.out.println(\"Hello, \" + name + \"!\");\n        System.out.printf(\"%s is %d years old.%n\", name, age);\n    }\n}",
@@ -472,3 +473,6 @@ export const OUT_BY_LANG: Record<string, Partial<Record<SynLang, string>>> = {
     "ts": "found (2, 3): treasure\nhas (3, 2): false\nobject as key: undefined"
   }
 };
+
+Object.assign(CODE, TRACK_CODE);   // the language-specific tracks: Python for Gen AI, React and Node.js
+Object.assign(OUT, TRACK_OUT);
