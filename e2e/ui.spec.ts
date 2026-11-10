@@ -42,6 +42,8 @@ const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void>; pr
   { name: "revise-dsa-quiz", path: "/other/revise/dsa#gotchas", prep: async (p) => { await p.getByRole("button", { name: "Hide answers" }).click(); } },
   { name: "revise-genai", path: "/other/revise/genai" },
   { name: "revise-os", path: "/other/revise/os" },
+  { name: "revise-cn", path: "/other/revise/cn#f-tcp" },
+  { name: "revise-aptitude", path: "/other/revise/aptitude" },
   { name: "syntax", path: "/syntax" },
   { name: "syntax-compare", path: "/syntax#interfaces", prep: async (p) => { await p.getByRole("group", { name: "Language" }).getByRole("button", { name: "Rust" }).click(); await p.getByRole("combobox").selectOption("java"); } },
   { name: "syntax-containers", path: "/syntax#iterate-remove", prep: async (p) => { await p.getByRole("group", { name: "Language" }).getByRole("button", { name: "Java", exact: true }).click(); await p.getByText("Every container in Java").click(); } },

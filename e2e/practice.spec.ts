@@ -269,4 +269,8 @@ test("Revision: the DSA cheat sheet, answers hidden on demand, and sheets ticked
   await expect(page.getByText(/^1 \/ \d+ sheets revised$/)).toBeVisible();
   await page.locator('main a[href="/other/revise/genai"]').click();
   await expect(page.getByText("Explain self-attention to a non-ML engineer.")).toBeVisible();
+  for (const sheet of ["os", "dbms", "cn", "sql", "oops", "aptitude", "design", "syntax", "react", "node"]) {   // every CS core sheet opens with its must-know facts
+    await page.goto(`/other/revise/${sheet}`);
+    await expect(page.getByRole("heading", { name: /^Must know: / }).first()).toBeVisible({ timeout: 30_000 });
+  }
 });

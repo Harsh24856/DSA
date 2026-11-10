@@ -8,8 +8,9 @@ import { TOPICS } from "../patterns";
 import { PLAIN } from "../patterns/plain";
 import { CPP_TEMPLATES, type CppTemplate } from "./cpp";
 import { htmlQuestions, short, type RevItem } from "./extract";
+import { FACTS } from "./facts";
 
-export type RevSection = { id: string; title: string; lead?: string; items?: RevItem[]; table?: Table; code?: CppTemplate[] };
+export type RevSection = { id: string; title: string; lead?: string; points?: string[]; items?: RevItem[]; table?: Table; code?: CppTemplate[] };
 export type Sheet = { id: string; title: string; blurb: string; sections: RevSection[] };
 export type SheetSummary = { id: string; title: string; blurb: string; items: number };
 
@@ -134,12 +135,22 @@ function dsaSheet(): Sheet {
 
 async function subjectSheet(id: SubjectId): Promise<Sheet> {
   const s = await loadSubject(id);
-  const sections: RevSection[] = partsOf(s.chapters, s.parts).flatMap((part) => part.chapters.map((c) => ({
+  const chapters: RevSection[] = partsOf(s.chapters, s.parts).flatMap((part) => part.chapters.map((c) => ({
     id: c.id, title: part.title ? `${part.title}: ${c.title}` : c.title,
     lead: short(c.summary, 240),
+    points: c.points,
+    table: c.table,
     items: c.cards.map((x) => ({ q: x.q, a: short(x.a), trap: x.trap ? short(x.trap, 200) : undefined })),
   })));
-  return { id, title: s.name, blurb: `Every ${s.name} interview question on this site with the answer to give first, and the trap interviewers wait for.`, sections };
+  // the sheet must cover the whole subject: every chapter and every interview question
+  const cards = s.chapters.reduce((n, c) => n + c.cards.length, 0), listed = chapters.reduce((n, c) => n + (c.items?.length ?? 0), 0);
+  if (chapters.length !== s.chapters.length || listed !== cards) throw new Error(`revision sheet ${id} misses chapters or questions`);
+  const facts = FACTS[id] ?? [];
+  return {
+    id, title: s.name,
+    blurb: `The ${s.name} facts to know cold, then every chapter's key points and every interview question on this site with the answer to give first and the trap interviewers wait for.`,
+    sections: [...facts.map((f) => ({ ...f, title: `Must know: ${f.title}` })), ...chapters],
+  };
 }
 
 function genaiSheet(): Sheet {

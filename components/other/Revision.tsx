@@ -91,6 +91,7 @@ export function RevisionView({ sheet, prev, next }: { sheet: Sheet; prev?: Sheet
         <section key={s.id} id={s.id} className="card gx-slide min-w-0" aria-labelledby={`h-${s.id}`}>
           <h3 id={`h-${s.id}`}>{s.title}</h3>
           {s.lead && <Rich text={s.lead} className="text-sm text-muted" />}
+          {s.points && s.points.length > 0 && <div className="text-sm"><ul>{s.points.map((p) => <li key={p}>{inline(p)}</li>)}</ul></div>}   {/* a bare ul gets the .gx bullets */}
           {s.table && (
             <div className="overflow-x-auto">
               <table className="pg-table w-full text-left text-sm">
