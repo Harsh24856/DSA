@@ -274,3 +274,18 @@ test("Revision: the DSA cheat sheet, answers hidden on demand, and sheets ticked
     await expect(page.getByRole("heading", { name: /^Must know: / }).first()).toBeVisible({ timeout: 30_000 });
   }
 });
+
+test("Revision on a phone: the section bar follows the reader and tables become cards", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto("/other/revise/os");
+  const select = page.getByRole("combobox");
+  await expect(select).toHaveValue("f-scheduling", { timeout: 30_000 });
+  await page.locator("#deadlock").scrollIntoViewIfNeeded();
+  await page.evaluate(() => scrollBy(0, 40));
+  await expect(select).toHaveValue("deadlock");                 // the bar names the section in view
+  await select.selectOption("f-memory");
+  await expect(page).toHaveURL(/#f-memory$/);
+  await expect(page.locator("#f-memory dl .tile").first()).toBeVisible();   // table rows as cards on a phone
+  await expect(page.locator("#f-memory table")).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+});

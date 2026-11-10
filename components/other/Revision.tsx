@@ -2,10 +2,11 @@
 // Last-day revision: a hub of sheets and one sheet per page. Answers can be hidden to quiz yourself, and each sheet has a
 // "Revised" tick (`revise:<sheet>` in the patterns store).
 import Link from "next/link";
-import { useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Copy, WarningCircle } from "@phosphor-icons/react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, ArrowRight, ArrowUp, Check, Copy, WarningCircle } from "@phosphor-icons/react";
 import type { Sheet, SheetSummary } from "@/lib/revise";
 import type { CppTemplate } from "@/lib/revise/cpp";
+import type { Table } from "@/lib/other/types";
 import { usePatterns } from "@/lib/patternStore";
 import { Rich, inline } from "./Rich";
 
@@ -37,6 +38,61 @@ export function RevisionHub({ sheets }: { sheets: SheetSummary[] }) {
           </li>
         ))}
       </ol>
+    </div>
+  );
+}
+
+/** Wide tables scroll sideways on a phone, which hides columns; there each row becomes a small card instead. */
+function TableBlock({ t }: { t: Table }) {
+  return (
+    <>
+      <dl className="grid gap-2 sm:hidden">
+        {t.rows.map((r) => (
+          <div key={r[0]} className="tile p-3 text-sm">
+            <dt className="font-semibold">{r[0]}</dt>
+            {r.slice(1).map((c, k) => c && <dd key={k} className="m-0"><span className="text-muted">{t.head[k + 1] || t.head[0]}: </span>{inline(c)}</dd>)}
+          </div>
+        ))}
+      </dl>
+      <div className="hidden overflow-x-auto sm:block">
+        <table className="pg-table w-full text-left text-sm">
+          <thead><tr>{t.head.map((h, k) => <th key={k}>{h}</th>)}</tr></thead>
+          <tbody>{t.rows.map((r) => <tr key={r[0]}>{r.map((c, k) => <td key={k} className={k ? "num" : ""}>{inline(c)}</td>)}</tr>)}</tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+/** Follows the reader down a long sheet: shows the section in view and jumps to any other. */
+function SectionJump({ sections }: { sections: { id: string; title: string }[] }) {
+  const [current, setCurrent] = useState(sections[0]?.id ?? "");
+  useEffect(() => {
+    let frame = 0;
+    const check = () => {                          // at most once per frame: the last section whose top is under the bar
+      frame = 0;
+      let id = sections[0]?.id ?? "";
+      for (const sec of sections) {
+        const el = document.getElementById(sec.id);
+        if (el && el.getBoundingClientRect().top <= 160) id = sec.id; else if (el) break;
+      }
+      setCurrent(id);
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(check); };
+    check();
+    addEventListener("scroll", onScroll, { passive: true });
+    return () => { removeEventListener("scroll", onScroll); cancelAnimationFrame(frame); };
+  }, [sections]);
+  const go = (id: string) => { setCurrent(id); document.getElementById(id)?.scrollIntoView(); history.replaceState(null, "", `#${id}`); };
+  return (
+    <div className="card sticky top-24 z-10 flex items-center gap-2 p-2">
+      <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
+        <span className="shrink-0 pl-2 text-muted">Section</span>
+        <select className="field min-w-0 flex-1" value={current} onChange={(e) => go(e.target.value)}>
+          {sections.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+        </select>
+      </label>
+      <button type="button" className="btn btn-icon btn-sm shrink-0" aria-label="Back to the top" onClick={() => window.scrollTo({ top: 0 })}><ArrowUp size={16} aria-hidden /></button>
     </div>
   );
 }
@@ -82,24 +138,19 @@ export function RevisionView({ sheet, prev, next }: { sheet: Sheet; prev?: Sheet
             <span className="tick pointer-events-none size-5" data-on={on || undefined} aria-hidden>{on && <Check size={12} weight="bold" />}</span>Revised
           </button>
         </div>
-        <nav aria-label="Sections" className="flex flex-wrap gap-2 border-t border-line pt-3">
+        <nav aria-label="Sections" className="hidden flex-wrap gap-2 border-t border-line pt-3 sm:flex">
           {sheet.sections.map((s) => <a key={s.id} href={`#${s.id}`} className="chip h-auto min-h-7 max-w-full whitespace-normal py-1 text-left no-underline">{s.title}</a>)}
         </nav>
       </section>
+
+      <SectionJump sections={sheet.sections} />
 
       {sheet.sections.map((s) => (
         <section key={s.id} id={s.id} className="card gx-slide min-w-0" aria-labelledby={`h-${s.id}`}>
           <h3 id={`h-${s.id}`}>{s.title}</h3>
           {s.lead && <Rich text={s.lead} className="text-sm text-muted" />}
           {s.points && s.points.length > 0 && <div className="text-sm"><ul>{s.points.map((p) => <li key={p}>{inline(p)}</li>)}</ul></div>}   {/* a bare ul gets the .gx bullets */}
-          {s.table && (
-            <div className="overflow-x-auto">
-              <table className="pg-table w-full text-left text-sm">
-                <thead><tr>{s.table.head.map((h) => <th key={h}>{h}</th>)}</tr></thead>
-                <tbody>{s.table.rows.map((r) => <tr key={r[0]}>{r.map((c, k) => <td key={k} className={k ? "num" : ""}>{c}</td>)}</tr>)}</tbody>
-              </table>
-            </div>
-          )}
+          {s.table && <TableBlock t={s.table} />}
           {s.code && <ol className="grid grid-cols-1 gap-3">{s.code.map((t) => <CodeCard key={t.id} t={t} quiz={quiz} />)}</ol>}
           {s.items && (
             <ol className="grid grid-cols-1 gap-3">
