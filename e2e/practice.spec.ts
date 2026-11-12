@@ -47,7 +47,12 @@ test("line order puzzle checks the order and can be solved", async ({ page }) =>
   await page.getByRole("region", { name: /Path Sum II/ }).getByRole("button", { name: /Solution for/ }).click();
   const sheet = page.getByRole("dialog");
   await sheet.getByRole("button", { name: "Skip to full solution" }).click();
-  const code = (await sheet.locator("pre.code").innerText()).split("\n").map((l) => l.trimEnd()).filter((l) => l.trim() && !/^\s*#/.test(l));
+  await expect(sheet.getByRole("heading", { name: "Solution (C++)" })).toBeVisible();   // C++ first
+  await expect(sheet.locator("pre.code")).toContainText("class Solution");
+  await sheet.getByRole("group", { name: "Code language" }).getByRole("button", { name: "Python" }).click();
+  await expect(sheet.getByRole("heading", { name: "Solution (Python)" })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("dsa-code-lang"))).toBe("python");
+  const code = (await sheet.locator("pre.code").innerText()).split("\n").map((l) => l.trimEnd()).filter((l) => l.trim() && !/^\s*(#|--|\/\/)/.test(l));
   await sheet.getByRole("button", { name: "Line order puzzle" }).click();
   await expect(sheet.locator("pre.code")).toBeHidden();
   for (const line of code) await sheet.getByRole("list", { name: "Lines left" }).getByRole("button", { name: `Place: ${line.trim()}`, exact: true }).first().click();

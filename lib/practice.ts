@@ -63,7 +63,7 @@ export function nextStepOptions(notes: string[], step: number, rng: Rng = Math.r
 }
 
 /** The code's real lines in order, without blanks and full-line comments. */
-export const puzzleLines = (code: string) => code.split("\n").map((l) => l.trimEnd()).filter((l) => l.trim() && !/^\s*(#|--)/.test(l));
+export const puzzleLines = (code: string) => code.split("\n").map((l) => l.trimEnd()).filter((l) => l.trim() && !/^\s*(#|--|\/\/)/.test(l));
 export const PUZZLE_MAX = 24;
 /** Worth doing only at a size that fits a phone. */
 export const hasPuzzle = (code: string) => { const n = puzzleLines(code).length; return n >= 4 && n <= PUZZLE_MAX; };

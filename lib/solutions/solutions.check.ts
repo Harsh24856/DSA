@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { SOLUTIONS } from "./index.ts";
 import { P } from "../problems.ts";
 import { FACTS } from "../landingFacts.ts";
+import { PATTERN_CPP } from "../patterns/cpp.ts";
 import { PATTERN_PROBLEMS } from "../patterns/problems.ts";
 
 let bad = 0;
@@ -21,7 +22,13 @@ process.stdout.write(r.stdout); process.stderr.write(r.stderr);
 // every LeetCode question in the plan and the pattern lists must have its own solution, so a skipped batch cannot go unnoticed
 const missing = [...new Set([...P.filter((q) => q[0] === "L").map((q) => q[2]), ...Object.values(PATTERN_PROBLEMS).flatMap((t) => Object.values(t).flat().map((q) => q[2]))])].filter((s) => !SOLUTIONS[s]);
 if (P.length !== FACTS.problems || P.filter((q) => q[0] === "L").length !== FACTS.leetcode || new Set([...P.filter((q) => q[0] === "L").map((q) => q[2]), ...Object.values(PATTERN_PROBLEMS).flatMap((t) => Object.values(t).flat().map((q) => q[2]))]).size !== FACTS.visualised) { bad++; console.error("lib/landingFacts.ts is out of date"); }
+// every pattern has a tested C++ template, and the landing page's pattern count is that number
+if (Object.keys(PATTERN_CPP).length !== FACTS.patterns) { bad++; console.error(`lib/landingFacts.ts says ${FACTS.patterns} patterns, lib/patterns/cpp.ts has ${Object.keys(PATTERN_CPP).length} templates`); }
 missing.push(...new Set(P.filter((q) => q[0] === "C" && !SOLUTIONS[`cf:${q[5]}`]).map((q) => `cf:${q[5]}`)));
 if (missing.length) { bad += missing.length; console.error("no solution for:", missing.join(", ")); }
 console.log(`${Object.keys(SOLUTIONS).length} solutions, ${bad} visualiser problems`);
-process.exit(bad || r.status ? 1 : 0);
+// the C++ versions: every question and every pattern template, compiled and run against the same examples
+const cpp = spawnSync("python3", [new URL("./cpp_test.py", import.meta.url).pathname], { encoding: "utf8" });
+const pat = spawnSync("python3", [new URL("./cpp_test.py", import.meta.url).pathname, "--patterns"], { encoding: "utf8" });
+process.stdout.write(cpp.stdout + pat.stdout); process.stderr.write(cpp.stderr + pat.stderr);
+process.exit(bad || r.status || cpp.status || pat.status ? 1 : 0);

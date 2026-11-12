@@ -107,7 +107,7 @@ const BENEFITS: { title: string; body: ReactNode; src: string; alt: string; demo
     body: <>Three LeetCode and one SQL on weekdays, more on weekends. Miss a day and it rolls forward, so nothing is lost and the list never piles up. Problems you needed a hint for return after 3, 7 and 21 days.</>,
     src: "/landing/today.jpg", alt: "The Today page showing a daily list of LeetCode problems with difficulty labels, a progress count and a weekly chart.", demo: "plan" },
   { title: "See the algorithm run, step by step",
-    body: <>All {F.visualised} LeetCode questions have a written solution and a visualiser you can step through, on a small example you can follow. Every Codeforces tag has a worked example too. {F.topics} topics and {F.patterns} patterns teach the idea first, with a template and the traps.</>,
+    body: <>All {F.visualised} LeetCode questions have a written solution in C++ and Python and a visualiser you can step through, on a small example you can follow. Every Codeforces tag has a worked example too. {F.topics} topics and {F.patterns} patterns teach the idea first, with deeper theory, a C++ and Python template and the traps.</>,
     src: "/landing/visualizer.jpg", alt: "A solution panel with a step by step visualiser of an algorithm running on a small array, with a note explaining the current step." },
   { title: "Write code here and watch it run",
     body: <>React updates as you type. Express answers real requests in the browser. Python and SQL are the real thing compiled to WebAssembly. Every sample has a Try it button, with nothing to install.</>,

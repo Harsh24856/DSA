@@ -6,6 +6,8 @@ export type Pattern = {
   n: number; name: string; summary: string;
   signals: string[]; idea: string[]; steps: string[]; code: string;
   complexity: Complexity; traps: string[]; viz: Viz;
+  theory?: string[];   // deeper theory, from lib/patterns/deep/<topic>.ts
+  cpp?: string;        // C++ template, from lib/patterns/cpp/<topic>__<n>.cpp (tested by cpp_test.py --patterns)
 };
 export type Topic = { id: string; name: string; blurb: string; basics: string[]; patterns: Pattern[] };
 

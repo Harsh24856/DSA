@@ -7,6 +7,7 @@ import { ArrowRight, ArrowUpRight, CaretLeft, CaretRight, Check, Copy, X } from 
 import { HOW, todayPlan, type How } from "@/lib/logic";
 import { hasPuzzle, patternOptions, shuffle } from "@/lib/practice";
 import { SOLUTIONS } from "@/lib/solutions";
+import { CPP } from "@/lib/solutions/cpp";
 import { SOLVE_EXACT, SOLVE_MAP } from "@/lib/patterns/solveMap";
 import { topicById } from "@/lib/patterns";
 import { alsoRight, QUIZ } from "@/lib/patterns/quiz";
@@ -15,6 +16,8 @@ import { CF_PATTERN } from "@/lib/solutions/codeforces";
 import { useStore } from "@/lib/store";
 import { LinePuzzle } from "./LinePuzzle";
 import { Visualizer } from "./Visualizer";
+import { Seg } from "./ui";
+import { CODE_LANGS, useCodeLang } from "./useCodeLang";
 import { peeked, solveTarget, type SolveTarget } from "./SolvePanel";
 
 export function SolveSheet({ t, onGo, onClose }: { t: SolveTarget; onGo(t: SolveTarget): void; onClose(): void }) {
@@ -118,7 +121,9 @@ function Body({ t, closeBtn, onClose, stage, reveal, peek }: { t: SolveTarget; c
   // only a pattern that lists this question, not one matched from tags, is a fair quiz
   const quizzable = !!key && (cf || SOLVE_EXACT.has(t.slug));
 
-  const code = tab === "solution" ? sol?.code : pattern?.code;
+  const [lang, setLang] = useCodeLang();
+  const cpp = tab === "solution" ? CPP[t.slug] : pattern?.cpp, inCpp = lang === "cpp" && !!cpp;   // SQL and anything not yet in C++ stay as they are
+  const code = inCpp ? cpp : tab === "solution" ? sol?.code : pattern?.code;
   const copy = () => { if (!code) return; void navigator.clipboard?.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); };
 
   return (
@@ -195,13 +200,14 @@ function Body({ t, closeBtn, onClose, stage, reveal, peek }: { t: SolveTarget; c
               {!covered && code && (
                 <div>
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="t-h3">{tab === "solution" ? (sol!.lang === "sql" ? "Solution (MySQL)" : "Solution (Python)") : "Pattern template (Python)"}</h3>
-                    <div className="flex items-center gap-2">
+                    <h3 className="t-h3">{tab === "solution" ? (sol!.lang === "sql" ? "Solution (MySQL)" : `Solution (${inCpp ? "C++" : "Python"})`) : `Pattern template (${inCpp ? "C++" : "Python"})`}</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {cpp && <Seg label="Code language" value={lang} onChange={setLang} options={CODE_LANGS} />}
                       {tab === "solution" && hasPuzzle(code) && <button type="button" className="btn btn-sm" aria-pressed={puzzle} onClick={() => setPuzzle((p) => !p)}>{puzzle ? "Show code" : "Line order puzzle"}</button>}
                       {!(tab === "solution" && puzzle) && <button type="button" className="btn btn-sm" onClick={copy}>{copied ? <><Check size={14} aria-hidden />Copied</> : <><Copy size={14} aria-hidden />Copy</>}</button>}
                     </div>
                   </div>
-                  {tab === "solution" && puzzle ? <LinePuzzle code={code} /> : <pre className="code"><code>{code}</code></pre>}
+                  {tab === "solution" && puzzle ? <LinePuzzle key={lang} code={code} /> : <pre className="code"><code>{code}</code></pre>}
                 </div>
               )}
 

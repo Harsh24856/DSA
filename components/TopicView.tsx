@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Check, Copy, Lightbulb, Lightning, Warning } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, Copy, Lightbulb, Lightning, Warning } from "@phosphor-icons/react";
 import { usePatterns } from "@/lib/patternStore";
 import { lcUrl, problemsOf, topicById, topicProblems, type Pattern, type Topic } from "@/lib/patterns";
 import { PLAIN } from "@/lib/patterns/plain";
@@ -10,7 +10,9 @@ import { EXTRAS } from "@/lib/patterns/extras";
 import type { Viz } from "@/lib/patterns/types";
 import { Visualizer } from "./Visualizer";
 import { ComplexityChart } from "./ComplexityChart";
-import { Bar } from "./ui";
+import { Bar, Seg } from "./ui";
+import { inline } from "./other/Rich";
+import { CODE_LANGS, useCodeLang } from "./useCodeLang";
 import { SolveButton } from "./SolvePanel";
 import { TickBurst } from "./TickBurst";
 
@@ -134,6 +136,8 @@ function PatternView({ t, p, prev, next, pick }: { t: Topic; p: Pattern; prev?: 
   const [applied, setApplied] = useState(cur.input);
   useEffect(() => { setInput(cur.input ?? ""); setApplied(cur.input); }, [cur]);
   const [copied, setCopied] = useState(false);
+  const [lang, setLang] = useCodeLang();
+  const inCpp = lang === "cpp" && !!p.cpp, code = inCpp ? p.cpp! : p.code;
   // inputs too small to show anything (or that throw) fall back to the built-in example
   const diagram = useMemo(() => {
     try { const d = cur.make(applied); if (d.frames.length && !d.frames.some((f) => /NaN|undefined/.test(f.note))) return d; } catch {}
@@ -196,6 +200,13 @@ function PatternView({ t, p, prev, next, pick }: { t: Topic; p: Pattern; prev?: 
         </section>
       </div>
 
+      {p.theory && p.theory.length > 0 && (
+        <section aria-labelledby="theory">
+          <h3 id="theory" className="t-h3 mb-3 flex items-center gap-2"><BookOpen size={16} className="text-accent" aria-hidden />Deeper theory</h3>
+          <div className="flex max-w-[72ch] flex-col gap-3 text-sm leading-relaxed">{p.theory.map((x) => <p key={x}>{inline(x)}</p>)}</div>
+        </section>
+      )}
+
       <section aria-labelledby="cx" className="card p-6">
         <h3 id="cx" className="t-h3 mb-4">Time and space</h3>
         <ComplexityChart c={p.complexity}>
@@ -212,13 +223,16 @@ function PatternView({ t, p, prev, next, pick }: { t: Topic; p: Pattern; prev?: 
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <section aria-labelledby="tpl" className="min-w-0">
-          <div className="mb-3 flex items-center justify-between">
-            <h3 id="tpl" className="t-h3">Template in Python</h3>
-            <button type="button" className="btn btn-sm" onClick={() => { void navigator.clipboard?.writeText(p.code); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>
-              {copied ? <><Check size={14} aria-hidden />Copied</> : <><Copy size={14} aria-hidden />Copy</>}
-            </button>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 id="tpl" className="t-h3">Template in {inCpp ? "C++" : "Python"}</h3>
+            <div className="flex flex-wrap items-center gap-2">
+              {p.cpp && <Seg label="Code language" value={lang} onChange={setLang} options={CODE_LANGS} />}
+              <button type="button" className="btn btn-sm" onClick={() => { void navigator.clipboard?.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>
+                {copied ? <><Check size={14} aria-hidden />Copied</> : <><Copy size={14} aria-hidden />Copy</>}
+              </button>
+            </div>
           </div>
-          <pre className="code"><code>{p.code}</code></pre>
+          <pre className="code"><code>{code}</code></pre>
         </section>
         <section aria-labelledby="traps">
           <h3 id="traps" className="t-h3 mb-3 flex items-center gap-2"><Warning size={16} className="text-medium" aria-hidden />Common traps</h3>

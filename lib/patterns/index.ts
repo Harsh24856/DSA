@@ -7,8 +7,16 @@ import { BITS, DP, GREEDY, RECURSION } from "./techniques";
 import { LOGIC } from "./logic";
 import { PATTERN_PROBLEMS, type PProblem } from "./problems";
 import type { Pattern, Topic } from "./types";
+import { DEEP } from "./deep";
+import { PATTERN_CPP } from "./cpp";
 
 export const TOPICS: Topic[] = [ARRAY, STRING, LINKEDLIST, STACK, HEAP, INTERVALS, TREE, TRIE, GRAPH, RECURSION, DP, GREEDY, BITS, LOGIC];
+// new patterns, deeper theory and the C++ templates join each topic here
+for (const t of TOPICS) {
+  const deep = DEEP[t.id];
+  if (deep) t.patterns.push(...deep.MORE.filter((p) => !t.patterns.some((q) => q.n === p.n)));
+  for (const p of t.patterns) { p.theory ??= deep?.THEORY[p.n]; p.cpp ??= PATTERN_CPP[`${t.id}:${p.n}`]; }
+}
 export const topicById = (id: string) => TOPICS.find((t) => t.id === id);
 export const problemsOf = (topic: string, n: number): PProblem[] => PATTERN_PROBLEMS[topic]?.[n] ?? [];
 export const topicProblems = (t: Topic) => [...new Map(t.patterns.flatMap((p) => problemsOf(t.id, p.n)).map((x) => [x[0], x])).values()];

@@ -11,8 +11,10 @@ import { PATTERN1 } from "./pattern1.ts";
 import { PATTERN2 } from "./pattern2.ts";
 import { PATTERN3 } from "./pattern3.ts";
 import { PATTERN4 } from "./pattern4.ts";
+import { PATTERN5 } from "./pattern5.ts";
+import { PATTERN6 } from "./pattern6.ts";
 import { CODEFORCES } from "./codeforces.ts";
 import type { Solution } from "./types";
 
-export const SOLUTIONS: Record<string, Solution> = { ...ARRAY_SOLUTIONS, ...STRUCT_SOLUTIONS, ...SQL_SOLUTIONS, ...BATCH1, ...BATCH2, ...BATCH3, ...BATCH4, ...SQL2, ...PATTERN1, ...PATTERN2, ...PATTERN3, ...PATTERN4, ...CODEFORCES };
+export const SOLUTIONS: Record<string, Solution> = { ...ARRAY_SOLUTIONS, ...STRUCT_SOLUTIONS, ...SQL_SOLUTIONS, ...BATCH1, ...BATCH2, ...BATCH3, ...BATCH4, ...SQL2, ...PATTERN1, ...PATTERN2, ...PATTERN3, ...PATTERN4, ...PATTERN5, ...PATTERN6, ...CODEFORCES };
 export type { Solution };
