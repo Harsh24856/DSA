@@ -70,7 +70,7 @@ export function Visualizer({ diagram, input, keys, autoplay }: { diagram: Diagra
       onKeyDown={keys ? undefined : onKey}
       className="inset bg-surface-2/50 p-4">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-sm font-semibold">{diagram.title}</h4>
+        <h4 className="text-base font-semibold">{diagram.title}</h4>
         {input}
       </div>
       <div className="overflow-x-auto pb-2">
@@ -85,16 +85,16 @@ export function Visualizer({ diagram, input, keys, autoplay }: { diagram: Diagra
           {diagram.kind === "tables" && <Tables f={frame as never} />}
         </div>
       </div>
-      <div className="mt-2 min-h-[44px] overflow-hidden rounded-control bg-surface px-3 py-3 text-sm leading-snug" aria-live="polite">
+      <div className="mt-2 min-h-[44px] overflow-hidden rounded-control bg-surface px-3 py-3 text-base leading-snug" aria-live="polite">
         <AnimatePresence mode="wait" initial={false}>
           <motion.p key={step} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
-            <span className="num mr-2 text-xs font-semibold text-accent">{step + 1}/{n}</span>{frame.note}
+            <span className="num mr-2 text-sm font-semibold text-accent">{step + 1}/{n}</span>{frame.note}
           </motion.p>
         </AnimatePresence>
       </div>
       {q && (
         <div className="mt-2 flex flex-col gap-2 rounded-control bg-surface p-3">
-          <p className="text-sm font-semibold">What happens next?</p>
+          <p className="text-base font-semibold">What happens next?</p>
           {q.options.map((o) => {
             const isRight = picked !== undefined && o === q.answer, isWrong = picked === o && !isRight;
             return (
@@ -128,7 +128,7 @@ export function Visualizer({ diagram, input, keys, autoplay }: { diagram: Diagra
         </select>
         {canPredict && <button type="button" className="chip" aria-pressed={predict} onClick={() => { setPlaying(false); setPredict((p) => !p); }}>Predict next step</button>}
       </div>
-      {keys && <p className="mt-2 hidden text-xs text-muted [@media(hover:hover)]:block">Press ← and → to step, space to play.</p>}
+      {keys && <p className="mt-2 hidden text-sm text-muted [@media(hover:hover)]:block">Press ← and → to step, space to play.</p>}
     </div>
   );
 }
@@ -209,50 +209,68 @@ function Tree({ d, f, reduce }: { d: Extract<Diagram, { kind: "tree" }>; f: Extr
   const W = Math.max(...[...pos.values()].map((p) => p.x)) + 1, H = Math.max(...[...pos.values()].map((p) => p.y)) + 1;
   const sx = 54, sy = 64, px = 28, py = 30;
   return (
-    <svg viewBox={`0 0 ${W * sx + px} ${H * sy + py}`} className="mx-auto block h-auto" style={{ width: Math.min(820, W * sx + px), maxWidth: "100%" }} role="img" aria-label={d.title}>
+    <div className="max-w-full overflow-x-auto">
+    <svg viewBox={`0 0 ${W * sx + px} ${H * sy + py}`} className="mx-auto block h-auto" style={{ width: Math.min(820, W * sx + px), minWidth: Math.min(W * sx + px, 420) }} role="img" aria-label={d.title}>
       {d.nodes.map((nd) => {
         if (nd.parent == null) return null; const a = pos.get(nd.parent)!, b = pos.get(nd.id)!, t = f.tones?.[nd.id];
         return <g key={"e" + nd.id}>
           <line x1={a.x * sx + px / 2 + 14} y1={a.y * sy + py / 2 + 14} x2={b.x * sx + px / 2 + 14} y2={b.y * sy + py / 2 + 14} stroke={t && t !== "muted" ? EDGE[t] : "var(--line-strong)"} strokeWidth={1.5} opacity={t === "muted" ? 0.3 : 1} />
-          {nd.edge && <text x={(a.x + b.x) / 2 * sx + px / 2 + 14} y={(a.y + b.y) / 2 * sy + py / 2 + 10} fontSize={9} textAnchor="middle" fill="var(--muted)">{nd.edge}</text>}
+          {nd.edge && <text x={(a.x + b.x) / 2 * sx + px / 2 + 14} y={(a.y + b.y) / 2 * sy + py / 2 + 10} fontSize={11} textAnchor="middle" fill="var(--muted)">{nd.edge}</text>}
         </g>;
       })}
       {d.nodes.map((nd) => {
         const p = pos.get(nd.id)!, t = f.tones?.[nd.id] ?? "none", c = FILL[t], label = f.labels?.[nd.id] ?? nd.label, badge = f.badges?.[nd.id];
-        const cx = p.x * sx + px / 2 + 14, cy = p.y * sy + py / 2 + 14, r = label.length > 3 ? 21 : 16;
+        const cx = p.x * sx + px / 2 + 14, cy = p.y * sy + py / 2 + 14, r = label.length > 3 ? 23 : 18;
         return <motion.g key={nd.id} initial={false} animate={{ opacity: c.op ?? 1, scale: t === "active" && !reduce ? 1.08 : 1 }} style={{ originX: `${cx}px`, originY: `${cy}px` }} transition={{ duration: 0.3 }}>
           <circle cx={cx} cy={cy} r={r} fill={c.fill} stroke={c.stroke} strokeWidth={1.5} style={{ transition: "fill .3s, stroke .3s" }} />
-          <text x={cx} y={cy + 4} fontSize={label.length > 4 ? 9 : 12} fontWeight={600} textAnchor="middle" fill={c.text} fontFamily="var(--mono)">{label}</text>
-          {badge && <text x={cx + r + 2} y={cy - r + 4} fontSize={9.5} fontWeight={600} fill="var(--accent)" fontFamily="var(--mono)">{badge}</text>}
+          <text x={cx} y={cy + 5} fontSize={label.length > 4 ? 11 : 14} fontWeight={600} textAnchor="middle" fill={c.text} fontFamily="var(--mono)">{label}</text>
+          {badge && <text x={cx + r + 2} y={cy - r + 4} fontSize={12} fontWeight={600} fill="var(--accent)" fontFamily="var(--mono)">{badge}</text>}
         </motion.g>;
       })}
     </svg>
+    </div>
   );
 }
 
 /* ---------- graph ---------- */
+/** Width of the element, so a drawing can be laid out at the size it is shown instead of being shrunk. */
+function useWidth<T extends Element>() {
+  const ref = useRef<T>(null), [w, setW] = useState(560);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const ro = new ResizeObserver(([e]) => setW(Math.round(e.contentRect.width)));
+    ro.observe(el); return () => ro.disconnect();
+  }, []);
+  return [ref, w] as const;
+}
+
 function Graph({ d, f }: { d: Extract<Diagram, { kind: "graph" }>; f: Extract<Diagram, { kind: "graph" }>["frames"][number] }) {
-  const X = (x: number) => 20 + x * 5.2, Y = (y: number) => 14 + y * 2.2;
+  // the drawing is as wide as its box (340 to 560 units), so text stays near its real size; narrow boxes get a taller canvas
+  const [box, w] = useWidth<HTMLDivElement>();
+  const vw = Math.max(340, Math.min(560, w)), vh = vw < 450 ? 320 : 250, R = 21;
+  const X = (x: number) => 28 + x * (vw - 56) / 100, Y = (y: number) => 30 + y * (vh - 54) / 100;
   return (
-    <svg viewBox="0 0 560 250" className="mx-auto block h-auto w-full max-w-[620px]" role="img" aria-label={d.title}>
+    <div ref={box} className="w-full max-w-[620px]">
+    <svg viewBox={`0 0 ${vw} ${vh}`} className="mx-auto block h-auto w-full" role="img" aria-label={d.title}>
       <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)" /></marker></defs>
       {d.edges.map((e) => {
         const a = d.nodes[e.a], b = d.nodes[e.b], t = f.edgeTones?.[`${Math.min(e.a, e.b)}-${Math.max(e.a, e.b)}`];
         const dx = X(b.x) - X(a.x), dy = Y(b.y) - Y(a.y), L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
         return <g key={`${e.a}-${e.b}`}>
-          <line x1={X(a.x) + ux * 20} y1={Y(a.y) + uy * 20} x2={X(b.x) - ux * 22} y2={Y(b.y) - uy * 22} stroke={t ? EDGE[t] : "var(--line-strong)"} strokeWidth={t === "found" ? 3 : 1.6} strokeDasharray={t === "bad" ? "5 4" : undefined} markerEnd={e.directed ? "url(#arr)" : undefined} style={{ transition: "stroke .3s" }} />
-          {e.w != null && <text x={(X(a.x) + X(b.x)) / 2 + uy * 10} y={(Y(a.y) + Y(b.y)) / 2 - ux * 10 + 4} fontSize={11} textAnchor="middle" fill="var(--muted)" fontFamily="var(--mono)" fontWeight={600}>{e.w}</text>}
+          <line x1={X(a.x) + ux * (R + 1)} y1={Y(a.y) + uy * (R + 1)} x2={X(b.x) - ux * (R + 3)} y2={Y(b.y) - uy * (R + 3)} stroke={t ? EDGE[t] : "var(--line-strong)"} strokeWidth={t === "found" ? 3 : 1.6} strokeDasharray={t === "bad" ? "5 4" : undefined} markerEnd={e.directed ? "url(#arr)" : undefined} style={{ transition: "stroke .3s" }} />
+          {e.w != null && <text x={(X(a.x) + X(b.x)) / 2 + uy * 12} y={(Y(a.y) + Y(b.y)) / 2 - ux * 12 + 5} fontSize={14} textAnchor="middle" fill="var(--muted)" fontFamily="var(--mono)" fontWeight={600}>{e.w}</text>}
         </g>;
       })}
       {d.nodes.map((nd) => {
         const t = f.tones?.[nd.id] ?? "none", c = FILL[t], badge = f.badges?.[nd.id];
         return <g key={nd.id} opacity={c.op ?? 1} style={{ transition: "opacity .3s" }}>
-          <circle cx={X(nd.x)} cy={Y(nd.y)} r={19} fill={c.fill} stroke={c.stroke} strokeWidth={1.8} style={{ transition: "fill .3s, stroke .3s" }} />
-          <text x={X(nd.x)} y={Y(nd.y) + 4} fontSize={nd.label.length > 2 ? 10 : 13} fontWeight={600} textAnchor="middle" fill={c.text}>{nd.label}</text>
-          {badge && <text x={X(nd.x)} y={Y(nd.y) - 25} fontSize={10.5} fontWeight={600} textAnchor="middle" fill="var(--accent)" fontFamily="var(--mono)">{badge}</text>}
+          <circle cx={X(nd.x)} cy={Y(nd.y)} r={R} fill={c.fill} stroke={c.stroke} strokeWidth={1.8} style={{ transition: "fill .3s, stroke .3s" }} />
+          <text x={X(nd.x)} y={Y(nd.y) + 4} fontSize={nd.label.length > 2 ? 12 : 15} fontWeight={600} textAnchor="middle" fill={c.text}>{nd.label}</text>
+          {badge && <text x={X(nd.x)} y={Y(nd.y) - 27} fontSize={13} fontWeight={600} textAnchor="middle" fill="var(--accent)" fontFamily="var(--mono)">{badge}</text>}
         </g>;
       })}
     </svg>
+    </div>
   );
 }
 
