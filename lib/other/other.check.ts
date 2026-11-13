@@ -106,6 +106,7 @@ import { NODE } from "./node.ts";
 import { DESIGN } from "./design.ts";
 import { FLOWS, type BarStep, type GridStep, type LaneStep } from "./flows.ts";
 import { FLOW_SLOTS } from "../genai/labs.ts";
+import { TOPIC_FLOWS } from "./flows-dsa.ts";
 import { FACTS } from "../landingFacts.ts";
 import { compile, joinFiles, type PlayMode } from "./playground/compile.ts";
 import { STARTERS } from "./playground/starters.ts";
@@ -486,6 +487,7 @@ globalThis.__server.close(); process.exit(0);`);
 {
   const used = new Set<string>();
   for (const s of SUBJECTS) for (const c of s.chapters) if (c.anim) used.add(c.anim);
+  for (const [topic, ids] of Object.entries(TOPIC_FLOWS)) for (const id of ids) { assert.ok(FLOWS[id], `topic ${topic}: unknown flow ${id}`); used.add(id); }
   const source = readFileSync(join(process.cwd(), "lib/genai/content.ts"), "utf8");
   const G = JSON.parse(source.slice(source.indexOf("= [") + 2).replace(/;\s*$/, "")) as { id: string; html: string }[];
   for (const [sec, list] of Object.entries(FLOW_SLOTS)) for (const [slide, flow] of list) {

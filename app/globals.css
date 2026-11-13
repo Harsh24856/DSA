@@ -376,8 +376,8 @@ dialog::backdrop, .scrim{background:rgb(4 6 11 / .55);-webkit-backdrop-filter:bl
 
 :root[data-kind="photo"]{ background:var(--bg); }
 :root[data-kind="photo"] :is(.card, dialog, .field, .btn:not(.btn-primary, .btn-ghost)){
-  background:color-mix(in oklab,var(--surface) 80%,transparent);
-  -webkit-backdrop-filter:blur(16px) saturate(1.3); backdrop-filter:blur(16px) saturate(1.3);
+  background:color-mix(in oklab,var(--surface) 90%,transparent);
+  -webkit-backdrop-filter:blur(22px) saturate(1.3); backdrop-filter:blur(22px) saturate(1.3);
   box-shadow:inset 0 1px 0 color-mix(in oklab,#FFFFFF 9%,transparent), var(--shadow);
 }
 @media (prefers-reduced-transparency:reduce){ :root[data-kind="photo"] :is(.card, dialog){ backdrop-filter:none; background:var(--surface); } }
@@ -408,7 +408,7 @@ dialog::backdrop, .scrim{background:rgb(4 6 11 / .55);-webkit-backdrop-filter:bl
 .petal{ background:var(--petal, color-mix(in oklab,#F29DC4 70%,#FFFFFF)); }
 
 :root[data-kind="photo"][data-light] :is(.card, dialog, .field, .btn:not(.btn-primary, .btn-ghost)){
-  background:color-mix(in oklab,var(--surface) 86%,transparent);
+  background:color-mix(in oklab,var(--surface) 93%,transparent);
   box-shadow:inset 0 1px 0 color-mix(in oklab,#FFFFFF 60%,transparent), 0 10px 30px -18px color-mix(in oklab,var(--ink) 35%,transparent);
 }
 :root[data-kind="photo"][data-light] main > header{ text-shadow:0 1px 14px color-mix(in oklab,var(--bg) 95%,transparent), 0 0 2px color-mix(in oklab,var(--bg) 85%,transparent); }
@@ -424,6 +424,7 @@ dialog::backdrop, .scrim{background:rgb(4 6 11 / .55);-webkit-backdrop-filter:bl
 @media (min-width:640px){ :root[data-kind="photo"] .study-sheet{ padding:24px; } }
 :root[data-kind="photo"] .glass{ background:color-mix(in oklab,var(--surface) 92%,transparent); -webkit-backdrop-filter:blur(22px) saturate(1.3); backdrop-filter:blur(22px) saturate(1.3); }
 :root[data-kind="photo"] .callout{ background:color-mix(in oklab,var(--accent) 12%,var(--surface)); }
+:root[data-kind="photo"] main :is(h2, h3, .t-eyebrow, .btn-ghost, .t-title):not(:is(.card, .glass, .study-sheet, dialog, .tile, .callout, .gx-slide) *),
 :root[data-kind="photo"] .photo-legible{ text-shadow:0 1px 14px color-mix(in oklab,var(--bg) 95%,transparent), 0 0 2px color-mix(in oklab,var(--bg) 85%,transparent); }
 :root[data-kind="photo"] .photo-legible :is(p, span){ color:var(--ink); }
 @media (prefers-reduced-transparency:reduce){ :root[data-kind="photo"] :is(.study-sheet, .glass){ background:var(--surface); backdrop-filter:none; -webkit-backdrop-filter:none; } }

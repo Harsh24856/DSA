@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { loadSubject } from "../lib/other/index.ts";
+import { TOPIC_FLOWS } from "../lib/other/flows-dsa.ts";
 
 // Walks every step of every animated walk-through: stepping must work, and no text may be clipped or run off the picture.
 // CS core has one chapter per page, so each subject's test visits every chapter that has a walk-through
@@ -51,6 +52,14 @@ for (const s of SUBJECTS) test(`flows on /other/${s}`, async ({ page }) => {
     await page.goto(`/other/${s}/${c.id}`);
     await walkAll(page, problems);
   }
+  expect([...new Set(problems)]).toEqual([]);
+});
+
+// each topic Overview on /patterns: its "See it move" walk-throughs
+for (const topic of Object.keys(TOPIC_FLOWS)) test(`flows on /patterns/${topic}`, async ({ page }) => {
+  const problems: string[] = [];
+  await page.goto(`/patterns/${topic}`);
+  await walkAll(page, problems);
   expect([...new Set(problems)]).toEqual([]);
 });
 

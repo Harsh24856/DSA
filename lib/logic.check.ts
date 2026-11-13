@@ -168,3 +168,21 @@ console.log("logic checks pass");
   for (const s of ["a", "b", "c"]) assert.equal(round.filter((q) => q.subject === s).length, 3);
   assert.equal(oaRound(pool.filter((q) => q.subject === "a"), miss, 10).length, 10, "one subject fills the round");
 }
+
+// key points are each paragraph's first sentence, without splitting numbers or abbreviations
+{
+  const { firstSentence } = await import("./keypoints.ts");
+  const eq = (a: string, b: string) => { if (a !== b) throw new Error(`firstSentence: got "${a}", want "${b}"`); };
+  eq(firstSentence("Why it works: P[r + 1] and P[l] share terms. Nothing else matters."), "Why it works: P[r + 1] and P[l] share terms.");
+  eq(firstSentence("Use e.g. a heap. Then pop."), "Use e.g. a heap.");
+  eq(firstSentence("Growth is 1.5 times per resize. Amortised O(1)."), "Growth is 1.5 times per resize.");
+  eq(firstSentence("Cost is O(n log n). `sort` is enough."), "Cost is O(n log n).");
+  eq(firstSentence("One sentence only"), "One sentence only");
+  eq(firstSentence("Ends here!"), "Ends here!");
+  const { keyPoint } = await import("./keypoints.ts");
+  eq(keyPoint("Variants. Count only the ones that end here. Then more."), "Variants. Count only the ones that end here.");
+  const long = keyPoint("Words: " + "alpha beta gamma ".repeat(20) + "end.");
+  if (long.length > 190 || !long.endsWith(" ...")) throw new Error(`keyPoint long: ${long}`);
+  if (keyPoint("Use `a b c d e f g h` " + "x ".repeat(100) + ".", 12).includes("`a b")) throw new Error("keyPoint cut inside code");
+  console.log("key points ok");
+}

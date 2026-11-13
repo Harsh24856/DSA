@@ -2,10 +2,15 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, Copy, Lightbulb, Lightning, Warning } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, Copy, Lightbulb, Lightning, PlayCircle, Warning } from "@phosphor-icons/react";
 import { usePatterns } from "@/lib/patternStore";
 import { lcUrl, NEEDS, patternByKey, problemsOf, STUDY_PATH, topicById, topicProblems, TOPICS, type Pattern, type PProblem, type Topic } from "@/lib/patterns";
 import { stageOf, WHY } from "@/lib/patterns/order";
+import { keyPoints } from "@/lib/keypoints";
+import { TOPIC_FLOWS } from "@/lib/other/flows-dsa";
+import dynamic from "next/dynamic";
+
+const FlowPlayer = dynamic(() => import("./other/FlowPlayer"), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
 import { PLAIN } from "@/lib/patterns/plain";
 import { EXTRAS } from "@/lib/patterns/extras";
 import type { Viz } from "@/lib/patterns/types";
@@ -92,6 +97,24 @@ function RailItem({ on, onClick, label, n, meta, done }: { on: boolean; onClick(
   );
 }
 
+/* ---------- points, then paragraph ---------- */
+/** A block of theory: its key points first (each paragraph's opening sentence), then every paragraph in full. */
+function Explained({ paras }: { paras: string[] }) {
+  return (
+    <div className="grid max-w-[72ch] gap-4">
+      <div className="callout">
+        <h4 className="text-sm font-semibold text-accent">Key points</h4>
+        <ul className="mt-2 flex flex-col gap-2 text-base leading-relaxed">
+          {keyPoints(paras).map((x, i) => <li key={i} className="flex gap-2"><span className="num mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-ink">{i + 1}</span><span>{inline(x)}</span></li>)}
+        </ul>
+      </div>
+      <div className="flex flex-col gap-3 text-base leading-relaxed">
+        {paras.map((x, i) => <p key={i}><span className="num mr-2 text-sm font-semibold text-accent">{i + 1}</span>{inline(x)}</p>)}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- study order ---------- */
 /** Where this topic sits in the study order, and what comes before it. */
 function StudyStep({ t }: { t: Topic }) {
@@ -161,7 +184,6 @@ function Overview({ t, pick }: { t: Topic; pick(n: number): void }) {
   const [lang, setLang] = useCodeLang();
   const [copied, setCopied] = useState(false);
   const inCpp = lang === "cpp" && !!t.cpp, code = o ? (inCpp ? t.cpp! : o.code) : "";
-  const paras = (xs: string[]) => <div className="flex max-w-[72ch] flex-col gap-3 text-base leading-relaxed">{xs.map((x) => <p key={x}>{inline(x)}</p>)}</div>;
   const hints = (xs: string[], warn = false) => <ul className="flex flex-col gap-2">{xs.map((x) => <li key={x} className={warn ? "callout callout-warn py-3 text-base leading-relaxed" : "inset bg-surface px-3 py-2 text-base leading-relaxed"}>{inline(x)}</li>)}</ul>;
   return (
     <div className="flex flex-col gap-6">
@@ -180,14 +202,21 @@ function Overview({ t, pick }: { t: Topic; pick(n: number): void }) {
         <>
           <section aria-labelledby="ov-what">
             <h3 id="ov-what" className="t-h3 mb-3 flex items-center gap-2"><BookOpen size={16} className="text-accent" aria-hidden />What it is</h3>
-            {paras(o.what)}
+            <Explained paras={o.what} />
           </section>
+
+          {(TOPIC_FLOWS[t.id] ?? []).length > 0 && (
+            <section aria-labelledby="ov-watch" className="grid min-w-0 gap-4">
+              <h3 id="ov-watch" className="t-h3 flex items-center gap-2"><PlayCircle size={16} className="text-accent" aria-hidden />See it move</h3>
+              {TOPIC_FLOWS[t.id].map((id) => <FlowPlayer key={id} id={id} />)}
+            </section>
+          )}
 
           {o.viz.length > 0 && <VizTabs variants={o.viz} id={`${t.id}-0`} />}
 
           <section aria-labelledby="ov-build" className="grid min-w-0 gap-4">
             <h3 id="ov-build" className="t-h3 flex items-center gap-2"><Lightbulb size={16} className="text-accent" aria-hidden />How it is built</h3>
-            {paras(o.build)}
+            <Explained paras={o.build} />
             <div className="min-w-0">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <h4 className="text-base font-semibold">From scratch in {inCpp ? "C++" : "Python"}</h4>
@@ -374,7 +403,7 @@ function PatternView({ t, p, step, prev, next, pick }: { t: Topic; p: Pattern; s
       {p.theory && p.theory.length > 0 && (
         <section aria-labelledby="theory">
           <h3 id="theory" className="t-h3 mb-3 flex items-center gap-2"><BookOpen size={16} className="text-accent" aria-hidden />Deeper theory</h3>
-          <div className="flex max-w-[72ch] flex-col gap-3 text-base leading-relaxed">{p.theory.map((x) => <p key={x}>{inline(x)}</p>)}</div>
+          <Explained paras={p.theory} />
         </section>
       )}
 
