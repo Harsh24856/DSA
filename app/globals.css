@@ -412,6 +412,21 @@ dialog::backdrop, .scrim{background:rgb(4 6 11 / .55);-webkit-backdrop-filter:bl
   box-shadow:inset 0 1px 0 color-mix(in oklab,#FFFFFF 60%,transparent), 0 10px 30px -18px color-mix(in oklab,var(--ink) 35%,transparent);
 }
 :root[data-kind="photo"][data-light] main > header{ text-shadow:0 1px 14px color-mix(in oklab,var(--bg) 95%,transparent), 0 0 2px color-mix(in oklab,var(--bg) 85%,transparent); }
+/* Study pages in picture themes: long reading text needs a near-solid surface, never the bare picture.
+   The reading column becomes one frosted sheet, glass gets denser, callouts get an opaque tint, and the few labels
+   left on the picture get the same halo as the page header. Clear and Classic themes are untouched. */
+:root[data-kind="photo"] .study-sheet{
+  background:color-mix(in oklab,var(--surface) 93%,transparent);
+  -webkit-backdrop-filter:blur(22px) saturate(1.3); backdrop-filter:blur(22px) saturate(1.3);
+  border:1px solid var(--line); border-radius:16px; padding:16px;
+  box-shadow:inset 0 1px 0 color-mix(in oklab,#FFFFFF 12%,transparent), 0 12px 40px -20px color-mix(in oklab,var(--ink) 40%,transparent);
+}
+@media (min-width:640px){ :root[data-kind="photo"] .study-sheet{ padding:24px; } }
+:root[data-kind="photo"] .glass{ background:color-mix(in oklab,var(--surface) 92%,transparent); -webkit-backdrop-filter:blur(22px) saturate(1.3); backdrop-filter:blur(22px) saturate(1.3); }
+:root[data-kind="photo"] .callout{ background:color-mix(in oklab,var(--accent) 12%,var(--surface)); }
+:root[data-kind="photo"] .photo-legible{ text-shadow:0 1px 14px color-mix(in oklab,var(--bg) 95%,transparent), 0 0 2px color-mix(in oklab,var(--bg) 85%,transparent); }
+:root[data-kind="photo"] .photo-legible :is(p, span){ color:var(--ink); }
+@media (prefers-reduced-transparency:reduce){ :root[data-kind="photo"] :is(.study-sheet, .glass){ background:var(--surface); backdrop-filter:none; -webkit-backdrop-filter:none; } }
 
 /* Clear themes: solid colours, no picture. Every pair meets AA, and body text 7:1. */
 :is(:root[data-look="contrast-dark"]:not(#_), [data-preview="contrast-dark"]){ --bg:#000000; --surface:#0E0E0E; --ink:#FFFFFF; --muted:#D4D4D4; --line:#5C5C5C; --accent:#FFD60A; --accent-ink:#000000; --soft:#2B2600; --good:#FFD60A; --good-soft:#2B2600; --easy:#5CF2A0; --medium:#FFC247; --hard:#FF9090; --look-bg:none; color-scheme:dark; }

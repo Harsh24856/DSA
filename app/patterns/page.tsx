@@ -28,7 +28,7 @@ export default function Patterns() {
 
       {STAGES.map((st, si) => (
         <section key={st.title} aria-labelledby={`stage-${si}`} className="flex flex-col gap-3">
-          <div>
+          <div className="photo-legible">
             <h2 id={`stage-${si}`} className="t-h2"><span className="num mr-2 text-accent">Stage {si + 1}</span>{st.title}</h2>
             <p className="mt-0.5 text-base text-muted">{st.blurb}</p>
           </div>

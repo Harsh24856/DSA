@@ -50,7 +50,7 @@ export function TopicView({ id }: { id: string }) {
 
   return (
     <div ref={top} className="study scroll-mt-4">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="photo-legible mb-4 flex flex-wrap items-center justify-between gap-3">
         <Link href="/patterns" className="btn btn-ghost btn-sm -ml-3"><ArrowLeft size={14} aria-hidden />All topics</Link>
         <div className="flex w-full max-w-60 items-center gap-3">
           <Bar value={dn} max={probs.length} className="flex-1" />
@@ -72,7 +72,7 @@ export function TopicView({ id }: { id: string }) {
         </nav>
 
         <AnimatePresence mode="wait">
-          <motion.div key={sel} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25, ease }} className="min-w-0">
+          <motion.div key={sel} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25, ease }} className="study-sheet min-w-0">
             {p ? <PatternView t={t} p={p} step={idx + 1} prev={t.patterns[idx - 1]} next={t.patterns[idx + 1]} pick={pick} /> : <Overview t={t} pick={pick} />}
           </motion.div>
         </AnimatePresence>
