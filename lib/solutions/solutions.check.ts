@@ -23,7 +23,8 @@ process.stdout.write(r.stdout); process.stderr.write(r.stderr);
 const missing = [...new Set([...P.filter((q) => q[0] === "L").map((q) => q[2]), ...Object.values(PATTERN_PROBLEMS).flatMap((t) => Object.values(t).flat().map((q) => q[2]))])].filter((s) => !SOLUTIONS[s]);
 if (P.length !== FACTS.problems || P.filter((q) => q[0] === "L").length !== FACTS.leetcode || new Set([...P.filter((q) => q[0] === "L").map((q) => q[2]), ...Object.values(PATTERN_PROBLEMS).flatMap((t) => Object.values(t).flat().map((q) => q[2]))]).size !== FACTS.visualised) { bad++; console.error("lib/landingFacts.ts is out of date"); }
 // every pattern has a tested C++ template, and the landing page's pattern count is that number
-if (Object.keys(PATTERN_CPP).length !== FACTS.patterns) { bad++; console.error(`lib/landingFacts.ts says ${FACTS.patterns} patterns, lib/patterns/cpp.ts has ${Object.keys(PATTERN_CPP).length} templates`); }
+const templates = Object.keys(PATTERN_CPP).filter((k) => !k.endsWith(":0"));   // <topic>:0 is the topic's own data structure
+if (templates.length !== FACTS.patterns) { bad++; console.error(`lib/landingFacts.ts says ${FACTS.patterns} patterns, lib/patterns/cpp.ts has ${templates.length} templates`); }
 missing.push(...new Set(P.filter((q) => q[0] === "C" && !SOLUTIONS[`cf:${q[5]}`]).map((q) => `cf:${q[5]}`)));
 if (missing.length) { bad += missing.length; console.error("no solution for:", missing.join(", ")); }
 console.log(`${Object.keys(SOLUTIONS).length} solutions, ${bad} visualiser problems`);

@@ -7,3 +7,7 @@ export const PATTERN_PROBLEMS: Record<string, Record<number, PProblem[]>> = {"lo
 // lists for the patterns added later (lib/patterns/deep/<topic>.problems.ts)
 import { MORE_PROBLEMS } from "./deep/problems.ts";
 for (const [topic, lists] of Object.entries(MORE_PROBLEMS)) Object.assign((PATTERN_PROBLEMS[topic] ??= {}), lists);
+
+// must-do questions that no pattern lists (lib/patterns/overview/<topic>.problems.ts) are list 0 of their topic
+import { MUST_PROBLEMS } from "./overview/problems.ts";
+for (const [topic, list] of Object.entries(MUST_PROBLEMS)) if (list.length) (PATTERN_PROBLEMS[topic] ??= {})[0] = list;
