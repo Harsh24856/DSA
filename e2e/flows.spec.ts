@@ -48,7 +48,7 @@ async function walkAll(page: Page, problems: string[]) {
 
 for (const s of SUBJECTS) test(`flows on /other/${s}`, async ({ page }) => {
   const problems: string[] = [];
-  for (const c of (await loadSubject(s)).chapters.filter((c) => c.anim)) {
+  for (const c of (await loadSubject(s)).chapters.filter((c) => c.anim || c.play)) {   // play: the interactive walk-through
     await page.goto(`/other/${s}/${c.id}`);
     await walkAll(page, problems);
   }
@@ -68,6 +68,29 @@ for (const path of GENAI) test(`flows on ${path}`, async ({ page }) => {
   await page.goto(path);
   await walkAll(page, problems);
   expect([...new Set(problems)]).toEqual([]);
+});
+
+// interactive walk-throughs: every slider moves the walk-through (or explains why not), and nothing throws
+test("interactive walk-throughs follow their sliders", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  for (const c of (await loadSubject("aptitude")).chapters.filter((c) => c.play)) {
+    await page.goto(`/other/aptitude/${c.id}`);
+    const lab = page.locator('section[aria-label^="Try your own numbers"]');
+    await expect(lab.locator("figcaption"), `${c.id}: interactive walk-through`).toBeVisible({ timeout: 30_000 });
+    const sliders = lab.locator('input[type="range"]');
+    const shown = async () => `${await lab.locator("figure").textContent()}`;   // title, picture and caption
+    for (let i = 0; i < await sliders.count(); i++) {
+      const before = await shown(), slider = sliders.nth(i), start = await slider.inputValue();
+      await slider.focus();
+      await page.keyboard.press("End");
+      if (await slider.inputValue() === start) await page.keyboard.press("Home");   // it already sat at its maximum
+      await expect.poll(async () => await shown() !== before || await lab.getByRole("status").count() > 0,
+        { message: `${c.id}: slider ${i + 1} changes the walk-through or explains why not`, timeout: 15_000 }).toBe(true);
+      await lab.getByRole("button", { name: "Reset" }).click();
+    }
+  }
+  expect(errors).toEqual([]);
 });
 
 test("play all runs through to the end, then offers replay", async ({ browser }) => {

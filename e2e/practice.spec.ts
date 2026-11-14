@@ -267,6 +267,21 @@ test("Syntax tracks: Gen AI for Python only, React and Node.js for JavaScript an
   await expect(page.locator("pre.code").filter({ hasText: "best: cats purr" })).toBeVisible();
 });
 
+test("Syntax built-in data structures: C++ and Python only, with types, every operation and traps", async ({ page }) => {
+  await page.goto("/syntax#bi-hashmap");
+  const langs = page.getByRole("group", { name: "Language" }), topics = page.getByRole("navigation", { name: "Topics" });
+  await expect(page.getByRole("heading", { name: "Hash map: unordered_map and dict" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What you can put in it" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Every operation" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Traps" })).toBeVisible();
+  await expect(page.getByText("unordered_map").first()).toBeVisible();
+  await langs.getByRole("button", { name: "Python" }).click();
+  await expect(page.getByRole("heading", { name: "Hash map: unordered_map and dict" })).toBeVisible();   // same topic, Python card
+  await expect(page.getByText("hashable").first()).toBeVisible();
+  await langs.getByRole("button", { name: "JavaScript" }).click();
+  await expect(topics.getByText("Built-in data structures")).toHaveCount(0);   // C++ and Python only
+});
+
 test("Syntax containers: the table of what exists, and the line that shows what fails", async ({ page }) => {
   await page.goto("/syntax#map-keys");
   await page.getByRole("group", { name: "Language" }).getByRole("button", { name: "JavaScript" }).click();

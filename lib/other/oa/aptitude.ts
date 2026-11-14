@@ -1,5 +1,7 @@
 import type { OaSubject } from "../types.ts";
 import { numeric, r2 } from "./make.ts";
+import { QUANT_OA } from "./aptitude-quant.ts";
+import { LOGIC_OA } from "./aptitude-logic.ts";
 
 const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
 const lcm = (a: number, b: number) => (a * b) / gcd(a, b);
@@ -50,3 +52,5 @@ export const OA_APTITUDE: OaSubject = {
     numeric("direction", "A person walks 3 km north and then 4 km east. How far are they from the start?", Math.hypot(3, 4), [7, 1, 12], "The path forms a right triangle.", " km"),
   ],
 };
+
+OA_APTITUDE.questions.push(...QUANT_OA, ...LOGIC_OA);   // questions for the newer chapters

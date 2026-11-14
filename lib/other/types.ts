@@ -44,6 +44,7 @@ export type Chapter = {
   real?: Story[];      // real incidents and designs, each with its source
   work?: string[];     // how this is actually done on the job
   anim?: string;       // id of an animated walk-through in lib/other/flows.ts
+  play?: string;       // id of an interactive walk-through in lib/other/flows-play.ts (sliders drive it)
   read?: Reading[];    // further reading: papers, engineering blogs, talks
   cards: Card[];
 };

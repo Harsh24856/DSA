@@ -211,6 +211,8 @@
   .gx strong,.gx-strong{font-weight:600;color:var(--ink)}
   .gx a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
   .gx :not(pre)>code{font-family:var(--mono);font-size:.88em;overflow-wrap:anywhere;background:var(--surface-2);padding:.1em .35em;border-radius:4px}
+  /* inside a button or chip (an answer option, a picked option) inline code takes the button's own text colour over a faint tint of it */
+  :is(.btn, .chip) :not(pre)>code{color:inherit;background:color-mix(in oklab,currentColor 14%,transparent)}
   .gx-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:16px 32px}
   .gx-two>*{min-width:0;display:grid;gap:8px;align-content:start}
   .gx-formula{font-family:var(--mono);font-size:14px;background:var(--accent-soft);padding:12px 16px;border-radius:12px;overflow-x:auto;white-space:pre}

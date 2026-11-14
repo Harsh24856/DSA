@@ -1,6 +1,7 @@
 // Every program must print exactly OUT[topic], or OUT_BY_LANG[topic][lang] where a language behaves differently on
 // purpose (the "not possible" cases). check:other compiles and runs all six versions of each topic and compares them.
 import { TRACK_CODE, TRACK_OUT } from "./code-tracks.ts";
+import { BUILTIN_CODE, BUILTIN_OUT, BUILTIN_OUT_BY_LANG } from "./builtins.ts";
 import type { SynLang } from "./topics.ts";
 
 export const CODE: Record<string, Partial<Record<SynLang, string>>> = {
@@ -476,3 +477,6 @@ export const OUT_BY_LANG: Record<string, Partial<Record<SynLang, string>>> = {
 
 Object.assign(CODE, TRACK_CODE);   // the language-specific tracks: Python for Gen AI, React and Node.js
 Object.assign(OUT, TRACK_OUT);
+Object.assign(CODE, BUILTIN_CODE);   // built-in data structures, C++ and Python
+Object.assign(OUT, BUILTIN_OUT);
+Object.assign(OUT_BY_LANG, BUILTIN_OUT_BY_LANG);

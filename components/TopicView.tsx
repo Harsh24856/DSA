@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, Copy, Lightbulb, 
 import { usePatterns } from "@/lib/patternStore";
 import { lcUrl, NEEDS, patternByKey, problemsOf, STUDY_PATH, topicById, topicProblems, TOPICS, type Pattern, type PProblem, type Topic } from "@/lib/patterns";
 import { stageOf, WHY } from "@/lib/patterns/order";
-import { keyPoints } from "@/lib/keypoints";
+import { firstSentence, keyPoint } from "@/lib/keypoints";
 import { TOPIC_FLOWS } from "@/lib/other/flows-dsa";
 import dynamic from "next/dynamic";
 
@@ -98,20 +98,24 @@ function RailItem({ on, onClick, label, n, meta, done }: { on: boolean; onClick(
 }
 
 /* ---------- points, then paragraph ---------- */
-/** A block of theory: its key points first (each paragraph's opening sentence), then every paragraph in full. */
+/** A block of theory as points: each paragraph is one numbered point, its key idea in bold, the rest of it underneath. */
 function Explained({ paras }: { paras: string[] }) {
   return (
-    <div className="grid max-w-[72ch] gap-4">
-      <div className="callout">
-        <h4 className="text-sm font-semibold text-accent">Key points</h4>
-        <ul className="mt-2 flex flex-col gap-2 text-base leading-relaxed">
-          {keyPoints(paras).map((x, i) => <li key={i} className="flex gap-2"><span className="num mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-ink">{i + 1}</span><span>{inline(x)}</span></li>)}
-        </ul>
-      </div>
-      <div className="flex flex-col gap-3 text-base leading-relaxed">
-        {paras.map((x, i) => <p key={i}><span className="num mr-2 text-sm font-semibold text-accent">{i + 1}</span>{inline(x)}</p>)}
-      </div>
-    </div>
+    <ol className="grid max-w-[72ch] gap-3">
+      {paras.map((p, i) => {
+        const key = keyPoint(p), lead = firstSentence(p), rest = p.slice(p.indexOf(lead) + lead.length).trim();
+        const more = key.endsWith(" ...") ? p.trim() : key.length > lead.length ? p.slice(p.indexOf(lead) + key.length).trim() : rest;
+        return (
+          <li key={i} className="tile flex gap-3 p-4">
+            <span className="num grid size-6 shrink-0 place-items-center rounded-full bg-accent text-sm font-semibold text-accent-ink">{i + 1}</span>
+            <div className="min-w-0">
+              <p className="text-base font-semibold leading-relaxed">{inline(key.endsWith(" ...") ? lead.split(/[:;,]/)[0] : key)}</p>
+              {more && <p className="mt-1 text-base leading-relaxed">{inline(more)}</p>}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

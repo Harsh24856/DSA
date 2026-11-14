@@ -2,11 +2,18 @@
 // different in each, plus tracks for some languages only (tracks.ts). The programs live in code.ts and code-tracks.ts;
 // check:other runs all of them and requires the expected output.
 import { TRACK_GROUPS } from "./tracks.ts";
+import { BUILTIN_GROUP } from "./builtins.ts";
 
 export type SynLang = "cpp" | "java" | "python" | "js" | "ts" | "rust";
 export const SYN_LANGS: [SynLang, string][] = [["cpp", "C++"], ["java", "Java"], ["python", "Python"], ["js", "JavaScript"], ["ts", "TypeScript"], ["rust", "Rust"]];
 
-export type SynTopic = { id: string; title: string; idea: string; notes: Partial<Record<SynLang, string>> };
+/** A reference card for one built-in data structure in one language. */
+export type BuiltinRef = {
+  types: [role: string, works: string, fails: string][];          // e.g. ["Key", "int, string, pair<int,int>, ...", "a type with no operator<: ..."]
+  ops: { group: string; rows: [call: string, what: string, cost: string][] }[];   // every operation, grouped (add, read, remove, ...)
+  traps: string[];
+};
+export type SynTopic = { id: string; title: string; idea: string; notes: Partial<Record<SynLang, string>>; ref?: Partial<Record<SynLang, BuiltinRef>> };
 /** `langs`: a track for some languages only (every language when absent); `play`: the playground mode it runs in. */
 export type SynGroup = { title: string; langs?: SynLang[]; play?: "react" | "node"; topics: SynTopic[] };
 
@@ -427,6 +434,7 @@ export const SYN_GROUPS: SynGroup[] = [
   ] },
 ];
 
+SYN_GROUPS.splice(1, 0, BUILTIN_GROUP);   // right after Basics: the containers every program uses
 SYN_GROUPS.push(...TRACK_GROUPS);
 
 export const SYN_TOPICS = SYN_GROUPS.flatMap((g) => g.topics);

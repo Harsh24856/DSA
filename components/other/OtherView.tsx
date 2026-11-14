@@ -22,6 +22,7 @@ import { STARTERS, type Starter } from "@/lib/other/playground/starters";
 
 const Playground = dynamic(() => import("./playground/Playground"), { ssr: false, loading: () => <div className="pg h-[300px]" aria-hidden /> });
 const FlowPlayer = dynamic(() => import("./FlowPlayer"), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
+const FlowLab = dynamic(() => import("./FlowLab"), { ssr: false, loading: () => <div className="gx-diagram h-[560px]" aria-hidden /> });
 
 type Lang = "cpp" | "java" | "python" | "js" | "ts";
 const SubjectCtx = createContext("");
@@ -309,6 +310,7 @@ export function ChapterPage({ subject, chapter: ch }: { subject: SubjectMeta; ch
           {ch.table && <TableView t={ch.table} />}
           {ch.code && <CodeBlock code={ch.code} lang={lang} setLang={setLang} />}
           {ch.anim && <FlowPlayer id={ch.anim} />}
+          {ch.play && <FlowLab id={ch.play} />}
           {ch.lab && <OtherLab kind={ch.lab} />}
           <RealWorld ch={ch} />
         </motion.article>

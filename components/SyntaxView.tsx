@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Check } from "@phosphor-icons/react";
 import { usePatterns } from "@/lib/patternStore";
-import { CONTAINERS, groupsFor, langsOf, playMode, SYN_GROUPS, SYN_LANGS, SYN_TOPICS, synKey, topicsFor, type SynLang } from "@/lib/syntax/topics";
+import { CONTAINERS, groupsFor, langsOf, playMode, SYN_GROUPS, SYN_LANGS, SYN_TOPICS, synKey, topicsFor, type BuiltinRef, type SynLang } from "@/lib/syntax/topics";
 import { inline } from "./other/Rich";
 import { Bar, Seg } from "./ui";
 
@@ -80,6 +80,7 @@ export function SyntaxView({ code, out, outBy }: { code: Record<string, Partial<
         <h3 id="topic-title" className="t-h2">{t.title}</h3>
         <p className="max-w-[72ch] text-sm leading-relaxed">{inline(t.idea)}</p>
         {t.notes[lang] && <p className="callout text-sm leading-relaxed"><b>{label(lang)}:</b> {inline(t.notes[lang]!)}</p>}
+        {t.ref?.[lang] && <BuiltinCard r={t.ref[lang]!} name={label(lang)} />}
         {containers && (
           <details className="tile p-4 text-sm">
             <summary className="cursor-pointer font-semibold">Every container in {label(lang)}: what exists and what does not</summary>
@@ -93,7 +94,7 @@ export function SyntaxView({ code, out, outBy }: { code: Record<string, Partial<
         )}
         <Playground key={`${t.id}:${lang}`} mode={playMode(t.id, lang)} code={code[t.id][lang]!} title={`${t.title} in ${label(lang)}`} />
         <div className="grid gap-1">
-          <p className="text-xs font-semibold text-muted">{expected ? `Expected output in ${label(lang)}: the last lines show what happens when you try the version that does not work` : outBy[t.id] ? "Expected output (some languages print an extra line here)" : group.play === "react" ? "The first render as HTML; the preview above is live, so click and type in it" : group.langs?.length === 1 ? "Expected output" : group.langs ? "Expected output, the same in JavaScript and TypeScript" : "Expected output, the same in every language"}</p>
+          <p className="text-xs font-semibold text-muted">{group.title === "Built-in data structures" ? `Expected output in ${label(lang)}` : expected ? `Expected output in ${label(lang)}: the last lines show what happens when you try the version that does not work` : outBy[t.id] ? "Expected output (some languages print an extra line here)" : group.play === "react" ? "The first render as HTML; the preview above is live, so click and type in it" : group.langs?.length === 1 ? "Expected output" : group.langs ? `Expected output, the same in ${group.langs.map(label).join(" and ")}` : "Expected output, the same in every language"}</p>
           <pre className="code overflow-x-auto text-xs" tabIndex={0}>{expected ?? out[t.id]}</pre>
         </div>
         <div className="grid gap-2 border-t border-line pt-4">
@@ -115,6 +116,59 @@ export function SyntaxView({ code, out, outBy }: { code: Record<string, Partial<
         {prev ? <button type="button" onClick={() => setTopic(prev.id)} className="btn btn-nav justify-start gap-3 text-left"><ArrowLeft size={16} aria-hidden /><span><span className="block text-xs font-normal text-muted">Previous</span>{prev.title}</span></button> : <span />}
         {next && <button type="button" onClick={() => { if (!on) toggle(key, true); setTopic(next.id); }} className="btn btn-nav justify-end gap-3 text-right"><span><span className="block text-xs font-normal text-muted">{on ? "Next" : "Learned, next"}</span>{next.title}</span><ArrowRight size={16} aria-hidden /></button>}
       </nav>
+    </div>
+  );
+}
+
+/** A built-in data structure's reference card: the types it takes, every operation with its cost, and the traps. */
+function BuiltinCard({ r, name }: { r: BuiltinRef; name: string }) {
+  return (
+    <div className="grid gap-4">
+      <section aria-label={`Types in ${name}`} className="grid gap-2">
+        <h4 className="text-base font-semibold">What you can put in it</h4>
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)]">
+          {r.types.map(([role, works, fails]) => (
+            <div key={role} className="tile grid gap-1 p-3 text-sm leading-relaxed">
+              <p className="font-semibold">{role}</p>
+              <p><span className="font-semibold text-easy">Works: </span>{inline(works)}</p>
+              {fails && <p><span className="font-semibold text-hard">Does not work: </span>{inline(fails)}</p>}
+            </div>
+          ))}
+        </div>
+      </section>
+      <section aria-label={`Operations in ${name}`} className="grid gap-3">
+        <h4 className="text-base font-semibold">Every operation</h4>
+        {r.ops.map((g) => (
+          <div key={g.group} className="grid gap-2">
+            <p className="t-eyebrow">{g.group}</p>
+            <dl className="grid gap-2 sm:hidden">
+              {g.rows.map(([call, what, cost]) => (
+                <div key={call} className="tile grid gap-1 p-3 text-sm">
+                  <dt className="font-mono text-sm font-semibold break-all">{call}</dt>
+                  <dd className="m-0 leading-relaxed">{inline(what)}</dd>
+                  {cost && <dd className="num m-0 text-muted">{cost}</dd>}
+                </div>
+              ))}
+            </dl>
+            <div className="hidden overflow-x-auto sm:block">
+              <table className="w-full text-left text-sm">
+                <thead><tr>{["Call", "What it does", "Cost"].map((h) => <th key={h} className="border-b border-line-strong px-3 py-2 font-semibold text-muted">{h}</th>)}</tr></thead>
+                <tbody>{g.rows.map(([call, what, cost]) => (
+                  <tr key={call}>
+                    <td className="border-b border-line px-3 py-2 align-top font-mono font-semibold">{call}</td>
+                    <td className="border-b border-line px-3 py-2 align-top leading-relaxed">{inline(what)}</td>
+                    <td className="num whitespace-nowrap border-b border-line px-3 py-2 align-top">{cost}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+      </section>
+      <section aria-label={`Traps in ${name}`} className="grid gap-2">
+        <h4 className="text-base font-semibold">Traps</h4>
+        <ul className="grid gap-2">{r.traps.map((x) => <li key={x} className="callout callout-warn py-3 text-sm leading-relaxed">{inline(x)}</li>)}</ul>
+      </section>
     </div>
   );
 }

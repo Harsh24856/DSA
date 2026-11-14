@@ -90,7 +90,7 @@ function Grid({ flow }: { flow: GridFlow }) {
   return <>
     {step.tables.map((t, ti) => {
       const top = y; y += tableHeight(t) + TABLE_GAP;
-      const cols = t.rows[0]?.length ?? t.head?.length ?? 1, rh = t.rowHead ? Math.min(80, Math.max(56, 16 + 11 * Math.max(...t.rowHead.map((h) => h.length)))) : 0,   // short row labels get the room they need, up to 80
+      const cols = t.rows[0]?.length ?? t.head?.length ?? 1, rh = t.rowHead ? Math.max(56, Math.min(16 + 11 * Math.max(...t.rowHead.map((h) => h.length)), 128, W - PAD * 2 - cols * (16 + 9 * Math.max(4, ...(t.head ?? []).map((h) => h.length))))) : 0,   // row labels get the room they need, up to 128, but never at the cost of the column headings
          cw = (W - PAD * 2 - rh) / cols, longest = Math.max(1, ...t.rows.flat().map((v) => String(v).length), ...(t.head ?? []).map((h) => h.length)), fs = Math.max(13, Math.min(cols > 6 ? 16 : cols > 4 ? 18 : 21, (cw - 12) / (longest * 0.56))), headY = top + (t.label ? LABEL : 0), bodyY = headY + (t.head ? HEAD : 0);
       const before = prev?.tables[ti];
       return (

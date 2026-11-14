@@ -104,9 +104,10 @@ import { SYNTAX } from "./syntax.ts";
 import { REACT } from "./react.ts";
 import { NODE } from "./node.ts";
 import { DESIGN } from "./design.ts";
-import { FLOWS, type BarStep, type GridStep, type LaneStep } from "./flows.ts";
+import { FLOWS, type BarStep, type Flow, type GridStep, type LaneStep } from "./flows.ts";
 import { FLOW_SLOTS } from "../genai/labs.ts";
 import { TOPIC_FLOWS } from "./flows-dsa.ts";
+import { knobDefaults, PLAY_FLOWS, PlayError } from "./flows-play.ts";
 import { FACTS } from "../landingFacts.ts";
 import { compile, joinFiles, type PlayMode } from "./playground/compile.ts";
 import { STARTERS } from "./playground/starters.ts";
@@ -506,6 +507,30 @@ globalThis.__server.close(); process.exit(0);`);
       if (f.kind === "lanes") { const l = st as LaneStep; assert.ok(l.from in f.lanes && l.to in f.lanes && l.label, `flow ${id}: bad lane`); assert.ok(l.label.length <= 26, `flow ${id}: label too long: ${l.label}`); }
     }
     if (f.kind === "bars") for (const st of f.steps) assert.equal((st as BarStep).bars.length, f.steps[0].bars.length, `flow ${id}: bar count changes`);
+  }
+  // interactive walk-throughs: placed in a chapter, valid at their defaults, and valid (or a clear PlayError) on random numbers
+  const played = new Set<string>();
+  for (const sub of SUBJECTS) for (const c of sub.chapters) if (c.play) { assert.ok(PLAY_FLOWS[c.play], `${sub.id}/${c.id}: unknown interactive flow ${c.play}`); played.add(c.play); }
+  const okFlow = (where: string, f: Flow) => {
+    assert.ok(f.steps.length >= 2 && f.title, where);
+    const text = JSON.stringify(f);
+    assert.ok(!/NaN|(?<!is )undefined|Infinity|[:,[]null/.test(text), `${where} has a bad value`);
+    for (const st of f.steps) assert.ok(st.note.length > 10, `${where}: step needs a caption`);
+    if (f.kind === "lanes") for (const st of f.steps) { const l = st as LaneStep; assert.ok(l.from in f.lanes && l.to in f.lanes && l.label && l.label.length <= 26, `${where}: bad lane`); }
+    if (f.kind === "bars") for (const st of f.steps) assert.equal((st as BarStep).bars.length, f.steps[0].bars.length, `${where}: bar count changes`);
+  };
+  let rnd = 7;
+  const rand = () => (rnd = (rnd * 1103515245 + 12345) % 2147483648) / 2147483648;
+  for (const [id, pf] of Object.entries(PLAY_FLOWS)) {
+    assert.ok(played.has(id), `interactive flow ${id} is not placed in any chapter`);
+    okFlow(`interactive ${id} at its defaults`, pf.make(knobDefaults(pf)));
+    let good = 0;
+    for (let i = 0; i < 150; i++) {
+      const v = Object.fromEntries(pf.knobs.map((k) => { const st = k.step ?? 1, n = Math.floor((k.max - k.min) / st); return [k.key, +(k.min + Math.floor(rand() * (n + 1)) * st).toFixed(6)]; }));
+      try { okFlow(`interactive ${id} at ${JSON.stringify(v)}`, pf.make(v)); good++; }
+      catch (e) { if (!(e instanceof PlayError)) throw e; }
+    }
+    assert.ok(good >= 50, `interactive ${id}: only ${good} of 150 random settings work; widen what it accepts or narrow the sliders`);
   }
   const noteHas = (id: string, s: string) => assert.ok(FLOWS[id].steps.some((x) => x.note.includes(s)), `flow ${id} should say ${s}`);
   // spot checks against values worked out independently
