@@ -2,8 +2,9 @@
 // Hub of the "Other" section: one card per CS core subject with chapter progress.
 import Link from "next/link";
 import { motion } from "motion/react";
-import { ArrowRight, Atom, Calculator, Code, Cpu, Cube, Database, Exam, Globe, Lightning, HardDrives, ShareNetwork, Table, type Icon } from "@phosphor-icons/react";
+import { ArrowRight, Atom, Check, Calculator, Code, Cpu, Cube, Database, Exam, Globe, Lightning, HardDrives, ShareNetwork, Table, type Icon } from "@phosphor-icons/react";
 import { chapterKey } from "@/lib/other";
+import { SUBJECTS_ROAD } from "@/lib/other/roadmap";
 import { usePatterns } from "@/lib/patternStore";
 import { Bar, Count } from "../ui";
 import { ProgressCard } from "../ProgressCard";
@@ -16,6 +17,10 @@ export function OtherHub({ subjects, oaCount, syntaxCount }: { subjects: Subject
   const doneIn = (s: SubjectSummary) => s.chapters.filter((c) => done[chapterKey(s.id, c)]).length;
   const total = subjects.reduce((n, s) => n + s.chapters.length, 0), finished = subjects.reduce((n, s) => n + doneIn(s), 0);
   const cards = subjects.reduce((n, s) => n + s.cards.length, 0), labs = subjects.reduce((n, s) => n + s.labs, 0);
+  // the roadmap: subjects in stages, each naming the subjects it builds on; "next up" is the first one not finished
+  const byId = new Map(subjects.map((s) => [s.id, s])), complete = (id: string) => { const s = byId.get(id); return !!s && doneIn(s) === s.chapters.length; };
+  const nextUp = SUBJECTS_ROAD.flatMap((st) => st.subjects).find((x) => !complete(x.id))?.id;
+  let k = 0;
   return (
     <div className="flex flex-col gap-6">
       <section className="card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
@@ -45,29 +50,50 @@ export function OtherHub({ subjects, oaCount, syntaxCount }: { subjects: Subject
         <div className="min-w-0 flex-1"><h3 className="t-h3">Syntax in six languages</h3><p className="mt-1 text-sm text-muted">{syntaxCount} runnable programs in C++, Java, Python, JavaScript, TypeScript and Rust, from printing to every DSA map, set and heap.</p></div>
         <ArrowRight size={18} className="shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent" aria-hidden />
       </Link>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {subjects.map((s, k) => {
-          const I = ICON[s.id] ?? Cube, dn = doneIn(s);
-          return (
-            <motion.div key={s.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: Math.min(k, 4) * 0.04, ease: [0.22, 1, 0.36, 1] }}>
-              <Link href={`/other/${s.id}`} className="card group flex h-full flex-col gap-3 p-6 transition hover:border-line-strong hover:bg-surface-2 active:scale-[0.99]">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3"><span className="badge-icon size-9"><I size={18} aria-hidden /></span><h3 className="t-h3">{s.name}</h3></div>
-                  <ArrowRight size={18} className="mt-1 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent" aria-hidden />
-                </div>
-                <p className="line-clamp-3 flex-1 text-sm text-muted">{s.blurb}</p>
-                <div className="flex flex-wrap gap-2"><span className="pill pill-muted">{s.chapters.length} chapters</span><span className="pill pill-muted">{s.cards.length} questions</span>{s.labs > 0 && <span className="pill pill-muted">{s.labs} {s.labs === 1 ? "lab" : "labs"}</span>}</div>
-                <div>
-                  <div className="mb-2 flex justify-between text-xs text-muted"><span>chapters</span><span className="num">{dn} / {s.chapters.length}</span></div>
-                  <Bar value={dn} max={s.chapters.length} />
-                  <div className="mb-2 mt-3 flex justify-between text-xs text-muted"><span>questions ticked</span><span className="num">{s.cards.filter((k) => done[k]).length} / {s.cards.length}</span></div>
-                  <Bar value={s.cards.filter((k) => done[k]).length} max={s.cards.length || 1} />
-                </div>
-              </Link>
-            </motion.div>
-          );
-        })}
-      </div>
+      <section aria-labelledby="road-title" className="grid gap-6">
+        <div className="grid gap-1">
+          <h2 id="road-title" className="t-h2">Roadmap</h2>
+          <p className="m-0 max-w-[72ch] text-sm text-muted">Go stage by stage. Each subject names the subjects it builds on, and inside every subject each chapter lists the chapters to read first.</p>
+        </div>
+        {SUBJECTS_ROAD.map((st, n) => (
+          <div key={st.stage} className="grid gap-3">
+            <h3 className="t-h3"><span className="t-eyebrow block">Stage {n + 1}</span>{st.stage}</h3>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {st.subjects.map(({ id, needs }) => {
+                const s = byId.get(id);
+                if (!s) return null;
+                const I = ICON[s.id] ?? Cube, dn = doneIn(s), at = k++;
+                return (
+                  <motion.div key={s.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: Math.min(at, 4) * 0.04, ease: [0.22, 1, 0.36, 1] }}>
+                    <Link href={`/other/${s.id}`} className="card group flex h-full flex-col gap-3 p-6 transition hover:border-line-strong hover:bg-surface-2 active:scale-[0.99]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3"><span className="badge-icon size-9"><I size={18} aria-hidden /></span><h4 className="t-h3">{s.name}</h4></div>
+                        <ArrowRight size={18} className="mt-1 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-accent" aria-hidden />
+                      </div>
+                      <div className="flex-1"><p className="m-0 line-clamp-3 text-sm text-muted">{s.blurb}</p></div>
+                      {needs.length > 0 && (
+                        <p className="m-0 flex flex-wrap items-center gap-1 text-xs text-muted">
+                          <span className="mr-1">Builds on</span>
+                          {needs.map((nid) => { const ok = complete(nid); return (
+                            <span key={nid} className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 ${ok ? "bg-accent-soft text-ink" : "bg-surface-2"}`}>{ok && <Check size={10} weight="bold" aria-hidden />}{byId.get(nid)?.short ?? nid}<span className="sr-only">{ok ? " (finished)" : " (not finished)"}</span></span>
+                          ); })}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-2">{id === nextUp && <span className="pill pill-accent">Next up</span>}<span className="pill pill-muted">{s.chapters.length} chapters</span><span className="pill pill-muted">{s.cards.length} questions</span>{s.labs > 0 && <span className="pill pill-muted">{s.labs} {s.labs === 1 ? "lab" : "labs"}</span>}</div>
+                      <div>
+                        <div className="mb-2 flex justify-between text-xs text-muted"><span>chapters</span><span className="num">{dn} / {s.chapters.length}</span></div>
+                        <Bar value={dn} max={s.chapters.length} />
+                        <div className="mb-2 mt-3 flex justify-between text-xs text-muted"><span>questions ticked</span><span className="num">{s.cards.filter((key) => done[key]).length} / {s.cards.length}</span></div>
+                        <Bar value={s.cards.filter((key) => done[key]).length} max={s.cards.length || 1} />
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </section>
     </div>
   );
 }

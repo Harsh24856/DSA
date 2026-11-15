@@ -1,11 +1,14 @@
 // The subjects of the "Other" section. Each subject lives in its own file and is imported only by
 // the page that shows it (server side), so no page ships every subject's text.
 import type { Subject } from "./types";
+import { withNeeds } from "./roadmap.ts";
 
 export const SUBJECT_IDS = ["os", "dbms", "cn", "sql", "oops", "aptitude", "syntax", "react", "node", "design"] as const;
 export type SubjectId = (typeof SUBJECT_IDS)[number];
 
-export const loadSubject = async (id: SubjectId): Promise<Subject> => {
+/** A subject with its roadmap (`needs` on every chapter) attached. */
+export const loadSubject = async (id: SubjectId): Promise<Subject> => withNeeds(await raw(id));
+const raw = async (id: SubjectId): Promise<Subject> => {
   switch (id) {
     case "os": return (await import("./os")).OS;
     case "dbms": return (await import("./dbms")).DBMS;

@@ -115,6 +115,7 @@ import { STARTERS } from "./playground/starters.ts";
 import { OA } from "./oa/index.ts";
 import { COVERAGE } from "./design-coverage.ts";
 import { DESIGN_FRAME } from "./design-calc.ts";
+import { SUBJECTS_ROAD, withNeeds } from "./roadmap.ts";
 import type { SynLang } from "../syntax/topics.ts";
 import { CODE as SYN_CODE, OUT as SYN_OUT, OUT_BY_LANG as SYN_OUT_BY } from "../syntax/code.ts";
 import { langsOf, SYN_GROUPS, SYN_TOPICS } from "../syntax/topics.ts";
@@ -136,6 +137,9 @@ for (const { topic, terms } of COVERAGE) for (const [term, id] of terms) {
   assert.ok(ch, `coverage ${topic}: no chapter ${id}`);
   assert.ok(JSON.stringify(ch).toLowerCase().includes(term.toLowerCase()), `coverage ${topic}: chapter ${id} never mentions "${term}"`);
 }
+// every CS core subject is a roadmap: withNeeds throws if a chapter is missing from it or needs a later one
+assert.deepEqual(SUBJECTS_ROAD.flatMap((st) => st.subjects.map((x) => x.id)).sort(), SUBJECTS.map((x) => x.id).sort(), "the CS core roadmap must list every subject once");
+for (const s of SUBJECTS) if (s.id !== "design") assert.ok(withNeeds(s).chapters.every((c) => Array.isArray(c.needs)), `${s.id}: roadmap missing`);
 // System Design chapters are told step by step: every chapter has 7 steps, "Design ..." chapters in the round's order
 for (const c of DESIGN.chapters) {
   assert.ok(c.steps?.length === 7, `design/${c.id}: needs 7 steps`);
