@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, ArrowRight, ArrowSquareOut, BookOpen, Briefcase, Buildings, CaretDown, Check, Code as CodeIcon, Flask, Play, WarningCircle } from "@phosphor-icons/react";
-import type { Card, Chapter, Code, Table } from "@/lib/other/types";
+import type { Card, Chapter, Code, Step, Table } from "@/lib/other/types";
 import { cardKey, chapterKey, partsOf, type ChapterMeta, type SubjectMeta } from "@/lib/other";
 import { usePatterns } from "@/lib/patternStore";
 import { useStore } from "@/lib/store";
@@ -271,6 +271,29 @@ export function SubjectHub({ subject }: { subject: SubjectMeta }) {
   );
 }
 
+/** The chapter told in numbered steps, each a short section under its number. */
+function StepList({ steps }: { steps: Step[] }) {
+  return (
+    <section aria-labelledby="ch-steps" className="grid gap-4">
+      <h3 id="ch-steps">Step by step</h3>
+      <ol className="m-0 grid list-none gap-4 p-0">
+        {steps.map((s, i) => (
+          <li key={s.title} className="grid max-w-none grid-cols-[32px_1fr] gap-3">
+            <span className="flex flex-col items-center gap-2" aria-hidden>
+              <span className="num grid size-8 shrink-0 place-items-center rounded-full bg-accent-soft text-sm font-semibold text-accent">{i + 1}</span>
+              {i < steps.length - 1 && <span className="-mb-4 w-px flex-1 bg-line-strong" />}
+            </span>
+            <div className="grid min-w-0 gap-2">
+              <h4 className="m-0 pt-1 title-3"><span className="sr-only">Step {i + 1}: </span>{s.title}</h4>
+              <Rich text={s.text} />
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 /** One chapter on its own page: head with the Done tick, notes, diagram, code, walk-through, lab, stories,
  *  interview questions, then links to the previous and next chapter. */
 export function ChapterPage({ subject, chapter: ch }: { subject: SubjectMeta; chapter: Chapter }) {
@@ -305,6 +328,7 @@ export function ChapterPage({ subject, chapter: ch }: { subject: SubjectMeta; ch
       <SubjectCtx.Provider value={subject.id}>
         <motion.article key={ch.id} className="card gx-slide" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, ease: EASE }}>
           <Rich text={ch.summary} />
+          {ch.steps && <StepList steps={ch.steps} />}
           {ch.points && <ul>{ch.points.map((p) => <li key={p}>{inline(p)}</li>)}</ul>}
           {ch.diagram && <Mermaid src={ch.diagram} caption={ch.caption} />}
           {ch.table && <TableView t={ch.table} />}

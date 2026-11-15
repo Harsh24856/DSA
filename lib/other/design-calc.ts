@@ -18,3 +18,20 @@ export const ndcg = (rels: number[], k = rels.length) => {
   const top = rels.slice(0, k), ideal = [...rels].sort((a, b) => b - a).slice(0, k);
   return dcg(ideal) === 0 ? 0 : dcg(top) / dcg(ideal);
 };
+
+/* ---------- step-by-step chapters (design-steps-*.ts) ---------- */
+/** A whole number with thousands separators. */
+export const fmt = (n: number) => Math.round(n).toLocaleString("en-US");
+/** Average per second for a daily total. */
+export const perSec = (perDay: number) => perDay / 86_400;
+/** The seven steps of every "Design X" chapter, the order a design round follows. */
+export const DESIGN_FRAME = ["Requirements", "Estimates", "API", "Data model", "High-level design", "Deep dives", "Trade-offs and wrap-up"] as const;
+/** The seven steps of a building-block chapter. */
+export const BLOCK_FRAME = ["The problem", "The core idea", "How it works", "The options", "Numbers to know", "What breaks", "Say it in the interview"] as const;
+/** The seven steps of an ML design chapter. */
+export const ML_FRAME = ["Frame the problem", "Data and labels", "Features", "Model", "Evaluation", "Serving", "Monitoring and iteration"] as const;
+/** Pairs a frame's titles with one text each; throws if the counts differ. */
+export const framed = (titles: readonly string[], texts: string[]) => {
+  if (titles.length !== texts.length) throw new Error(`steps: ${texts.length} texts for ${titles.length} titles`);
+  return titles.map((title, i) => ({ title, text: texts[i] }));
+};

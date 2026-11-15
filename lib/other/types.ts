@@ -46,8 +46,11 @@ export type Chapter = {
   anim?: string;       // id of an animated walk-through in lib/other/flows.ts
   play?: string;       // id of an interactive walk-through in lib/other/flows-play.ts (sliders drive it)
   read?: Reading[];    // further reading: papers, engineering blogs, talks
+  steps?: Step[];      // the chapter told in numbered steps (System Design), shown right after the summary
   cards: Card[];
 };
+/** One numbered step; `text` uses the Rich markup (paragraphs, "- " lists, **bold**, `code`). */
+export type Step = { title: string; text: string };
 
 /** `parts` groups the chapters into sections for the contents list: each entry is a title and the id of its first chapter, in order. */
 export type Subject = { id: string; name: string; short: string; blurb: string; chapters: Chapter[]; parts?: [title: string, from: string][] };

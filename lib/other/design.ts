@@ -5,6 +5,11 @@ import { MORE_ML } from "./design-ml.ts";
 import { DESIGN_PLAY } from "./flows-play-design.ts";
 import { EXTRA } from "./design-extra.ts";
 import { READING } from "./design-reading.ts";
+import { STEPS_A } from "./design-steps-a.ts";
+import { STEPS_B } from "./design-steps-b.ts";
+import { STEPS_C } from "./design-steps-c.ts";
+
+const STEPS = { ...STEPS_A, ...STEPS_B, ...STEPS_C };
 
 const BASE: Subject = {
   id: "design",
@@ -1307,7 +1312,7 @@ export const DESIGN: Subject = {
   chapters: ORDER.map((id) => {
     const c = ALL.get(id)!, x = EXTRA[id], read = READING[id];
     const merged = x ? { ...c, points: [...(c.points ?? []), ...(x.points ?? [])], cards: [...c.cards, ...x.cards] } : c;
-    const play = c.play ?? DESIGN_PLAY[id];
-    return { ...merged, ...(read ? { read } : {}), ...(play ? { play } : {}) };
+    const play = c.play ?? DESIGN_PLAY[id], steps = STEPS[id];
+    return { ...merged, ...(read ? { read } : {}), ...(play ? { play } : {}), ...(steps ? { steps } : {}) };
   }),
 };

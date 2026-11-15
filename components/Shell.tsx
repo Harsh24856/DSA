@@ -23,7 +23,9 @@ const NAV = [
   { href: "/drill", label: "Practice" },
   { href: "/genai", label: "Gen AI" },
   { href: "/other", label: "CS core" },
+  { href: "/other/design", label: "System design" },
 ];
+const DESIGN = "/other/design";
 // pages that stand on their own, without the app's navigation
 const STANDALONE = ["/auth", "/welcome", "/privacy", "/terms"];
 const isAppPath = (p: string) => p === "/" || ["/analytics", "/patterns", "/problems", "/drill", "/mock", "/genai", "/other", "/syntax"].some((a) => p === a || p.startsWith(a + "/"));
@@ -38,7 +40,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [search, setSearch] = useState(false);
   const reduce = useReducedMotion();
   const left = Math.max(0, diffDays(parse(state.quota.placement), now));
-  const isOn = (href: string) => (href === "/" ? path === "/" : path.startsWith(href) || (href === "/drill" && path.startsWith("/mock")) || (href === "/other" && path.startsWith("/syntax")));   // Syntax lives under CS core
+  const inDesign = path === DESIGN || path.startsWith(DESIGN + "/");
+  const isOn = (href: string) => (href === "/" ? path === "/" : href === "/other" ? (path.startsWith(href) && !inDesign) || path.startsWith("/syntax") : path.startsWith(href) || (href === "/drill" && path.startsWith("/mock")));   // Syntax lives under CS core; System design has its own link
   const page = NAV.find((n) => isOn(n.href));
 
   useEffect(() => { setMenu(false); setSearch(false); }, [path]);
@@ -73,7 +76,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             const on = isOn(href);
             return (
               <Link key={href} href={href} aria-current={on ? "page" : undefined}
-                className={`relative flex h-8 items-center rounded-lg px-3 text-sm font-medium transition-colors duration-300 ${on ? "text-ink" : "text-muted hover:text-ink"}`}>
+                className={`relative flex h-8 items-center whitespace-nowrap rounded-lg px-2 text-sm xl:px-3 font-medium transition-colors duration-300 ${on ? "text-ink" : "text-muted hover:text-ink"}`}>
                 {on && <motion.span layoutId="nav-pill" className="absolute inset-0 rounded-lg bg-surface-2 ring-1 ring-line" transition={reduce ? { duration: 0 } : { duration: 0.5, ease: EASE }} />}
                 <span className="relative">{label}</span>
               </Link>

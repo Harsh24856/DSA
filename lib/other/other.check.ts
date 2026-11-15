@@ -113,6 +113,7 @@ import { compile, joinFiles, type PlayMode } from "./playground/compile.ts";
 import { STARTERS } from "./playground/starters.ts";
 import { OA } from "./oa/index.ts";
 import { COVERAGE } from "./design-coverage.ts";
+import { DESIGN_FRAME } from "./design-calc.ts";
 import type { SynLang } from "../syntax/topics.ts";
 import { CODE as SYN_CODE, OUT as SYN_OUT, OUT_BY_LANG as SYN_OUT_BY } from "../syntax/code.ts";
 import { langsOf, SYN_GROUPS, SYN_TOPICS } from "../syntax/topics.ts";
@@ -133,6 +134,13 @@ for (const { topic, terms } of COVERAGE) for (const [term, id] of terms) {
   const ch = DESIGN.chapters.find((c) => c.id === id);
   assert.ok(ch, `coverage ${topic}: no chapter ${id}`);
   assert.ok(JSON.stringify(ch).toLowerCase().includes(term.toLowerCase()), `coverage ${topic}: chapter ${id} never mentions "${term}"`);
+}
+// System Design chapters are told step by step: every chapter has 7 steps, "Design ..." chapters in the round's order
+for (const c of DESIGN.chapters) {
+  assert.ok(c.steps?.length === 7, `design/${c.id}: needs 7 steps`);
+  assert.equal(new Set(c.steps!.map((s) => s.title)).size, 7, `design/${c.id}: step titles repeat`);
+  for (const s of c.steps!) assert.ok(s.text.length > 60 && !/NaN|undefined|Infinity/.test(s.text), `design/${c.id}: step "${s.title}" is too short or has a bad number`);
+  if (/^(Design|Case study)/.test(c.title) && !c.id.startsWith("ml") || ["mlplatform", "mlllm"].includes(c.id)) assert.deepEqual(c.steps!.map((s) => s.title), [...DESIGN_FRAME], `design/${c.id}: steps must follow the design round`);
 }
 assert.equal(geohash(57.64911, 10.40744, 11), "u4pruydqqvj", "geohash matches the reference implementation");
 assert.deepEqual(matchBuy([{ id: "a", px: 10, qty: 5 }, { id: "b", px: 11, qty: 5 }], 11, 7).fills, [["a", 10, 5], ["b", 11, 2]], "price-time matching");
