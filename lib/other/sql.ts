@@ -1,4 +1,6 @@
 import type { Subject } from "./types";
+import { withPlay } from "./flows-play-cs.ts";
+import { SQL_OOP_PLAY } from "./flows-play-sql-oop.ts";
 
 /** Sample schema used by every query on this page. check:other runs each query against it in SQLite. */
 export const SETUP = `CREATE TABLE departments (id INT PRIMARY KEY, name TEXT);
@@ -14,7 +16,7 @@ INSERT INTO orders VALUES
   (1, 'ravi', 250, '2026-01-01'), (2, 'ravi', 100, '2026-01-02'), (3, 'meera', 400, '2026-01-02'),
   (4, 'ravi', 80, '2026-01-05'), (5, 'meera', 120, '2026-01-03'), (6, 'sam', 60, '2026-01-03');`;
 
-export const SQL: Subject = {
+const BASE: Subject = {
   id: "sql",
   name: "SQL",
   short: "SQL",
@@ -346,3 +348,5 @@ ORDER BY customer;`, sqlSetup: SETUP, result: { head: ["customer"], rows: [["mee
     },
   ],
 };
+
+export const SQL = withPlay(BASE, SQL_OOP_PLAY.sql);
