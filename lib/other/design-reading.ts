@@ -4,6 +4,21 @@
 import type { Reading } from "./types.ts";
 
 export const READING: Record<string, Reading[]> = {
+  approach: [
+    { title: "awesome-system-design-resources: Learn System Design concepts and prepare for interviews using free resources", by: "Ashish Pratap Singh (GitHub)", url: "https://github.com/ashishps1/awesome-system-design-resources" },
+    { title: "System Design was hard until I learned these 6 concepts", by: "Arjay McCandless (video)", url: "https://www.youtube.com/watch?v=sqifqSQAqhU" },
+  ],
+  mlframe: [
+    { title: "Machine Learning Interview Prep", by: "Aced, formerly Exponent (video playlist)", url: "https://www.youtube.com/playlist?list=PLrtCHHeadkHqYX7O5cjHeWHzH2jzQqWg5" },
+    { title: "MLSys Seminars", by: "Stanford MLSys Seminars (video playlist)", url: "https://www.youtube.com/playlist?list=PLSrTvUm384I9PV10koj_cqit9OfbJXEkq" },
+  ],
+  mlplatform: [
+    { title: "machine-learning-systems-design: a booklet on machine learning systems design with exercises", by: "Chip Huyen (GitHub)", url: "https://github.com/chiphuyen/machine-learning-systems-design" },
+    { title: "Stanford MLSys Seminar Episode 0: ML + Systems", by: "Stanford MLSys Seminars (video)", url: "https://www.youtube.com/watch?v=OEiNnfdxBRE" },
+  ],
+  mlllm: [
+    { title: "aie-book: resources for AI engineers and the book AI Engineering", by: "Chip Huyen (GitHub)", url: "https://github.com/chiphuyen/aie-book" },
+  ],
   reliability: [
     { title: "Circuit Breaker", by: "Martin Fowler", url: "https://martinfowler.com/bliki/CircuitBreaker.html" },
   ],

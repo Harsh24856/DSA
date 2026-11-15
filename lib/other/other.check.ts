@@ -107,7 +107,7 @@ import { DESIGN } from "./design.ts";
 import { FLOWS, type BarStep, type Flow, type GridStep, type LaneStep } from "./flows.ts";
 import { FLOW_SLOTS } from "../genai/labs.ts";
 import { TOPIC_FLOWS } from "./flows-dsa.ts";
-import { knobDefaults, PLAY_FLOWS, PlayError } from "./flows-play.ts";
+import { knobDefaults, PATTERN_PLAY, PLAY_FLOWS, PlayError } from "./flows-play.ts";
 import { FACTS } from "../landingFacts.ts";
 import { compile, joinFiles, type PlayMode } from "./playground/compile.ts";
 import { STARTERS } from "./playground/starters.ts";
@@ -183,7 +183,7 @@ function runCpp(where: string, src: string) {
 
 // Python, JavaScript and TypeScript run directly; TS and TSX are also type-checked in one tsc pass below.
 // tsc needs node_modules (react types), so those files go in a folder inside the repo, deleted at the end.
-const tsDir = join(process.cwd(), ".other-check");
+const tsDir = join(process.cwd(), `.other-check-${process.pid}`);   // one folder per run, so parallel runs never delete each other's files
 rmSync(tsDir, { recursive: true, force: true }); mkdirSync(tsDir);
 let tsFiles = 0;
 function runPython(where: string, src: string) {
@@ -511,6 +511,7 @@ globalThis.__server.close(); process.exit(0);`);
   // interactive walk-throughs: placed in a chapter, valid at their defaults, and valid (or a clear PlayError) on random numbers
   const played = new Set<string>();
   for (const sub of SUBJECTS) for (const c of sub.chapters) if (c.play) { assert.ok(PLAY_FLOWS[c.play], `${sub.id}/${c.id}: unknown interactive flow ${c.play}`); played.add(c.play); }
+  for (const [where, id] of Object.entries(PATTERN_PLAY)) { assert.ok(PLAY_FLOWS[id], `patterns ${where}: unknown interactive flow ${id}`); assert.ok(/^[a-z-]+:\d+$/.test(where), `patterns: bad place ${where}`); played.add(id); }
   const okFlow = (where: string, f: Flow) => {
     assert.ok(f.steps.length >= 2 && f.title, where);
     const text = JSON.stringify(f);

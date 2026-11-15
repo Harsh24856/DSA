@@ -1,6 +1,7 @@
 import type { Subject } from "./types";
 import { MORE_A } from "./design-more.ts";
 import { MORE_B } from "./design-more2.ts";
+import { MORE_ML } from "./design-ml.ts";
 import { EXTRA } from "./design-extra.ts";
 import { READING } from "./design-reading.ts";
 
@@ -1294,13 +1295,14 @@ const ORDER = [
   "url", "crawler", "notifications", "feed", "messaging", "typeahead", "video", "storage",
   "proximity", "nearby", "maps", "metrics", "adclick", "hotel", "email", "objectstore", "leaderboard", "payments", "wallet", "exchange",
   "ride", "tickets", "docs", "live", "delivery", "tricky", "production",
+  "mlframe", "mlrecs", "mlsearch", "mlads", "mlplatform", "mlllm",
 ];
-const ALL = new Map([...BASE.chapters, ...MORE_A, ...MORE_B].map((c) => [c.id, c]));
+const ALL = new Map([...BASE.chapters, ...MORE_A, ...MORE_B, ...MORE_ML].map((c) => [c.id, c]));
 if (ALL.size !== ORDER.length || ORDER.some((id) => !ALL.has(id))) throw new Error("design: ORDER and the chapter list differ");
 
 export const DESIGN: Subject = {
   ...BASE,
-  parts: [["Interview basics", "approach"], ["Building blocks", "scaling"], ["Classic designs", "url"], ["Advanced designs", "proximity"], ["Real-world case studies", "ride"]],
+  parts: [["Interview basics", "approach"], ["Building blocks", "scaling"], ["Classic designs", "url"], ["Advanced designs", "proximity"], ["Real-world case studies", "ride"], ["ML system design", "mlframe"]],
   chapters: ORDER.map((id) => {
     const c = ALL.get(id)!, x = EXTRA[id], read = READING[id];
     const merged = x ? { ...c, points: [...(c.points ?? []), ...(x.points ?? [])], cards: [...c.cards, ...x.cards] } : c;

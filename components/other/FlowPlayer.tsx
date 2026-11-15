@@ -2,7 +2,7 @@
 // Plays one animated walk-through (lib/other/flows.ts) with the Remotion Player. Loaded with next/dynamic and mounted only
 // near the viewport, so pages stay light. Back and Next move one step at a time, animating the step; Play runs them all.
 // The title and caption are page text, so they stay sharp on phones and screen readers announce each step.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Player, type PlayerRef } from "@remotion/player";
 import { useReducedMotion } from "motion/react";
 import { ArrowCounterClockwise, CaretLeft, CaretRight, Pause, Play } from "@phosphor-icons/react";
@@ -13,14 +13,35 @@ import { FPS, FlowScene, STEP, W, flowFrames, flowHeight } from "./FlowScene";
 export default function FlowPlayer({ id, flow: given }: { id?: string; flow?: Flow }) {
   const flow = given ?? FLOWS[id ?? ""], reduce = useReducedMotion();
   const inputProps = useMemo(() => ({ flow }), [flow]);   // a new object only when the flow itself changes
-  const box = useRef<HTMLElement>(null), player = useRef<PlayerRef>(null), stopAt = useRef<number | null>(null);
+  const player = useRef<PlayerRef>(null), stopAt = useRef<number | null>(null), io = useRef<IntersectionObserver | null>(null);
+  const el = useRef<HTMLElement | null>(null), pending = useRef<(() => void) | null>(null);
   const [near, setNear] = useState(false), [frame, setFrame] = useState(0), [playing, setPlaying] = useState(false);
 
-  useEffect(() => {
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setNear(true); io.disconnect(); } }, { rootMargin: "400px" });
-    if (box.current) io.observe(box.current);
-    return () => io.disconnect();
+  // a callback ref, not a mount effect: the observer starts whenever the figure itself mounts, however late that is
+  const box = useCallback((node: HTMLElement | null) => {
+    io.current?.disconnect(); io.current = null; el.current = node;
+    if (!node) return;
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setNear(true); obs.disconnect(); } }, { rootMargin: "400px" });
+    obs.observe(node); io.current = obs;
   }, []);
+  useEffect(() => () => io.current?.disconnect(), []);
+  // fallback: observer callbacks are not always delivered (busy or embedded views), so also check the position twice a
+  // second until the player is mounted; cheap, and it stops as soon as it is near
+  useEffect(() => {
+    if (near) return;
+    const t = setInterval(() => {
+      const r = el.current?.getBoundingClientRect();
+      if (r && r.top < innerHeight + 400 && r.bottom > -400) setNear(true);
+    }, 500);
+    return () => clearInterval(t);
+  }, [near]);
+  // a button pressed before the player existed: mount it, then do what was asked
+  useEffect(() => {
+    if (!near || !pending.current) return;
+    const run = pending.current; pending.current = null;
+    const id = requestAnimationFrame(() => run());
+    return () => cancelAnimationFrame(id);
+  }, [near]);
 
   useEffect(() => {
     const p = player.current;
@@ -55,7 +76,7 @@ export default function FlowPlayer({ id, flow: given }: { id?: string; flow?: Fl
 
   const go = (i: number, animate: boolean) => {
     const p = player.current;
-    if (!p) return;
+    if (!p) { pending.current = () => go(i, animate); setNear(true); return; }
     const to = Math.max(0, Math.min(n - 1, i));
     p.pause(); stopAt.current = null;
     if (animate && !reduce) { p.seekTo(to * STEP); setFrame(to * STEP); stopAt.current = settled(to); p.play(); }
@@ -63,7 +84,7 @@ export default function FlowPlayer({ id, flow: given }: { id?: string; flow?: Fl
   };
   const toggle = () => {
     const p = player.current;
-    if (!p) return;
+    if (!p) { pending.current = () => toggle(); setNear(true); return; }
     stopAt.current = null;
     if (reduce) return go(atEnd ? 0 : cur + 1, false);
     if (playing) p.pause();
@@ -81,11 +102,11 @@ export default function FlowPlayer({ id, flow: given }: { id?: string; flow?: Fl
       <p className="flow-note mx-auto w-full max-w-[560px] body-6" data-tone={tone} aria-live="polite"><b className="num">Step {cur + 1} of {n}.</b> {stepNote(flow, cur)}</p>
       <div className="mx-auto flex w-full max-w-[560px] flex-wrap items-center justify-center gap-2">
         <button type="button" className="btn btn-sm btn-icon" aria-label="Previous step" disabled={cur === 0} onClick={() => go(cur - 1, false)}><CaretLeft size={16} aria-hidden /></button>
-        <button type="button" className="btn btn-sm btn-primary min-w-[96px]" disabled={!near} onClick={toggle}>
+        <button type="button" className="btn btn-sm btn-primary min-w-[96px]" onClick={toggle}>
           {playing ? <Pause size={14} weight="fill" aria-hidden /> : atEnd ? <ArrowCounterClockwise size={14} aria-hidden /> : <Play size={14} weight="fill" aria-hidden />}
           {playing ? "Pause" : atEnd ? "Replay" : "Play all"}
         </button>
-        <button type="button" className="btn btn-sm btn-icon" aria-label="Next step" disabled={!near || cur === n - 1} onClick={() => go(cur + 1, true)}><CaretRight size={16} aria-hidden /></button>
+        <button type="button" className="btn btn-sm btn-icon" aria-label="Next step" disabled={cur === n - 1} onClick={() => go(cur + 1, true)}><CaretRight size={16} aria-hidden /></button>
       </div>
     </figure>
   );

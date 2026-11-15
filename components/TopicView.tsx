@@ -8,9 +8,11 @@ import { lcUrl, NEEDS, patternByKey, problemsOf, STUDY_PATH, topicById, topicPro
 import { stageOf, WHY } from "@/lib/patterns/order";
 import { firstSentence, keyPoint } from "@/lib/keypoints";
 import { TOPIC_FLOWS } from "@/lib/other/flows-dsa";
+import { PATTERN_PLAY } from "@/lib/other/flows-play";
 import dynamic from "next/dynamic";
 
 const FlowPlayer = dynamic(() => import("./other/FlowPlayer"), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
+const FlowLab = dynamic(() => import("./other/FlowLab"), { ssr: false, loading: () => <div className="gx-diagram h-[560px]" aria-hidden /> });
 import { PLAIN } from "@/lib/patterns/plain";
 import { EXTRAS } from "@/lib/patterns/extras";
 import type { Viz } from "@/lib/patterns/types";
@@ -216,6 +218,8 @@ function Overview({ t, pick }: { t: Topic; pick(n: number): void }) {
             </section>
           )}
 
+          {PATTERN_PLAY[`${t.id}:0`] && <FlowLab id={PATTERN_PLAY[`${t.id}:0`]} />}
+
           {o.viz.length > 0 && <VizTabs variants={o.viz} id={`${t.id}-0`} />}
 
           <section aria-labelledby="ov-build" className="grid min-w-0 gap-4">
@@ -384,6 +388,7 @@ function PatternView({ t, p, step, prev, next, pick }: { t: Topic; p: Pattern; s
       )}
 
       <VizTabs variants={variants} id={`${t.id}-${p.n}`} />
+      {PATTERN_PLAY[`${t.id}:${p.n}`] && <FlowLab id={PATTERN_PLAY[`${t.id}:${p.n}`]} />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <section aria-labelledby="when">

@@ -331,7 +331,7 @@ function memoFlow(): Flow {
     { note: `With a memo, each answer is stored the first time. A repeat call is a lookup, marked hit, and goes no deeper: ${trace.length} calls in all.`, tone: "ok",
       tables: [{ label: "calls with a memo", rows: mLevels.map((l) => padTo(l.map((c) => (c.hit ? `${label(c.k)} hit` : label(c.k))), mWidth)), tones: mTones }] },
     { note: `Real call counts from running both versions. Without the memo they explode; with it they grow by 2 per step of n. Exponential becomes O(n).`, tone: "ok",
-      tables: [{ label: "calls made", head: ["n", "no memo", "memo"], rows: ns.map((n) => [n, plainCalls(n).toLocaleString("en-US"), memoTrace(n).length]), tones: { ":1": "bad", ":2": "ok" } }] },
+      tables: [{ label: "calls made", head: ["n", "no memo", "memo"], rows: ns.map((n) => { const c = plainCalls(n); return [n, c >= 100000 ? `${(c / 1000).toFixed(1)}k` : c.toLocaleString("en-US"), memoTrace(n).length]; }), tones: { ":1": "bad", ":2": "ok" } }] },
   ] };
 }
 

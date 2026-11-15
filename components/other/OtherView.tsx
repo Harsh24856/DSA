@@ -324,10 +324,10 @@ export function ChapterPage({ subject, chapter: ch }: { subject: SubjectMeta; ch
       </SubjectCtx.Provider>
 
       <nav className="grid gap-3 sm:grid-cols-2" aria-label="Chapters">
-        {prev ? <Link href={href(subject.id, prev.id)} className="btn btn-nav text-ink no-underline justify-start gap-3"><ArrowLeft size={16} aria-hidden /><span><span className="block text-xs font-normal text-muted">Previous</span>{prev.title}</span></Link> : <span />}
+        {prev ? <Link href={href(subject.id, prev.id)} className="btn btn-nav whitespace-normal text-ink no-underline justify-start gap-3"><ArrowLeft size={16} aria-hidden /><span><span className="block text-xs font-normal text-muted">Previous</span>{prev.title}</span></Link> : <span />}
         {next
-          ? <Link href={href(subject.id, next.id)} onClick={() => { if (!on) toggle(key, true); }} className="btn btn-nav text-ink no-underline justify-end gap-3 text-right"><span><span className="block text-xs font-normal text-muted">{on ? "Next" : "Done, next"}</span>{next.title}</span><ArrowRight size={16} aria-hidden /></Link>
-          : <Link href={`/other/${subject.id}`} onClick={() => { if (!on) toggle(key, true); }} className="btn btn-nav text-ink no-underline justify-end gap-3 text-right"><span><span className="block text-xs font-normal text-muted">{on ? "Back to" : "Done, back to"}</span>{subject.name}</span><ArrowRight size={16} aria-hidden /></Link>}
+          ? <Link href={href(subject.id, next.id)} onClick={() => { if (!on) toggle(key, true); }} className="btn btn-nav whitespace-normal text-ink no-underline justify-end gap-3 text-right"><span><span className="block text-xs font-normal text-muted">{on ? "Next" : "Done, next"}</span>{next.title}</span><ArrowRight size={16} aria-hidden /></Link>
+          : <Link href={`/other/${subject.id}`} onClick={() => { if (!on) toggle(key, true); }} className="btn btn-nav whitespace-normal text-ink no-underline justify-end gap-3 text-right"><span><span className="block text-xs font-normal text-muted">{on ? "Back to" : "Done, back to"}</span>{subject.name}</span><ArrowRight size={16} aria-hidden /></Link>}
       </nav>
     </div>
   );
