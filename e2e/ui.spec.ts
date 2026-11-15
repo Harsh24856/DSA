@@ -43,7 +43,7 @@ const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void>; pr
   { name: "design-ml-llm", path: "/other/design/mlllm" },
   { name: "aptitude-logic", path: "/other/aptitude/seating" },
   { name: "other-chapter-code", path: "/other/oops/polymorphism" },
-  ...["os/storage", "sql/nulls", "design/estimation", "design/consistency", "design/reliability", "react/perf", "aptitude/reasoning", "cn/layers"].map((c) => ({ name: `other-lab-${c.replace("/", "-")}`, path: `/other/${c}` })),
+  ...["os/storage", "sql/nulls", "design/estimation", "design/consistency", "design/reliability", "react/perf", "aptitude/reasoning", "cn/layers", "os/sync", "dbms/acid", "dbms/concurrency"].map((c) => ({ name: `other-lab-${c.replace("/", "-")}`, path: `/other/${c}` })),
   { name: "revise", path: "/other/revise" },
   { name: "revise-dsa", path: "/other/revise/dsa" },
   { name: "revise-dsa-open", path: "/other/revise/dsa", prep: async (p) => { await p.getByRole("button", { name: "Open all topics" }).click(); } },

@@ -1,6 +1,7 @@
 import type { Subject } from "./types";
+import { CS_PLAY, withPlay } from "./flows-play-cs.ts";
 
-export const OS: Subject = {
+const BASE: Subject = {
   id: "os",
   name: "Operating Systems",
   short: "OS",
@@ -302,3 +303,5 @@ int main() {
     },
   ],
 };
+
+export const OS = withPlay(BASE, CS_PLAY.os);

@@ -1,6 +1,7 @@
 import type { Subject } from "./types";
+import { CS_PLAY, withPlay } from "./flows-play-cs.ts";
 
-export const CN: Subject = {
+const BASE: Subject = {
   id: "cn",
   name: "Computer Networks",
   short: "CN",
@@ -238,3 +239,5 @@ export const CN: Subject = {
     },
   ],
 };
+
+export const CN = withPlay(BASE, CS_PLAY.cn);

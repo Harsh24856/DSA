@@ -96,7 +96,7 @@ async function dragSliders(page: Page, where: string) {
 test("interactive walk-throughs follow their sliders", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  for (const s of ["aptitude", "design"] as const) for (const c of (await loadSubject(s)).chapters.filter((c) => c.play)) {
+  for (const s of ["aptitude", "design", "os", "dbms", "cn"] as const) for (const c of (await loadSubject(s)).chapters.filter((c) => c.play)) {
     await page.goto(`/other/${s}/${c.id}`);
     await dragSliders(page, `${s}/${c.id}`);
   }
@@ -122,11 +122,11 @@ for (const [where] of Object.entries(PATTERN_PLAY)) test(`patterns slider walk-t
   expect(errors).toEqual([]);
 });
 
-// System Design walk-throughs at their largest settings, where the longest numbers and the most rows appear
-test("design slider walk-throughs at their largest settings", async ({ page }) => {
+// System Design, OS, DBMS and CN walk-throughs at their largest settings, where the longest numbers and the most rows appear
+for (const s of ["design", "os", "dbms", "cn"] as const) test(`${s} slider walk-throughs at their largest settings`, async ({ page }) => {
   const problems: string[] = [], lab = 'section[aria-label^="Try your own numbers"]';
-  for (const c of (await loadSubject("design")).chapters.filter((c) => c.play)) {
-    await page.goto(`/other/design/${c.id}`);
+  for (const c of (await loadSubject(s)).chapters.filter((c) => c.play)) {
+    await page.goto(`/other/${s}/${c.id}`);
     await expect(page.locator(`${lab} figcaption`)).toBeVisible({ timeout: 30_000 });
     const sliders = page.locator(`${lab} input[type="range"]`);
     for (let i = 0; i < await sliders.count(); i++) { await sliders.nth(i).focus(); await page.keyboard.press("End"); }
