@@ -47,6 +47,7 @@ export type Chapter = {
   play?: string;       // id of an interactive walk-through in lib/other/flows-play.ts (sliders drive it)
   read?: Reading[];    // further reading: papers, engineering blogs, talks
   steps?: Step[];      // the chapter told in numbered steps (System Design), shown right after the summary
+  needs?: string[];    // chapter ids to finish first (the System Design roadmap)
   cards: Card[];
 };
 /** One numbered step; `text` uses the Rich markup (paragraphs, "- " lists, **bold**, `code`). */

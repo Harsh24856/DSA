@@ -5,6 +5,7 @@ import { MORE_ML } from "./design-ml.ts";
 import { DESIGN_PLAY } from "./flows-play-design.ts";
 import { EXTRA } from "./design-extra.ts";
 import { READING } from "./design-reading.ts";
+import { NEEDS } from "./design-roadmap.ts";
 import { STEPS_A } from "./design-steps-a.ts";
 import { STEPS_B } from "./design-steps-b.ts";
 import { STEPS_C } from "./design-steps-c.ts";
@@ -1305,6 +1306,9 @@ const ORDER = [
 ];
 const ALL = new Map([...BASE.chapters, ...MORE_A, ...MORE_B, ...MORE_ML].map((c) => [c.id, c]));
 if (ALL.size !== ORDER.length || ORDER.some((id) => !ALL.has(id))) throw new Error("design: ORDER and the chapter list differ");
+// the roadmap: every chapter lists what it needs, and only chapters that come earlier in ORDER
+ORDER.forEach((id, i) => { if (!NEEDS[id]) throw new Error(`design: ${id} has no roadmap entry`); for (const n of NEEDS[id]) if (!(ORDER.indexOf(n) >= 0 && ORDER.indexOf(n) < i)) throw new Error(`design: ${id} needs ${n}, which must come before it`); });
+if (Object.keys(NEEDS).length !== ORDER.length) throw new Error("design: roadmap names a chapter that does not exist");
 
 export const DESIGN: Subject = {
   ...BASE,
@@ -1313,6 +1317,6 @@ export const DESIGN: Subject = {
     const c = ALL.get(id)!, x = EXTRA[id], read = READING[id];
     const merged = x ? { ...c, points: [...(c.points ?? []), ...(x.points ?? [])], cards: [...c.cards, ...x.cards] } : c;
     const play = c.play ?? DESIGN_PLAY[id], steps = STEPS[id];
-    return { ...merged, ...(read ? { read } : {}), ...(play ? { play } : {}), ...(steps ? { steps } : {}) };
+    return { ...merged, ...(read ? { read } : {}), ...(play ? { play } : {}), ...(steps ? { steps } : {}), needs: NEEDS[id] };
   }),
 };

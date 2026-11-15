@@ -218,7 +218,11 @@ export function SubjectHub({ subject }: { subject: SubjectMeta }) {
   const { done, toggle } = usePatterns();
   const router = useRouter();
   const chs = subject.chapters, isDone = (c: ChapterMeta) => !!done[chapterKey(subject.id, c.id)];
-  const n = chs.filter(isDone).length, cards = chs.reduce((s, c) => s + c.cards, 0), next = chs.find((c) => !isDone(c));
+  const n = chs.filter(isDone).length, cards = chs.reduce((s, c) => s + c.cards, 0);
+  // roadmap subjects (System Design): a chapter is ready once every chapter it needs is done, and "next" is the first ready one
+  const road = chs.some((c) => c.needs.length), byId = new Map(chs.map((c) => [c.id, c]));
+  const missing = (c: ChapterMeta) => c.needs.filter((id) => !done[chapterKey(subject.id, id)]);
+  const next = (road && chs.find((c) => !isDone(c) && !missing(c).length)) || chs.find((c) => !isDone(c));
   const answered = chs.reduce((s, c) => s + c.cardIds.filter((x) => done[cardKey(subject.id, c.id, x)]).length, 0);
   // old links pointed at /other/<subject>#<chapter>: send them to the chapter's own page
   useEffect(() => { const id = location.hash.slice(1); if (chs.some((c) => c.id === id)) router.replace(href(subject.id, id)); }, [chs, router, subject.id]);
@@ -230,6 +234,7 @@ export function SubjectHub({ subject }: { subject: SubjectMeta }) {
         <span className="t-eyebrow">{chs.length} chapters · {cards} questions</span>
         <h2 id="sub-title" className="t-title">{subject.name}</h2>
         <p className="max-w-[72ch] text-sm leading-relaxed text-muted">{subject.blurb}</p>
+        {road && <p className="m-0 max-w-[72ch] text-sm leading-relaxed text-muted"><strong className="text-ink">A roadmap, in order.</strong> Each topic lists the topics it builds on. Finish those first; the Continue button always picks the first topic you are ready for.</p>}
         <div className="grid gap-2 text-xs text-muted">
           <div className="flex items-center gap-3"><span className="w-20 shrink-0">Chapters</span><Bar value={n} max={chs.length} className="flex-1" /><span className="num">{n} / {chs.length} done</span></div>
           <div className="flex items-center gap-3"><span className="w-20 shrink-0">Questions</span><Bar value={answered} max={cards || 1} className="flex-1" /><span className="num">{answered} / {cards} ticked</span></div>
@@ -238,11 +243,11 @@ export function SubjectHub({ subject }: { subject: SubjectMeta }) {
       </section>
       {STARTERS[subject.id] && <SubjectPlayground starters={STARTERS[subject.id]} />}
       <nav aria-label="Chapters" className="grid gap-6">
-        {partsOf(chs, subject.parts).map((part) => {
+        {partsOf(chs, subject.parts).map((part, stage) => {
           const pd = part.chapters.filter(isDone).length;
           return (
             <div key={part.title || "all"} className="grid gap-3">
-              {part.title && <div className="flex items-center gap-3"><h3 className="t-h3 shrink-0">{part.title}</h3><Bar value={pd} max={part.chapters.length} className="flex-1" /><span className="num text-xs text-muted">{pd} / {part.chapters.length}</span></div>}
+              {part.title && <div className="flex items-center gap-3"><h3 className="t-h3 shrink-0">{road && <span className="t-eyebrow block">Stage {stage + 1}</span>}{part.title}</h3><Bar value={pd} max={part.chapters.length} className="flex-1" /><span className="num text-xs text-muted">{pd} / {part.chapters.length}</span></div>}
         <ol className="grid gap-4 sm:grid-cols-2">
           {part.chapters.map((c) => { const k = chs.indexOf(c), key = chapterKey(subject.id, c.id); return (
             <motion.li key={c.id} className="relative max-w-none" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: Math.min(k, 6) * 0.03, ease: EASE }}>
@@ -252,7 +257,16 @@ export function SubjectHub({ subject }: { subject: SubjectMeta }) {
                   <h3 className="t-h3 min-w-0 flex-1">{c.title}</h3>
                 </div>
                 <p className="m-0 line-clamp-2 flex-1 text-sm text-muted">{inline(c.blurb)}</p>
+                {c.needs.length > 0 && (
+                  <p className="m-0 flex flex-wrap items-center gap-1 text-xs text-muted">
+                    <span className="mr-1">Needs</span>
+                    {c.needs.map((id) => { const ok = !!done[chapterKey(subject.id, id)]; return (
+                      <span key={id} className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 ${ok ? "bg-accent-soft text-ink" : "bg-surface-2"}`}>{ok && <Check size={10} weight="bold" aria-hidden />}{byId.get(id)?.title}<span className="sr-only">{ok ? " (done)" : " (not done)"}</span></span>
+                    ); })}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-2">
+                  {road && !isDone(c) && (c === next ? <span className="pill pill-accent">Next up</span> : missing(c).length ? <span className="pill pill-muted">{missing(c).length} to do first</span> : <span className="pill pill-muted">Ready</span>)}
                   {c.lab && <span className="pill pill-accent inline-flex items-center gap-1"><Flask size={12} weight="fill" aria-hidden />lab</span>}
                   {c.anim && <span className="pill pill-accent inline-flex items-center gap-1"><Play size={12} weight="fill" aria-hidden />walk-through</span>}
                   {c.cards > 0 && <span className="pill pill-muted">{c.cardIds.filter((x) => done[cardKey(subject.id, c.id, x)]).length} / {c.cards} questions</span>}
@@ -294,6 +308,21 @@ function StepList({ steps }: { steps: Step[] }) {
   );
 }
 
+/** Chapters of the roadmap as links, each with its Done tick. */
+function RoadList({ list, subject, done }: { list: ChapterMeta[]; subject: string; done: Record<string, unknown> }) {
+  return (
+    <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
+      {list.map((c) => { const ok = !!done[chapterKey(subject, c.id)]; return (
+            <li key={c.id} className="flex max-w-none items-center gap-2 text-sm">
+              <span className="tick pointer-events-none size-5 shrink-0" data-on={ok || undefined} aria-hidden>{ok && <Check size={12} weight="bold" />}</span>
+              <Link href={href(subject, c.id)} className="min-w-0 text-ink underline-offset-4 hover:text-accent">{c.title}</Link>
+              <span className="sr-only">{ok ? "(done)" : "(not done)"}</span>
+            </li>
+          ); })}
+    </ul>
+  );
+}
+
 /** One chapter on its own page: head with the Done tick, notes, diagram, code, walk-through, lab, stories,
  *  interview questions, then links to the previous and next chapter. */
 export function ChapterPage({ subject, chapter: ch }: { subject: SubjectMeta; chapter: Chapter }) {
@@ -302,6 +331,7 @@ export function ChapterPage({ subject, chapter: ch }: { subject: SubjectMeta; ch
   const chs = subject.chapters, i = chs.findIndex((c) => c.id === ch.id), prev = chs[i - 1], next = chs[i + 1];
   const key = chapterKey(subject.id, ch.id), on = !!done[key];
   const n = chs.filter((c) => done[chapterKey(subject.id, c.id)]).length;
+  const needs = (ch.needs ?? []).map((id) => chs.find((c) => c.id === id)!).filter(Boolean), unlocks = chs.filter((c) => c.needs.includes(ch.id));
   // languages that appear together on this page: one switch at the top for all of them
   const pageLangs = LANGS.filter(([k]) => (langsIn(ch.code).length > 1 && ch.code?.[k]) || ch.cards.some((x) => langsIn(x.code).length > 1 && x.code?.[k]));
 
@@ -322,6 +352,7 @@ export function ChapterPage({ subject, chapter: ch }: { subject: SubjectMeta; ch
           {ch.cards.length > 0 && <span className="pill pill-muted">{ch.cards.length} questions</span>}
         </div>
         <div className="flex items-center gap-3"><Bar value={n} max={chs.length} className="flex-1" /><span className="num text-xs text-muted">{n} / {chs.length} chapters done</span></div>
+        {needs.length > 0 && <div className="grid gap-2"><span className="t-eyebrow">Before this, finish</span><RoadList list={needs} subject={subject.id} done={done} /></div>}
         {pageLangs.length > 1 && <div className="flex flex-wrap items-center gap-2 text-sm"><span className="text-muted">Code in</span><Seg<Lang> label="Language" value={pageLangs.some(([k]) => k === lang) ? lang : pageLangs[0][0]} onChange={setLang} className="flex flex-wrap" options={pageLangs} /></div>}
       </section>
 
@@ -347,6 +378,12 @@ export function ChapterPage({ subject, chapter: ch }: { subject: SubjectMeta; ch
         )}
       </SubjectCtx.Provider>
 
+      {unlocks.length > 0 && (
+        <section className="card grid gap-3 p-6" aria-labelledby="ch-unlocks">
+          <h3 id="ch-unlocks" className="t-h3 m-0">This unlocks</h3>
+          <RoadList list={unlocks} subject={subject.id} done={done} />
+        </section>
+      )}
       <nav className="grid gap-3 sm:grid-cols-2" aria-label="Chapters">
         {prev ? <Link href={href(subject.id, prev.id)} className="btn btn-nav whitespace-normal text-ink no-underline justify-start gap-3"><ArrowLeft size={16} aria-hidden /><span><span className="block text-xs font-normal text-muted">Previous</span>{prev.title}</span></Link> : <span />}
         {next

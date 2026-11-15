@@ -32,9 +32,9 @@ export const partsOf = <C extends { id: string }>(chapters: C[], parts?: [string
   });
 
 /** What a subject page and a chapter's prev/next links need about each chapter, without its text. */
-export type ChapterMeta = { id: string; title: string; blurb: string; lab: boolean; anim: boolean; cards: number; cardIds: string[] };
+export type ChapterMeta = { id: string; title: string; blurb: string; lab: boolean; anim: boolean; cards: number; cardIds: string[]; needs: string[] };
 export type SubjectMeta = { id: string; name: string; short: string; blurb: string; chapters: ChapterMeta[]; parts?: [string, string][] };
 export const subjectMeta = (s: Subject): SubjectMeta => ({
   id: s.id, name: s.name, short: s.short, blurb: s.blurb, parts: s.parts,
-  chapters: s.chapters.map((c) => ({ id: c.id, title: c.title, blurb: c.summary.split("\n\n")[0], lab: !!c.lab, anim: !!c.anim, cards: c.cards.length, cardIds: c.cards.map((x) => x.id) })),
+  chapters: s.chapters.map((c) => ({ id: c.id, title: c.title, blurb: c.summary.split("\n\n")[0], lab: !!c.lab, anim: !!c.anim, cards: c.cards.length, cardIds: c.cards.map((x) => x.id), needs: c.needs ?? [] })),
 });
