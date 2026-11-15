@@ -2,6 +2,7 @@ import type { Subject } from "./types";
 import { MORE_A } from "./design-more.ts";
 import { MORE_B } from "./design-more2.ts";
 import { MORE_ML } from "./design-ml.ts";
+import { DESIGN_PLAY } from "./flows-play-design.ts";
 import { EXTRA } from "./design-extra.ts";
 import { READING } from "./design-reading.ts";
 
@@ -1306,6 +1307,7 @@ export const DESIGN: Subject = {
   chapters: ORDER.map((id) => {
     const c = ALL.get(id)!, x = EXTRA[id], read = READING[id];
     const merged = x ? { ...c, points: [...(c.points ?? []), ...(x.points ?? [])], cards: [...c.cards, ...x.cards] } : c;
-    return read ? { ...merged, read } : merged;
+    const play = c.play ?? DESIGN_PLAY[id];
+    return { ...merged, ...(read ? { read } : {}), ...(play ? { play } : {}) };
   }),
 };

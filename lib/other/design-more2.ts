@@ -1,19 +1,14 @@
 // System Design chapters, part 3: location services, data pipelines, storage, money and trading.
 // Every estimate is computed here from the stated assumptions, never typed by hand.
 import type { Chapter } from "./types.ts";
+import { geohashCell, geohashFor } from "./design-calc.ts";
 
 const DAY = 86_400;
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
 const n1 = (x: number) => (Math.round(x * 10) / 10).toLocaleString("en-US");
 
-/* ---------- proximity: geohash cell sizes at the equator ---------- */
-export const geohashCell = (len: number) => {
-  const bits = 5 * len, lonBits = Math.ceil(bits / 2), latBits = Math.floor(bits / 2);
-  return { w: (360 / 2 ** lonBits) * 111.32, h: (180 / 2 ** latBits) * 110.57 };   // km per degree at the equator
-};
+/* ---------- proximity ---------- */
 const km = (x: number) => (x >= 1 ? `${n1(x)} km` : `${n0(x * 1000)} m`);
-/** The longest geohash whose cell is at least as big as the radius, so the cell and its 8 neighbours cover the circle. */
-export const geohashFor = (radiusKm: number) => { for (let len = 9; len >= 1; len--) { const c = geohashCell(len); if (Math.min(c.w, c.h) >= radiusKm) return len; } return 1; };
 const PROX = { dau: 100e6, searches: 5, businesses: 200e6, perLeaf: 100 };
 const proxQps = (PROX.dau * PROX.searches) / DAY;
 const leaves = PROX.businesses / PROX.perLeaf, internal = leaves / 3;

@@ -96,9 +96,9 @@ async function dragSliders(page: Page, where: string) {
 test("interactive walk-throughs follow their sliders", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  for (const c of (await loadSubject("aptitude")).chapters.filter((c) => c.play)) {
-    await page.goto(`/other/aptitude/${c.id}`);
-    await dragSliders(page, c.id);
+  for (const s of ["aptitude", "design"] as const) for (const c of (await loadSubject(s)).chapters.filter((c) => c.play)) {
+    await page.goto(`/other/${s}/${c.id}`);
+    await dragSliders(page, `${s}/${c.id}`);
   }
   expect(errors).toEqual([]);
 });
@@ -120,6 +120,19 @@ for (const [where] of Object.entries(PATTERN_PLAY)) test(`patterns slider walk-t
   if (await page.locator(`${lab} [role="status"]`).count() === 0) await walkAll(page, problems, `${lab} .gx-flow`);
   expect([...new Set(problems)]).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+// System Design walk-throughs at their largest settings, where the longest numbers and the most rows appear
+test("design slider walk-throughs at their largest settings", async ({ page }) => {
+  const problems: string[] = [], lab = 'section[aria-label^="Try your own numbers"]';
+  for (const c of (await loadSubject("design")).chapters.filter((c) => c.play)) {
+    await page.goto(`/other/design/${c.id}`);
+    await expect(page.locator(`${lab} figcaption`)).toBeVisible({ timeout: 30_000 });
+    const sliders = page.locator(`${lab} input[type="range"]`);
+    for (let i = 0; i < await sliders.count(); i++) { await sliders.nth(i).focus(); await page.keyboard.press("End"); }
+    if (await page.locator(`${lab} [role="status"]`).count() === 0) await walkAll(page, problems, `${lab} .gx-flow`);
+  }
+  expect([...new Set(problems)]).toEqual([]);
 });
 
 test("play all runs through to the end, then offers replay", async ({ browser }) => {

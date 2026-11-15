@@ -2,6 +2,7 @@
 // applications). The topic list came from a public resource list; the text is original. Every number is computed here
 // from the stated assumptions, never typed by hand.
 import type { Chapter } from "./types.ts";
+import { ndcg, RANK_BUDGET } from "./design-calc.ts";
 
 const DAY = 86_400;
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
@@ -19,15 +20,9 @@ const REC = { corpus: 10e6, candidates: 1000, ranked: 100, shown: 20, dim: 128, 
 const recEmbGB = (REC.corpus * REC.dim * 4) / 1e9;                      // float32 item embeddings
 const recQps = (REC.dau * REC.opens) / DAY;
 const recRankPerSec = recQps * REC.candidates;
-export const RANK_BUDGET: [stage: string, ms: number][] = [["Fetch user features", 10], ["Candidate generation (several sources)", 30], ["Ranking model", 60], ["Re-ranking and filters", 15], ["Network and serialization", 25]];
 const recBudget = RANK_BUDGET.reduce((s, [, ms]) => s + ms, 0);
 
 /* ---------- search: NDCG of one ranked result page ---------- */
-const dcg = (rels: number[]) => rels.reduce((s, r, i) => s + (2 ** r - 1) / Math.log2(i + 2), 0);
-export const ndcg = (rels: number[], k = rels.length) => {
-  const top = rels.slice(0, k), ideal = [...rels].sort((a, b) => b - a).slice(0, k);
-  return dcg(ideal) === 0 ? 0 : dcg(top) / dcg(ideal);
-};
 const RANKED = [3, 2, 3, 0, 1, 2];                                       // graded relevance of results 1..6, 3 = perfect
 const IDEAL = [...RANKED].sort((a, b) => b - a);
 const ndcgShown = ndcg(RANKED);

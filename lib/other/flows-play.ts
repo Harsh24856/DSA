@@ -7,11 +7,12 @@ import { PLAY as QUANT } from "./flows-play-quant.ts";
 import { PLAY as LOGIC } from "./flows-play-logic.ts";
 import { PLAY as DSA_A, PLACES as PLACES_A } from "./flows-play-dsa-a.ts";
 import { PLAY as DSA_B, PLACES as PLACES_B } from "./flows-play-dsa-b.ts";
+import { PLAY as DESIGN } from "./flows-play-design.ts";
 
 export { PlayError } from "./flows-play-types.ts";
 export type { Knob, PlayFlow } from "./flows-play-types.ts";
 
-export const PLAY_FLOWS: Record<string, PlayFlow> = { ...QUANT, ...LOGIC, ...DSA_A, ...DSA_B };
+export const PLAY_FLOWS: Record<string, PlayFlow> = { ...QUANT, ...LOGIC, ...DSA_A, ...DSA_B, ...DESIGN };
 /** Where /patterns shows an interactive walk-through: "<topic>:0" is the Overview, "<topic>:<n>" a pattern. */
 export const PATTERN_PLAY: Record<string, string> = { ...PLACES_A, ...PLACES_B };
 export const knobDefaults = (p: PlayFlow) => Object.fromEntries(p.knobs.map((k) => [k.key, k.value]));
