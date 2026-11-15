@@ -1,6 +1,8 @@
 import type { Subject } from "./types";
+import { withPlay } from "./flows-play-cs.ts";
+import { SQL_OOP_PLAY } from "./flows-play-sql-oop.ts";
 
-export const OOPS: Subject = {
+const BASE: Subject = {
   id: "oops",
   name: "OOP in Java and C++",
   short: "OOPs",
@@ -583,3 +585,5 @@ int main() {
     },
   ],
 };
+
+export const OOPS = withPlay(BASE, SQL_OOP_PLAY.oops);

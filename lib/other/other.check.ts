@@ -108,6 +108,7 @@ import { FLOWS, type BarStep, type Flow, type GridStep, type LaneStep } from "./
 import { FLOW_SLOTS } from "../genai/labs.ts";
 import { TOPIC_FLOWS } from "./flows-dsa.ts";
 import { knobDefaults, PATTERN_PLAY, PLAY_FLOWS, PlayError } from "./flows-play.ts";
+import { SQL_PLAY_SQL } from "./flows-play-sql-oop.ts";
 import { FACTS } from "../landingFacts.ts";
 import { compile, joinFiles, type PlayMode } from "./playground/compile.ts";
 import { STARTERS } from "./playground/starters.ts";
@@ -540,6 +541,18 @@ globalThis.__server.close(); process.exit(0);`);
       catch (e) { if (!(e instanceof PlayError)) throw e; }
     }
     assert.ok(good >= 50, `interactive ${id}: only ${good} of 150 random settings work; widen what it accepts or narrow the sliders`);
+  }
+  // the SQL walk-throughs must show what SQLite really returns, at the defaults and on random settings
+  for (const [id, sqlOf] of Object.entries(SQL_PLAY_SQL)) {
+    const pf = PLAY_FLOWS[id];
+    for (let i = 0; i < 40; i++) {
+      const v = i ? Object.fromEntries(pf.knobs.map((k) => { const st = k.step ?? 1, n = Math.floor((k.max - k.min) / st); return [k.key, k.min + Math.floor(rand() * (n + 1)) * st]; })) : knobDefaults(pf);
+      const { setup, query } = sqlOf(v), sdb = new DatabaseSync(":memory:");
+      sdb.exec(setup);
+      const real = (sdb.prepare(query).all() as Record<string, unknown>[]).map((r) => Object.values(r).map(cell));
+      const f = pf.make(v) as { steps: GridStep[] };
+      assert.deepEqual(f.steps.at(-1)!.tables[0].rows.map((r) => r.map(cell)), real, `interactive ${id} at ${JSON.stringify(v)} matches SQLite`);
+    }
   }
   const noteHas = (id: string, s: string) => assert.ok(FLOWS[id].steps.some((x) => x.note.includes(s)), `flow ${id} should say ${s}`);
   // spot checks against values worked out independently
