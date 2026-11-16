@@ -5,9 +5,13 @@ import type { Fw, LabStep, TestResult } from "./types.ts";
 export const MAX_CODE = 50_000;
 export const RUN_SECONDS = 20;
 
-const prelude = (fw: Fw) => `import json, numpy as np
+const imports = (fw: Fw) => `import json, numpy as np
 ${fw === "torch" ? "import torch\ntorch.manual_seed(0)\n" : ""}
-def T(x):
+_TESTS = []`;
+
+// Emitted before the learner's code and again after it, so a learner global named T, close or test
+// cannot break the tests.
+const helpers = (fw: Fw) => `def T(x):
     ${fw === "torch" ? "return torch.tensor(x, dtype=torch.float32)" : "return np.asarray(x, dtype=np.float64)"}
 
 def I(x):
@@ -26,13 +30,13 @@ def close(got, want, tol=1e-5, what="output"):
     diff = float(np.max(np.abs(to_np(got).astype(np.float64) - want))) if want.size else 0.0
     assert diff <= tol, f"{what}: off by {diff:.2e} (allowed {tol:.0e})"
 
-_TESTS = []
 def test(fn):
     _TESTS.append(fn)
     return fn
 `;
 
 // A leading newline keeps a result on its own line even after a learner print(..., end="").
+// The closing done line tells a full run from one cut short by sys.exit or a crash part-way.
 const runner = (token: string) => `
 import json as _json
 for _fn in _TESTS:
@@ -44,6 +48,7 @@ for _fn in _TESTS:
     except Exception as _e:
         _r = {"name": _fn.__name__, "pass": False, "msg": type(_e).__name__ + (": " + str(_e) if str(_e) else "")}
     print("\\n@@${token} " + _json.dumps(_r), flush=True)
+print("\\n@@${token} " + _json.dumps({"done": True}), flush=True)
 `;
 
 export function buildProgram(steps: LabStep[], index: number, fw: Fw, userCode: string, token: string): string {
@@ -53,18 +58,22 @@ export function buildProgram(steps: LabStep[], index: number, fw: Fw, userCode: 
     if (!ref) throw new Error(`step ${i + 1} (${s.id}) has no ${fw} version`);
     return `# step ${i + 1}: ${s.title}\n${ref}`;
   });
-  return [prelude(fw), ...earlier, "# your code", userCode, "# tests", steps[index].tests, runner(token)].join("\n\n");
+  return [imports(fw), helpers(fw), ...earlier, "# your code", userCode, "# tests", helpers(fw), steps[index].tests, runner(token)].join("\n\n");
 }
 
+// null unless the run reached its done line with at least one result: a syntax error, a crash or an
+// early exit all mean the step failed.
 export function parseResults(stdout: string, token: string): TestResult[] | null {
   const mark = `@@${token} `;
   const out: TestResult[] = [];
+  let done = false;
   for (const line of stdout.split("\n")) {
     if (!line.startsWith(mark)) continue;
     try {
       const r = JSON.parse(line.slice(mark.length));
+      if (r.done === true) { done = true; continue; }
       out.push({ name: String(r.name), pass: r.pass === true, msg: String(r.msg ?? "") });
     } catch { /* a cut-off line is not a result */ }
   }
-  return out.length ? out : null;
+  return done && out.length ? out : null;
 }

@@ -499,7 +499,7 @@ def test_matches_reference():
 @test
 def test_future_tokens_stay_hidden():
     x2 = _x0.copy()
-    x2[:, 3] += 1.0
+    x2[:, 3] += np.random.default_rng(70).normal(size=16)   # not a constant: layer norm would erase a uniform shift
     a, b = to_np(block(_x, _p, 4)), to_np(block(T(x2), _p, 4))
     check_shape(a, (2, 6, 16))
     assert np.allclose(a[:, :3], b[:, :3], atol=1e-5), "changing token 3 changed positions 0 to 2: attention must use the causal mask"
@@ -717,13 +717,10 @@ def test_first_loss_is_cross_entropy_and_weights_move():
     assert not np.allclose(to_np(p["wte"]), before), "wte did not change: call backward() and step the optimizer"
 
 @test
-def test_loss_falls_in_60_steps():
+def test_loss_falls_in_60_steps_within_15_s():
     p, g = _model(11), torch.Generator().manual_seed(2)
     losses = [train_step(p, _batch(g), 1e-2) for _ in range(60)]
     assert losses[-1] < 0.6 * losses[0], f"loss went from {losses[0]:.3f} to {losses[-1]:.3f}, expected below {0.6 * losses[0]:.3f}"
-
-@test
-def test_finishes_in_15_seconds():
     took = time.perf_counter() - _T0
     assert took < 15, f"training took {took:.1f} s on one CPU, limit 15 s"
 `,
