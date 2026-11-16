@@ -1,7 +1,7 @@
 // Stage 2 (Neural networks): slider walk-throughs, placed in modules by a `play` block. Spread by stages/play.ts into PLAY_FLOWS.
 import type { Flow, GridTable } from "../../other/flows.ts";
 import type { PlayFlow } from "../../other/flows-play-types.ts";
-import { ACTS, fmt } from "./s2.flows.ts";
+import { ACTS, BP, bpLoss, fmt, sigmoid } from "./s2.flows.ts";
 
 // Neuron and activations: output and slope of each activation at z, then the slope multiplied through n layers sitting at the same z.
 function actSlope(v: Record<string, number>): Flow {
@@ -39,6 +39,26 @@ function mlpParams(v: Record<string, number>): Flow {
   ] };
 }
 
+// Backprop on a graph: checking the chain-rule gradient with finite differences of step h = 10^-k.
+function gradCheck(v: Record<string, number>): Flow {
+  const { k, w } = v, h = 10 ** -k, p = sigmoid(w * BP.x + BP.b);
+  const g = 2 * (p - BP.y) * p * (1 - p) * BP.x;
+  const fwd = (bpLoss(w + h) - bpLoss(w)) / h, cen = (bpLoss(w + h) - bpLoss(w - h)) / (2 * h);
+  const rel = (n: number) => Math.abs(n - g) / Math.abs(g);
+  const sig = (n: number) => n.toPrecision(7), err = (n: number) => rel(n).toExponential(1);
+  const tone = (n: number) => (rel(n) < 1e-6 ? "ok" as const : rel(n) > 1e-3 ? "bad" as const : "warn" as const);
+  const why = k <= 3 ? "h is large, so the curve bends inside the step (truncation error). The central difference cancels the first bend and does far better."
+    : k >= 10 ? "h is tiny, so L(w + h) and L(w) agree in almost every digit and the subtraction keeps only rounding noise." : "This middle range is where gradient checks are done.";
+  const head = ["method", "gradient", "rel. error"];
+  return { kind: "grid", title: `Gradient check at w = ${w}, h = 1e-${k}`, steps: [
+    { note: `The chain rule gives dL/dw = 2(p - y) × p(1 - p) × x = ${sig(g)} exactly, in one backward pass.`, tables: [{ head, rows: [["chain rule", sig(g), "0"]], tones: { "0": "ok" } }] },
+    { note: `Forward difference: (L(w + h) - L(w)) / h. Relative error ${err(fwd)}. ${why}`, tone: tone(fwd) === "ok" ? "ok" : "warn",
+      tables: [{ head, rows: [["chain rule", sig(g), "0"], ["forward", sig(fwd), err(fwd)]], tones: { "1:2": tone(fwd) } }] },
+    { note: `Central difference: (L(w + h) - L(w - h)) / 2h. Relative error ${err(cen)}. Below 1e-6 the hand-written gradient is trusted.`, tone: tone(cen) === "ok" ? "ok" : "warn",
+      tables: [{ head, rows: [["chain rule", sig(g), "0"], ["forward", sig(fwd), err(fwd)], ["central", sig(cen), err(cen)]], tones: { "1:2": tone(fwd), "2:2": tone(cen) } }] },
+  ] };
+}
+
 export const PLAY_2: Record<string, PlayFlow> = {
   "s2-act-slope": {
     title: "Where activations pass the gradient",
@@ -57,5 +77,13 @@ export const PLAY_2: Record<string, PlayFlow> = {
       { key: "dout", label: "Outputs", min: 2, max: 100, step: 1, value: 10 },
     ],
     make: mlpParams,
+  },
+  "s2-gradcheck": {
+    title: "Checking a gradient by nudging",
+    knobs: [
+      { key: "k", label: "Step h = 10 to the minus", min: 1, max: 14, step: 1, value: 5 },
+      { key: "w", label: "Weight w", min: -3, max: 3, step: 0.25, value: 0.5 },
+    ],
+    make: gradCheck,
   },
 };

@@ -76,7 +76,39 @@ function xor(): Flow {
   ] };
 }
 
+// Backprop on a graph: one sigmoid neuron with a squared loss, forward values and every gradient.
+export const BP = { w: 0.5, x: 2, b: -0.2, y: 1 };
+export const bpLoss = (w: number, b = BP.b) => (sigmoid(w * BP.x + b) - BP.y) ** 2;
+export function bpGraph() {
+  const { w, x, b, y } = BP, z = w * x + b, p = sigmoid(z), L = (p - y) ** 2;
+  const dp = 2 * (p - y), pz = p * (1 - p), dz = dp * pz;
+  return { z, p, L, dp, pz, dz, dw: dz * x, db: dz, dx: dz * w };
+}
+
+// Backprop on a graph: the matrix rule for Y = X W, checked by nudging one weight.
+const matmul = (A: number[][], B: number[][]) => A.map((r) => B[0].map((_, j) => r.reduce((s, v, k) => s + v * B[k][j], 0)));
+const tr = (A: number[][]) => A[0].map((_, j) => A.map((r) => r[j]));
+function matGrad(): Flow {
+  const X = [[1, 2, 0], [0, 1, -1]], W = [[1, 0], [-1, 2], [0.5, 1]], G = [[1, 0], [0, -1]];
+  const Y = matmul(X, W), dW = matmul(tr(X), G), dX = matmul(G, tr(W));
+  const L = (Wm: number[][]) => matmul(X, Wm).flat().reduce((s, v, i) => s + v * G.flat()[i], 0);   // L = sum of Y times G, so dL/dY = G
+  const [r, c, h] = [1, 0, 1e-6], Wn = W.map((row, i) => row.map((v, j) => (i === r && j === c ? v + h : v)));
+  const nudge = (L(Wn) - L(W)) / h;
+  const M = (label: string, m: number[][], tone?: "hot" | "ok"): GridTable => ({ label: `${label} (${m.length} × ${m[0].length})`, rows: m.map((row) => row.map(fmt)), tones: tone ? { ":0": tone, ":1": tone, ":2": tone } : undefined });
+  return { kind: "grid", title: "Gradients of Y = X W", steps: [
+    { note: `Forward: X is ${X.length} × ${X[0].length}, W is ${W.length} × ${W[0].length}, so Y = X W is ${Y.length} × ${Y[0].length}. Keep X: the backward pass needs it.`, tables: [M("X", X), M("W", W), M("Y = X W", Y, "hot")] },
+    { note: "The layer above sends back dL/dY. It always has exactly Y's shape: one number per entry of Y, saying how the loss changes if that entry grows.", tone: "hot", tables: [M("dL/dY", G, "hot")] },
+    { note: `dL/dW = Xᵀ dL/dY. Xᵀ is ${X[0].length} × ${X.length} and dL/dY is ${G.length} × ${G[0].length}, so the result is ${dW.length} × ${dW[0].length}, the same shape as W. That is how you remember where the transpose goes.`, tone: "ok",
+      tables: [M("Xᵀ", tr(X)), M("dL/dY", G), M("dL/dW", dW, "ok")] },
+    { note: `dL/dX = dL/dY Wᵀ: ${dX.length} × ${dX[0].length}, the shape of X. This is what the layer passes further back to the layer below.`, tone: "ok",
+      tables: [M("dL/dY", G), M("Wᵀ", tr(W)), M("dL/dX", dX, "ok")] },
+    { note: `Check one entry. Nudge W row ${r + 1}, column ${c + 1} by ${h} and the loss moves by ${fmt(nudge)} per unit. The formula said ${fmt(dW[r][c])}.`, tone: Math.abs(nudge - dW[r][c]) < 1e-6 ? "ok" : "bad",
+      tables: [{ head: ["entry", "formula", "nudge"], rows: [[`W[${r + 1}][${c + 1}]`, fmt(dW[r][c]), fmt(nudge)]], tones: { "0": "ok" } }] },
+  ] };
+}
+
 export const FLOWS_2: Record<string, Flow> = {
   "s2-neuron": neuron(),
   "s2-xor": xor(),
+  "s2-matgrad": matGrad(),
 };
