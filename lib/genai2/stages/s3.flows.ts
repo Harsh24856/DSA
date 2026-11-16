@@ -29,6 +29,25 @@ function order(): Flow {
   ] };
 }
 
+// rnn-bptt: a one-number RNN, forward on a pulse, then the gradient back through every step
+function rnnSteps(): Flow {
+  const u = 0.8, xs = [1, 0, 0, 0, 0], hs: number[] = [];
+  xs.forEach((x, t) => hs.push(Math.tanh(x + u * (t ? hs[t - 1] : 0))));
+  const fac = hs.map((h) => u * (1 - h * h)), T = xs.length;
+  const back = fac.slice(1).reduce((p, f) => p * f, 1), far = 40, farVal = back ** (far / (T - 1));
+  const r3 = (x: number) => Number(x.toFixed(3));
+  const T_ = (h: (string | number)[], f: (string | number)[], tones?: GridTable["tones"]): GridTable => ({ head: ["t", "x", "h", "dh_t/dh_t-1"], rows: xs.map((x, i) => [i + 1, x, h[i], f[i]]), tones });
+  const blank = xs.map(() => "");
+  return { kind: "grid", title: `A one-number RNN, h = tanh(x + ${u} h)`, steps: [
+    { note: `One input pulse at step 1, then zeros. The same rule, with recurrent weight u = ${u}, runs at every step.`, tables: [T_(blank, blank, { "0:1": "hot" })] },
+    { note: `Step 1: h = tanh(1 + ${u} × 0) = ${r3(hs[0])}. The pulse is now in the state.`, tables: [T_([r3(hs[0]), ...blank.slice(1)], blank, { "0:2": "hot" })] },
+    { note: `Steps 2 to ${T}: no new input, so each state is tanh(${u} × previous). The memory fades: ${hs.map(r3).join(", ")}.`, tone: "warn", tables: [T_(hs.map(r3), blank, { ":2": "warn" })] },
+    { note: `Backward: each step multiplies the gradient by its local slope, u × (1 - h squared). Every factor is below 1.`, tables: [T_(hs.map(r3), fac.map(r3), { ":3": "hot" })] },
+    { note: `From h${T} back to h1 the gradient is ${fac.slice(1).map(r3).join(" × ")} = ${back.toFixed(4)}. At this rate, ${far} steps would leave ${farVal.toExponential(1)}: the gradient vanishes.`, tone: "bad", tables: [T_(hs.map(r3), fac.map(r3), { ":3": "bad" }), { label: `dh${T}/dh1`, rows: [[back.toFixed(4)]], tones: { "0": "bad" } }] },
+  ] };
+}
+
 export const FLOWS_3: Record<string, Flow> = {
   "s3-order": order(),
+  "s3-rnn-steps": rnnSteps(),
 };
