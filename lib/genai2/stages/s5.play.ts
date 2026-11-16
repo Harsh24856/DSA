@@ -103,7 +103,33 @@ function grpoGroup(v: Record<string, number>): Flow {
   ] };
 }
 
+// LoRA and QLoRA: training memory before activations. A rough shape: 32 layers of about 12 d² weights each,
+// LoRA on the four attention projections. Bytes per trained parameter: bf16 weight 2 + grad 2 + Adam 8 + fp32 master 4 = 16.
+export function ftMemory(Nb: number, r: number) {
+  const N = Nb * 1e9, d = Math.max(128, Math.round(Math.sqrt(N / (12 * 32)) / 128) * 128), T = 32 * 4 * 2 * d * r;
+  return { d, T, full: (16 * N) / 1e9, lora: (2 * N + 16 * T) / 1e9, qlora: (0.5 * N + 16 * T) / 1e9 };
+}
+const gb = (v: number) => (v < 10 ? `${v.toFixed(1)} GB` : `${Math.round(v)} GB`);
+const fits = (v: number) => (v <= 24 ? "fits a 24 GB GPU" : v <= 80 ? "needs an 80 GB GPU" : `needs about ${Math.ceil(v / 80)} GPUs of 80 GB`);
+function memory(v: Record<string, number>): Flow {
+  const { N, r } = v, m = ftMemory(N, r);
+  const bars = (on: number) => [["full", m.full], ["LoRA", m.lora], ["QLoRA", m.qlora]].map(([label, value], i) => ({ label: label as string, value: value as number, tone: i === on ? (i ? "ok" as const : "warn" as const) : undefined }));
+  return { kind: "bars", title: `Fine-tuning a ${N}B model, LoRA rank ${r}`, format: gb, steps: [
+    { note: `Full fine-tuning keeps a bf16 weight, a gradient, two Adam moments and an fp32 copy for every parameter: 16 bytes × ${N}B = ${gb(m.full)}. It ${fits(m.full)}.`, tone: "warn", bars: bars(0) },
+    { note: `LoRA freezes the base (2 bytes each) and trains ${big(m.T)} adapter numbers at 16 bytes: ${gb(m.lora)}. It ${fits(m.lora)}.`, tone: "hot", bars: bars(1) },
+    { note: `QLoRA stores the frozen base in 4 bits, half a byte each: ${gb(m.qlora)}. It ${fits(m.qlora)}. Activations add more on top.`, tone: "ok", bars: bars(2) },
+  ] };
+}
+
 export const PLAY_5: Record<string, PlayFlow> = {
+  "s5-ft-memory": {
+    title: "Will it fit on my GPU?",
+    knobs: [
+      { key: "N", label: "Model size, billions", min: 1, max: 70, step: 1, value: 8 },
+      { key: "r", label: "LoRA rank r", min: 4, max: 128, step: 4, value: 16 },
+    ],
+    make: memory,
+  },
   "s5-grpo-group": {
     title: "GRPO advantages for one group",
     knobs: [
