@@ -50,7 +50,26 @@ function minhash(): Flow {
   ] };
 }
 
+// SFT: a chat becomes one token sequence through a template, and only the answer is trained. Words stand in for tokens.
+export const CHAT: [string, string][] = [["system", "Be brief."], ["user", "Capital of Japan?"], ["assistant", "Tokyo."]];
+export const tag = (role: string) => `<|${role}|>`, END = "<|end|>";
+export const toks = (s: string) => s.split(" ");
+function chatTemplate(): Flow {
+  const sizes = CHAT.map(([, c]) => 1 + toks(c).length + 1), total = sizes.reduce((a, b) => a + b, 0);
+  const answer = toks(CHAT[2][1]).length + 1, masked = total - answer;
+  return { kind: "grid", title: "From chat messages to SFT labels", steps: [
+    { note: "Training data is a list of messages, each with a role. The model never sees this list directly.", tables: [{ head: ["role", "content"], rows: CHAT }] },
+    { note: "The chat template wraps each turn in special tokens and joins them into one sequence. Serving must use exactly the same template.", tone: "hot",
+      tables: [{ head: ["header", "text", "end"], rows: CHAT.map(([r, c]) => [tag(r), c, END]), tones: { ":0": "hot", ":2": "hot" } }] },
+    { note: "Labels: every prompt token gets -100, which the loss ignores. Only the answer and its end token are trained.", tone: "ok",
+      tables: [{ head: ["part", "tokens", "label"], rows: [["system turn", sizes[0], "-100"], ["user turn", sizes[1], "-100"], [tag("assistant"), 1, "-100"], [`${CHAT[2][1]} ${END}`, answer, "trained"]], tones: { "3": "ok" } }] },
+    { note: `${answer} of ${total} tokens count in the loss. The loss is still next-token cross-entropy; the mask decides where. Training ${END} is what teaches the model to stop.`, tone: "ok",
+      tables: [{ head: ["in sequence", "ignored", "trained"], rows: [[total, masked, answer]], tones: { ":2": "ok" } }] },
+  ] };
+}
+
 export const FLOWS_5: Record<string, Flow> = {
+  "s5-chat-template": chatTemplate(),
   "s5-next-token": nextToken(),
   "s5-minhash": minhash(),
 };

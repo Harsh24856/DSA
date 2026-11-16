@@ -1,6 +1,7 @@
 // Stage 5 (Training LLMs) slider walk-throughs, placed in modules by a `play` block. Client-safe: no module text.
 import type { Flow } from "../../other/flows.ts";
-import type { PlayFlow } from "../../other/flows-play-types.ts";
+import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
+import { seededRng } from "../rng.ts";
 
 const r2 = (x: number) => x.toFixed(2);
 // 2.97e10 -> "29.7B"; tokens and parameters both read well this way
@@ -40,7 +41,40 @@ function lsh(v: Record<string, number>): Flow {
   ] };
 }
 
+// SFT: padding against packing for 16 examples of mixed length.
+const pct = (x: number) => `${Math.round(x * 100)}%`;
+function packing(v: Record<string, number>): Flow {
+  const { avg, L } = v, rng = seededRng("s5-sft-lengths"), BATCH = 4;
+  const lens = Array.from({ length: 16 }, () => Math.max(8, Math.round(avg * (0.25 + 1.5 * rng()))));
+  const real = lens.reduce((a, b) => a + b, 0), longest = Math.max(...lens);
+  if (longest > L) throw new PlayError(`The longest example has ${longest} tokens, more than the ${L}-token context. Pick a longer context or shorter examples.`);
+  const padL = lens.length * L;
+  let padB = 0;
+  for (let i = 0; i < lens.length; i += BATCH) padB += BATCH * Math.max(...lens.slice(i, i + BATCH));
+  const bins: number[] = [];   // first-fit decreasing: each example goes in the first row with room
+  for (const n of [...lens].sort((a, b) => b - a)) { const i = bins.findIndex((u) => u + n <= L); if (i < 0) bins.push(n); else bins[i] += n; }
+  const packed = bins.length * L;
+  const T = (cols: number) => ({ head: ["", "pad to L", "pad per batch", "pack"].slice(0, cols + 1),
+    rows: [["token slots", padL, padB, packed].slice(0, cols + 1), ["wasted", pct(1 - real / padL), pct(1 - real / padB), pct(1 - real / packed)].slice(0, cols + 1)] });
+  return { kind: "grid", title: `16 examples, average ${avg} tokens, context ${L}`, steps: [
+    { note: `16 examples hold ${real} real tokens, from ${Math.min(...lens)} to ${longest} long. A GPU batch needs rows of equal length.`,
+      tables: [{ head: ["examples", "real tokens", "longest"], rows: [[lens.length, real, longest]] }] },
+    { note: `Padding every example to the full context L fills ${padL} slots. Padding each batch of ${BATCH} to its own longest example fills ${padB}. Pad tokens cost compute and teach nothing.`, tone: "warn",
+      tables: [{ ...T(2), tones: { "1:1": "bad", "1:2": "warn" } }] },
+    { note: `Packing puts several examples end to end in ${bins.length} rows of ${L}. A mask keeps each example from attending to its neighbours, so they stay independent.`, tone: "ok",
+      tables: [{ ...T(3), tones: { "1:3": "ok" } }] },
+  ] };
+}
+
 export const PLAY_5: Record<string, PlayFlow> = {
+  "s5-packing": {
+    title: "Padding or packing SFT examples",
+    knobs: [
+      { key: "avg", label: "Average example length", min: 32, max: 1024, step: 32, value: 256 },
+      { key: "L", label: "Context length L", min: 512, max: 8192, step: 512, value: 2048 },
+    ],
+    make: packing,
+  },
   "s5-lsh": {
     title: "Tuning near-duplicate search",
     knobs: [
