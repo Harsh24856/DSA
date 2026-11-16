@@ -32,7 +32,7 @@ function Predict({ b, seed }: { b: Extract<Block, { kind: "predict" }>; seed: st
       <h3 className="t-h3">Predict first: {b.q}</h3>
       <div className="grid gap-2">
         {opts.map((o) => (
-          <button key={o} type="button" className="btn justify-start text-left" disabled={pick !== null} aria-pressed={pick === o} onClick={() => setPick(o)}>{o}</button>
+          <button key={o} type="button" className="btn justify-start whitespace-normal text-left" disabled={pick !== null} aria-pressed={pick === o} onClick={() => setPick(o)}>{o}</button>
         ))}
       </div>
       <div className="text-sm leading-relaxed" role="status">{pick !== null && <>

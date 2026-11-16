@@ -108,6 +108,7 @@ import { FLOWS, type BarStep, type Flow, type GridStep, type LaneStep } from "./
 import { FLOW_SLOTS } from "../genai/labs.ts";
 import { TOPIC_FLOWS } from "./flows-dsa.ts";
 import { knobDefaults, PATTERN_PLAY, PLAY_FLOWS, PlayError } from "./flows-play.ts";
+import { MODULES as GENAI_MODULES } from "../genai2/index.ts";
 import { SQL_PLAY_SQL } from "./flows-play-sql-oop.ts";
 import { FACTS } from "../landingFacts.ts";
 import { compile, joinFiles, type PlayMode } from "./playground/compile.ts";
@@ -525,6 +526,7 @@ globalThis.__server.close(); process.exit(0);`);
   const played = new Set<string>();
   for (const sub of SUBJECTS) for (const c of sub.chapters) if (c.play) { assert.ok(PLAY_FLOWS[c.play], `${sub.id}/${c.id}: unknown interactive flow ${c.play}`); played.add(c.play); }
   for (const [where, id] of Object.entries(PATTERN_PLAY)) { assert.ok(PLAY_FLOWS[id], `patterns ${where}: unknown interactive flow ${id}`); assert.ok(/^[a-z-]+:\d+$/.test(where), `patterns: bad place ${where}`); played.add(id); }
+  for (const m of Object.values(GENAI_MODULES)) for (const b of m.blocks) if (b.kind === "play") played.add(b.id);
   const okFlow = (where: string, f: Flow) => {
     assert.ok(f.steps.length >= 2 && f.title, where);
     const text = JSON.stringify(f);

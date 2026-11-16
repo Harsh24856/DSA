@@ -1,15 +1,15 @@
 import { shuffle } from "../practice.ts";
 import { ROAD, withNeeds } from "./roadmap.ts";
+import { SELF_ATTENTION } from "./modules/self-attention.ts";
 import type { GModule, RoadEntry, Stage } from "./types.ts";
 
 export { withNeeds };
 export type { Block, GModule, GQuestion, Level, RoadEntry, Stage } from "./types.ts";
 
-// Task 4 adds `self-attention`.
-export const MODULES: Record<string, GModule> = {};
+export const MODULES: Record<string, GModule> = { "self-attention": SELF_ATTENTION };
 
-// Task 4 adds figure ids here, each with a component in components/genai2/figures.
-export const FIGURE_IDS = [] as const;
+// Every figure id has a component in components/genai2/figures (genai.check.ts compares the two).
+export const FIGURE_IDS = ["qkv"] as const;
 
 export const STAGES: Stage[] = ROAD.map(s => ({ ...s, modules: s.modules.map(m => ({ ...m, built: m.id in MODULES })) }));
 

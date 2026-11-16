@@ -1,5 +1,11 @@
 // Run: npm run check:genai. Asserts the Gen AI roadmap and every module's rules.
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { FLOWS } from "../other/flows.ts";
+import { knobDefaults, PLAY_FLOWS, PlayError } from "../other/flows-play.ts";
 import { entry, FIGURE_IDS, mcqOptions, MODULES, seededRng, moduleKey, nextUp, STAGES, withNeeds } from "./index.ts";
 import type { Block, Stage } from "./types.ts";
 
@@ -44,8 +50,34 @@ assert.ok(Array.from({ length: 20 }, (_, i) => order("m:q" + i)).some(o => o !==
 
 // module rules
 const VISUAL = new Set(["flow", "play", "lab", "figure", "mermaid"]);
+assert.ok(MODULES["self-attention"], "the gold-standard module self-attention is registered");
+const tmp = mkdtempSync(join(tmpdir(), "genai-check-"));
+const python = (code: string) => { const f = join(tmp, "q.py"); writeFileSync(f, code); return execFileSync("python3", ["-I", f], { encoding: "utf8" }).trim(); };
+let rnd = 11;
+const rand = () => (rnd = (rnd * 1103515245 + 12345) % 2147483648) / 2147483648;
 for (const [id, m] of Object.entries(MODULES)) {
   assert.equal(entry(id)?.built, true, `${id} is built`);
+  assert.equal(m.id, id, `${id}: id matches its key`);
+  assert.equal(m.stage, STAGES.find(s => s.modules.some(e => e.id === id))?.n, `${id}: stage matches the roadmap`);
+  for (const q of m.questions) if (q.kind === "output") {
+    assert.ok(q.code, `${id}/${q.id}: output question needs code`);
+    assert.equal(python(q.code), q.answer, `${id}/${q.id}: code prints the answer`);
+  }
+  for (const b of m.blocks) {
+    if (b.kind === "code" && b.run) python(b.src);
+    if (b.kind === "flow") assert.ok(FLOWS[b.id], `${id}: unknown flow ${b.id}`);
+    if (b.kind === "play") {
+      const pf = PLAY_FLOWS[b.id];
+      assert.ok(pf, `${id}: unknown walk-through ${b.id}`);
+      assert.ok(pf.make(knobDefaults(pf)).steps.length >= 2, `${b.id} works at its defaults`);
+      let good = 0;
+      for (let i = 0; i < 150; i++) {
+        const v = Object.fromEntries(pf.knobs.map(k => { const st = k.step ?? 1, n = Math.floor((k.max - k.min) / st); return [k.key, +(k.min + Math.floor(rand() * (n + 1)) * st).toFixed(6)]; }));
+        try { if (!/NaN|Infinity/.test(JSON.stringify(pf.make(v)))) good++; } catch (e) { if (!(e instanceof PlayError)) throw e; }
+      }
+      assert.ok(good >= 50, `${b.id}: only ${good} of 150 random settings work`);
+    }
+  }
   const visual = m.blocks.filter(b => VISUAL.has(b.kind)).length;
   const text = m.blocks.filter(b => b.kind === "text").length;
   assert.ok(visual >= 3, `${id}: at least 3 visual blocks`);
@@ -71,6 +103,11 @@ const fixture: Block[] = [
   { kind: "code", src: "x", run: true }, { kind: "predict", q: "q", answer: "a", wrong: ["b", "c"], why: "w" },
 ];
 assert.deepEqual(JSON.parse(JSON.stringify(fixture)), fixture);
+rmSync(tmp, { recursive: true });
+// FIGURES (a .tsx file Node cannot import) must have exactly the ids in FIGURE_IDS
+const figSrc = readFileSync(join(import.meta.dirname, "../../components/genai2/figures/index.tsx"), "utf8");
+const figKeys = [...(figSrc.match(/FIGURES\b[^\n]*>\s*=\s*\{([^}]*)\}/)?.[1] ?? "").matchAll(/(\w+)\s*:/g)].map(x => x[1]);
+assert.deepEqual(figKeys.sort(), [...FIGURE_IDS].sort(), "FIGURES keys equal FIGURE_IDS");
 for (const m of Object.values(MODULES)) for (const b of m.blocks) if (b.kind === "figure") assert.ok((FIGURE_IDS as readonly string[]).includes(b.id), `figure ${b.id} is registered`);
 
 console.log(`genai ok: ${STAGES.length} stages, ${ids.length} modules, ${Object.keys(MODULES).length} built`);

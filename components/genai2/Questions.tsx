@@ -14,10 +14,10 @@ function Mcq({ q, moduleId, pick, onPick }: { q: Extract<GQuestion, { answer: st
   const opts = useMemo(() => mcqOptions(q, seededRng(`${moduleId}:${q.id}`)), [q, moduleId]);
   return (
     <>
-      <p className="font-medium"><Rich text={q.q} /></p>
+      <Rich className="font-medium" text={q.q} />
       {q.code && <pre className="code"><code>{q.code}</code></pre>}
       <div className="grid gap-2">
-        {opts.map((o) => <button key={o} type="button" className="btn justify-start text-left" disabled={pick !== undefined} aria-pressed={pick === o} onClick={() => onPick(q.id, o)}>{o}</button>)}
+        {opts.map((o) => <button key={o} type="button" className="btn justify-start whitespace-normal text-left" disabled={pick !== undefined} aria-pressed={pick === o} onClick={() => onPick(q.id, o)}>{o}</button>)}
       </div>
       <Verdict pick={pick !== undefined} ok={pick === q.answer} answer={q.answer} why={q.why} />
     </>
@@ -33,7 +33,7 @@ const Verdict = ({ pick, ok, answer, why }: { pick: boolean; ok: boolean; answer
 function Trap({ q, pick, onPick }: { q: Extract<GQuestion, { kind: "trap" }>; pick?: string | boolean; onPick: Pick }) {
   return (
     <>
-      <p className="font-medium"><Rich text={q.claim} /></p>
+      <Rich className="font-medium" text={q.claim} />
       <div className="flex gap-2">
         {[true, false].map((v) => <button key={String(v)} type="button" className="btn" disabled={pick !== undefined} aria-pressed={pick === v} onClick={() => onPick(q.id, v)}>{v ? "True" : "False"}</button>)}
       </div>
@@ -48,7 +48,7 @@ function Explain({ q, moduleId }: { q: Extract<GQuestion, { kind: "explain" }>; 
   const key = questionKey(moduleId, q.id), on = !!done[key];
   return (
     <>
-      <p className="font-medium"><Rich text={q.q} /></p>
+      <Rich className="font-medium" text={q.q} />
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-sm" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Hide answer" : "Show answer"}</button>
         <button type="button" className="btn btn-sm" aria-pressed={on} onClick={() => toggle(key, !on)}>
@@ -78,7 +78,7 @@ export function Questions({ moduleId, questions }: { moduleId: string; questions
       </div>
       <ol className="grid gap-4">
         {shown.map((q) => (
-          <li key={q.id} className="tile grid gap-3 p-4">
+          <li key={q.id} className="tile grid min-w-0 gap-3 p-4">
             <span className={`pill lv-${q.level} w-fit`}>{q.level}</span>
             {q.kind === "explain" ? <Explain q={q} moduleId={moduleId} /> : q.kind === "trap" ? <Trap q={q} pick={picks[q.id]} onPick={onPick} /> : <Mcq q={q} moduleId={moduleId} pick={picks[q.id]} onPick={onPick} />}
           </li>
