@@ -55,6 +55,7 @@ const tmp = mkdtempSync(join(tmpdir(), "genai-check-"));
 const python = (code: string) => { const f = join(tmp, "q.py"); writeFileSync(f, code); return execFileSync("python3", ["-I", f], { encoding: "utf8" }).trim(); };
 let rnd = 11;
 const rand = () => (rnd = (rnd * 1103515245 + 12345) % 2147483648) / 2147483648;
+try {
 for (const [id, m] of Object.entries(MODULES)) {
   assert.equal(entry(id)?.built, true, `${id} is built`);
   assert.equal(m.id, id, `${id}: id matches its key`);
@@ -73,7 +74,11 @@ for (const [id, m] of Object.entries(MODULES)) {
       let good = 0;
       for (let i = 0; i < 150; i++) {
         const v = Object.fromEntries(pf.knobs.map(k => { const st = k.step ?? 1, n = Math.floor((k.max - k.min) / st); return [k.key, +(k.min + Math.floor(rand() * (n + 1)) * st).toFixed(6)]; }));
-        try { if (!/NaN|Infinity/.test(JSON.stringify(pf.make(v)))) good++; } catch (e) { if (!(e instanceof PlayError)) throw e; }
+        let f;
+        try { f = pf.make(v); } catch (e) { if (!(e instanceof PlayError)) throw e; continue; }
+        // JSON turns NaN and Infinity into null, so look for null (and a stray undefined in the text)
+        assert.ok(f.steps.length >= 2 && !/NaN|(?<!is )undefined|Infinity|[:,[]null/.test(JSON.stringify(f)), `${b.id} at ${JSON.stringify(v)} has a bad value`);
+        good++;
       }
       assert.ok(good >= 50, `${b.id}: only ${good} of 150 random settings work`);
     }
@@ -96,6 +101,7 @@ for (const [id, m] of Object.entries(MODULES)) {
     for (const o of opts) assert.ok(!/of the above/i.test(o), `${id}: no "of the above"`);
   }
 }
+} finally { rmSync(tmp, { recursive: true, force: true }); }
 // every block kind is plain data, and every figure id is registered
 const fixture: Block[] = [
   { kind: "flow", id: "a" }, { kind: "play", id: "b" }, { kind: "lab", id: "attention" as never }, { kind: "figure", id: "f", caption: "c" },
@@ -103,7 +109,6 @@ const fixture: Block[] = [
   { kind: "code", src: "x", run: true }, { kind: "predict", q: "q", answer: "a", wrong: ["b", "c"], why: "w" },
 ];
 assert.deepEqual(JSON.parse(JSON.stringify(fixture)), fixture);
-rmSync(tmp, { recursive: true });
 // FIGURES (a .tsx file Node cannot import) must have exactly the ids in FIGURE_IDS
 const figSrc = readFileSync(join(import.meta.dirname, "../../components/genai2/figures/index.tsx"), "utf8");
 const figKeys = [...(figSrc.match(/FIGURES\b[^\n]*>\s*=\s*\{([^}]*)\}/)?.[1] ?? "").matchAll(/(\w+)\s*:/g)].map(x => x[1]);

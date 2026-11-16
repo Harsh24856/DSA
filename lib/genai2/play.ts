@@ -1,7 +1,7 @@
 // Gen AI slider walk-throughs, placed in modules by a `play` block; spread into PLAY_FLOWS (lib/other/flows-play.ts).
 import type { Flow } from "../other/flows.ts";
 import { PlayError, type PlayFlow } from "../other/flows-play-types.ts";
-import { seededRng } from "./index.ts";
+import { seededRng } from "./rng.ts";
 
 const WORDS = ["the", "cat", "sat", "on", "mat"];
 
