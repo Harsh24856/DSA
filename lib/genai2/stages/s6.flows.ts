@@ -81,7 +81,21 @@ function budget(): Flow {
   ] };
 }
 
+// local-models: from an open-weight model to a local server your app already knows how to call
+function local(): Flow {
+  const B = 8, bits = 4, gb = (B * bits) / 8;
+  return { title: "Running a model on your own machine", steps: [
+    { node: "pick an open-weight model", note: "Open weights can be downloaded and run anywhere. Read the licence first: open weights do not always mean any use is allowed." },
+    { node: "pick a quantised GGUF file", note: `GGUF is one file holding the weights and the metadata needed to load them. An ${B}B model at ${bits}-bit is about ${B} × ${bits} ÷ 8 = ${gb} GB.`, tone: "hot" },
+    { node: "run it with llama.cpp or Ollama", note: "Both run models on an ordinary laptop or desktop, on the CPU, the GPU or both." },
+    { node: "a local OpenAI-style server", note: "Ollama serves OpenAI-compatible endpoints at localhost:11434/v1, and llama.cpp has an OpenAI-compatible server too." },
+    { node: "your app: change the base URL", note: "The same client code and the same messages list now call your machine. No data leaves it, and there is no per-token bill.", tone: "ok" },
+    { node: "check quality on your evals", note: "A small quantised model is not a frontier model. Run your eval set before you trust it with the task.", tone: "warn" },
+  ] };
+}
+
 export const FLOWS_6: Record<string, Flow> = {
+  "s6-local": local(),
   "s6-budget": budget(),
   "s6-retry": retry(),
   "s6-roles": roles(),

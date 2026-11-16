@@ -63,7 +63,29 @@ function cache(v: Record<string, number>): Flow {
   ] };
 }
 
+// local-models: does it fit, and how fast can it decode? Weights only, plus an assumed 20% for the KV cache and runtime.
+const OVERHEAD = 1.2;
+function fitModel(v: Record<string, number>): Flow {
+  const { params, mem, bw } = v, gbOf = (bits: number) => (params * bits) / 8;
+  const steps = [16, 8, 4].map((bits) => {
+    const w = gbOf(bits), need = w * OVERHEAD, fits = need <= mem;
+    return { note: `${bits}-bit: weights ${r1(w)} GB, about ${r1(need)} GB with the KV cache and runtime. ${fits ? `Fits in ${mem} GB.` : `Does not fit in ${mem} GB.`} Each new token reads every weight once, so ${bw} GB/s allows at most about ${r1(bw / w)} tokens per second.`,
+      tone: fits ? "ok" as const : "bad" as const,
+      bars: [{ label: "weights", value: w, tone: "hot" as const }, { label: "+ cache, runtime", value: need, tone: fits ? "ok" as const : "bad" as const }, { label: "your memory", value: mem }] };
+  });
+  return { kind: "bars", title: `A ${params}B model, ${mem} GB, ${bw} GB/s`, max: Math.max(mem, gbOf(16) * OVERHEAD), format: (x) => `${r1(x)} GB`, steps };
+}
+
 export const PLAY_6: Record<string, PlayFlow> = {
+  "s6-fit": {
+    title: "Will it run on my machine?",
+    knobs: [
+      { key: "params", label: "Model size (billions)", min: 1, max: 70, step: 1, value: 8 },
+      { key: "mem", label: "GPU or unified memory (GB)", min: 4, max: 80, step: 4, value: 16 },
+      { key: "bw", label: "Memory bandwidth (GB/s)", min: 50, max: 1000, step: 50, value: 100 },
+    ],
+    make: fitModel,
+  },
   "s6-cache": {
     title: "Prompt caching: when does it pay?",
     knobs: [
