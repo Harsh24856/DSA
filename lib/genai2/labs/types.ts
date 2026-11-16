@@ -8,7 +8,7 @@ export type LabStep = {
   signature: string;
   starter: Partial<Record<Fw, string>>;
   reference: Partial<Record<Fw, string>>;
-  tests: string;   // Python, shared by both frameworks: build inputs with T(x), read outputs with to_np(x)
+  tests: string;   // Python, shared by both frameworks: build inputs with T(x) (floats) or I(x) (token ids), read outputs with to_np(x)
   hints: string[];
 };
 

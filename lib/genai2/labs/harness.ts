@@ -10,6 +10,9 @@ ${fw === "torch" ? "import torch\ntorch.manual_seed(0)\n" : ""}
 def T(x):
     ${fw === "torch" ? "return torch.tensor(x, dtype=torch.float32)" : "return np.asarray(x, dtype=np.float64)"}
 
+def I(x):
+    ${fw === "torch" ? "return torch.tensor(x, dtype=torch.long)" : "return np.asarray(x, dtype=np.int64)"}
+
 def to_np(x):
     return x.detach().cpu().numpy() if hasattr(x, "detach") else np.asarray(x)
 
