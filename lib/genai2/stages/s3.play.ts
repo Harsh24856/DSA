@@ -54,7 +54,26 @@ function gate(v: Record<string, number>): Flow {
   ] };
 }
 
+// seq2seq-bottleneck: numbers available to the decoder, one fixed vector against every encoder state
+function bottleneck(v: Record<string, number>): Flow {
+  const { n, d } = v, f1 = (x: number) => (Number.isInteger(x) ? x.toLocaleString("en-US") : x.toFixed(1));
+  const bars = (a: number, b: number) => [{ label: "fixed vector", value: a, tone: "bad" as const }, { label: "all states", value: b, tone: "ok" as const }];
+  return { kind: "bars", title: `What the decoder can see, hidden size ${d}`, format: f1, steps: [
+    { note: `A ${n} word source. Basic seq2seq hands over ${f1(d)} numbers. Keeping every encoder state, as attention does, keeps ${f1(n * d)}.`, tone: "warn", bars: bars(d, n * d) },
+    { note: `Per word, the fixed vector can spend ${f1(d / n)} numbers. With every state kept, each word keeps all ${f1(d)} of its own.`, tone: d / n < 16 ? "bad" : "warn", bars: bars(d / n, d) },
+    { note: `Double the source to ${2 * n} words: the fixed vector stays at ${f1(d)}, now ${f1(d / (2 * n))} per word. The kept states grow to ${f1(2 * n * d)}.`, tone: "bad", bars: bars(d, 2 * n * d) },
+  ] };
+}
+
 export const PLAY_3: Record<string, PlayFlow> = {
+  "s3-bottleneck": {
+    title: "Squeezing a sentence into one vector",
+    knobs: [
+      { key: "n", label: "Source length (words)", min: 5, max: 100, step: 5, value: 20 },
+      { key: "d", label: "Hidden size", min: 64, max: 1024, step: 64, value: 256 },
+    ],
+    make: bottleneck,
+  },
   "s3-gate": {
     title: "Write once, hold with a gate",
     knobs: [

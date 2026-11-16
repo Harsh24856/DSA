@@ -72,7 +72,20 @@ function lstmStep(): Flow {
   ] };
 }
 
+// seq2seq-bottleneck: the encoder reads, one vector crosses over, the decoder writes
+function seq2seq(): Flow {
+  const src = ["the", "cat", "sleeps"], tgt = ["le", "chat", "dort"], H = 256;
+  return { kind: "lanes", title: "Translating with an encoder and a decoder", lanes: ["Encoder", "Context", "Decoder"], steps: [
+    ...src.map((w, i) => ({ from: 0, to: 0, label: `read "${w}"`, note: i === 0 ? `The encoder reads the source one word at a time, updating its ${H} number state.` : `Word ${i + 1} is folded into the same ${H} numbers.` })),
+    { from: 0, to: 1, label: "final state", note: `Only the last state crosses over: ${H} numbers for all ${src.length} words, and it would still be ${H} for 50.`, tone: "warn" as const },
+    { from: 1, to: 2, label: "start state", note: "The context becomes the decoder's first state. A start token is its first input." },
+    ...tgt.map((w, i) => ({ from: 2, to: 2, label: `write "${w}"`, note: i === 0 ? `It writes "${w}", then feeds "${w}" back in as the next input.` : `It writes "${w}" from its own state and the word before.`, tone: "hot" as const })),
+    { from: 2, to: 2, label: "write <end>", note: `An end token stops it: ${src.length} words in, ${tgt.length} out here, but the lengths may differ.`, tone: "ok" as const },
+  ] };
+}
+
 export const FLOWS_3: Record<string, Flow> = {
+  "s3-seq2seq": seq2seq(),
   "s3-order": order(),
   "s3-rnn-steps": rnnSteps(),
   "s3-lstm-step": lstmStep(),
