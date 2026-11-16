@@ -23,7 +23,7 @@ const RUNNABLE = new Set(["backprop_by_hand.py", "param_count.py", "online_softm
   "context_budget.py", "rrf_hybrid.py", "lora_memory.py", "batching_sim.py", "vision_tokens.py", "capacity.py", "structured_retry.py",
   "judge_calibration.py", "ab_significance.py", "self_consistency.py", "constrained_decode.py", "kv_paging.py", "quantize.py"]);
 
-function RunPanel({ src }: { src: string }) {
+export function RunPanel({ src }: { src: string }) {
   const [lines, setLines] = useState<string[]>([]);
   const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
   const [status, setStatus] = useState("");

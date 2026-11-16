@@ -8,6 +8,9 @@ export type { Block, GModule, GQuestion, Level, RoadEntry, Stage } from "./types
 // Task 4 adds `self-attention`.
 export const MODULES: Record<string, GModule> = {};
 
+// Task 4 adds figure ids here, each with a component in components/genai2/figures.
+export const FIGURE_IDS: readonly string[] = [];
+
 export const STAGES: Stage[] = ROAD.map(s => ({ ...s, modules: s.modules.map(m => ({ ...m, built: m.id in MODULES })) }));
 
 export const entry = (id: string): RoadEntry | undefined => STAGES.flatMap(s => s.modules).find(m => m.id === id);
