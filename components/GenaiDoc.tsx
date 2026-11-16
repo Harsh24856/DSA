@@ -10,7 +10,7 @@ import { TF } from "@/lib/genai/tensorflow";
 import { GenaiLab } from "./labs";
 import { Seg } from "./ui";
 import { useMermaid } from "./useMermaid";
-import { runPython } from "./runPython";
+import { RunPanel } from "./RunPanel";
 
 type Fw = "torch" | "tf";
 const FW_KEY = "dsa-genai-fw";
@@ -22,26 +22,6 @@ type Mount = { node: HTMLElement; lab?: LabKind; flow?: string; code?: { el: HTM
 const RUNNABLE = new Set(["backprop_by_hand.py", "param_count.py", "online_softmax.py", "attention_by_hand.py", "rope_relative.py",
   "context_budget.py", "rrf_hybrid.py", "lora_memory.py", "batching_sim.py", "vision_tokens.py", "capacity.py", "structured_retry.py",
   "judge_calibration.py", "ab_significance.py", "self_consistency.py", "constrained_decode.py", "kv_paging.py", "quantize.py"]);
-
-export function RunPanel({ src }: { src: string }) {
-  const [lines, setLines] = useState<string[]>([]);
-  const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
-  const [status, setStatus] = useState("");
-  const run = async () => {
-    setLines([]); setState("busy");
-    try { await runPython(src, (l) => setLines((x) => [...x, l]), setStatus); setState("done"); }
-    catch (e) { setLines((x) => [...x, String((e as Error).message ?? e)]); setState("error"); }
-  };
-  return (
-    <div className="grid gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className="btn btn-sm btn-primary" onClick={() => void run()} disabled={state === "busy"}>{state === "busy" ? "Running..." : state === "idle" ? "Run in browser" : "Run again"}</button>
-        <span className="text-xs text-muted" role="status">{state === "busy" ? status : state === "done" ? "Finished. The asserts at the end passed." : state === "error" ? "Stopped with an error." : "Runs this script with Python in your browser; nothing is sent to a server."}</span>
-      </div>
-      {lines.length > 0 && <pre className={`code max-h-[260px] overflow-auto text-xs ${state === "error" ? "text-hard" : ""}`} aria-label="Output">{lines.join("\n")}</pre>}
-    </div>
-  );
-}
 
 function CodeTabs({ el, file, code, fw, setFw }: { el: HTMLElement; file: string; code: string; fw: Fw; setFw(f: Fw): void }) {
   const [copied, setCopied] = useState(false);

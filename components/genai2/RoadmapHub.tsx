@@ -2,7 +2,7 @@
 // Hub of the Gen AI section: 11 stages of modules, each row a built module, its old page, or coming soon.
 import Link from "next/link";
 import { motion } from "motion/react";
-import { ArrowRight, ArrowUpRight, Check } from "@phosphor-icons/react";
+import { ArrowRight, Check } from "@phosphor-icons/react";
 import { STAGES, entry, moduleKey, nextUp } from "@/lib/genai2/core";
 import { usePatterns } from "@/lib/patternStore";
 import { Bar, Count } from "@/components/ui";
@@ -65,7 +65,7 @@ export function RoadmapHub() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {m.id === next && <span className="pill pill-accent">Next up</span>}
-                      {!m.built && (m.old ? <Link href={`/genai/${m.old}`} className="pill pill-muted hover:text-accent focus-visible:text-accent">Old version<ArrowUpRight size={12} aria-hidden /></Link> : <span className="pill pill-muted">Coming soon</span>)}
+                      {!m.built && (m.old ? <Link href={`/genai/${m.old}`} className="pill pill-muted hover:text-accent focus-visible:text-accent">Old version<ArrowRight size={12} aria-hidden /></Link> : <span className="pill pill-muted">Coming soon</span>)}
                     </div>
                   </li>
                 );

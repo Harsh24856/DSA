@@ -1,11 +1,14 @@
 "use client";
 // One Gen AI playbook page: head (with the Module done tick for modules), the section's content, prev/next links.
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, Flask } from "@phosphor-icons/react";
 import { GENAI } from "@/lib/genai/content";
 import { FLOW_SLOTS, LABS } from "@/lib/genai/labs";
 import { usePatterns } from "@/lib/patternStore";
-import { GenaiDoc } from "./GenaiDoc";
+
+// Lazy so the rebuilt module pages, which share this route, do not ship GenaiDoc and lib/genai/tensorflow.ts.
+const GenaiDoc = dynamic(() => import("./GenaiDoc").then((m) => m.GenaiDoc));
 
 export function GenaiView({ id }: { id: string }) {
   const { done, toggle } = usePatterns();

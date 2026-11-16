@@ -4,14 +4,31 @@ import dynamic from "next/dynamic";
 import { useMemo, useRef, useState } from "react";
 import type { Block } from "@/lib/genai2/core";
 import { mcqOptions, seededRng } from "@/lib/genai2/core";
-import { GenaiLab } from "../labs";
-import { RunPanel } from "../GenaiDoc";
+import { RunPanel } from "../RunPanel";
 import { Rich } from "../other/Rich";
 import { useMermaid } from "../useMermaid";
-import { FIGURES } from "./figures";
+import { Choices } from "./Questions";
 
 const FlowPlayer = dynamic(() => import("../other/FlowPlayer"), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
 const FlowLab = dynamic(() => import("../other/FlowLab"), { ssr: false, loading: () => <div className="gx-diagram h-[560px]" aria-hidden /> });
+const GenaiLab = dynamic(() => import("../labs").then((m) => m.GenaiLab), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
+
+// Figures load per stage: a page fetches only figures/s<N>.tsx for its own stage (FIGURES in figures/index.tsx exists for the type check).
+type FigMap = Record<string, () => React.JSX.Element>;
+const byId = (map: FigMap) => function StageFigure({ id }: { id: string }) { const F = map[id]; return F ? <F /> : null; };
+const STAGE_FIGURES = [
+  dynamic(() => import("./figures/s0").then((m) => byId(m.FIGURES_0))),
+  dynamic(() => import("./figures/s1").then((m) => byId(m.FIGURES_1))),
+  dynamic(() => import("./figures/s2").then((m) => byId(m.FIGURES_2))),
+  dynamic(() => import("./figures/s3").then((m) => byId(m.FIGURES_3))),
+  dynamic(() => import("./figures/s4").then((m) => byId(m.FIGURES_4))),
+  dynamic(() => import("./figures/s5").then((m) => byId(m.FIGURES_5))),
+  dynamic(() => import("./figures/s6").then((m) => byId(m.FIGURES_6))),
+  dynamic(() => import("./figures/s7").then((m) => byId(m.FIGURES_7))),
+  dynamic(() => import("./figures/s8").then((m) => byId(m.FIGURES_8))),
+  dynamic(() => import("./figures/s9").then((m) => byId(m.FIGURES_9))),
+  dynamic(() => import("./figures/s10").then((m) => byId(m.FIGURES_10))),
+];
 
 function Mermaid({ src, caption }: { src: string; caption: string }) {
   const ref = useRef<HTMLElement>(null);
@@ -26,17 +43,13 @@ function Mermaid({ src, caption }: { src: string; caption: string }) {
 
 function Predict({ b, seed }: { b: Extract<Block, { kind: "predict" }>; seed: string }) {
   const opts = useMemo(() => mcqOptions(b, seededRng(seed)), [b, seed]);
-  const [pick, setPick] = useState<string | null>(null);
+  const [choice, setChoice] = useState<string | null>(null);
   return (
     <div className="tile grid gap-3 p-4">
       <h3 className="t-h3">Predict first: {b.q}</h3>
-      <div className="grid gap-2">
-        {opts.map((o) => (
-          <button key={o} type="button" className="btn justify-start whitespace-normal text-left" disabled={pick !== null} aria-pressed={pick === o} onClick={() => setPick(o)}>{o}</button>
-        ))}
-      </div>
-      <div className="text-sm leading-relaxed" role="status">{pick !== null && <>
-          <strong className={pick === b.answer ? "text-easy" : "text-hard"}>{pick === b.answer ? "Right. " : `Not quite, it is ${b.answer}. `}</strong>
+      <Choices className="grid gap-2" opts={opts} answer={b.answer} pick={choice} onPick={setChoice} />
+      <div className="text-sm leading-relaxed" role="status">{choice !== null && <>
+          <strong className={choice === b.answer ? "text-easy" : "text-hard"}>{choice === b.answer ? "Right. " : `Not quite, it is ${b.answer}. `}</strong>
           <Rich text={b.why} />
         </>}</div>
     </div>
@@ -49,16 +62,16 @@ export function BlockView({ b, seed }: { b: Block; seed: string }) {
     case "play": return <FlowLab id={b.id} />;
     case "lab": return <GenaiLab kind={b.id} />;
     case "figure": {
-      const F = (FIGURES as Record<string, () => React.JSX.Element>)[b.id];
-      return F ? <figure className="gx-diagram"><F /><figcaption>{b.caption}</figcaption></figure> : null;
+      const F = STAGE_FIGURES[Number(/^s(\d+)-/.exec(b.id)?.[1])];
+      return F ? <figure className="gx-diagram"><F id={b.id} /><figcaption>{b.caption}</figcaption></figure> : null;
     }
     case "mermaid": return <Mermaid src={b.src} caption={b.caption} />;
     case "text": return <div className="max-w-[72ch] text-sm leading-relaxed"><Rich text={b.md} /></div>;
     case "compare":
       return (
-        <div className="tile overflow-x-auto">
+        <div className="tile overflow-x-auto" tabIndex={0} role="region" aria-label={`Table: ${b.head.join(", ")}`}>
           <table className="w-full text-sm">
-            <thead><tr>{b.head.map((h) => <th key={h} className="p-2 text-left font-semibold">{h}</th>)}</tr></thead>
+            <thead><tr>{b.head.map((h) => <th key={h} scope="col" className="p-2 text-left font-semibold">{h}</th>)}</tr></thead>
             <tbody>{b.rows.map((r, i) => <tr key={i} className="border-t border-line">{r.map((c, j) => <td key={j} className="p-2 align-top">{c}</td>)}</tr>)}</tbody>
           </table>
         </div>

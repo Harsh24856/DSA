@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Everything in the step 1 plan's Global Constraints, and the module rules enforced by `npm run check:genai`.
-- Each module copies the shape of `lib/genai2/modules/self-attention.ts`. Read it, and the figure `components/genai2/figures/Qkv.tsx` and the walk-through `ga-attn-scale`, before writing.
+- Each module copies the shape of `lib/genai2/modules/s4/self-attention.ts`. Read it, and the figure `components/genai2/figures/s4/Qkv.tsx` (with `components/genai2/figures/s4.tsx`) and the walk-through `s4-attn-scale` in `lib/genai2/stages/s4.play.ts`, before writing.
 - A stage builder edits only: `lib/genai2/stages/s<N>.ts`, `s<N>.built.ts`, `s<N>.play.ts`, `s<N>.flows.ts`, `lib/genai2/modules/s<N>/*`, `components/genai2/figures/s<N>.tsx`, `components/genai2/figures/s<N>/*`. Nothing else. If something shared truly needs a change, the builder writes it in its report instead of making it.
 - Ids: module ids come from `lib/genai2/roadmap.ts` (never rename). Question ids are unique within a module. Figure ids, flow ids and play ids are prefixed `s<N>-` so stages never clash.
 - The browser never receives module text. Figures, flows and plays import only client-safe files (`lib/genai2/rng.ts`, `lib/other/flows*.ts` types, `lib/other/flows-play-types.ts`).
@@ -61,7 +61,7 @@
   - `lib/genai2/stages/s<N>.built.ts`: client-safe; `export const BUILT_<N> = [] as const` and `export const FIGURE_IDS_<N> = [] as const`.
   - `lib/genai2/stages/s<N>.play.ts`: `export const PLAY_<N>: Record<string, PlayFlow> = {}`.
   - `lib/genai2/stages/s<N>.flows.ts`: `export const FLOWS_<N>: Record<string, Flow> = {}`.
-  - `components/genai2/figures/s<N>.tsx`: `export const FIGURES_<N> = {} satisfies Record<string, () => React.JSX.Element>`.
+  - `components/genai2/figures/s<N>.tsx`: `export const FIGURES_<N> = {} satisfies Record<(typeof FIGURE_IDS_<N>)[number], () => React.JSX.Element>` (type-imported from `@/lib/genai2/stages/s<N>.built`), so tsc rejects a missing or extra figure. `Blocks.tsx` loads only the page's own stage map, picked by the `s<N>-` prefix.
 - Create aggregators:
   - `lib/genai2/stages/built.ts`: spreads all `BUILT_N` and `FIGURE_IDS_N` into `BUILT` and `FIGURE_IDS`, preserving literal types.
   - `lib/genai2/stages/play.ts`: `GENAI_PLAY`.
