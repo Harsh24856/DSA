@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FLOWS } from "../other/flows.ts";
 import { knobDefaults, PLAY_FLOWS, PlayError } from "../other/flows-play.ts";
-import { entry, FIGURE_IDS, mcqOptions, MODULES, seededRng, moduleKey, nextUp, STAGES, withNeeds } from "./index.ts";
+import { BUILT, entry, FIGURE_IDS, mcqOptions, MODULES, seededRng, moduleKey, nextUp, STAGES, withNeeds } from "./index.ts";
 import type { Block, Stage } from "./types.ts";
 
 const mulberry32 = (a: number) => () => {
@@ -15,6 +15,24 @@ const mulberry32 = (a: number) => () => {
   t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
+
+// the client-safe core must not reach module text
+assert.deepEqual([...BUILT].sort(), Object.keys(MODULES).sort(), "BUILT lists exactly the registered modules");
+{
+  const seen = new Set<string>(), todo = ["core.ts"];
+  while (todo.length) {
+    const f = todo.pop()!;
+    if (seen.has(f)) continue;
+    seen.add(f);
+    const src = readFileSync(new URL(f, import.meta.url), "utf8");
+    assert.ok(!/\bMODULES\b/.test(src), `${f} mentions MODULES`);
+    for (const [, spec] of src.matchAll(/(?:from|import)\s*\(?\s*["'](\.[^"']+)["']/g)) {
+      assert.ok(!/(^|\/)index(\.ts)?$|modules\//.test(spec), `${f} imports ${spec}`);
+      if (spec.startsWith("./")) todo.push(spec.slice(2));
+    }
+  }
+  assert.ok(seen.has("roadmap.ts") && seen.has("rng.ts"), "scan followed core's imports");
+}
 
 // stages and ids
 assert.equal(STAGES.length, 11);

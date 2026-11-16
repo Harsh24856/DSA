@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, ArrowUpRight, Check } from "@phosphor-icons/react";
-import { STAGES, entry, moduleKey, nextUp } from "@/lib/genai2";
+import { STAGES, entry, moduleKey, nextUp } from "@/lib/genai2/core";
 import { usePatterns } from "@/lib/patternStore";
 import { Bar, Count } from "@/components/ui";
 import { ProgressCard } from "@/components/ProgressCard";

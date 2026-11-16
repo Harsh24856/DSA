@@ -2,7 +2,7 @@
 // The question bank at the bottom of a module: filter by level, answer, see why. The score is for this visit only.
 import { useMemo, useState } from "react";
 import { Check } from "@phosphor-icons/react";
-import { mcqOptions, questionKey, seededRng, type GQuestion, type Level } from "@/lib/genai2";
+import { mcqOptions, questionKey, seededRng, type GQuestion, type Level } from "@/lib/genai2/core";
 import { usePatterns } from "@/lib/patternStore";
 import { Rich } from "../other/Rich";
 

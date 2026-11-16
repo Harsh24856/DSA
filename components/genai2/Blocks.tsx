@@ -2,8 +2,8 @@
 // Renders one block of a Gen AI module. Blocks are plain data (lib/genai2/types.ts); this is the only place that knows how they look.
 import dynamic from "next/dynamic";
 import { useMemo, useRef, useState } from "react";
-import type { Block } from "@/lib/genai2";
-import { mcqOptions, seededRng } from "@/lib/genai2";
+import type { Block } from "@/lib/genai2/core";
+import { mcqOptions, seededRng } from "@/lib/genai2/core";
 import { GenaiLab } from "../labs";
 import { RunPanel } from "../GenaiDoc";
 import { Rich } from "../other/Rich";

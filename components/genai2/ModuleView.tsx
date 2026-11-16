@@ -2,17 +2,18 @@
 // One rebuilt Gen AI module: head, visual blocks, key points, questions, prev/next along the roadmap.
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, ArrowSquareOut, Check } from "@phosphor-icons/react";
-import { moduleKey, MODULES, STAGES } from "@/lib/genai2";
+import { moduleKey, STAGES } from "@/lib/genai2/core";
+import type { GModule } from "@/lib/genai2/core";
 import { usePatterns } from "@/lib/patternStore";
 import { BlockView } from "./Blocks";
 import { Questions } from "./Questions";
 
-export function ModuleView({ id }: { id: string }) {
+type Nav = { id: string; title: string } | null;
+
+export function ModuleView({ module: m, prev, next }: { module: GModule; prev: Nav; next: Nav }) {
   const { done, toggle } = usePatterns();
-  const m = MODULES[id], on = !!done[moduleKey(id)];
+  const id = m.id, on = !!done[moduleKey(id)];
   const stage = STAGES.find((s) => s.n === m.stage);
-  const built = STAGES.flatMap((s) => s.modules).filter((e) => e.built);
-  const i = built.findIndex((e) => e.id === id), prev = built[i - 1], next = built[i + 1];
 
   return (
     <div className="flex flex-col gap-6">
