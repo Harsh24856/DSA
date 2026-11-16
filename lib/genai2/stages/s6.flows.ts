@@ -49,7 +49,40 @@ function retry(): Flow {
   ] };
 }
 
+// context-caching: fitting a growing chat into a fixed window (the same rules as the module's budget script)
+export const BUDGET = { window: 8000, reserve: 1000, system: 300, tools: 400, question: 50, doc: 900, docs: 6, docShare: 0.6, exchange: 400, summary: 300, keepAfter: 4 };
+export function fit(turn: number, compact = false) {
+  const B = BUDGET, budget = B.window - B.reserve;
+  let used = B.system + B.tools + B.question, docs = 0;
+  while (docs < B.docs && used + B.doc <= budget * B.docShare) { used += B.doc; docs++; }
+  const past = turn - 1, summary = compact && past > B.keepAfter ? B.summary : 0;
+  used += summary;
+  const room = compact ? Math.min(past, B.keepAfter) : past;
+  let kept = 0;
+  while (kept < room && used + B.exchange <= budget) { used += B.exchange; kept++; }
+  return { budget, used, docs, kept, dropped: past - kept, summary };
+}
+function budget(): Flow {
+  const B = BUDGET, n0 = (x: number) => x.toLocaleString("en-US");
+  const bars = (r: ReturnType<typeof fit>, hot?: number) => [
+    { label: "system + tools", value: B.system + B.tools },
+    { label: "documents", value: r.docs * B.doc, tone: hot === 1 ? "hot" as const : undefined },
+    { label: "history", value: r.kept * B.exchange + r.summary, tone: hot === 2 ? "warn" as const : hot === 3 ? "ok" as const : undefined },
+    { label: "question", value: B.question },
+    { label: "free", value: r.budget - r.used, tone: r.budget - r.used < B.exchange ? "bad" as const : undefined },
+  ];
+  const [t1, t5, t10, t20, c20] = [fit(1), fit(5), fit(10), fit(20), fit(20, true)];
+  return { kind: "bars", title: `Fitting a chat into ${n0(B.window)} tokens`, format: (v) => n0(Math.round(v)), steps: [
+    { note: `${n0(B.window)} window, ${n0(B.reserve)} kept for the answer: ${n0(t1.budget)} to fill. Documents may take ${B.docShare * 100}% of it, so only ${t1.docs} of ${B.docs} ranked chunks fit, best first.`, tone: "hot", bars: bars(t1, 1) },
+    { note: `Turn 5: ${t5.kept} earlier exchanges of ${B.exchange} tokens each are resent. ${n0(t5.budget - t5.used)} tokens are still free.`, bars: bars(t5) },
+    { note: `Turn 10: only ${t10.kept} of ${t10.kept + t10.dropped} exchanges fit, so the oldest ${t10.dropped === 1 ? "one is" : `${t10.dropped} are`} dropped. Never drop the system prompt or the question.`, tone: "warn", bars: bars(t10, 2) },
+    { note: `Turn 20: still ${t20.kept} exchanges, and ${t20.dropped} are gone. Anything said early, like the user's order number, is lost.`, tone: "bad", bars: bars(t20, 2) },
+    { note: `Compaction: a ${B.summary} token summary of the old turns plus the last ${c20.kept} exchanges. Early facts survive, and ${n0(c20.budget - c20.used)} tokens are free again.`, tone: "ok", bars: bars(c20, 3) },
+  ] };
+}
+
 export const FLOWS_6: Record<string, Flow> = {
+  "s6-budget": budget(),
   "s6-retry": retry(),
   "s6-roles": roles(),
   "s6-chain": chain(),

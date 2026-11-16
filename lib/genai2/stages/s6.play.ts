@@ -1,6 +1,6 @@
 // Stage 6 (Using LLMs) slider walk-throughs, placed in modules by a `play` block. Every number is computed here.
 import type { Flow } from "../../other/flows.ts";
-import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
+import type { PlayFlow } from "../../other/flows-play-types.ts";
 
 const r1 = (x: number) => x.toFixed(1);
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
@@ -50,7 +50,29 @@ function retryOdds(v: Record<string, number>): Flow {
   ] };
 }
 
+// context-caching: input cost with a cached prefix. Multipliers from one provider's price list (most models): write 1.25x, read 0.1x.
+const WRITE = 1.25, READ = 0.1;
+function cache(v: Record<string, number>): Flow {
+  const { prefix: P, fresh: F, calls: n } = v;
+  const plain = n * (P + F), cached = WRITE * P + (n - 1) * READ * P + n * F, save = 1 - cached / plain;
+  const bars = (a: number, b: number) => [{ label: "no cache", value: a, tone: "warn" as const }, { label: "with cache", value: b, tone: b < a ? "ok" as const : "bad" as const }];
+  return { kind: "bars", title: `${n0(P)} token prefix, ${n0(F)} new tokens, ${n} call${n > 1 ? "s" : ""}`, format: (x) => n0(x), steps: [
+    { note: `Call 1 writes the prefix to the cache at ${WRITE}x the input price: ${n0(WRITE * P + F)} token-price units against ${n0(P + F)}. The first call costs more.`, tone: "warn", bars: bars(P + F, WRITE * P + F) },
+    { note: n === 1 ? "With one call the cache is never read, so it only costs extra. Caching pays when the same prefix comes back." : `Calls 2 to ${n} read the prefix at ${READ}x: ${n0(READ * P)} instead of ${n0(P)} each. Total ${n0(cached)} against ${n0(plain)}.`, tone: n === 1 ? "bad" : "ok", bars: bars(plain, cached) },
+    { note: save > 0 ? `That is ${Math.round(save * 100)}% less input cost, and a faster first token on every hit. It holds only if each call comes before the cache expires and the prefix is byte-for-byte the same.` : `No saving here: ${Math.round(-save * 100)}% more. One reuse is already enough to win.`, tone: save > 0 ? "ok" : "bad", bars: bars(plain, cached) },
+  ] };
+}
+
 export const PLAY_6: Record<string, PlayFlow> = {
+  "s6-cache": {
+    title: "Prompt caching: when does it pay?",
+    knobs: [
+      { key: "prefix", label: "Stable prefix (tokens)", min: 1000, max: 50000, step: 1000, value: 10000 },
+      { key: "fresh", label: "New tokens per call", min: 100, max: 5000, step: 100, value: 500 },
+      { key: "calls", label: "Calls that share it", min: 1, max: 20, step: 1, value: 5 },
+    ],
+    make: cache,
+  },
   "s6-retry-odds": {
     title: "Validate and retry: how many get through?",
     knobs: [
@@ -79,4 +101,3 @@ export const PLAY_6: Record<string, PlayFlow> = {
   },
 };
 
-void PlayError;
