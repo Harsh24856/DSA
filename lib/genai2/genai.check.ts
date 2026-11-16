@@ -7,6 +7,7 @@ import { join, posix } from "node:path";
 import { FLOWS } from "../other/flows.ts";
 import { knobDefaults, PLAY_FLOWS, PlayError } from "../other/flows-play.ts";
 import { BUILT, entry, FIGURE_IDS, mcqOptions, MODULES, seededRng, moduleKey, nextUp, STAGES, withNeeds } from "./index.ts";
+import { LABS } from "./labs/index.ts";
 import type { Block, Stage } from "./types.ts";
 
 const mulberry32 = (a: number) => () => {
@@ -173,5 +174,8 @@ stageMods.forEach(([m, b, p, f], n) => {
 const allFig = stageMods.flatMap(([, b], n) => [...b[`FIGURE_IDS_${n}`]]);
 assert.deepEqual([...allFig].sort(), [...FIGURE_IDS].sort(), "FIGURE_IDS is the union of the stage lists");
 for (const m of Object.values(MODULES)) for (const b of m.blocks) if (b.kind === "figure") assert.ok((FIGURE_IDS as readonly string[]).includes(b.id), `figure ${b.id} is registered`);
+
+for (const m of Object.values(MODULES)) if (m.lab) assert.ok(LABS[m.lab], `${m.id} links lab ${m.lab}, which does not exist`);
+assert.equal(MODULES["self-attention"]?.lab, "transformer", "self-attention links the transformer lab");
 
 console.log(`genai ok: ${STAGES.length} stages, ${ids.length} modules, ${Object.keys(MODULES).length} built`);

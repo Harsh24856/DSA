@@ -2,7 +2,7 @@
 // Hub of the Gen AI section: 11 stages of modules, each row a built module, its old page, or coming soon.
 import Link from "next/link";
 import { motion } from "motion/react";
-import { ArrowRight, Check } from "@phosphor-icons/react";
+import { ArrowRight, Check, Code } from "@phosphor-icons/react";
 import { STAGES, entry, moduleKey, nextUp } from "@/lib/genai2/core";
 import { usePatterns } from "@/lib/patternStore";
 import { Bar, Count } from "@/components/ui";
@@ -10,7 +10,9 @@ import { ProgressCard } from "@/components/ProgressCard";
 
 const ALL = STAGES.flatMap((s) => s.modules);
 
-export function RoadmapHub({ genaiModules }: { genaiModules: string[] }) {
+export type LabCard = { id: string; title: string; blurb: string; steps: number };
+
+export function RoadmapHub({ genaiModules, labs = [] }: { genaiModules: string[]; labs?: LabCard[] }) {
   const { done } = usePatterns();
   const isDone = (id: string) => !!done[moduleKey(id)];
   const doneN = ALL.filter((m) => m.built && isDone(m.id)).length;
@@ -33,6 +35,29 @@ export function RoadmapHub({ genaiModules }: { genaiModules: string[] }) {
           <ProgressCard genaiModules={genaiModules} />
         </div>
       </section>
+
+      {labs.length > 0 && (
+        <section className="card flex flex-col gap-4 p-6" aria-labelledby="gl-labs">
+          <div>
+            <h2 id="gl-labs" className="t-h2">Code labs</h2>
+            <p className="mt-1 max-w-[62ch] text-sm text-muted">Write the pieces yourself, one function per step. Hidden tests grade each step in your browser.</p>
+          </div>
+          <ul className="m-0 grid list-none gap-2 p-0 md:grid-cols-2">
+            {labs.map((l) => (
+              <li key={l.id}>
+                <Link href={`/genai/lab/${l.id}`} className="inset flex h-full items-start gap-3 p-4 transition hover:border-line-strong hover:bg-surface-2">
+                  <span className="badge-icon"><Code size={16} aria-hidden /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">{l.title}</span>
+                    <span className="mt-1 block text-xs text-muted">{l.blurb}</span>
+                  </span>
+                  <span className="pill pill-muted num shrink-0 text-xs">{l.steps} steps</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {STAGES.map((s, k) => {
         const built = s.modules.filter((m) => m.built && isDone(m.id)).length;
