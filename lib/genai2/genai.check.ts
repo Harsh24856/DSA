@@ -36,18 +36,19 @@ assert.deepEqual([...BUILT].sort(), Object.keys(MODULES).sort(), "BUILT lists ex
   assert.ok(seen.has("roadmap.ts") && seen.has("rng.ts") && seen.has("stages/s4.built.ts"), "scan followed core's imports");
 }
 
-// components/genai2/** (figures/sN.tsx and figures/sN/* included) never import module text: alias or relative, no bare index, ./modules/, stages/sN.ts or stages/modules.ts
+// components/genai2/** (figures/sN.tsx, figures/sN/* and lab/* included) never import module or lab content: alias or relative, no bare index, ./modules/, stages/sN.ts or stages/modules.ts
 const serverOnly = (from: string, spec: string) => {
   const p = spec.startsWith("@/") ? spec.slice(2) : spec.startsWith(".") ? posix.normalize(posix.join(posix.dirname(from), spec)) : spec;
-  return /^lib\/genai2(\/index)?(\.tsx?)?\/?$|^lib\/genai2\/modules\/|^lib\/genai2\/stages\/(s\d+|modules)(\.ts)?$/.test(p);
+  return /^lib\/genai2(\/index)?(\.tsx?)?\/?$|^lib\/genai2\/modules\/|^lib\/genai2\/stages\/(s\d+|modules)(\.ts)?$|^lib\/genai2\/labs(\/index|\/transformer)?(\.ts)?\/?$/.test(p);
 };
 for (const [spec, bad] of [["@/lib/genai2", true], ["@/lib/genai2/index", true], ["@/lib/genai2/modules/s4/self-attention", true], ["@/lib/genai2/stages/s4", true], ["@/lib/genai2/stages/modules.ts", true],
-  ["../../../lib/genai2", true], ["../../../lib/genai2/stages/s4.ts", true], ["@/lib/genai2/core", false], ["@/lib/genai2/stages/s4.built", false], ["../../../lib/genai2/stages/s4.play.ts", false], ["@/lib/genai2/rng", false]] as const)
+  ["../../../lib/genai2", true], ["../../../lib/genai2/stages/s4.ts", true], ["@/lib/genai2/core", false], ["@/lib/genai2/stages/s4.built", false], ["../../../lib/genai2/stages/s4.play.ts", false], ["@/lib/genai2/rng", false],
+  ["@/lib/genai2/labs", true], ["@/lib/genai2/labs/index.ts", true], ["@/lib/genai2/labs/transformer", true], ["../../../lib/genai2/labs/transformer.ts", true], ["@/lib/genai2/labs/harness", false], ["@/lib/genai2/labs/types", false]] as const)
   assert.equal(serverOnly("components/genai2/figures/s4.tsx", spec), bad, `import guard on ${spec}`);
 assert.ok(serverOnly("components/genai2/figures/s4/Qkv.tsx", "../../../../lib/genai2/modules/s4/self-attention.ts"), "import guard follows relative paths from figures/sN/");
 {
   const root = join(import.meta.dirname, "../.."), files = readdirSync(join(root, "components/genai2"), { recursive: true, encoding: "utf8" }).filter(f => /\.tsx?$/.test(f));
-  assert.ok(files.includes("figures/s4.tsx") && files.some(f => f.startsWith("figures/s4/")), "guard scans the stage figures");
+  assert.ok(files.includes("figures/s4.tsx") && files.some(f => f.startsWith("figures/s4/")) && files.includes("lab/LabView.tsx"), "guard scans the stage figures and the lab view");
   for (const f of files) {
     const rel = "components/genai2/" + f.split("\\").join("/");
     for (const [, spec] of readFileSync(join(root, rel), "utf8").matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) assert.ok(!serverOnly(rel, spec), `${rel} imports ${spec}, which holds module text`);
