@@ -66,7 +66,31 @@ function packing(v: Record<string, number>): Flow {
   ] };
 }
 
+// Preference tuning: how beta and the two log-ratios set the DPO loss and the push.
+const sig = (x: number) => 1 / (1 + Math.exp(-x));
+const sgn = (x: number) => (x > 0 ? `+${r2(x)}` : r2(x));
+function dpoBeta(v: Record<string, number>): Flow {
+  const { beta, dc, dr } = v, rc = beta * dc, rr = beta * dr, z = rc - rr, p = sig(z), loss = -Math.log(p), push = 1 - p;
+  const T = { head: ["answer", "log-ratio", "reward"], rows: [["chosen", sgn(dc), sgn(rc)], ["rejected", sgn(dr), sgn(rr)]] };
+  return { kind: "grid", title: `DPO at β = ${beta}`, steps: [
+    { note: `DPO's hidden reward is β times the log-ratio, log π / π_ref: how much more the policy likes an answer than the reference does. Chosen: ${sgn(rc)}. Rejected: ${sgn(rr)}.`, tables: [T] },
+    { note: `P(chosen wins) = σ(${sgn(rc)} - (${sgn(rr)})) = ${r2(p)}. Loss = -ln ${r2(p)} = ${r2(loss)}. ${p < 0.5 ? "The pair is ranked the wrong way round, so the loss is high." : "The pair is ranked the right way round."}`, tone: p < 0.5 ? "bad" : "ok",
+      tables: [T, { head: ["P(chosen)", "loss"], rows: [[r2(p), r2(loss)]], tones: { "0": p < 0.5 ? "bad" : "ok" } }] },
+    { note: `Push on this pair: σ(${r2(-z)}) = ${r2(push)}. A bigger β makes the same log-ratio count for more, so the loss is met with a smaller move: the policy stays nearer the reference.`, tone: "hot",
+      tables: [T, { head: ["P(chosen)", "loss", "push"], rows: [[r2(p), r2(loss), r2(push)]], tones: { ":2": "hot" } }] },
+  ] };
+}
+
 export const PLAY_5: Record<string, PlayFlow> = {
+  "s5-dpo-beta": {
+    title: "What β does in DPO",
+    knobs: [
+      { key: "beta", label: "β", min: 0.05, max: 1, step: 0.05, value: 0.1 },
+      { key: "dc", label: "Chosen log-ratio", min: -5, max: 5, step: 0.5, value: 2 },
+      { key: "dr", label: "Rejected log-ratio", min: -5, max: 5, step: 0.5, value: -2 },
+    ],
+    make: dpoBeta,
+  },
   "s5-packing": {
     title: "Padding or packing SFT examples",
     knobs: [

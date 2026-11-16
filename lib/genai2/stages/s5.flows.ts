@@ -68,7 +68,29 @@ function chatTemplate(): Flow {
   ] };
 }
 
+// Preference tuning: one DPO loss computed by hand from the four log-probabilities.
+export const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
+function dpoStep(): Flow {
+  const beta = 0.1, pc = -12, rc = -14, pr = -15, rr = -13, dc = pc - rc, dr = pr - rr, m = dc - dr, z = beta * m, p = sigmoid(z), loss = -Math.log(p);
+  const sgn = (x: number) => (x > 0 ? `+${x.toFixed(1)}` : x.toFixed(1));
+  const lp = (show: boolean): GridTable => ({ head: ["answer", "policy", "reference", "change"],
+    rows: [["chosen", pc.toFixed(1), rc.toFixed(1), show ? sgn(dc) : ""], ["rejected", pr.toFixed(1), rr.toFixed(1), show ? sgn(dr) : ""]], tones: show ? { "0:3": "ok", "1:3": "ok" } : undefined });
+  return { kind: "grid", title: "One DPO step, by hand", steps: [
+    { note: "One preference pair: the same prompt, a chosen answer and a rejected one, picked by a person or a judge model.",
+      tables: [{ head: ["part", "text"], rows: [["prompt", "Is 91 prime?"], ["chosen", "No: 91 = 7 × 13."], ["rejected", "Yes, 91 is prime."]], tones: { "1": "ok", "2": "bad" } }] },
+    { note: "Score each whole answer: the summed log-probability of its tokens, under the policy being trained and under the frozen reference (the SFT model).",
+      tables: [lp(false)] },
+    { note: `What counts is the change from the reference. The policy already likes the chosen answer ${sgn(dc)} more and the rejected one ${sgn(dr)}.`, tone: "hot",
+      tables: [lp(true)] },
+    { note: `Margin = ${sgn(dc)} - (${sgn(dr)}) = ${m.toFixed(1)}. Times β = ${beta}: ${r2(z)}. Sigmoid gives ${r2(p)}, the odds the chosen answer wins. Loss = -ln ${r2(p)} = ${r3(loss)}.`, tone: "ok",
+      tables: [lp(true), { head: ["margin", "β × margin", "σ", "loss"], rows: [[m.toFixed(1), r2(z), r2(p), r3(loss)]], tones: { ":3": "ok" } }] },
+    { note: `The gradient raises the chosen answer and lowers the rejected one, scaled by σ(-${r2(z)}) = ${r2(1 - p)}. Pairs the model already ranks well push less. No reward model, no sampling.`, tone: "ok",
+      tables: [{ head: ["pair", "push weight"], rows: [["this pair", r2(1 - p)], ["policy = reference", r2(0.5)]], tones: { "0": "ok" } }] },
+  ] };
+}
+
 export const FLOWS_5: Record<string, Flow> = {
+  "s5-dpo-step": dpoStep(),
   "s5-chat-template": chatTemplate(),
   "s5-next-token": nextToken(),
   "s5-minhash": minhash(),
