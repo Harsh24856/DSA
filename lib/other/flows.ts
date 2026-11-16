@@ -5,6 +5,7 @@ import { CS_FLOWS } from "./flows-cs.ts";
 import { GENAI_FLOWS } from "./flows-genai.ts";
 import { DESIGN_FLOWS } from "./flows-design.ts";
 import { CORE_FLOWS } from "./flows-core.ts";
+import { GENAI2_FLOWS } from "../genai2/stages/flows.ts";
 import { DSA_FLOWS } from "./flows-dsa.ts";
 
 export type FlowTone = "ok" | "bad" | "warn" | "hot";
@@ -28,6 +29,7 @@ export const stepNote = (f: Flow, i: number) => f.steps[i].note;
 export const FLOWS: Record<string, Flow> = {
   ...CS_FLOWS,
   ...GENAI_FLOWS,
+  ...GENAI2_FLOWS,
   ...DESIGN_FLOWS,
   ...CORE_FLOWS,
   ...DSA_FLOWS,

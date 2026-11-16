@@ -8,11 +8,10 @@ import type { RoadEntry, Stage } from "./types.ts";
 export { seededRng, withNeeds };
 export type { Block, GModule, GQuestion, Level, RoadEntry, Stage } from "./types.ts";
 
-// Ids of the modules that exist in modules/ (genai.check.ts compares this with the registry).
-export const BUILT: readonly string[] = ["self-attention"];
+// Ids of the modules that exist (genai.check.ts compares this with the registry); lists live in stages/sN.built.ts.
+export { BUILT, FIGURE_IDS } from "./stages/built.ts";
+import { BUILT } from "./stages/built.ts";
 
-// Every figure id has a component in components/genai2/figures (genai.check.ts compares the two).
-export const FIGURE_IDS = ["qkv"] as const;
 
 export const STAGES: Stage[] = ROAD.map(s => ({ ...s, modules: s.modules.map(m => ({ ...m, built: BUILT.includes(m.id) })) }));
 

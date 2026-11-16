@@ -1,4 +1,4 @@
-// No imports: lib/genai2/play.ts reaches the browser through flows-play.ts, so it must not pull in module text via index.ts.
+// No imports: lib/genai2/stages/*.play.ts reach the browser through flows-play.ts, so it must not pull in module text via index.ts.
 // Deterministic rng from a string (FNV-1a hash into mulberry32), so server and client shuffle alike.
 export const seededRng = (seed: string): (() => number) => {
   let a = 2166136261;

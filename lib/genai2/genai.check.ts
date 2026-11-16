@@ -1,9 +1,9 @@
 // Run: npm run check:genai. Asserts the Gen AI roadmap and every module's rules.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, posix } from "node:path";
 import { FLOWS } from "../other/flows.ts";
 import { knobDefaults, PLAY_FLOWS, PlayError } from "../other/flows-play.ts";
 import { BUILT, entry, FIGURE_IDS, mcqOptions, MODULES, seededRng, moduleKey, nextUp, STAGES, withNeeds } from "./index.ts";
@@ -19,19 +19,21 @@ const mulberry32 = (a: number) => () => {
 // the client-safe core must not reach module text
 assert.deepEqual([...BUILT].sort(), Object.keys(MODULES).sort(), "BUILT lists exactly the registered modules");
 {
-  const seen = new Set<string>(), todo = ["core.ts"];
+  const clientFiles = readdirSync(new URL("./stages/", import.meta.url)).filter(f => /\.(built|play|flows)\.ts$/.test(f)).map(f => "stages/" + f);
+  const seen = new Set<string>(), todo = ["core.ts", ...clientFiles];
   while (todo.length) {
     const f = todo.pop()!;
     if (seen.has(f)) continue;
     seen.add(f);
+    if (f.startsWith("../")) continue;   // files outside lib/genai2 (practice.ts, other/) are not scanned
     const src = readFileSync(new URL(f, import.meta.url), "utf8");
     assert.ok(!/\bMODULES\b/.test(src), `${f} mentions MODULES`);
     for (const [, spec] of src.matchAll(/(?:from|import)\s*\(?\s*["'](\.[^"']+)["']/g)) {
-      assert.ok(!/(^|\/)index(\.ts)?$|modules\//.test(spec), `${f} imports ${spec}`);
-      if (spec.startsWith("./")) todo.push(spec.slice(2));
+      assert.ok(!/(^|\/)index(\.ts)?$|modules\/|(^|\/)modules\.ts$|\/s\d+\.ts$/.test(spec), `${f} imports ${spec}`);
+      todo.push(posix.normalize(posix.join(posix.dirname(f), spec)));
     }
   }
-  assert.ok(seen.has("roadmap.ts") && seen.has("rng.ts"), "scan followed core's imports");
+  assert.ok(seen.has("roadmap.ts") && seen.has("rng.ts") && seen.has("stages/s4.built.ts"), "scan followed core's imports");
 }
 
 // stages and ids
@@ -127,10 +129,21 @@ const fixture: Block[] = [
   { kind: "code", src: "x", run: true }, { kind: "predict", q: "q", answer: "a", wrong: ["b", "c"], why: "w" },
 ];
 assert.deepEqual(JSON.parse(JSON.stringify(fixture)), fixture);
-// FIGURES (a .tsx file Node cannot import) must have exactly the ids in FIGURE_IDS
-const figSrc = readFileSync(join(import.meta.dirname, "../../components/genai2/figures/index.tsx"), "utf8");
-const figKeys = [...(figSrc.match(/FIGURES\b[^\n]*>\s*=\s*\{([^}]*)\}/)?.[1] ?? "").matchAll(/(\w+)\s*:/g)].map(x => x[1]);
-assert.deepEqual(figKeys.sort(), [...FIGURE_IDS].sort(), "FIGURES keys equal FIGURE_IDS");
+// Each stage file keeps to its own stage: ids start with s<N>-, modules sit in stage N, and FIGURES_N (a .tsx file Node cannot import) has exactly FIGURE_IDS_N.
+const figDir = join(import.meta.dirname, "../../components/genai2/figures");
+const stageMods = await Promise.all(Array.from({ length: 11 }, (_, n) => Promise.all([import(`./stages/s${n}.ts`), import(`./stages/s${n}.built.ts`), import(`./stages/s${n}.play.ts`), import(`./stages/s${n}.flows.ts`)])));
+stageMods.forEach(([m, b, p, f], n) => {
+  const fids: readonly string[] = b[`FIGURE_IDS_${n}`];
+  for (const id of [...fids, ...Object.keys(p[`PLAY_${n}`]), ...Object.keys(f[`FLOWS_${n}`])]) assert.ok(id.startsWith(`s${n}-`), `${id} must start with s${n}-`);
+  for (const [id, mod] of Object.entries<{ stage: number }>(m[`MODULES_${n}`])) assert.equal(mod.stage, n, `${id} is in MODULES_${n} but belongs to stage ${mod.stage}`);
+  assert.deepEqual([...b[`BUILT_${n}`]].sort(), Object.keys(m[`MODULES_${n}`]).sort(), `BUILT_${n} lists exactly MODULES_${n}`);
+  const src = readFileSync(join(figDir, `s${n}.tsx`), "utf8");
+  const body = src.match(new RegExp(`FIGURES_${n}\\s*=\\s*\\{([^}]*)\\}\\s*satisfies`))?.[1] ?? "";
+  const keys = [...body.matchAll(/["']?([\w-]+)["']?\s*:/g)].map(x => x[1]);
+  assert.deepEqual(keys.sort(), [...fids].sort(), `FIGURES_${n} keys equal FIGURE_IDS_${n}`);
+});
+const allFig = stageMods.flatMap(([, b], n) => [...b[`FIGURE_IDS_${n}`]]);
+assert.deepEqual([...allFig].sort(), [...FIGURE_IDS].sort(), "FIGURE_IDS is the union of the stage lists");
 for (const m of Object.values(MODULES)) for (const b of m.blocks) if (b.kind === "figure") assert.ok((FIGURE_IDS as readonly string[]).includes(b.id), `figure ${b.id} is registered`);
 
 console.log(`genai ok: ${STAGES.length} stages, ${ids.length} modules, ${Object.keys(MODULES).length} built`);

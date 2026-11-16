@@ -151,7 +151,7 @@ test("play all runs through to the end, then offers replay", async ({ browser })
   await ctx.close();
 });
 
-// the rebuilt Gen AI module: its interactive walk-through (ga-attn-scale) follows its sliders
+// the rebuilt Gen AI module: its interactive walk-through (s4-attn-scale) follows its sliders
 test("genai self-attention sliders", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));

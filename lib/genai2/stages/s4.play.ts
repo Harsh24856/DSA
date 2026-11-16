@@ -1,7 +1,7 @@
-// Gen AI slider walk-throughs, placed in modules by a `play` block; spread into PLAY_FLOWS (lib/other/flows-play.ts).
-import type { Flow } from "../other/flows.ts";
-import { PlayError, type PlayFlow } from "../other/flows-play-types.ts";
-import { seededRng } from "./rng.ts";
+// Gen AI slider walk-throughs, placed in modules by a `play` block; stage 4's registry, spread by stages/play.ts into PLAY_FLOWS.
+import type { Flow } from "../../other/flows.ts";
+import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
+import { seededRng } from "../rng.ts";
 
 const WORDS = ["the", "cat", "sat", "on", "mat"];
 
@@ -29,8 +29,8 @@ function attnScale(v: Record<string, number>): Flow {
   return { kind: "bars", title: `Weights for "sat" at d = ${d}, temperature ${t}`, max: 1, format: r2, steps };
 }
 
-export const PLAY: Record<string, PlayFlow> = {
-  "ga-attn-scale": {
+export const PLAY_4: Record<string, PlayFlow> = {
+  "s4-attn-scale": {
     title: "Why scale by sqrt(d)",
     knobs: [
       { key: "d", label: "Head size d", min: 2, max: 256, step: 2, value: 64 },

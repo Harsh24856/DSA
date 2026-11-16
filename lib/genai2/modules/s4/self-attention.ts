@@ -1,5 +1,5 @@
 // Stage 4, the gold-standard module: every later module copies this shape. Every number below is computed here.
-import type { GModule } from "../types.ts";
+import type { GModule } from "../../types.ts";
 
 const n0 = (x: number) => x.toLocaleString("en-US");
 const r2 = (x: number) => x.toFixed(2);
@@ -24,10 +24,10 @@ export const SELF_ATTENTION: GModule = {
   title: "Self-attention",
   hook: "Every word looks at every other word and decides how much each one matters right now. That one idea is the engine of the transformer.",
   blocks: [
-    { kind: "figure", id: "qkv", caption: "Each word's vector is split three ways. The query of \"sat\" is compared with the key of every word, itself included." },
+    { kind: "figure", id: "s4-qkv", caption: "Each word's vector is split three ways. The query of \"sat\" is compared with the key of every word, itself included." },
     { kind: "text", md: "**What attention answers:** for this word, which other words matter? In \"the animal did not cross the road because it was tired\", the word \"it\" should look hard at \"animal\".\n\nEach token makes a **query** (what am I looking for), a **key** (what do I offer) and a **value** (what do I pass on). Its query is scored against every key. The best matches get the most weight, and their values are mixed into its new vector." },
     { kind: "flow", id: "g-attn" },
-    { kind: "play", id: "ga-attn-scale" },
+    { kind: "play", id: "s4-attn-scale" },
     {
       kind: "predict",
       q: `${EQ} tokens all get the same score, 3.0. What weights does softmax give them?`,
