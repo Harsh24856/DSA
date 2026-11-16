@@ -1,7 +1,7 @@
 "use client";
 // Hub of the Gen AI section: 11 stages of modules, each row a built module, its old page, or coming soon.
 import Link from "next/link";
-import { motion, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import { ArrowRight, ArrowUpRight, Check } from "@phosphor-icons/react";
 import { STAGES, entry, moduleKey, nextUp } from "@/lib/genai2/core";
 import { usePatterns } from "@/lib/patternStore";
@@ -12,7 +12,6 @@ const ALL = STAGES.flatMap((s) => s.modules);
 
 export function RoadmapHub() {
   const { done } = usePatterns();
-  const reduce = useReducedMotion();
   const isDone = (id: string) => !!done[moduleKey(id)];
   const doneN = ALL.filter((m) => m.built && isDone(m.id)).length;
   const next = nextUp(done), nextE = next ? entry(next) : undefined;
@@ -39,7 +38,7 @@ export function RoadmapHub() {
         const built = s.modules.filter((m) => m.built && isDone(m.id)).length;
         return (
           <motion.section key={s.n} id={`stage-${s.n}`} aria-labelledby={`stage-t-${s.n}`} className="card flex scroll-mt-24 flex-col gap-4 p-6"
-            initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: Math.min(k, 4) * 0.04, ease: [0.22, 1, 0.36, 1] }}>
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: Math.min(k, 4) * 0.04, ease: [0.22, 1, 0.36, 1] }}>
             <div>
               <div className="t-eyebrow">Stage {s.n}</div>
               <h3 id={`stage-t-${s.n}`} className="t-h3 mt-0.5">{s.title}</h3>
