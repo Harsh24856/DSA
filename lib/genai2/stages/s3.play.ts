@@ -38,7 +38,31 @@ function vanish(v: Record<string, number>): Flow {
   ] };
 }
 
+// lstm-gru: how much each word still counts in a GRU's final state, h_t = z h_(t-1) + (1 - z) x_t (candidate = the word itself)
+const GATE_WORDS = ["the", "key", "was", "under", "the", "old", "mat", "by", "the", "door", "last", "night"], KEY = 1;
+function gate(v: Record<string, number>): Flow {
+  const { z, n } = v, ws = GATE_WORDS.slice(0, n);
+  // weight of word t in h_n: (1 - z_t) times the product of z_s for every later s
+  const weights = (zs: number[]) => zs.map((zt, t) => (1 - zt) * zs.slice(t + 1).reduce((p, s) => p * s, 1));
+  const p2 = (x: number) => x.toFixed(2);
+  const bars = (w: number[]) => w.map((x, t) => ({ label: `${t + 1} ${ws[t]}`, value: x, tone: t === KEY ? "hot" as const : undefined }));
+  const same = weights(ws.map(() => z)), write = weights(ws.map((_, t) => (t === KEY ? 0 : z))), hold = weights(ws.map((_, t) => (t === KEY ? 0 : t < KEY ? z : 1)));
+  return { kind: "bars", title: `What the final state holds after ${n} words`, max: 1, format: p2, steps: [
+    { note: `One fixed gate z = ${z} for every word: each word writes ${p2(1 - z)} and older words fade by ${z} per step. "key" keeps only ${p2(same[KEY])}. The last word dominates.`, tone: "warn", bars: bars(same) },
+    { note: `A learned gate reacts to the word: at "key" z drops to 0, so the state is overwritten with "key" and earlier words vanish. Later words still blend in at z = ${z}, so "key" keeps ${p2(write[KEY])}.`, tone: write[KEY] < 0.5 ? "warn" : "ok", bars: bars(write) },
+    { note: `If the gate also closes after "key" (z = 1 for the rest), nothing overwrites it: "key" keeps ${p2(hold[KEY])}, and the gradient along that path is multiplied by 1 at each step. That is how gates remember.`, tone: "ok", bars: bars(hold) },
+  ] };
+}
+
 export const PLAY_3: Record<string, PlayFlow> = {
+  "s3-gate": {
+    title: "Write once, hold with a gate",
+    knobs: [
+      { key: "z", label: "Update gate z (keep old)", min: 0.5, max: 0.99, step: 0.01, value: 0.8 },
+      { key: "n", label: "Words read", min: 4, max: 12, step: 1, value: 8 },
+    ],
+    make: gate,
+  },
   "s3-vanish": {
     title: "Vanishing and exploding gradients",
     knobs: [

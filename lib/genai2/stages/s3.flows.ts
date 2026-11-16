@@ -47,7 +47,33 @@ function rnnSteps(): Flow {
   ] };
 }
 
+// lstm-gru: one LSTM step with one number per slot, then the gradient along the cell
+function lstmStep(): Flow {
+  const sig = (a: number) => 1 / (1 + Math.exp(-a)), r3 = (x: number) => Number(x.toFixed(3));
+  const hp = 0.5, cp = 0.8, x = 1.0;
+  // [weight on x, weight on h(t-1), bias] for each gate; the forget bias starts at 1
+  const Wt = { f: [0.5, 0.5, 1], i: [1, -0.5, 0], o: [0.8, 0.4, 0], g: [1.2, -0.4, 0] } as const;
+  const pre = (k: keyof typeof Wt) => Wt[k][0] * x + Wt[k][1] * hp + Wt[k][2];
+  const f = sig(pre("f")), i = sig(pre("i")), o = sig(pre("o")), g = Math.tanh(pre("g"));
+  const c = f * cp + i * g, h = o * Math.tanh(c), u = 0.8, rnnF = u * (1 - h * h), N = 20;
+  const gates: GridTable = { head: ["gate", "pre", "value", "job"], rows: [
+    ["f", r3(pre("f")), r3(f), "keep old"], ["i", r3(pre("i")), r3(i), "write amount"], ["g", r3(pre("g")), r3(g), "new content"], ["o", r3(pre("o")), r3(o), "show amount"]] };
+  return { kind: "grid", title: "One LSTM step, one number per slot", steps: [
+    { note: `The cell gets the previous output h = ${hp}, the previous cell c = ${cp} and the input x = ${x}. Four small layers will read [h, x].`,
+      tables: [{ head: ["input", "value"], rows: [["h(t-1)", hp], ["c(t-1)", cp], ["x(t)", x]], tones: { "1": "hot" } }] },
+    { note: `Each gate is weight × x + weight × h + bias, then a squash. Gates use sigmoid (0 to 1); the candidate g uses tanh (-1 to 1).`,
+      tables: [{ ...gates, tones: { ":2": "hot" } }] },
+    { note: `Update the cell: c = f × c(t-1) + i × g = ${r3(f)} × ${cp} + ${r3(i)} × ${r3(g)} = ${r3(c)}. Keep most of the old, add some new.`, tone: "ok",
+      tables: [gates, { head: ["part", "value"], rows: [["keep: f × c(t-1)", r3(f * cp)], ["write: i × g", r3(i * g)], ["new c(t)", r3(c)]], tones: { "2": "ok" } }] },
+    { note: `Output: h = o × tanh(c) = ${r3(o)} × ${r3(Math.tanh(c))} = ${r3(h)}. The output gate decides how much of the memory to show.`,
+      tables: [gates, { head: ["state", "value"], rows: [["c(t)", r3(c)], ["h(t)", r3(h)]], tones: { "1": "hot" } }] },
+    { note: `Backward along the cell, one step multiplies the gradient by f = ${r3(f)} alone. Over ${N} steps that keeps ${r3(f ** N)}. A plain RNN step with weight ${u} at this h multiplies by ${r3(rnnF)}, which keeps ${(rnnF ** N).toExponential(1)}.`, tone: "ok",
+      tables: [{ head: ["path", "1 step", `${N} steps`], rows: [["LSTM cell", r3(f), r3(f ** N)], ["plain RNN", r3(rnnF), (rnnF ** N).toExponential(1)]], tones: { "0": "ok", "1": "bad" } }] },
+  ] };
+}
+
 export const FLOWS_3: Record<string, Flow> = {
   "s3-order": order(),
   "s3-rnn-steps": rnnSteps(),
+  "s3-lstm-step": lstmStep(),
 };
