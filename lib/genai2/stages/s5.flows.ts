@@ -89,7 +89,25 @@ function dpoStep(): Flow {
   ] };
 }
 
+// Distillation: the soft-target loss for one example, by hand.
+export const softmaxT = (z: number[], T: number) => { const e = z.map((x) => Math.exp(x / T)), s = e.reduce((a, b) => a + b, 0); return e.map((x) => x / s); };
+function distill(): Flow {
+  const cls = ["cat", "dog", "car"], zt = [4, 2, 0], zs = [3, 1, 1], T = 2, alpha = 0.5;
+  const t1 = softmaxT(zt, 1), tT = softmaxT(zt, T), sT = softmaxT(zs, T), s1 = softmaxT(zs, 1);
+  const terms = tT.map((p, i) => p * Math.log(p / sT[i])), kl = terms.reduce((a, b) => a + b, 0), soft = kl * T * T, hard = -Math.log(s1[0]), total = alpha * soft + (1 - alpha) * hard;
+  return { kind: "grid", title: "One distillation loss, by hand", steps: [
+    { note: "A big teacher and a small student score the same image of a cat. These are their raw scores (logits).", tables: [{ head: ["class", "teacher", "student"], rows: cls.map((c, i) => [c, zt[i], zs[i]]) }] },
+    { note: `At T = 1 the teacher is fairly sure: ${r2(t1[0])} on cat. Dividing logits by T = ${T} softens it, and its hint that a dog looks more like a cat than a car does shows up: ${r2(tT[1])} against ${r2(tT[2])}.`, tone: "hot",
+      tables: [{ head: ["class", "teacher T=1", `teacher T=${T}`], rows: cls.map((c, i) => [c, r2(t1[i]), r2(tT[i])]), tones: { ":2": "hot" } }] },
+    { note: `Soften the student with the same T and compare: KL = sum of p ln(p / q), where p is the teacher and q the student.`,
+      tables: [{ head: ["class", "teacher", "student", "p ln(p/q)"], rows: cls.map((c, i) => [c, r2(tT[i]), r2(sT[i]), r3(terms[i])]) }] },
+    { note: `KL = ${r3(kl)}. Multiply by T² = ${T * T} so its gradients keep their size: ${r3(soft)}. Add the usual loss on the true label, ${r3(hard)}, and weight them half and half: ${r3(total)}.`, tone: "ok",
+      tables: [{ head: ["soft (KL × T²)", "hard (true label)", "total"], rows: [[r3(soft), r3(hard), r3(total)]], tones: { ":2": "ok" } }] },
+  ] };
+}
+
 export const FLOWS_5: Record<string, Flow> = {
+  "s5-distill": distill(),
   "s5-dpo-step": dpoStep(),
   "s5-chat-template": chatTemplate(),
   "s5-next-token": nextToken(),

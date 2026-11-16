@@ -121,7 +121,26 @@ function memory(v: Record<string, number>): Flow {
   ] };
 }
 
+// Distillation: what temperature does to a teacher's distribution.
+export const KD_CLASSES = ["cat", "dog", "fox", "car", "cup"], KD_LOGITS = [6, 3, 2, 0, -1];
+const softT = (z: number[], T: number) => { const e = z.map((x) => Math.exp(x / T)), s = e.reduce((a, b) => a + b, 0); return e.map((x) => x / s); };
+const bits = (p: number[]) => -p.reduce((s, x) => s + (x > 0 ? x * Math.log2(x) : 0), 0);
+function temperature(v: Record<string, number>): Flow {
+  const { T } = v, p1 = softT(KD_LOGITS, 1), pT = softT(KD_LOGITS, T);
+  const bars = (p: number[]) => p.map((x, i) => ({ label: KD_CLASSES[i], value: x, tone: i === 0 ? "hot" as const : undefined }));
+  return { kind: "bars", title: `Teacher output at T = ${T}`, max: 1, format: r2, steps: [
+    { note: `At T = 1 the teacher puts ${r2(p1[0])} on cat. The other classes share ${r2(1 - p1[0])}, too little for a student to learn much from. Spread: ${r2(bits(p1))} bits.`, bars: bars(p1) },
+    { note: `Divide the logits by T = ${T}: cat now gets ${r2(pT[0])} and the rest ${r2(1 - pT[0])}. Spread: ${r2(bits(pT))} bits. ${T > 1 ? "The ranking dog > fox > car > cup is now easy to see." : T < 1 ? "T below 1 sharpens it instead." : "Same as before."}`, tone: T > 1 ? "ok" : "warn", bars: bars(pT) },
+    { note: `Very high T flattens everything toward ${r2(1 / KD_CLASSES.length)} each, and the ranking signal fades again. Distillation usually picks a moderate T, from about 2 to 5.`, bars: bars(pT) },
+  ] };
+}
+
 export const PLAY_5: Record<string, PlayFlow> = {
+  "s5-temperature": {
+    title: "Softening the teacher",
+    knobs: [{ key: "T", label: "Temperature T", min: 0.5, max: 8, step: 0.5, value: 2 }],
+    make: temperature,
+  },
   "s5-ft-memory": {
     title: "Will it fit on my GPU?",
     knobs: [
