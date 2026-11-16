@@ -27,7 +27,30 @@ function chain(): Flow {
   ] };
 }
 
+// structured-output: validate, send back the exact errors, try again
+function retry(): Flow {
+  const reply: Record<string, unknown> = { vendor: "Acme", total: "12,40", currency: "inr" };
+  const rules: [string, (x: Record<string, unknown>) => boolean, string][] = [
+    ["vendor", (x) => typeof x.vendor === "string", "vendor must be text"],
+    ["total", (x) => typeof x.total === "number" && x.total > 0, "total must be a number above 0"],
+    ["currency", (x) => typeof x.currency === "string" && /^[A-Z]{3}$/.test(x.currency), "currency must be 3 capital letters"],
+  ];
+  const errs = rules.filter(([, ok]) => !ok(reply)).map(([, , msg]) => msg);
+  const fixed = { ...reply, total: Number(String(reply.total).replace(",", ".")), currency: String(reply.currency).toUpperCase() };
+  const left = rules.filter(([, ok]) => !ok(fixed)).length;
+  return { kind: "lanes", title: "Validate and retry", lanes: ["App", "Model", "Validator"], steps: [
+    { from: 0, to: 1, label: "prompt + JSON schema", note: "Ask for an invoice as JSON and send the schema: vendor text, total a number above 0, currency 3 capital letters." },
+    { from: 1, to: 0, label: "Sure! {...}", note: `The reply wraps the JSON in chatter and writes total as "${reply.total}" and currency as "${reply.currency}".`, tone: "warn" },
+    { from: 0, to: 2, label: "cut out {...}, validate", note: "Take the text from the first { to the last }, parse it, then check types, ranges and allowed values." },
+    { from: 2, to: 0, label: `${errs.length} errors`, note: `The validator names each problem: ${errs.join("; ")}.`, tone: "bad" },
+    { from: 0, to: 1, label: "reply + exact errors", note: "Append the bad reply and the exact messages. The model now knows precisely what to fix, which a bare \"try again\" does not tell it.", tone: "hot" },
+    { from: 1, to: 0, label: "corrected JSON", note: `Try 2: total ${fixed.total}, currency ${fixed.currency}.` },
+    { from: 2, to: 0, label: left ? `${left} errors` : "valid on try 2", note: "It passes. Cap the tries, and if they run out, fail loudly and log the case for your eval set.", tone: left ? "bad" : "ok" },
+  ] };
+}
+
 export const FLOWS_6: Record<string, Flow> = {
+  "s6-retry": retry(),
   "s6-roles": roles(),
   "s6-chain": chain(),
 };

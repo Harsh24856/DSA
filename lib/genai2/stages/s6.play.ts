@@ -34,7 +34,32 @@ function vote(v: Record<string, number>): Flow {
   ] };
 }
 
+// structured-output: chance of a valid object after each try, when error feedback fixes a share of the failures
+const MAX_TRIES = 5;
+function retryOdds(v: Record<string, number>): Flow {
+  const p = v.p / 100, q = v.q / 100, T = v.tries;
+  const fail = (k: number) => (1 - p) * (1 - q) ** (k - 1);           // still invalid after try k
+  const pct = (x: number) => (x ? `${(x * 100).toFixed(1)}%` : "");
+  const bars = (upto: number) => Array.from({ length: MAX_TRIES }, (_, i) => ({ label: `try ${i + 1}`, value: i < upto ? 1 - fail(i + 1) : 0, tone: i + 1 === upto ? "hot" as const : undefined }));
+  const calls = 1 + Array.from({ length: T - 1 }, (_, j) => fail(j + 1)).reduce((a, b) => a + b, 0);
+  const lost = 10000 * fail(T);
+  return { kind: "bars", title: `${v.p}% valid first time, feedback fixes ${v.q}%`, max: 1, format: pct, steps: [
+    { note: `Try 1: ${v.p}% of replies pass the validator. The rest go back with their exact errors.`, bars: bars(1) },
+    { note: T === 1 ? "With one try there is no retry: every failure is final. Allow more tries to see feedback work." : `After ${T} tries, ${pct(1 - fail(T))} are valid. Each retry fixes ${v.q}% of what is still failing.`, tone: T > 1 && q > 0 ? "ok" : "warn", bars: bars(T) },
+    { note: `On average ${calls.toFixed(2)} calls per document, and about ${n0(lost)} of every 10,000 still fail. Those must fail loudly, not slip into your database.`, tone: lost >= 1 ? "warn" : "ok", bars: bars(T) },
+  ] };
+}
+
 export const PLAY_6: Record<string, PlayFlow> = {
+  "s6-retry-odds": {
+    title: "Validate and retry: how many get through?",
+    knobs: [
+      { key: "p", label: "Valid on the first try (%)", min: 50, max: 99, step: 1, value: 90 },
+      { key: "q", label: "Retry fixes (%)", min: 0, max: 100, step: 10, value: 80 },
+      { key: "tries", label: "Tries allowed", min: 1, max: MAX_TRIES, step: 1, value: 3 },
+    ],
+    make: retryOdds,
+  },
   "s6-vote": {
     title: "Self-consistency: is a vote worth it?",
     knobs: [
