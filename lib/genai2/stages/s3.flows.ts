@@ -84,7 +84,27 @@ function seq2seq(): Flow {
   ] };
 }
 
+// attention-fix: one Bahdanau step, additive scores, softmax, weighted sum
+function bahdanau(): Flow {
+  const words = ["the", "black", "cat"], H = [[1, 0], [0.5, 1], [1, 1.5]], s = [0.2, 1.0], v = [3, 3];
+  // W and U are the identity here, so W s + U h_j = s + h_j
+  const e = H.map((h) => v.reduce((acc, vk, k) => acc + vk * Math.tanh(s[k] + h[k]), 0));
+  const m = Math.max(...e), ex = e.map((x) => Math.exp(x - m)), z = ex.reduce((a, b) => a + b, 0), w = ex.map((x) => x / z);
+  const c = [0, 1].map((k) => w.reduce((acc, wj, j) => acc + wj * H[j][k], 0)), top = w.indexOf(Math.max(...w));
+  const r2 = (x: number) => Number(x.toFixed(2)), vec = (x: number[]) => `[${x.map(r2).join(", ")}]`;
+  const T = (score: (string | number)[], weight: (string | number)[], tones?: GridTable["tones"]): GridTable => ({ head: ["source", "h_j", "score", "weight"], rows: words.map((wd, j) => [wd, vec(H[j]), score[j], weight[j]]), tones });
+  const blank = words.map(() => "");
+  return { kind: "grid", title: "One decoder step of additive attention", steps: [
+    { note: `The encoder kept a state for every source word. The decoder's state before writing the next word is s = ${vec(s)}.`, tables: [T(blank, blank, { ":1": "hot" })] },
+    { note: `Score each source state with a tiny network: e_j = v · tanh(W s + U h_j). Here W and U are the identity and v = ${vec(v)}. Scores: ${e.map(r2).join(", ")}.`, tables: [T(e.map(r2), blank, { ":2": "hot" })] },
+    { note: `Softmax over the source turns scores into weights that sum to 1: ${w.map(r2).join(", ")}. "${words[top]}" gets the most.`, tables: [T(e.map(r2), w.map(r2), { [`${top}:3`]: "hot" })] },
+    { note: `The context is the weighted sum of the states: ${vec(c)}. It leans towards "${words[top]}", but every word adds a little.`, tone: "ok", tables: [T(e.map(r2), w.map(r2), { ":3": "ok" }), { label: "context c", rows: [[vec(c)]], tones: { "0": "ok" } }] },
+    { note: "Next word, new decoder state, new scores, new weights. Unlike basic seq2seq, the context is rebuilt at every step from all the states.", tone: "ok", tables: [T(e.map(r2), w.map(r2)), { label: "basic seq2seq would use only", rows: [[`h_3 = ${vec(H[2])}, every step`]], tones: { "0": "warn" } }] },
+  ] };
+}
+
 export const FLOWS_3: Record<string, Flow> = {
+  "s3-bahdanau": bahdanau(),
   "s3-seq2seq": seq2seq(),
   "s3-order": order(),
   "s3-rnn-steps": rnnSteps(),

@@ -65,7 +65,28 @@ function bottleneck(v: Record<string, number>): Flow {
   ] };
 }
 
+// attention-fix: softmax dilution, the right word's weight as the source grows
+function alignSharp(v: Record<string, number>): Flow {
+  const { s, n } = v, p2 = (x: number) => x.toFixed(2);
+  const split = (gap: number, len: number) => { const z = Math.exp(gap) + len - 1; return [Math.exp(gap) / z, 1 / z, (len - 1) / z]; };
+  const bars = (w: number[]) => [{ label: "right word", value: w[0], tone: "ok" as const }, { label: "each other", value: w[1] }, { label: "others total", value: w[2], tone: "warn" as const }];
+  const a = split(s, n), b = split(s, 2 * n), fix = s + Math.log(2), c = split(fix, 2 * n);
+  return { kind: "bars", title: `Attention on the right word, score lead ${s}`, max: 1, format: p2, steps: [
+    { note: `${n} source words. The right one scores ${s} above the rest, so it gets ${p2(a[0])} of the weight; the other ${n - 1} share ${p2(a[2])}.`, tone: a[0] >= 0.5 ? "ok" : "warn", bars: bars(a) },
+    { note: `Double the source to ${2 * n} words with the same lead: the right word drops to ${p2(b[0])}. Many small weights add up and blur the context.`, tone: "warn", bars: bars(b) },
+    { note: `Raise the lead by ln 2 = ${p2(Math.log(2))} (to ${p2(fix)}) and the right word is up to ${p2(c[0])}, close to the ${p2(a[0])} it had at ${n} words. A sharper score, learned in training, beats a longer source.`, tone: "ok", bars: bars(c) },
+  ] };
+}
+
 export const PLAY_3: Record<string, PlayFlow> = {
+  "s3-align-sharp": {
+    title: "Longer sources dilute attention",
+    knobs: [
+      { key: "s", label: "Score lead of the right word", min: 0, max: 6, step: 0.5, value: 2 },
+      { key: "n", label: "Source length (words)", min: 4, max: 40, step: 4, value: 8 },
+    ],
+    make: alignSharp,
+  },
   "s3-bottleneck": {
     title: "Squeezing a sentence into one vector",
     knobs: [
