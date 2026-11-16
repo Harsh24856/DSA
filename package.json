@@ -12,7 +12,7 @@
     "test:e2e": "playwright test",
     "test:ui": "playwright test --project=ui",
     "check:other": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/other/other.check.ts",
-    "check:genai": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/genai2/genai.check.ts"
+    "check:genai": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/genai2/genai.check.ts && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON lib/genai2/labs/labs.check.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.19.0",
