@@ -59,6 +59,37 @@ function gradCheck(v: Record<string, number>): Flow {
   ] };
 }
 
+// Optimisers: SGD, momentum and Adam on a ravine, L = (w1² + c w2²) / 2, one gentle direction and one steep.
+function ravine(v: Record<string, number>): Flow {
+  const { lr, c } = v, start = [3, 1], show = [0, 1, 2, 5, 10, 20, 50];
+  const loss = (w: number[]) => 0.5 * (w[0] ** 2 + c * w[1] ** 2), grad = (w: number[]) => [w[0], c * w[1]], L0 = loss(start);
+  const run = (kind: "sgd" | "mom" | "adam") => {
+    let w = [...start], vel = [0, 0], m = [0, 0], s2 = [0, 0];
+    const rows: number[][] = [];
+    for (let t = 0; t <= show[show.length - 1]; t++) {
+      if (show.includes(t)) rows.push([t, w[0], w[1], loss(w)]);
+      const g = grad(w);
+      if (kind === "sgd") w = w.map((x, i) => x - lr * g[i]);
+      else if (kind === "mom") { vel = vel.map((x, i) => 0.9 * x + g[i]); w = w.map((x, i) => x - lr * vel[i]); }
+      else {
+        m = m.map((x, i) => 0.9 * x + 0.1 * g[i]); s2 = s2.map((x, i) => 0.999 * x + 0.001 * g[i] ** 2);
+        w = w.map((x, i) => x - (lr * m[i] / (1 - 0.9 ** (t + 1))) / (Math.sqrt(s2[i] / (1 - 0.999 ** (t + 1))) + 1e-8));
+      }
+    }
+    return rows;
+  };
+  const table = (rows: number[][]): GridTable => ({ head: ["step", "w1", "w2", "loss"], rows: rows.map((r) => [r[0], fmt(r[1]), fmt(r[2]), fmt(r[3])]),
+    tones: Object.fromEntries(rows.flatMap((r, i) => (r[3] > L0 * 1.0001 ? [[String(i), "bad"]] : r[3] < 0.01 * L0 ? [[`${i}:3`, "ok"]] : []))) });
+  const [S, M, A] = [run("sgd"), run("mom"), run("adam")], end = (r: number[][]) => r[r.length - 1][3];
+  const ok = (r: number[][]) => (end(r) > L0 ? "bad" as const : end(r) < 0.01 * L0 ? "ok" as const : "warn" as const);
+  const best = ([["SGD", end(S)], ["momentum", end(M)], ["Adam", end(A)]] as [string, number][]).sort((a, b) => a[1] - b[1])[0][0];
+  return { kind: "grid", title: `Ravine: steepness ${c}, lr ${lr}`, steps: [
+    { note: `SGD: w = w - lr × gradient. The steep weight w2 stays stable only while lr × ${c} < 2; here it is ${fmt(lr * c)}. ${lr * c >= 2 ? "Too big: w2 overshoots further every step." : `The gentle weight w1 shrinks by a factor of only ${fmt(1 - lr)} each step.`}`, tone: ok(S), tables: [table(S)] },
+    { note: `Momentum (β = 0.9) keeps adding past gradients, so steady w1 picks up speed, while w2's back and forth partly cancels.${end(M) > L0 ? " With this lr it swings out of control." : ""} Loss after 50 steps: ${fmt(end(M))}.`, tone: ok(M), tables: [table(M)] },
+    { note: `Adam divides by each weight's own gradient size, so w1 and w2 each move about lr per step, steep or not. Loss after 50 steps: ${fmt(end(A))}. Lowest here: ${best}.`, tone: ok(A), tables: [table(A)] },
+  ] };
+}
+
 export const PLAY_2: Record<string, PlayFlow> = {
   "s2-act-slope": {
     title: "Where activations pass the gradient",
@@ -85,5 +116,13 @@ export const PLAY_2: Record<string, PlayFlow> = {
       { key: "w", label: "Weight w", min: -3, max: 3, step: 0.25, value: 0.5 },
     ],
     make: gradCheck,
+  },
+  "s2-ravine": {
+    title: "SGD, momentum and Adam in a ravine",
+    knobs: [
+      { key: "lr", label: "Learning rate", min: 0.01, max: 1, step: 0.01, value: 0.06 },
+      { key: "c", label: "Steepness of w2", min: 1, max: 50, step: 1, value: 30 },
+    ],
+    make: ravine,
   },
 };

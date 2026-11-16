@@ -107,8 +107,45 @@ function matGrad(): Flow {
   ] };
 }
 
+// Optimisers: Adam's update, and the warmup plus cosine schedule.
+export const ADAM = { lr: 0.01, b1: 0.9, b2: 0.999, eps: 1e-8 };
+/** Runs Adam on a gradient sequence; returns each step's m-hat, sqrt(v-hat) and the step taken (positive = weight goes down). */
+export function adamSteps(gs: number[], correct = true) {
+  const { lr, b1, b2, eps } = ADAM;
+  let m = 0, v = 0;
+  return gs.map((g, i) => {
+    const t = i + 1;
+    m = b1 * m + (1 - b1) * g; v = b2 * v + (1 - b2) * g * g;
+    const mh = correct ? m / (1 - b1 ** t) : m, vh = correct ? v / (1 - b2 ** t) : v;
+    return { g, mh, sv: Math.sqrt(vh), step: (lr * mh) / (Math.sqrt(vh) + eps) };
+  });
+}
+export const SCHED = { peak: 3e-4, min: 3e-5, warm: 1000, total: 10000 };
+export const lrAt = (t: number) => {
+  const { peak, min, warm, total } = SCHED;
+  if (t < warm) return (peak * t) / warm;
+  return min + 0.5 * (peak - min) * (1 + Math.cos((Math.PI * (t - warm)) / (total - warm)));
+};
+
+function adamFlow(): Flow {
+  const gA = [4, 3.6, 4.4, 4], gB = gA.map((g) => g / 1000), { lr } = ADAM;
+  const A = adamSteps(gA), B = adamSteps(gB), raw = adamSteps(gA, false)[0];
+  const ratio = Math.round(gA[0] / gB[0]);
+  return { kind: "grid", title: "Adam against SGD, step by step", steps: [
+    { note: `Weight A sees gradients near ${gA[0]}, weight B near ${gB[0]}: ${ratio} times smaller. SGD with lr ${lr} moves each by lr × gradient, so B barely moves.`, tone: "warn",
+      tables: [{ head: ["weight", "gradient", "SGD step"], rows: [["A", gA[0], fmt(lr * gA[0])], ["B", gB[0], fmt(lr * gB[0])]], tones: { "1:2": "bad" } }] },
+    { note: `Adam keeps m, an average of gradients, and v, an average of squared gradients. Step = lr × m̂ / √v̂. At t = 1, m̂ = g and √v̂ = |g|, so both weights move exactly lr.`, tone: "ok",
+      tables: [{ head: ["g", "m̂", "√v̂", "step"], rowHead: ["A", "B"], rows: [A[0], B[0]].map((x) => [fmt(x.g), fmt(x.mh), fmt(x.sv), fmt(x.step)]), tones: { ":3": "ok" } }] },
+    { note: `Why the hats? m and v start at 0, so early averages are too small. Uncorrected at t = 1: m = ${fmt(raw.mh)}, √v = ${fmt(raw.sv)}, a step of ${fmt(raw.step)}, ${fmt(raw.step / lr)} times lr. Dividing by (1 - β^t) fixes it.`, tone: "warn",
+      tables: [{ head: ["version", "m", "√v", "step"], rows: [["no hats", fmt(raw.mh), fmt(raw.sv), fmt(raw.step)], ["with hats", fmt(A[0].mh), fmt(A[0].sv), fmt(A[0].step)]], tones: { "0:3": "bad", "1:3": "ok" } }] },
+    { note: `Four steps. The gradients wobble, but A and B take the same steps, about lr each, even though their gradients differ ${ratio} times. Adam ignores the gradient's scale and keeps its direction and consistency.`, tone: "ok",
+      tables: [{ head: ["t", "A grad", "A step", "B step"], rows: A.map((x, i) => [i + 1, fmt(x.g), fmt(x.step), fmt(B[i].step)]), tones: { ":2": "ok", ":3": "ok" } }] },
+  ] };
+}
+
 export const FLOWS_2: Record<string, Flow> = {
   "s2-neuron": neuron(),
   "s2-xor": xor(),
   "s2-matgrad": matGrad(),
+  "s2-adam": adamFlow(),
 };
