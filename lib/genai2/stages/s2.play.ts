@@ -1,5 +1,5 @@
 // Stage 2 (Neural networks): slider walk-throughs, placed in modules by a `play` block. Spread by stages/play.ts into PLAY_FLOWS.
-import type { Flow, GridTable } from "../../other/flows.ts";
+import type { Flow, FlowTone, GridTable } from "../../other/flows.ts";
 import type { PlayFlow } from "../../other/flows-play-types.ts";
 import { ACTS, BP, bpLoss, fmt, gauss, sigmoid } from "./s2.flows.ts";
 import { seededRng } from "../rng.ts";
@@ -80,7 +80,7 @@ function ravine(v: Record<string, number>): Flow {
     return rows;
   };
   const table = (rows: number[][]): GridTable => ({ head: ["step", "w1", "w2", "loss"], rows: rows.map((r) => [r[0], fmt(r[1]), fmt(r[2]), fmt(r[3])]),
-    tones: Object.fromEntries(rows.flatMap((r, i) => (r[3] > L0 * 1.0001 ? [[String(i), "bad"]] : r[3] < 0.01 * L0 ? [[`${i}:3`, "ok"]] : []))) });
+    tones: Object.fromEntries(rows.flatMap((r, i): [string, FlowTone][] => (r[3] > L0 * 1.0001 ? [[String(i), "bad"]] : r[3] < 0.01 * L0 ? [[`${i}:3`, "ok"]] : []))) });
   const [S, M, A] = [run("sgd"), run("mom"), run("adam")], end = (r: number[][]) => r[r.length - 1][3];
   const ok = (r: number[][]) => (end(r) > L0 ? "bad" as const : end(r) < 0.01 * L0 ? "ok" as const : "warn" as const);
   const best = ([["SGD", end(S)], ["momentum", end(M)], ["Adam", end(A)]] as [string, number][]).sort((a, b) => a[1] - b[1])[0][0];
