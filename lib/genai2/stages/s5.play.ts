@@ -81,7 +81,37 @@ function dpoBeta(v: Record<string, number>): Flow {
   ] };
 }
 
+// RL with verifiable rewards: GRPO advantages for a group of G answers, k of them right.
+export const grpoAdv = (G: number, k: number) => {
+  const mean = k / G, std = Math.sqrt(mean * (1 - mean));
+  return { mean, std, right: std ? (1 - mean) / std : 0, wrong: std ? -mean / std : 0 };
+};
+function grpoGroup(v: Record<string, number>): Flow {
+  const { G, k } = v;
+  if (k > G) throw new PlayError(`Only ${G} answers were sampled, so at most ${G} can be right.`);
+  const a = grpoAdv(G, k), none = a.std === 0;
+  const rows = (adv: boolean) => [["right", k, adv ? sgn(a.right) : 1], ["wrong", G - k, adv ? sgn(a.wrong) : 0]];
+  return { kind: "grid", title: `${k} of ${G} answers right`, steps: [
+    { note: `Sample ${G} answers to one prompt. A program checks each: reward 1 if right, 0 if wrong. The group mean is ${r2(a.mean)}.`,
+      tables: [{ head: ["answers", "count", "reward"], rows: rows(false), tones: { "0": "ok", "1": "bad" } }] },
+    { note: none ? `Every answer got the same reward, so the spread is 0 and every advantage is 0. This prompt teaches nothing: it is too ${k ? "easy" : "hard"} for the model right now.`
+      : `Advantage = (reward - mean) / spread, with spread ${r2(a.std)}. Right answers get ${sgn(a.right)}, wrong ones ${sgn(a.wrong)}.`,
+      tone: none ? "bad" : "hot", tables: [{ head: ["answers", "count", "advantage"], rows: rows(true), tones: none ? { ":2": "bad" } : { "0:2": "ok", "1:2": "bad" } }] },
+    { note: none ? "Training on many such prompts wastes compute, so pipelines often skip prompts the model always or never solves."
+      : `Pushes up and down cancel: ${k} × ${sgn(a.right)} + ${G - k} × ${sgn(a.wrong)} = 0. ${k === 1 ? "A rare right answer gets a big push." : G - k === 1 ? "A rare wrong answer gets a big push down." : "The group mean is the baseline; no value model is needed."}`,
+      tone: none ? "warn" : "ok", tables: [{ head: ["answers", "count", "advantage"], rows: rows(true) }] },
+  ] };
+}
+
 export const PLAY_5: Record<string, PlayFlow> = {
+  "s5-grpo-group": {
+    title: "GRPO advantages for one group",
+    knobs: [
+      { key: "G", label: "Group size G", min: 2, max: 16, step: 1, value: 8 },
+      { key: "k", label: "Right answers k", min: 0, max: 16, step: 1, value: 3 },
+    ],
+    make: grpoGroup,
+  },
   "s5-dpo-beta": {
     title: "What β does in DPO",
     knobs: [
