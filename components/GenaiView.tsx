@@ -8,7 +8,7 @@ import { FLOW_SLOTS, LABS } from "@/lib/genai/labs";
 import { usePatterns } from "@/lib/patternStore";
 
 // Lazy so the rebuilt module pages, which share this route, do not ship GenaiDoc and lib/genai/tensorflow.ts.
-const GenaiDoc = dynamic(() => import("./GenaiDoc").then((m) => m.GenaiDoc));
+const GenaiDoc = dynamic(() => import("./GenaiDoc").then((m) => m.GenaiDoc), { loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
 
 type Near = { id: string; nav: string } | null;
 
