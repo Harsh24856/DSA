@@ -261,7 +261,7 @@ def _rand_block(rng, d, s=0.3):
 def _rand_gpt(rng, vocab, d, n_layers, ctx, s=0.3):
     return {"wte": rng.normal(size=(vocab, d)) * s, "wpe": rng.normal(size=(ctx, d)) * s,
             "blocks": [_rand_block(rng, d, s) for _ in range(n_layers)],
-            "lnf_g": np.ones(d), "lnf_b": np.zeros(d), "ctx": ctx}
+            "lnf_g": 1 + 0.1 * rng.normal(size=d), "lnf_b": 0.1 * rng.normal(size=d), "ctx": ctx}
 
 def _fw(p):
     if isinstance(p, dict):
@@ -398,6 +398,12 @@ def test_unit_gain_gives_mean_zero_variance_one():
     check_shape(y, (2, 4, 8))
     assert np.allclose(y.mean(axis=-1), 0, atol=1e-4), f"row means are {y.mean(axis=-1).round(4)}, expected 0"
     assert np.allclose(y.var(axis=-1), 1, atol=1e-3), f"row variances are {y.var(axis=-1).round(4)}, expected 1"
+
+@test
+def test_small_variance_keeps_eps_inside_sqrt():
+    x = T(to_np(_x).astype(np.float64) * 1e-3)
+    close(layer_norm(x, _g, _b), _ref_ln(*(to_np(a).astype(np.float64) for a in (x, _g, _b))), 1e-4,
+          "rows with variance near eps")
 `,
   hints: [
     "Take the mean and variance over the last axis only, and keep that axis so they broadcast back.",
@@ -608,6 +614,19 @@ _rng = np.random.default_rng(9)
 _p = _fw(_rand_gpt(_rng, 11, 16, 2, 8))
 _pr = _back(_p)
 _idx = _rng.integers(0, 11, size=(2, 3))
+_long = _rng.integers(0, 11, size=(1, 10))
+
+def _min_gap(idx, p, h, n):
+    gaps = []
+    for _ in range(n):
+        l = _ref_forward(idx[:, -p["ctx"]:], p, h)[:, -1]
+        s = np.sort(l, axis=-1)
+        gaps.append((s[:, -1] - s[:, -2]).min())
+        idx = np.concatenate([idx, l.argmax(-1)[:, None]], axis=1)
+    return min(gaps)
+
+# float32 and float64 must pick the same tokens, so no greedy choice may be a near-tie
+assert min(_min_gap(_idx, _pr, 4, 5), _min_gap(_long, _pr, 4, 3)) > 1e-3, "near-tie in the reference tokens: pick another seed"
 
 @test
 def test_output_length():
@@ -622,9 +641,8 @@ def test_matches_reference():
 
 @test
 def test_long_input_is_cropped_to_ctx():
-    idx = _rng.integers(0, 11, size=(1, 10))
-    got = to_np(generate(I(idx), _p, 4, 3))
-    want = _ref_generate(idx, _pr, 4, 3)
+    got = to_np(generate(I(_long), _p, 4, 3))
+    want = _ref_generate(_long, _pr, 4, 3)
     check_shape(got, (1, 13), "tokens")
     assert np.array_equal(got, want), f"expected tokens {want.tolist()}, got {got.tolist()}: feed the model only the last ctx = 8 tokens"
 `,
@@ -644,7 +662,8 @@ const trainStep: LabStep = {
     torch: `def train_step(model_params, batch, lr):
     """model_params is the GPT parameter dict from step 8 (every tensor has requires_grad=True), plus
     "n_heads" and "ctx". batch is (x, y), two long tensors of shape (B, t), where y is x shifted left by one.
-    Keep the AdamW optimizer in model_params["opt"] so its state carries over between calls.
+    Use torch.optim.AdamW with its default settings and the given lr, created once and kept in
+    model_params["opt"] so its state carries over between calls.
     Returns the loss as a Python float."""
     raise NotImplementedError
 `,
@@ -715,6 +734,40 @@ def test_first_loss_is_cross_entropy_and_weights_move():
     assert isinstance(got, float), f"expected a Python float, got {type(got).__name__}: use loss.item()"
     assert abs(got - want) < 1e-4, f"loss: expected {want:.4f} (mean cross-entropy before the update), got {got:.4f}"
     assert not np.allclose(to_np(p["wte"]), before), "wte did not change: call backward() and step the optimizer"
+
+def _clone(p):
+    if isinstance(p, dict):
+        return {k: _clone(v) for k, v in p.items() if k != "opt"}
+    if isinstance(p, list):
+        return [_clone(v) for v in p]
+    return p.detach().clone().requires_grad_(True) if torch.is_tensor(p) else p
+
+def _ref_adamw(p, batches, lr):
+    q = _clone(p)
+    opt = torch.optim.AdamW(_leaves_of(q), lr=lr)
+    for x, y in batches:
+        logits = gpt_forward(x, q, q["n_heads"])
+        loss = torch.nn.functional.cross_entropy(logits.reshape(-1, logits.shape[-1]), y.reshape(-1))
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+    return q
+
+@test
+def test_two_steps_match_adamw():
+    p, g = _model(12), torch.Generator().manual_seed(3)
+    batches = [_batch(g), _batch(g)]
+    want = _ref_adamw(p, batches, 1e-2)
+    train_step(p, batches[0], 1e-2)
+    first = p.get("opt")
+    train_step(p, batches[1], 1e-2)
+    assert isinstance(first, torch.optim.AdamW), f'model_params["opt"] should be a torch.optim.AdamW, got {type(first).__name__}'
+    assert p["opt"] is first, 'model_params["opt"] changed between calls: create the optimizer once and reuse it'
+    step = float(first.state[p["wte"]]["step"])
+    assert step == 2, f"the optimizer state for wte shows {step:g} steps after two calls, expected 2"
+    for name in ("wte", "wpe", "lnf_g"):
+        close(p[name], to_np(want[name]), 1e-5, f"{name} after two AdamW steps")
+    close(p["blocks"][0]["attn"]["wq"], to_np(want["blocks"][0]["attn"]["wq"]), 1e-5, "blocks[0] wq after two AdamW steps")
 
 @test
 def test_loss_falls_in_60_steps_within_15_s():

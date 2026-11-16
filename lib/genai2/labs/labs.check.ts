@@ -118,6 +118,12 @@ try {
       code: ['return x + feed_forward(layer_norm(x, p["ln2_g"], p["ln2_b"]), p["ffn"])', 'return layer_norm(x + feed_forward(x, p["ffn"]), p["ln2_g"], p["ln2_b"])'] },
     { step: "gpt-forward", fw: "numpy", why: "no position embeddings", fails: "test_matches_reference", code: [' + p["wpe"][: idx.shape[1]]', ""] },
     { step: "generate", fw: "torch", why: "context not cropped", fails: "test_long_input_is_cropped_to_ctx", code: ['idx[:, -p["ctx"]:]', "idx"] },
+    { step: "layer-norm", fw: "numpy", why: "eps outside the sqrt", fails: "test_small_variance_keeps_eps_inside_sqrt",
+      code: ["np.sqrt(var + eps)", "(np.sqrt(var) + eps)"] },
+    { step: "gpt-forward", fw: "numpy", why: "final layer norm ignores gain and shift", fails: "test_matches_reference",
+      code: ['layer_norm(x, p["lnf_g"], p["lnf_b"])', "layer_norm(x, 1.0, 0.0)"] },
+    { step: "train-step", fw: "torch", why: "fresh AdamW every call", fails: "test_two_steps_match_adamw",
+      code: ['if "opt" not in model_params:', "if True:"] },
     { step: "train-step", fw: "torch", why: "returns a tensor", fails: "test_first_loss_is_cross_entropy_and_weights_move", code: ["return loss.item()", "return loss"] },
   ];
   for (const m of MUTANTS) {
@@ -136,5 +142,5 @@ try {
   const train = await run(steps, ti, "torch", steps[ti].reference.torch!, true);
   assert.ok(train.results?.some(r => r.name === "test_loss_falls_in_60_steps_within_15_s") && train.results.every(r => r.pass),
     `train-step reference trains in under 15 s when run alone\n${show(train.results)}`);
-  console.log(`labs: ${runs} reference and starter runs, ${MUTANTS.length} wrong answers caught, focus cases ok, train-step ${(train.ms / 1000).toFixed(1)} s alone with start-up`);
+  console.log(`labs: ${runs} step versions (${runs * 2} reference and starter runs), ${MUTANTS.length} wrong answers caught, focus cases ok, train-step ${(train.ms / 1000).toFixed(1)} s alone with start-up`);
 } finally { rmSync(tmp, { recursive: true, force: true }); }
