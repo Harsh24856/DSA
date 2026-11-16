@@ -19,8 +19,11 @@ export const entry = (id: string): RoadEntry | undefined => STAGES.flatMap(s => 
 export const moduleKey = (id: string) => "genai2:" + id;
 export const questionKey = (m: string, q: string) => "genaiq:" + m + ":" + q;
 
-export const nextUp = (done: Record<string, unknown>): string | undefined =>
-  STAGES.flatMap(s => s.modules).find(m => !done[moduleKey(m.id)])?.id;
+// The first built module not done yet; while modules are still being built, fall back to the first undone one.
+export const nextUp = (done: Record<string, unknown>): string | undefined => {
+  const todo = STAGES.flatMap(s => s.modules).filter(m => !done[moduleKey(m.id)]);
+  return (todo.find(m => m.built) ?? todo[0])?.id;
+};
 
 export const mcqOptions = (q: { answer: string; wrong: string[] }, rng: () => number = Math.random): string[] =>
   shuffle([q.answer, ...q.wrong], rng);

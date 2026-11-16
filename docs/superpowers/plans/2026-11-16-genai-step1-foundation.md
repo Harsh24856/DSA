@@ -74,7 +74,7 @@
 
 Behaviour decided here:
 - `FlowPlayer` and `FlowLab` load with `next/dynamic` and `ssr: false`, with the same placeholders as `OtherView.tsx:24-25`.
-- `predict` block: three or four buttons (shuffled with `mcqOptions`); after a pick, shows right or wrong with `why`, buttons disabled.
+- `predict` block: exactly four buttons (shuffled with `mcqOptions`); after a pick, shows right or wrong with `why`, buttons disabled.
 - `Questions`: filter chips by level (All, Easy, Medium, Hard) using `.chip`. Concept/numeric/output: options as buttons, reveal `why` after pick; output shows `code` in a `.code` block above. Explain: question, "Show answer" button revealing `answer` via `Rich`, and an "I can answer" tick stored at `questionKey`. Trap: "True" / "False" buttons, then `why`. A header line shows `answered right / tried` for this visit (not stored).
 - `compare`: a table in `.tile` with horizontal scroll inside the tile only.
 - `code` with `run`: reuse `RunPanel` from `GenaiDoc.tsx` (export it there) to run in Pyodide.

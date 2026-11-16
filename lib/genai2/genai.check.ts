@@ -36,6 +36,24 @@ assert.deepEqual([...BUILT].sort(), Object.keys(MODULES).sort(), "BUILT lists ex
   assert.ok(seen.has("roadmap.ts") && seen.has("rng.ts") && seen.has("stages/s4.built.ts"), "scan followed core's imports");
 }
 
+// components/genai2/** (figures/sN.tsx and figures/sN/* included) never import module text: alias or relative, no bare index, ./modules/, stages/sN.ts or stages/modules.ts
+const serverOnly = (from: string, spec: string) => {
+  const p = spec.startsWith("@/") ? spec.slice(2) : spec.startsWith(".") ? posix.normalize(posix.join(posix.dirname(from), spec)) : spec;
+  return /^lib\/genai2(\/index)?(\.tsx?)?\/?$|^lib\/genai2\/modules\/|^lib\/genai2\/stages\/(s\d+|modules)(\.ts)?$/.test(p);
+};
+for (const [spec, bad] of [["@/lib/genai2", true], ["@/lib/genai2/index", true], ["@/lib/genai2/modules/s4/self-attention", true], ["@/lib/genai2/stages/s4", true], ["@/lib/genai2/stages/modules.ts", true],
+  ["../../../lib/genai2", true], ["../../../lib/genai2/stages/s4.ts", true], ["@/lib/genai2/core", false], ["@/lib/genai2/stages/s4.built", false], ["../../../lib/genai2/stages/s4.play.ts", false], ["@/lib/genai2/rng", false]] as const)
+  assert.equal(serverOnly("components/genai2/figures/s4.tsx", spec), bad, `import guard on ${spec}`);
+assert.ok(serverOnly("components/genai2/figures/s4/Qkv.tsx", "../../../../lib/genai2/modules/s4/self-attention.ts"), "import guard follows relative paths from figures/sN/");
+{
+  const root = join(import.meta.dirname, "../.."), files = readdirSync(join(root, "components/genai2"), { recursive: true, encoding: "utf8" }).filter(f => /\.tsx?$/.test(f));
+  assert.ok(files.includes("figures/s4.tsx") && files.some(f => f.startsWith("figures/s4/")), "guard scans the stage figures");
+  for (const f of files) {
+    const rel = "components/genai2/" + f.split("\\").join("/");
+    for (const [, spec] of readFileSync(join(root, rel), "utf8").matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) assert.ok(!serverOnly(rel, spec), `${rel} imports ${spec}, which holds module text`);
+  }
+}
+
 // stages and ids
 assert.equal(STAGES.length, 11);
 STAGES.forEach((s, i) => assert.equal(s.n, i));
@@ -45,7 +63,9 @@ assert.equal(new Set(ids).size, ids.length, "module ids are unique");
 for (const id of ids) assert.ok(!OLD.includes(id), `${id} clashes with an old page id`);
 
 // next up
-assert.equal(nextUp({}), STAGES[0].modules[0].id);
+const firstBuilt = ids.find(id => BUILT.includes(id)), firstUnbuilt = ids.find(id => !BUILT.includes(id));
+assert.equal(nextUp({}), firstBuilt, "a fresh user starts at the first built module");
+if (firstUnbuilt) assert.equal(nextUp(Object.fromEntries(BUILT.map(id => [moduleKey(id), true]))), firstUnbuilt, "all built done: the first unbuilt module");
 assert.equal(nextUp(Object.fromEntries(ids.map(id => [moduleKey(id), true]))), undefined);
 
 // needs must point backwards
@@ -103,6 +123,15 @@ for (const [id, m] of Object.entries(MODULES)) {
       assert.ok(good >= 50, `${b.id}: only ${good} of 150 random settings work`);
     }
   }
+  assert.ok(VISUAL.has(m.blocks[0].kind), `${id}: the first block is visual`);
+  for (const k of ["flow", "figure", "predict"]) assert.ok(m.blocks.some(b => b.kind === k), `${id}: has a ${k} block`);
+  assert.ok(m.keyPoints.length >= 3 && m.keyPoints.length <= 6, `${id}: 3 to 6 key points`);
+  for (const l of ["easy", "medium", "hard"]) assert.ok(m.questions.some(x => x.level === l), `${id}: has a ${l} question`);
+  assert.equal(m.title, entry(id)?.title, `${id}: title matches the roadmap`);
+  for (const r of m.real ?? []) assert.ok(r.url.startsWith("https://"), `${id}: real story url is https`);
+  assert.ok(!JSON.stringify(m).includes("\u2014"), `${id}: no em dash`);
+  const truths = new Set(m.questions.flatMap(x => (x.kind === "trap" ? [x.truth] : [])));
+  assert.equal(truths.size, 2, `${id}: traps mix true and false claims`);
   const visual = m.blocks.filter(b => VISUAL.has(b.kind)).length;
   const text = m.blocks.filter(b => b.kind === "text").length;
   assert.ok(visual >= 3, `${id}: at least 3 visual blocks`);
@@ -126,10 +155,10 @@ for (const [id, m] of Object.entries(MODULES)) {
 const fixture: Block[] = [
   { kind: "flow", id: "a" }, { kind: "play", id: "b" }, { kind: "lab", id: "attention" as never }, { kind: "figure", id: "f", caption: "c" },
   { kind: "mermaid", src: "flowchart TB\nA-->B", caption: "c" }, { kind: "text", md: "t" }, { kind: "compare", head: ["a"], rows: [["b"]] },
-  { kind: "code", src: "x", run: true }, { kind: "predict", q: "q", answer: "a", wrong: ["b", "c"], why: "w" },
+  { kind: "code", src: "x", run: true }, { kind: "predict", q: "q", answer: "a", wrong: ["b", "c", "d"], why: "w" },
 ];
 assert.deepEqual(JSON.parse(JSON.stringify(fixture)), fixture);
-// Each stage file keeps to its own stage: ids start with s<N>-, modules sit in stage N, and FIGURES_N (a .tsx file Node cannot import) has exactly FIGURE_IDS_N.
+// Each stage file keeps to its own stage: ids start with s<N>-, modules sit in stage N, and FIGURES_N (a .tsx file Node cannot import) is typed by FIGURE_IDS_N.
 const figDir = join(import.meta.dirname, "../../components/genai2/figures");
 const stageMods = await Promise.all(Array.from({ length: 11 }, (_, n) => Promise.all([import(`./stages/s${n}.ts`), import(`./stages/s${n}.built.ts`), import(`./stages/s${n}.play.ts`), import(`./stages/s${n}.flows.ts`)])));
 stageMods.forEach(([m, b, p, f], n) => {
@@ -137,10 +166,8 @@ stageMods.forEach(([m, b, p, f], n) => {
   for (const id of [...fids, ...Object.keys(p[`PLAY_${n}`]), ...Object.keys(f[`FLOWS_${n}`])]) assert.ok(id.startsWith(`s${n}-`), `${id} must start with s${n}-`);
   for (const [id, mod] of Object.entries<{ stage: number }>(m[`MODULES_${n}`])) assert.equal(mod.stage, n, `${id} is in MODULES_${n} but belongs to stage ${mod.stage}`);
   assert.deepEqual([...b[`BUILT_${n}`]].sort(), Object.keys(m[`MODULES_${n}`]).sort(), `BUILT_${n} lists exactly MODULES_${n}`);
-  const src = readFileSync(join(figDir, `s${n}.tsx`), "utf8");
-  const body = src.match(new RegExp(`FIGURES_${n}\\s*=\\s*\\{([^}]*)\\}\\s*satisfies`))?.[1] ?? "";
-  const keys = [...body.matchAll(/["']?([\w-]+)["']?\s*:/g)].map(x => x[1]);
-  assert.deepEqual(keys.sort(), [...fids].sort(), `FIGURES_${n} keys equal FIGURE_IDS_${n}`);
+  // FIGURES_N's keys are enforced by tsc: figures/sN.tsx satisfies Record<(typeof FIGURE_IDS_N)[number], ...>
+  assert.ok(readFileSync(join(figDir, `s${n}.tsx`), "utf8").includes(`satisfies Record<(typeof FIGURE_IDS_${n})[number]`), `figures/s${n}.tsx is typed by FIGURE_IDS_${n}`);
 });
 const allFig = stageMods.flatMap(([, b], n) => [...b[`FIGURE_IDS_${n}`]]);
 assert.deepEqual([...allFig].sort(), [...FIGURE_IDS].sort(), "FIGURE_IDS is the union of the stage lists");
