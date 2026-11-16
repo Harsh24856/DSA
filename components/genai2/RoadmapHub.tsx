@@ -2,7 +2,7 @@
 // Hub of the Gen AI section: 11 stages of modules, each row a built module, its old page, or coming soon.
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowRight, Check } from "@phosphor-icons/react";
+import { ArrowRight, ArrowUpRight, Check } from "@phosphor-icons/react";
 import { STAGES, entry, moduleKey, nextUp } from "@/lib/genai2";
 import { usePatterns } from "@/lib/patternStore";
 import { Bar, Count } from "@/components/ui";
@@ -41,14 +41,14 @@ export function RoadmapHub() {
           <motion.section key={s.n} id={`stage-${s.n}`} aria-labelledby={`stage-t-${s.n}`} className="card flex scroll-mt-24 flex-col gap-4 p-6"
             initial={reduce ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: Math.min(k, 4) * 0.04, ease: [0.22, 1, 0.36, 1] }}>
             <div>
-              <div className="t-eyebrow">Stage {s.n + 1}</div>
+              <div className="t-eyebrow">Stage {s.n}</div>
               <h3 id={`stage-t-${s.n}`} className="t-h3 mt-0.5">{s.title}</h3>
               <p className="mt-1 max-w-[62ch] text-sm text-muted">{s.blurb}</p>
             </div>
             {s.builds.length > 0 && (
               <p className="m-0 flex flex-wrap items-center gap-1 text-xs text-muted">
                 <span className="mr-1">Builds on</span>
-                {s.builds.map((b) => <a key={b} href={`#stage-${b}`} className="rounded-lg bg-surface-2 px-2 py-0.5 text-ink">Stage {b + 1}: {STAGES[b].title}</a>)}
+                {s.builds.map((b) => <a key={b} href={`#stage-${b}`} className="pill pill-muted hover:text-accent">Stage {b}: {STAGES[b].title}</a>)}
               </p>
             )}
             <div>
@@ -66,7 +66,7 @@ export function RoadmapHub() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {m.id === next && <span className="pill pill-accent">Next up</span>}
-                      {!m.built && (m.old ? <Link href={`/genai/${m.old}`} className="pill pill-muted">Old version</Link> : <span className="pill pill-muted">Coming soon</span>)}
+                      {!m.built && (m.old ? <Link href={`/genai/${m.old}`} className="pill pill-muted hover:text-accent focus-visible:text-accent">Old version<ArrowUpRight size={12} aria-hidden /></Link> : <span className="pill pill-muted">Coming soon</span>)}
                     </div>
                   </li>
                 );
