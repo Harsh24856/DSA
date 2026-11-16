@@ -6,7 +6,7 @@ import { PATTERN_PLAY, PLAY_FLOWS } from "../lib/other/flows-play.ts";
 // Walks every step of every animated walk-through: stepping must work, and no text may be clipped or run off the picture.
 // CS core has one chapter per page, so each subject's test visits every chapter that has a walk-through
 const SUBJECTS = ["os", "dbms", "cn", "sql", "oops", "aptitude", "syntax", "react", "node", "design"] as const;
-const GENAI = ["m0", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m10", "m11", "m12"].map((m) => `/genai/${m}`);
+const GENAI = [...["m0", "m1", "m2", "m3", "m4", "m5", "m6", "m7", "m8", "m10", "m11", "m12"], "self-attention"].map((m) => `/genai/${m}`);
 
 const clipped = (page: Page, i: number, selector = ".gx-flow") => page.evaluate(([k, sel]) => {
   const fig = document.querySelectorAll(sel as string)[k as number];
@@ -149,4 +149,13 @@ test("play all runs through to the end, then offers replay", async ({ browser })
   await expect(f.getByRole("button", { name: "Replay" })).toBeVisible({ timeout: 30_000 });
   await expect(f.locator(".flow-note b")).toHaveText("Step 6 of 6.");
   await ctx.close();
+});
+
+// the rebuilt Gen AI module: its interactive walk-through (ga-attn-scale) follows its sliders
+test("genai self-attention sliders", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/genai/self-attention");
+  await dragSliders(page, "genai/self-attention");
+  expect(errors).toEqual([]);
 });
