@@ -9,7 +9,7 @@ const REFS: [string, Icon, string][] = [["start", Compass, "Roadmap, setup, and 
 export default function GenAI() {
   return (
     <div className="flex flex-col gap-6">
-      <RoadmapHub />
+      <RoadmapHub genaiModules={GENAI.filter((s) => s.module).map((s) => s.id)} />
       <section aria-labelledby="gx-ref" className="flex flex-col gap-3">
         <h2 id="gx-ref" className="t-h3">Start, prepare and look things up</h2>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">

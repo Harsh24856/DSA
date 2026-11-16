@@ -15,6 +15,8 @@ export default async function GenaiPage({ params }: { params: Promise<{ id: stri
     const nav = (e?: { id: string; title: string }) => (e ? { id: e.id, title: e.title } : null);
     return <ModuleView module={m} prev={nav(built[i - 1])} next={nav(built[i + 1])} />;
   }
-  if (!GENAI.some((s) => s.id === id)) notFound();
-  return <GenaiView id={id} />;
+  const i = GENAI.findIndex((s) => s.id === id);
+  if (i < 0) notFound();
+  const near = (s?: { id: string; nav: string }) => (s ? { id: s.id, nav: s.nav } : null);
+  return <GenaiView section={GENAI[i]} prev={near(GENAI[i - 1])} next={near(GENAI[i + 1])} />;
 }

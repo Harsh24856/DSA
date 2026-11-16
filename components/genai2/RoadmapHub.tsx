@@ -10,7 +10,7 @@ import { ProgressCard } from "@/components/ProgressCard";
 
 const ALL = STAGES.flatMap((s) => s.modules);
 
-export function RoadmapHub() {
+export function RoadmapHub({ genaiModules }: { genaiModules: string[] }) {
   const { done } = usePatterns();
   const isDone = (id: string) => !!done[moduleKey(id)];
   const doneN = ALL.filter((m) => m.built && isDone(m.id)).length;
@@ -30,7 +30,7 @@ export function RoadmapHub() {
           <Bar value={doneN} max={ALL.length} />
           {cont ? <Link href={cont} className="btn btn-primary btn-sm">Continue: {nextE!.title}<ArrowRight size={14} aria-hidden /></Link>
             : <Link href={`/genai/${first.id}`} className="btn btn-primary btn-sm">Review {first.title}<ArrowRight size={14} aria-hidden /></Link>}
-          <ProgressCard />
+          <ProgressCard genaiModules={genaiModules} />
         </div>
       </section>
 

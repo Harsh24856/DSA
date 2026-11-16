@@ -3,16 +3,19 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, Flask } from "@phosphor-icons/react";
-import { GENAI } from "@/lib/genai/content";
+import type { GSection } from "@/lib/genai/content";
 import { FLOW_SLOTS, LABS } from "@/lib/genai/labs";
 import { usePatterns } from "@/lib/patternStore";
 
 // Lazy so the rebuilt module pages, which share this route, do not ship GenaiDoc and lib/genai/tensorflow.ts.
 const GenaiDoc = dynamic(() => import("./GenaiDoc").then((m) => m.GenaiDoc));
 
-export function GenaiView({ id }: { id: string }) {
+type Near = { id: string; nav: string } | null;
+
+// The page (a server component) looks the section up, so the playbook text never ships as a client chunk.
+export function GenaiView({ section: s, prev, next }: { section: GSection; prev: Near; next: Near }) {
   const { done, toggle } = usePatterns();
-  const i = GENAI.findIndex((s) => s.id === id), s = GENAI[i], prev = GENAI[i - 1], next = GENAI[i + 1];
+  const id = s.id;
   const on = !!done[`genai:${id}`];
 
   return (
