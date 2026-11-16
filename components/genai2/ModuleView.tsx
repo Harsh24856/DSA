@@ -28,7 +28,7 @@ export function ModuleView({ id }: { id: string }) {
         <p className="max-w-[72ch] text-sm leading-relaxed text-muted">{m.hook}</p>
       </section>
 
-      {m.blocks.map((b, k) => <BlockView key={k} b={b} />)}
+      {m.blocks.map((b, k) => <BlockView key={k} b={b} seed={`${id}:predict:${k}`} />)}
 
       {m.keyPoints.length > 0 && (
         <section className="card flex flex-col gap-3 p-6" aria-labelledby="gk-title">

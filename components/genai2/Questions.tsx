@@ -2,43 +2,42 @@
 // The question bank at the bottom of a module: filter by level, answer, see why. The score is for this visit only.
 import { useMemo, useState } from "react";
 import { Check } from "@phosphor-icons/react";
-import { mcqOptions, questionKey, type GQuestion, type Level } from "@/lib/genai2";
+import { mcqOptions, questionKey, seededRng, type GQuestion, type Level } from "@/lib/genai2";
 import { usePatterns } from "@/lib/patternStore";
 import { Rich } from "../other/Rich";
 
 const LEVELS: ("all" | Level)[] = ["all", "easy", "medium", "hard"];
-type Report = (right: boolean) => void;
+type Picks = Record<string, string | boolean>;
+type Pick = (id: string, v: string | boolean) => void;
 
-function Mcq({ q, report }: { q: Extract<GQuestion, { answer: string; wrong: string[] }>; report: Report }) {
-  const opts = useMemo(() => mcqOptions(q), [q]);
-  const [pick, setPick] = useState<string | null>(null);
+function Mcq({ q, moduleId, pick, onPick }: { q: Extract<GQuestion, { answer: string; wrong: string[] }>; moduleId: string; pick?: string | boolean; onPick: Pick }) {
+  const opts = useMemo(() => mcqOptions(q, seededRng(`${moduleId}:${q.id}`)), [q, moduleId]);
   return (
     <>
       <p className="font-medium"><Rich text={q.q} /></p>
       {q.code && <pre className="code"><code>{q.code}</code></pre>}
       <div className="grid gap-2">
-        {opts.map((o) => <button key={o} type="button" className="btn justify-start text-left" disabled={pick !== null} aria-pressed={pick === o} onClick={() => { setPick(o); report(o === q.answer); }}>{o}</button>)}
+        {opts.map((o) => <button key={o} type="button" className="btn justify-start text-left" disabled={pick !== undefined} aria-pressed={pick === o} onClick={() => onPick(q.id, o)}>{o}</button>)}
       </div>
-      {pick !== null && <Verdict ok={pick === q.answer} answer={q.answer} why={q.why} />}
+      <Verdict pick={pick !== undefined} ok={pick === q.answer} answer={q.answer} why={q.why} />
     </>
   );
 }
 
-const Verdict = ({ ok, answer, why }: { ok: boolean; answer: string; why: string }) => (
-  <p className="text-sm leading-relaxed" role="status">
-    <strong className={ok ? "text-easy" : "text-hard"}>{ok ? "Right. " : `Not quite, it is ${answer}. `}</strong><Rich text={why} />
-  </p>
+const Verdict = ({ pick, ok, answer, why }: { pick: boolean; ok: boolean; answer: string; why: string }) => (
+  <div className="text-sm leading-relaxed" role="status">
+    {pick && <><strong className={ok ? "text-easy" : "text-hard"}>{ok ? "Right. " : `Not quite, it is ${answer}. `}</strong><Rich text={why} /></>}
+  </div>
 );
 
-function Trap({ q, report }: { q: Extract<GQuestion, { kind: "trap" }>; report: Report }) {
-  const [pick, setPick] = useState<boolean | null>(null);
+function Trap({ q, pick, onPick }: { q: Extract<GQuestion, { kind: "trap" }>; pick?: string | boolean; onPick: Pick }) {
   return (
     <>
       <p className="font-medium"><Rich text={q.claim} /></p>
       <div className="flex gap-2">
-        {[true, false].map((v) => <button key={String(v)} type="button" className="btn" disabled={pick !== null} aria-pressed={pick === v} onClick={() => { setPick(v); report(v === q.truth); }}>{v ? "True" : "False"}</button>)}
+        {[true, false].map((v) => <button key={String(v)} type="button" className="btn" disabled={pick !== undefined} aria-pressed={pick === v} onClick={() => onPick(q.id, v)}>{v ? "True" : "False"}</button>)}
       </div>
-      {pick !== null && <Verdict ok={pick === q.truth} answer={q.truth ? "true" : "false"} why={q.why} />}
+      <Verdict pick={pick !== undefined} ok={pick === q.truth} answer={q.truth ? "true" : "false"} why={q.why} />
     </>
   );
 }
@@ -63,8 +62,10 @@ function Explain({ q, moduleId }: { q: Extract<GQuestion, { kind: "explain" }>; 
 
 export function Questions({ moduleId, questions }: { moduleId: string; questions: GQuestion[] }) {
   const [level, setLevel] = useState<"all" | Level>("all");
-  const [score, setScore] = useState({ right: 0, tried: 0 });
-  const report: Report = (right) => setScore((s) => ({ right: s.right + +right, tried: s.tried + 1 }));
+  const [picks, setPicks] = useState<Picks>({});
+  const onPick: Pick = (id, v) => setPicks((p) => ({ ...p, [id]: v }));
+  const right = (q: GQuestion) => (q.kind === "trap" ? picks[q.id] === q.truth : q.kind !== "explain" && picks[q.id] === q.answer);
+  const score = { right: questions.filter((q) => q.id in picks && right(q)).length, tried: questions.filter((q) => q.id in picks).length };
   const shown = questions.filter((q) => level === "all" || q.level === level);
   return (
     <section className="card flex flex-col gap-4 p-6" aria-labelledby="gq-title">
@@ -79,7 +80,7 @@ export function Questions({ moduleId, questions }: { moduleId: string; questions
         {shown.map((q) => (
           <li key={q.id} className="tile grid gap-3 p-4">
             <span className={`pill lv-${q.level} w-fit`}>{q.level}</span>
-            {q.kind === "explain" ? <Explain q={q} moduleId={moduleId} /> : q.kind === "trap" ? <Trap q={q} report={report} /> : <Mcq q={q} report={report} />}
+            {q.kind === "explain" ? <Explain q={q} moduleId={moduleId} /> : q.kind === "trap" ? <Trap q={q} pick={picks[q.id]} onPick={onPick} /> : <Mcq q={q} moduleId={moduleId} pick={picks[q.id]} onPick={onPick} />}
           </li>
         ))}
       </ol>

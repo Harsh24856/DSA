@@ -1,6 +1,6 @@
 // Run: npm run check:genai. Asserts the Gen AI roadmap and every module's rules.
 import assert from "node:assert/strict";
-import { entry, FIGURE_IDS, mcqOptions, MODULES, moduleKey, nextUp, STAGES, withNeeds } from "./index.ts";
+import { entry, FIGURE_IDS, mcqOptions, MODULES, seededRng, moduleKey, nextUp, STAGES, withNeeds } from "./index.ts";
 import type { Block, Stage } from "./types.ts";
 
 const mulberry32 = (a: number) => () => {
@@ -38,6 +38,10 @@ for (let i = 1; i <= 20; i++) {
   assert.equal(o.filter(x => x === q.answer).length, 1);
 }
 
+const order = (s: string) => mcqOptions(q, seededRng(s)).join();
+assert.equal(order("m:q1"), order("m:q1"), "same seed, same order");
+assert.ok(Array.from({ length: 20 }, (_, i) => order("m:q" + i)).some(o => o !== order("m:q0")), "seeds differ");
+
 // module rules
 const VISUAL = new Set(["flow", "play", "lab", "figure", "mermaid"]);
 for (const [id, m] of Object.entries(MODULES)) {
@@ -67,6 +71,6 @@ const fixture: Block[] = [
   { kind: "code", src: "x", run: true }, { kind: "predict", q: "q", answer: "a", wrong: ["b", "c"], why: "w" },
 ];
 assert.deepEqual(JSON.parse(JSON.stringify(fixture)), fixture);
-for (const m of Object.values(MODULES)) for (const b of m.blocks) if (b.kind === "figure") assert.ok(FIGURE_IDS.includes(b.id), `figure ${b.id} is registered`);
+for (const m of Object.values(MODULES)) for (const b of m.blocks) if (b.kind === "figure") assert.ok((FIGURE_IDS as readonly string[]).includes(b.id), `figure ${b.id} is registered`);
 
 console.log(`genai ok: ${STAGES.length} stages, ${ids.length} modules, ${Object.keys(MODULES).length} built`);

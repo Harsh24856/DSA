@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useMemo, useRef, useState } from "react";
 import type { Block } from "@/lib/genai2";
-import { mcqOptions } from "@/lib/genai2";
+import { mcqOptions, seededRng } from "@/lib/genai2";
 import { GenaiLab } from "../labs";
 import { RunPanel } from "../GenaiDoc";
 import { Rich } from "../other/Rich";
@@ -24,8 +24,8 @@ function Mermaid({ src, caption }: { src: string; caption: string }) {
   );
 }
 
-function Predict({ b }: { b: Extract<Block, { kind: "predict" }> }) {
-  const opts = useMemo(() => mcqOptions(b), [b]);
+function Predict({ b, seed }: { b: Extract<Block, { kind: "predict" }>; seed: string }) {
+  const opts = useMemo(() => mcqOptions(b, seededRng(seed)), [b, seed]);
   const [pick, setPick] = useState<string | null>(null);
   return (
     <div className="tile grid gap-3 p-4">
@@ -35,23 +35,21 @@ function Predict({ b }: { b: Extract<Block, { kind: "predict" }> }) {
           <button key={o} type="button" className="btn justify-start text-left" disabled={pick !== null} aria-pressed={pick === o} onClick={() => setPick(o)}>{o}</button>
         ))}
       </div>
-      {pick !== null && (
-        <p className="text-sm leading-relaxed" role="status">
+      <div className="text-sm leading-relaxed" role="status">{pick !== null && <>
           <strong className={pick === b.answer ? "text-easy" : "text-hard"}>{pick === b.answer ? "Right. " : `Not quite, it is ${b.answer}. `}</strong>
           <Rich text={b.why} />
-        </p>
-      )}
+        </>}</div>
     </div>
   );
 }
 
-export function BlockView({ b }: { b: Block }) {
+export function BlockView({ b, seed }: { b: Block; seed: string }) {
   switch (b.kind) {
     case "flow": return <FlowPlayer id={b.id} />;
     case "play": return <FlowLab id={b.id} />;
     case "lab": return <GenaiLab kind={b.id} />;
     case "figure": {
-      const F = FIGURES[b.id];
+      const F = (FIGURES as Record<string, () => React.JSX.Element>)[b.id];
       return F ? <figure className="gx-diagram"><F /><figcaption>{b.caption}</figcaption></figure> : null;
     }
     case "mermaid": return <Mermaid src={b.src} caption={b.caption} />;
@@ -72,6 +70,6 @@ export function BlockView({ b }: { b: Block }) {
           {b.run && <RunPanel src={b.src} />}
         </div>
       );
-    case "predict": return <Predict b={b} />;
+    case "predict": return <Predict b={b} seed={seed} />;
   }
 }
