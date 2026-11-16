@@ -51,15 +51,19 @@ for _fn in _TESTS:
 print("\\n@@${token} " + _json.dumps({"done": True}), flush=True)
 `;
 
+const head = (steps: LabStep[], index: number, fw: Fw) => [imports(fw), helpers(fw), ...steps.slice(0, index).map((s, i) => {
+  const ref = s.reference[fw];
+  if (!ref) throw new Error(`step ${i + 1} (${s.id}) has no ${fw} version`);
+  return `# step ${i + 1}: ${s.title}\n${ref}`;
+}), "# your code"];
+
 export function buildProgram(steps: LabStep[], index: number, fw: Fw, userCode: string, token: string): string {
   if (!/^[A-Za-z0-9]+$/.test(token)) throw new Error("token must be letters and digits");
-  const earlier = steps.slice(0, index).map((s, i) => {
-    const ref = s.reference[fw];
-    if (!ref) throw new Error(`step ${i + 1} (${s.id}) has no ${fw} version`);
-    return `# step ${i + 1}: ${s.title}\n${ref}`;
-  });
-  return [imports(fw), helpers(fw), ...earlier, "# your code", userCode, "# tests", helpers(fw), steps[index].tests, runner(token)].join("\n\n");
+  return [...head(steps, index, fw), userCode, "# tests", helpers(fw), steps[index].tests, runner(token)].join("\n\n");
 }
+
+// Program line N is the learner's line N - userLineOffset(...): a traceback can point into the editor.
+export const userLineOffset = (steps: LabStep[], index: number, fw: Fw) => head(steps, index, fw).join("\n\n").split("\n").length + 1;
 
 // null unless the run reached its done line with at least one result: a syntax error, a crash or an
 // early exit all mean the step failed.

@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { availableParallelism, tmpdir } from "node:os";
 import { join } from "node:path";
 import { MODULES } from "../index.ts";
-import { buildProgram, parseResults } from "./harness.ts";
+import { buildProgram, parseResults, userLineOffset } from "./harness.ts";
 import { LABS } from "./index.ts";
 import type { Fw, LabStep, TestResult } from "./types.ts";
 
@@ -16,6 +16,12 @@ for (const [, spec] of readFileSync(new URL("./harness.ts", import.meta.url), "u
   assert.equal(spec, "./types.ts", `harness.ts imports ${spec}`);
 
 const FWS: Fw[] = ["numpy", "torch"];
+// userLineOffset maps a program line back to the learner's editor line
+for (const lab of Object.values(LABS)) for (const fw of FWS) {
+  const i = lab.steps.findLastIndex(s => s.reference[fw]);
+  const lines = buildProgram(lab.steps, i, fw, "first_line\nsecond_line", "t0").split("\n"), off = userLineOffset(lab.steps, i, fw);
+  assert.deepEqual([lines[off], lines[off + 1]], ["first_line", "second_line"], `${lab.id}/${fw}: userLineOffset`);
+}
 const tmp = mkdtempSync(join(tmpdir(), "genai-labs-"));
 const slots = Math.max(1, availableParallelism() - 1);
 let n = 0, active = 0;
