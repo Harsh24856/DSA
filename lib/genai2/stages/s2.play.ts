@@ -24,6 +24,21 @@ function actSlope(v: Record<string, number>): Flow {
   ] };
 }
 
+// MLP and the forward pass: where the parameters of an MLP live.
+const n0 = (x: number) => x.toLocaleString("en-US");
+function mlpParams(v: Record<string, number>): Flow {
+  const { din, width, layers, dout } = v;
+  const sizes = [din, ...Array.from({ length: layers }, () => width), dout];
+  const L = sizes.slice(1).map((b, i) => ({ label: `${sizes[i]}→${b}`, w: sizes[i] * b, b }));
+  const W = L.reduce((s, l) => s + l.w, 0), B = L.reduce((s, l) => s + l.b, 0), big = L.reduce((m, l) => (l.w > m.w ? l : m));
+  return { kind: "bars", title: `MLP ${sizes.join("-")}`, format: n0, steps: [
+    { note: `Each Linear layer from a to b inputs holds a × b weights. The biggest is ${big.label}: ${n0(big.w)} weights, ${Math.round((100 * big.w) / W)}% of all ${n0(W)}.`,
+      bars: L.map((l) => ({ label: l.label, value: l.w, tone: l === big ? "hot" as const : undefined })) },
+    { note: `Add one bias per output unit: ${n0(B)} biases in all, ${((100 * B) / (W + B)).toFixed(1)}% of the total. The network has ${n0(W + B)} parameters, ${((4 * (W + B)) / 1e6).toFixed(2)} MB at 4 bytes each.`, tone: "ok",
+      bars: L.map((l) => ({ label: l.label, value: l.w + l.b, tone: l === big ? "hot" as const : undefined })) },
+  ] };
+}
+
 export const PLAY_2: Record<string, PlayFlow> = {
   "s2-act-slope": {
     title: "Where activations pass the gradient",
@@ -32,5 +47,15 @@ export const PLAY_2: Record<string, PlayFlow> = {
       { key: "n", label: "Layers", min: 1, max: 30, step: 1, value: 10 },
     ],
     make: actSlope,
+  },
+  "s2-mlp-params": {
+    title: "Where an MLP's parameters live",
+    knobs: [
+      { key: "din", label: "Inputs", min: 8, max: 1024, step: 8, value: 784 },
+      { key: "width", label: "Hidden width", min: 8, max: 1024, step: 8, value: 256 },
+      { key: "layers", label: "Hidden layers", min: 1, max: 5, step: 1, value: 2 },
+      { key: "dout", label: "Outputs", min: 2, max: 100, step: 1, value: 10 },
+    ],
+    make: mlpParams,
   },
 };

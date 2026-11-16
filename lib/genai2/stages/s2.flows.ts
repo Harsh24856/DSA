@@ -50,6 +50,33 @@ function neuron(): Flow {
   ] };
 }
 
+// MLP and the forward pass: a 2-2-1 ReLU network that solves XOR, with weights chosen by hand.
+export const XOR = { X: [[0, 0], [0, 1], [1, 0], [1, 1]], W1: [[1, 1], [1, 1]], b1: [0, -1], W2: [1, -2], b2: 0 };
+function xor(): Flow {
+  const { X, W1, b1, W2, b2 } = XOR;
+  const Z = X.map((x) => [0, 1].map((j) => x[0] * W1[0][j] + x[1] * W1[1][j] + b1[j]));
+  const H = Z.map((z) => z.map((v) => Math.max(0, v)));
+  const Y = H.map((h) => h[0] * W2[0] + h[1] * W2[1] + b2), lin = Z.map((z) => z[0] * W2[0] + z[1] * W2[1] + b2);
+  const T = X.map((x) => x[0] ^ x[1]), rowHead = X.map((x) => `(${x.join(", ")})`);
+  const wrong = lin.flatMap((v, i) => (v === T[i] ? [] : [i]));
+  if (Y.some((y, i) => y !== T[i])) throw new Error("the XOR weights no longer solve XOR");
+  const G = (head: string[], cols: (number | string)[][], tones?: GridTable["tones"]): GridTable => ({ head, rowHead, rows: X.map((_, i) => cols.map((c) => c[i])), tones });
+  const col = (m: number[][], j: number) => m.map((r) => r[j]);
+  return { kind: "grid", title: "A tiny MLP learns XOR", steps: [
+    { note: "XOR is 1 when exactly one input is 1. Plot the four points: no single straight line puts both 1s on one side, so one linear layer cannot do this.",
+      tables: [G(["x1", "x2", "target"], [col(X, 0), col(X, 1), T], { ":2": "hot" })] },
+    { note: `Hidden layer, z = x W1 + b1. Both units add the two inputs; unit 2 also has bias ${b1[1]}, so it only turns positive when both inputs are 1.`,
+      tables: [G(["x1", "x2", "z1", "z2"], [col(X, 0), col(X, 1), col(Z, 0), col(Z, 1)], { ":3": "hot" })] },
+    { note: `ReLU: h = max(0, z). ${((k) => (k === 1 ? "The one negative entry becomes" : `The ${k} negative entries become`))(Z.flat().filter((v) => v < 0).length)} 0. This is the bend that a straight line cannot make.`, tone: "hot",
+      tables: [G(["z1", "z2", "h1", "h2"], [col(Z, 0), col(Z, 1), col(H, 0), col(H, 1)], Object.fromEntries(Z.flatMap((z, i) => z.flatMap((v, j) => (v < 0 ? [[`${i}:${j + 2}`, "hot"]] : [])))))] },
+    { note: `Output layer, y = ${W2[0]} × h1 ${W2[1] < 0 ? "-" : "+"} ${Math.abs(W2[1])} × h2. Every row now matches XOR.`, tone: "ok",
+      tables: [G(["h1", "h2", "y", "target"], [col(H, 0), col(H, 1), Y, T], { ":2": "ok" })] },
+    { note: `Take the ReLU out and y = ${W2[0]} × z1 ${W2[1] < 0 ? "-" : "+"} ${Math.abs(W2[1])} × z2 is a straight-line function of x again. It gets ${wrong.length} of 4 wrong: ${wrong.map((i) => rowHead[i]).join(" and ")}.`, tone: "bad",
+      tables: [G(["z1", "z2", "y, no ReLU", "target"], [col(Z, 0), col(Z, 1), lin, T], Object.fromEntries(wrong.map((i) => [`${i}:2`, "bad"])))] },
+  ] };
+}
+
 export const FLOWS_2: Record<string, Flow> = {
   "s2-neuron": neuron(),
+  "s2-xor": xor(),
 };
