@@ -11,6 +11,8 @@ const EQ = 4, uniform = r2(1 / EQ);
 const [N1, N2] = [512, 4096];
 // numeric: softmax of [2, 1, 0]
 const S = [2, 1, 0], sw = softmax(S), half = softmax(S.map((x) => x / 2));
+// trap: adding a constant to every score
+const SHIFT = 10, shifted = softmax(S.map((x) => x + SHIFT));
 // numeric: matrix size
 const N = 1024;
 // cost text and trap: growth when the context grows
@@ -24,7 +26,7 @@ export const SELF_ATTENTION: GModule = {
   title: "Self-attention",
   hook: "Every word looks at every other word and decides how much each one matters right now. That one idea is the engine of the transformer.",
   blocks: [
-    { kind: "figure", id: "s4-qkv", caption: "Each word's vector is split three ways. The query of \"sat\" is compared with the key of every word, itself included." },
+    { kind: "figure", id: "s4-qkv", caption: "Each word's whole vector is projected three ways, by three learned matrices. The query of \"sat\" is compared with the key of every word, itself included." },
     { kind: "text", md: "**What attention answers:** for this word, which other words matter? In \"the animal did not cross the road because it was tired\", the word \"it\" should look hard at \"animal\".\n\nEach token makes a **query** (what am I looking for), a **key** (what do I offer) and a **value** (what do I pass on). Its query is scored against every key. The best matches get the most weight, and their values are mixed into its new vector." },
     { kind: "flow", id: "g-attn" },
     { kind: "play", id: "s4-attn-scale" },
@@ -110,7 +112,7 @@ assert np.all(np.triu(w, k=1) == 0)         # no weight on the future
       wrong: ["Q = X, K = X transposed and V = X, with nothing learned", "Q, K and V are three different input sentences", "K and V are fixed random projections; only W_Q is learned"],
       why: "The three projections are trained with the rest of the model, so a token can learn to ask for one thing while offering something else. Using X directly, as in the small walk-through, only keeps the arithmetic easy." },
     { id: "double-d", level: "hard", kind: "concept",
-      q: "Query and key entries are independent with variance 1. You double the head size d and do not scale. What happens to the typical size (standard deviation) of q · k?",
+      q: "Query and key entries are independent with mean 0 and variance 1. You double the head size d and do not scale. What happens to the typical size (standard deviation) of q · k?",
       answer: `It grows by sqrt(2), about ${r2(Math.SQRT2)} times`, wrong: ["It doubles", "It stays the same", "It halves"],
       why: `q · k is a sum of d products, each with variance 1, so its variance is d and its standard deviation sqrt(d). Doubling d multiplies the standard deviation by sqrt(2) = ${r2(Math.SQRT2)}. Dividing by sqrt(d) cancels exactly this.` },
     { id: "permute", level: "hard", kind: "concept",
@@ -138,17 +140,17 @@ assert np.all(np.triu(w, k=1) == 0)         # no weight on the future
       why: `The weights are ${SN} × ${SN} (tokens by tokens). Multiplying by V, ${SN} × ${DV}, gives one ${DV} wide output per token. Q and K only need to match each other; V sets the output width.` },
     { id: "why-sqrt-d", level: "hard", kind: "explain",
       q: "Why are attention scores divided by sqrt(d)?",
-      answer: `A score is a dot product: a sum of d products. If query and key entries have variance 1, the score has variance d, so at d = 64 a typical score is about ${Math.sqrt(64)} in size.\n\nSoftmax of large numbers is nearly one-hot. Almost all weight goes to one key and the gradients for the others vanish, so training stalls.\n\nDividing by sqrt(d) brings the variance back to 1 for any head size, so softmax stays soft and gradients keep flowing.` },
+      answer: `A score is a dot product: a sum of d products. If query and key entries have mean 0 and variance 1, the score has variance d, so at d = 64 a typical score is about ${Math.sqrt(64)} in size.\n\nSoftmax of large numbers is nearly one-hot. Almost all weight goes to one key and the gradients for the others vanish, so training stalls.\n\nDividing by sqrt(d) brings the variance back to 1 for any head size, so softmax stays soft and gradients keep flowing.` },
     { id: "why-not-rnn", level: "medium", kind: "explain",
       q: "Why did attention replace RNNs in language models?",
       answer: `- Short paths: any word reaches any other in 1 step. In an RNN, word 1 reaches word ${n0(N1)} through ${n0(N1 - 1)} hops, and the signal fades on the way.\n- Parallel training: an RNN must go one step at a time, but attention handles every position at once, which suits GPUs.\n- No bottleneck: an RNN squeezes all the past into one state vector; attention can look back at every token directly.\n\nThe cost is n squared memory and time in the length, which is why long context is expensive.` },
     { id: "mask-train-gen", level: "hard", kind: "explain",
       q: "What does the causal mask do during training, and what changes during generation?",
       answer: "**Training:** the whole sentence goes in at once and every position predicts its next token in parallel. The mask stops position i from seeing any j > i, otherwise it could copy the answer.\n\n**Generation:** tokens come one at a time. The new token's single query row has no future to hide, since later tokens do not exist yet, so the mask matters only when the prompt is processed in one pass (prefill). The keys and values of earlier tokens are cached and reused." },
-    { id: "trap-columns", level: "easy", kind: "trap",
-      claim: "Softmax over the attention scores is taken column-wise, so each key's weights sum to 1.",
-      truth: false,
-      why: "It is row-wise (the last axis): each query spreads exactly 1 unit of attention over all the keys. A key can be ignored by everyone or wanted by many, so columns need not sum to 1." },
+    { id: "trap-shift", level: "medium", kind: "trap",
+      claim: "Adding the same number to every score in a row leaves that row's attention weights unchanged.",
+      truth: true,
+      why: `Softmax only sees differences: e^(s + c) = e^c × e^s, and e^c cancels top and bottom. Scores [${S.join(", ")}] give ${sw.map(r2).join(", ")}, and [${S.map((x) => x + SHIFT).join(", ")}] give ${shifted.map(r2).join(", ")}. The code above relies on this when it subtracts each row's max.` },
     { id: "trap-linear", level: "medium", kind: "trap",
       claim: "Self-attention cost grows linearly with sequence length.",
       truth: false,

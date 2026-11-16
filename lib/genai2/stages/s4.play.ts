@@ -18,7 +18,7 @@ function attnScale(v: Record<string, number>): Flow {
   const steps = [
     { scores: raw, say: `No scaling: scores run from ${r2(Math.min(...raw))} to ${r2(Math.max(...raw))}. Each is a sum of ${d} products, so for random vectors they grow like sqrt(${d}) = ${r2(Math.sqrt(d))}.` },
     { scores: raw.map((x) => x / Math.sqrt(d)), say: `Divide by sqrt(${d}) = ${r2(Math.sqrt(d))}: scores now run from ${r2(Math.min(...raw) / Math.sqrt(d))} to ${r2(Math.max(...raw) / Math.sqrt(d))}, the same size at any d.` },
-    { scores: raw.map((x) => x / (Math.sqrt(d) * t)), say: t === 1 ? "Temperature 1 changes nothing." : t > 1 ? `Temperature ${t} divides again, so the weights flatten.` : `Temperature ${t} multiplies by ${r2(1 / t)}, so the weights sharpen.` },
+    { scores: raw.map((x) => x / (Math.sqrt(d) * t)), say: "Temperature here is an extra divisor for illustration, not the sampling temperature. " + (t === 1 ? "At 1 it changes nothing." : t > 1 ? `At ${t} it divides again, so the weights flatten.` : `At ${t} it multiplies by ${r2(1 / t)}, so the weights sharpen.`) },
   ].map(({ scores, say }) => {
     const w = softmax(scores);
     if (w.some(Number.isNaN)) throw new PlayError("These settings give an undefined weight.");
