@@ -30,6 +30,9 @@
 4. **Questions** (12 to 20 per module), placement mix:
    - about 40% concept MCQ, 20% numeric or output, 25% explain (model answer an interviewer accepts), and 15% trap;
    - levels spread easy, medium and hard;
+   - trap questions mix true and false claims, at least one of each per module (the check enforces it);
+   - `keyPoints` has 3 to 6 lines; the module `title` equals its roadmap title;
+   - the first `mermaid` block in a stage is checked at 375px, because the new page has no `.gx` wrapper;
    - distractors are believable mistakes;
    - every `why` teaches;
    - no company names.
