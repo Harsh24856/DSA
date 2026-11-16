@@ -1,7 +1,8 @@
 // Stage 2 (Neural networks): slider walk-throughs, placed in modules by a `play` block. Spread by stages/play.ts into PLAY_FLOWS.
 import type { Flow, GridTable } from "../../other/flows.ts";
 import type { PlayFlow } from "../../other/flows-play-types.ts";
-import { ACTS, BP, bpLoss, fmt, sigmoid } from "./s2.flows.ts";
+import { ACTS, BP, bpLoss, fmt, gauss, sigmoid } from "./s2.flows.ts";
+import { seededRng } from "../rng.ts";
 
 // Neuron and activations: output and slope of each activation at z, then the slope multiplied through n layers sitting at the same z.
 function actSlope(v: Record<string, number>): Flow {
@@ -90,6 +91,23 @@ function ravine(v: Record<string, number>): Flow {
   ] };
 }
 
+// Making deep nets train: inverted dropout on n real activations, and what happens to their average.
+function dropout(v: Record<string, number>): Flow {
+  const { p, n } = v, ra = seededRng("s2-drop-act"), rm = seededRng("s2-drop-mask");
+  const a = Array.from({ length: n }, () => Math.abs(gauss(ra))), keep = a.map(() => rm() >= p);
+  const kept = keep.filter(Boolean).length, mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / n;
+  const ev = mean(a), raw = mean(a.map((x, i) => (keep[i] ? x : 0))), inv = raw / (1 - p);
+  const head = ["", "mean output"];
+  return { kind: "grid", title: `Dropout p = ${p} on ${n} units`, steps: [
+    { note: `Training step: each unit is zeroed with probability ${p}. This time ${kept} of ${n} survive (${fmt((100 * kept) / n)}%). A new random set is dropped every step.`, tone: "hot",
+      tables: [{ head: ["units", "count"], rows: [["kept", kept], ["dropped", n - kept]], tones: { "1": "warn" } }] },
+    { note: `With units missing, the layer's average output falls from ${fmt(ev)} to ${fmt(raw)}, about ${fmt(1 - p)} of it. At test time nothing is dropped, so the next layer would see larger inputs than it trained on.`, tone: "bad",
+      tables: [{ head, rows: [["test, all units", fmt(ev)], ["train, dropped", fmt(raw)]], tones: { "1:1": "bad" } }] },
+    { note: `Inverted dropout divides the kept units by 1 - p = ${fmt(1 - p)} during training: ${fmt(raw)} becomes ${fmt(inv)}, close to ${fmt(ev)}. Test time then needs no change at all.`, tone: "ok",
+      tables: [{ head, rows: [["test, all units", fmt(ev)], ["train, dropped", fmt(raw)], [`train, ÷ ${fmt(1 - p)}`, fmt(inv)]], tones: { "2:1": "ok" } }] },
+  ] };
+}
+
 export const PLAY_2: Record<string, PlayFlow> = {
   "s2-act-slope": {
     title: "Where activations pass the gradient",
@@ -124,5 +142,13 @@ export const PLAY_2: Record<string, PlayFlow> = {
       { key: "c", label: "Steepness of w2", min: 1, max: 50, step: 1, value: 30 },
     ],
     make: ravine,
+  },
+  "s2-dropout": {
+    title: "Why dropout rescales",
+    knobs: [
+      { key: "p", label: "Drop probability p", min: 0.05, max: 0.9, step: 0.05, value: 0.5 },
+      { key: "n", label: "Units", min: 100, max: 2000, step: 100, value: 500 },
+    ],
+    make: dropout,
   },
 };

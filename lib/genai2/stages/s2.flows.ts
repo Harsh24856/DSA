@@ -1,6 +1,7 @@
 // Stage 2 (Neural networks): animated walk-throughs, and the small math they share with the stage's walk-throughs,
 // figures and modules. Client-safe: imports only flow types. Every number shown is computed here.
 import type { Flow, GridTable } from "../../other/flows.ts";
+import { seededRng } from "../rng.ts";
 
 /** Short number: 3 decimals, trailing zeros dropped; scientific outside 0.001 to 10,000. */
 export const fmt = (x: number) => {
@@ -143,9 +144,60 @@ function adamFlow(): Flow {
   ] };
 }
 
+// Making deep nets train: a real 12-layer network, run forward and backward, measuring how much gradient reaches each layer.
+export const gauss = (r: () => number) => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
+export const VANISH = { width: 32, depth: 12, batch: 8, resScale: 0.25 };
+type Net = { label: string; act: "sigmoid" | "relu"; varW: number; residual?: boolean };
+function gradReach(net: Net) {
+  const { width: N, depth: D, batch, resScale } = VANISH, r = seededRng("s2-vanish");
+  const f = net.act === "sigmoid" ? sigmoid : (z: number) => Math.max(0, z);
+  const df = net.act === "sigmoid" ? (z: number) => sigmoid(z) * (1 - sigmoid(z)) : (z: number) => (z > 0 ? 1 : 0);
+  const sd = Math.sqrt(net.varW / N) * (net.residual ? resScale : 1);
+  const Ws = Array.from({ length: D }, () => Array.from({ length: N }, () => Array.from({ length: N }, () => gauss(r) * sd)));
+  const sum = Array(D + 1).fill(0);
+  for (let b = 0; b < batch; b++) {
+    let h = Array.from({ length: N }, () => gauss(r));
+    const Zs: number[][] = [];
+    for (const W of Ws) {
+      const z = W.map((row) => row.reduce((s, w, j) => s + w * h[j], 0)), a = z.map(f);
+      Zs.push(z); h = net.residual ? h.map((x, i) => x + a[i]) : a;
+    }
+    let g = Array.from({ length: N }, () => gauss(r));
+    const top = Math.hypot(...g);
+    sum[0] += 1;
+    for (let k = D - 1; k >= 0; k--) {
+      const dz = g.map((x, i) => x * df(Zs[k][i]));
+      const back = Array.from({ length: N }, (_, j) => Ws[k].reduce((s, row, i) => s + row[j] * dz[i], 0));
+      g = net.residual ? g.map((x, j) => x + back[j]) : back;
+      sum[D - k] += Math.hypot(...g) / top;
+    }
+  }
+  return sum.map((x) => x / batch);   // [k] = gradient size k layers below the top, relative to the top
+}
+export const NETS: Net[] = [
+  { label: "sigmoid", act: "sigmoid", varW: 1 },
+  { label: "ReLU, 1/n", act: "relu", varW: 1 },
+  { label: "ReLU, He", act: "relu", varW: 2 },
+  { label: "residual", act: "relu", varW: 2, residual: true },
+];
+export const REACH = NETS.map(gradReach);
+function vanish(): Flow {
+  const D = VANISH.depth, at = [0, 3, 6, 9, 12];
+  const bars = (k: number) => NETS.map((n, i) => ({ label: n.label, value: REACH[i][k], tone: REACH[i][k] < 0.01 ? "bad" as const : REACH[i][k] > 0.5 ? "ok" as const : "warn" as const }));
+  return { kind: "bars", title: `Gradient reaching each layer of a ${D}-layer net`, format: fmt, steps: at.map((k) => ({
+    tone: k === 0 ? undefined : REACH[0][k] < 0.01 ? "bad" as const : "warn" as const,
+    note: k === 0
+      ? `Four real ${D}-layer networks, ${VANISH.width} units wide, the same random input. The residual one adds each layer to its input (x + F(x)), with its branch weights started ${VANISH.resScale} times smaller. At the top each gradient is scaled to 1.`
+      : k < D ? `${k} layers down. Sigmoid has ${fmt(REACH[0][k])} left: each layer multiplies by a slope of at most ${fmt(sigmoid(0) * (1 - sigmoid(0)))}. ReLU with weight variance 1/n keeps ${fmt(REACH[1][k])}.`
+      : `At the first layer: sigmoid ${fmt(REACH[0][k])}, ReLU 1/n ${fmt(REACH[1][k])}, ReLU He ${fmt(REACH[2][k])}, residual ${fmt(REACH[3][k])}. He init and the skip path keep the first layers learning.`,
+    bars: bars(k),
+  })) };
+}
+
 export const FLOWS_2: Record<string, Flow> = {
   "s2-neuron": neuron(),
   "s2-xor": xor(),
   "s2-matgrad": matGrad(),
   "s2-adam": adamFlow(),
+  "s2-vanish": vanish(),
 };
