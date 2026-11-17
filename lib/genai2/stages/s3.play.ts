@@ -15,7 +15,7 @@ function windowCost(v: Record<string, number>): Flow {
   return { kind: "bars", title: `First-layer weights, embedding size ${d}, hidden ${H}`, format: compact, steps: [
     step(k, `The MLP can look ${k} words back and no further.`),
     step(2 * k, "Double the window and its weights double, and every slot still learns its own copy of each pattern."),
-    step(4 * k, `At ${4 * k} words the window reaches further, but a sentence of ${4 * k + 1} words is already too long for it. The RNN reads any length with the same weights.`),
+    step(4 * k, `At ${4 * k} words the window reaches further, but a word ${4 * k + 1} back is already out of its reach. The RNN reads any length with the same weights.`),
   ] };
 }
 
@@ -29,11 +29,12 @@ function vanish(v: Record<string, number>): Flow {
   for (let t = 0; t < T; t++) hs.push(Math.tanh(2 * rng() - 1 + u * (t ? hs[t - 1] : 0)));
   const fac = hs.map((h) => u * (1 - h * h));
   const back = (k: number) => fac.slice(T - k).reduce((p, f) => p * f, 1);
-  const lin = ks.map((k) => u ** k), total = lin.reduce((a, b) => a + b, 0), scale = Math.min(1, CLIP / total);
+  // the shared weight's gradient adds one term per step back, so the size to clip is the sum over all T steps
+  const lin = ks.map((k) => u ** k), total = Array.from({ length: T }, (_, k) => u ** (k + 1)).reduce((a, b) => a + b, 0), scale = Math.min(1, CLIP / total);
   const bars = (vals: number[]) => ks.map((k, i) => ({ label: `${k} back`, value: vals[i], tone: vals[i] > 1 ? "bad" as const : vals[i] < 0.01 ? "warn" as const : "ok" as const }));
   return { kind: "bars", title: `Gradient size k steps back, u = ${u}`, format: sci, steps: [
     { note: `No tanh: k steps back multiply u k times. u = ${u} gives ${sci(lin.at(-1)!)} at ${T} steps. ${u < 1 ? "Below 1 it vanishes." : u > 1 ? "Above 1 it explodes." : "Exactly 1 keeps it, a knife edge."}`, tone: u === 1 ? "ok" as const : u < 1 ? "warn" as const : "bad" as const, bars: bars(lin) },
-    { note: scale < 1 ? `Clip the norm to ${CLIP}: everything is scaled by ${sci(scale)}, so the update is safe. The far terms are still tiny next to the near ones.` : `The total is ${sci(total)}, under the clip of ${CLIP}, so clipping changes nothing. It cannot make a small gradient bigger.`, tone: scale < 1 ? "ok" as const : "warn" as const, bars: bars(lin.map((x) => x * scale)) },
+    { note: scale < 1 ? `Clip the norm to ${CLIP}: everything is scaled by ${sci(scale)}, so the update is safe. ${u < 1 ? "The far terms stay tiny next to the near ones." : u > 1 ? "The far terms still dominate: clipping caps the size, not the shape." : "Every term stays equal."}` : `The total is ${sci(total)}, under the clip of ${CLIP}, so clipping changes nothing. It cannot make a small gradient bigger.`, tone: scale < 1 ? "ok" as const : "warn" as const, bars: bars(lin.map((x) => x * scale)) },
     { note: `A real tanh RNN on random inputs: each factor is u × (1 - h squared), at most u. ${u > 1 ? "A large u pushes the units into saturation, where the slope is near 0" : "The slope cuts every factor further"}, so after ${T} steps the gradient is ${sci(back(T))}.`, tone: back(T) < 0.01 ? "warn" as const : "ok" as const, bars: bars(ks.map(back)) },
   ] };
 }

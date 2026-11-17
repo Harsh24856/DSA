@@ -26,9 +26,9 @@ export const ATTENTION_FIX: GModule = {
     { kind: "text", md: "**One decoder step, in three moves.** Score every encoder state h_j against the decoder's state: e_j = v · tanh(W s + U h_j), a tiny learned network. Softmax the scores into weights α_j that sum to 1. Mix the states: c = Σ α_j h_j.\n\nThe context c is rebuilt for every output word, so \"noir\" can read \"black\" while \"chat\" reads \"cat\"." },
     {
       kind: "predict",
-      q: `The source has ${PN} words and the output ${PM}. How many attention weights does the model compute for this pair?`,
-      answer: n0(PN * PM), wrong: [n0(PN + PM), n0(PN), n0(PN * PN)],
-      why: `One weight for every (output word, source word) pair: ${PM} × ${PN} = ${n0(PN * PM)}. This is the price of the fix: cost grows with both lengths, not just one.`,
+      q: `The source has ${PN} words. At one decoder step, how many attention weights are computed, and what do they add up to?`,
+      answer: `${PN}, adding up to 1`, wrong: [`${PN}, adding up to ${PN}`, `${n0(PN * PM)}, adding up to 1`, "1, for the best source word only"],
+      why: `One weight per source word, ${PN} in all, from a softmax, so they add up to 1. Over a ${PM} word output that is ${PM} × ${PN} = ${n0(PN * PM)} weights: cost grows with both lengths.`,
     },
     { kind: "play", id: "s3-align-sharp" },
     { kind: "flow", id: "g-rnn" },
