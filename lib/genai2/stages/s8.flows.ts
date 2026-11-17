@@ -72,7 +72,26 @@ function reducerFlow(): Flow {
   ] };
 }
 
+// mcp-a2a: one agent hands a task to another over A2A, including a pause for the user's input
+export const HOTEL = { nights: 2, budget: 150, offers: [["Hotel Rio", 180], ["Casa Azul", 140], ["Hostel Sol", 60]] as [string, number][] };
+function a2a(): Flow {
+  const { nights, budget, offers } = HOTEL;
+  const fit = offers.filter(([, p]) => p <= budget).sort((a, b) => b[1] - a[1])[0];
+  return { kind: "lanes", title: "A2A: one agent asks another", lanes: ["User", "Client agent", "Hotel agent"], steps: [
+    { from: 0, to: 1, label: "find a hotel", note: `"Find me a hotel in Lisbon for ${nights} nights." The client agent has no hotel tools, but it knows a hotel agent's address.` },
+    { from: 1, to: 2, label: "GET agent card", note: "It reads the Agent Card at /.well-known/agent-card.json on the hotel agent's domain: a JSON file listing its skills, endpoint and how to authenticate." },
+    { from: 1, to: 2, label: "SendMessage", note: "It sends a message with a text part. A2A builds on HTTP, JSON-RPC 2.0 and server-sent events." },
+    { from: 2, to: 1, label: "task: working", note: "The hotel agent creates a task with an id and a state. Long work can stream status updates instead of blocking.", tone: "hot" },
+    { from: 2, to: 1, label: "input required", note: "It needs a budget. The task pauses in the input required state: not finished, waiting for more input.", tone: "warn" },
+    { from: 1, to: 0, label: "budget?", note: "The client agent asks the user. Neither agent sees the other's prompts, tools or memory: only messages and task updates cross." },
+    { from: 0, to: 1, label: `${budget} a night`, note: `The user answers: at most ${budget} a night.` },
+    { from: 1, to: 2, label: "SendMessage (task id)", note: "The reply goes to the same task, so the hotel agent continues where it stopped." },
+    { from: 2, to: 1, label: "completed + artifact", note: `${offers.length} offers checked; ${fit[0]} at ${fit[1]} is the dearest one within budget: ${fit[1]} × ${nights} = ${fit[1] * nights}. The result arrives as an artifact, and completed is a final state.`, tone: "ok" },
+  ] };
+}
+
 export const FLOWS_8: Record<string, Flow> = {
+  "s8-a2a": a2a(),
   "s8-reducer": reducerFlow(),
   "s8-tool-retry": toolRetry(),
   "s8-react": react(),

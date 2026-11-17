@@ -1,7 +1,7 @@
 // Stage 8 (Agents) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s8.calc.ts.
 import type { Flow } from "../../other/flows.ts";
 import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
-import { callInput, chainOk, loopInput, stepWithRetries } from "./s8.calc.ts";
+import { callInput, chainOk, glue, loopInput, stepWithRetries } from "./s8.calc.ts";
 
 export const kfmt = (x: number) => (x >= 1e6 ? `${(x / 1e6).toFixed(1)}M` : x >= 1e4 ? `${Math.round(x / 1e3)}k` : x >= 1e3 ? `${(x / 1e3).toFixed(1)}k` : String(Math.round(x)));
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
@@ -54,7 +54,26 @@ function resume(v: Record<string, number>): Flow {
   ] };
 }
 
+// mcp-a2a: the N times M integration problem
+function nm(v: Record<string, number>): Flow {
+  const { apps, tools } = v, g = glue(apps, tools);
+  const bars = (a: number, b: number) => [{ label: "pairwise glue", value: a, tone: "warn" as const }, { label: "one protocol", value: b, tone: "ok" as const }];
+  return { kind: "bars", title: `${apps} apps, ${tools} tools`, format: (x) => n0(x), steps: [
+    { note: `Without a shared protocol, every app needs its own connector for every tool: ${apps} × ${tools} = ${n0(g.pairs)} pieces of glue to write and keep working.`, tone: "warn", bars: bars(g.pairs, 0) },
+    { note: `With one protocol, each app implements a client once and each tool ships a server once: ${apps} + ${tools} = ${n0(g.protocol)}.`, tone: "ok", bars: bars(g.pairs, g.protocol) },
+    { note: g.pairs > g.protocol ? `${n0(g.pairs - g.protocol)} fewer integrations. Adding one more tool now costs 1 server instead of ${apps} connectors.` : `With so few apps or tools, a protocol saves nothing yet (${n0(g.pairs)} against ${n0(g.protocol)}). It pays off as both sides grow.`, tone: "hot", bars: bars(g.pairs, g.protocol) },
+  ] };
+}
+
 export const PLAY_8: Record<string, PlayFlow> = {
+  "s8-nm": {
+    title: "Why a shared protocol? Count the integrations",
+    knobs: [
+      { key: "apps", label: "AI apps", min: 1, max: 20, step: 1, value: 5 },
+      { key: "tools", label: "Tools and data sources", min: 1, max: 50, step: 1, value: 20 },
+    ],
+    make: nm,
+  },
   "s8-resume": {
     title: "What does a checkpoint save after a crash?",
     knobs: [
