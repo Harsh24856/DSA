@@ -23,13 +23,14 @@ const majority = (p: number, n: number) => { let s = 0; for (let k = Math.floor(
 
 function vote(v: Record<string, number>): Flow {
   const p = v.p / 100, N = v.n, ns = Array.from({ length: (N + 1) / 2 }, (_, i) => 2 * i + 1), pct = (x: number) => (x ? `${Math.round(x * 100)}%` : "");
-  const top = majority(p, N), worse = top < p;
+  const top = majority(p, N), worse = top < p - 1e-9, same = Math.abs(top - p) < 1e-9;
   const bars = (upto: number) => ns.map((n) => ({ label: `${n} sample${n > 1 ? "s" : ""}`, value: n <= upto ? majority(p, n) : 0, tone: n === upto ? (worse && n > 1 ? "bad" as const : "hot" as const) : undefined }));
   return { kind: "bars", title: `Majority vote when one sample is right ${v.p}% of the time`, max: 1, format: pct, steps: [
     { note: `One sample at temperature above 0 is right ${v.p}% of the time. Self-consistency samples several reasoning paths and keeps the most common final answer.`, bars: bars(1) },
     { note: N === 1 ? "With one sample there is nothing to vote on. Raise the number of samples to see the vote work." : worse
       ? `With ${N} samples the majority is right only ${pct(top)} of the time: below 50%, a vote of right against wrong makes things worse.`
-      : `With ${N} samples the majority is right ${pct(top)} of the time, up from ${v.p}%. Each extra pair of samples helps less than the last.`, tone: worse ? "bad" : "ok", bars: bars(N) },
+      : same ? `At exactly 50% the vote is a coin flip: ${N} samples are still right ${pct(top)} of the time, so it adds nothing.`
+      : `With ${N} samples the majority is right ${pct(top)} of the time, up from ${v.p}%. Each extra pair of samples helps less than the last.`, tone: worse ? "bad" : same ? "warn" : "ok", bars: bars(N) },
     { note: `The price: ${N} calls instead of 1, so ${N} times the tokens. This model counts every wrong answer as one rival; real wrong answers often disagree, so a plurality vote can do better.`, tone: "warn", bars: bars(N) },
   ] };
 }
