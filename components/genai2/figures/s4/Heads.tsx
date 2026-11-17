@@ -34,7 +34,7 @@ export function Heads() {
           <g key={name}>
             <line x1={dx + (h * D / H) * 34 + 33} y1={70} x2={x0 + (N * CELL) / 2} y2={y0 - 6} stroke="var(--line-strong)" />
             {w.map((row, i) => row.map((v, j) => (
-              <rect key={`${i}-${j}`} x={x0 + j * CELL} y={y0 + i * CELL} width={CELL - 1} height={CELL - 1} fill={j > i ? "var(--surface)" : "var(--accent)"} fillOpacity={j > i ? 1 : 0.12 + 0.88 * v} stroke="var(--line)" />
+              <rect key={`${i}-${j}`} x={x0 + j * CELL} y={y0 + i * CELL} width={CELL - 1} height={CELL - 1} fill={j > i ? "var(--surface)" : "var(--accent)"} fillOpacity={j > i ? 1 : +(0.12 + 0.88 * v).toFixed(3)} stroke="var(--line)" />
             )))}
             <text x={x0 + (N * CELL) / 2} y={y0 + N * CELL + 18} textAnchor="middle" fontSize={13} fill="var(--ink)">{name}</text>
             <line x1={x0 + (N * CELL) / 2} y1={y0 + N * CELL + 26} x2={W / 2} y2={218} stroke="var(--line-strong)" />

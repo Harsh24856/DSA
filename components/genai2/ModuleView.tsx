@@ -69,8 +69,8 @@ export function ModuleView({ module: m, prev, next, lab = null }: { module: GMod
       <Questions moduleId={id} questions={m.questions} />
 
       <nav className="grid gap-3 sm:grid-cols-2" aria-label="Modules">
-        {prev ? <Link href={`/genai/${prev.id}`} className="btn btn-nav justify-start gap-3"><ArrowLeft size={16} aria-hidden /><span><span className="block text-xs font-normal text-muted">Previous</span>{prev.title}</span></Link> : <span />}
-        {next && <Link href={`/genai/${next.id}`} className="btn btn-nav justify-end gap-3 text-right"><span><span className="block text-xs font-normal text-muted">Next</span>{next.title}</span><ArrowRight size={16} aria-hidden /></Link>}
+        {prev ? <Link href={`/genai/${prev.id}`} className="btn btn-nav justify-start gap-3 whitespace-normal"><ArrowLeft size={16} aria-hidden /><span><span className="block text-xs font-normal text-muted">Previous</span>{prev.title}</span></Link> : <span />}
+        {next && <Link href={`/genai/${next.id}`} className="btn btn-nav justify-end gap-3 text-right whitespace-normal"><span><span className="block text-xs font-normal text-muted">Next</span>{next.title}</span><ArrowRight size={16} aria-hidden /></Link>}
       </nav>
     </div>
   );

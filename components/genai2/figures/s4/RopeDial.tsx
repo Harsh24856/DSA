@@ -14,7 +14,8 @@ export function RopeDial() {
       <title id={titleId}>{`Two dials. Left: q at position ${PAIRS[0][0]}, k at position ${PAIRS[0][1]}. Right: q at ${PAIRS[1][0]}, k at ${PAIRS[1][1]}. Both arrows have turned further on the right, but the angle between q and k is ${gap} degrees in both, so their dot product is the same.`}</title>
       {PAIRS.map(([m, n], i) => {
         const cx = W / 4 + (i * W) / 2, qa = Q0 + m * THETA, ka = K0 + n * THETA;
-        const pt = (a: number, r = R) => [cx + r * Math.cos(a), CY - r * Math.sin(a)] as const;
+        // rounded, so server and browser Math.cos agree to the last digit (no hydration mismatch)
+        const pt = (a: number, r = R) => [+(cx + r * Math.cos(a)).toFixed(2), +(CY - r * Math.sin(a)).toFixed(2)] as const;
         const [qx, qy] = pt(qa), [kx, ky] = pt(ka), [lqx, lqy] = pt(qa, R + 14), [lkx, lky] = pt(ka, R + 14);
         const lo = Math.min(qa, ka), hi = Math.max(qa, ka), [ax, ay] = pt(lo, 26), [bx, by] = pt(hi, 26);
         return (
