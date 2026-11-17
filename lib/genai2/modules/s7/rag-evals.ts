@@ -46,14 +46,20 @@ export const RAG_EVALS: GModule = {
     {
       kind: "mermaid",
       src: `flowchart TB
-  A["a wrong answer"]:::bad --> B["was the fact in the parsed text?"]
-  B -- no --> B1["fix parsing"]:::warn
-  B -- yes --> C["was its chunk in the top k?"]
-  C -- no --> C1["fix chunking, search, query"]:::warn
-  C -- yes --> D["was the answer faithful to it?"]
-  D -- no --> D1["fix prompt, context, model"]:::warn
-  D -- yes --> E["check the label itself"]:::ok`,
-      caption: "Walk the pipeline in order. The first step that fails is the one to fix.",
+  subgraph S1["1. was the fact in the parsed text?"]
+    a1["no: fix parsing"]:::warn
+  end
+  subgraph S2["2. was its chunk in the top k?"]
+    a2["no: fix chunking, search, query"]:::warn
+  end
+  subgraph S3["3. was the answer faithful to it?"]
+    a3["no: fix prompt, context, model"]:::warn
+  end
+  subgraph S4["4. all three yes"]
+    a4["check the label itself"]:::ok
+  end
+  S1 --> S2 --> S3 --> S4`,
+      caption: "Debug a wrong answer by walking the pipeline in order. The first question answered no is the step to fix.",
     },
     {
       kind: "code",

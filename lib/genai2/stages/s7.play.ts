@@ -9,7 +9,7 @@ const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
 function chunks(v: Record<string, number>): Flow {
   const { len, size, pct } = v, over = Math.round((size * pct) / 100);
   const base = chunkStarts(len, size, 0).length, n = chunkStarts(len, size, over).length, stored = storedTokens(len, size, over);
-  const bars = (s: number, tone?: "hot" | "warn") => [{ label: "document", value: len }, { label: "stored in chunks", value: s, tone }];
+  const bars = (s: number, tone?: "hot" | "warn") => [{ label: "document", value: len }, { label: "in chunks", value: s, tone }];
   return { kind: "bars", title: `${n0(len)} tokens, chunks of ${size}, ${pct}% overlap`, format: n0, steps: [
     { note: `No overlap: ${base} chunk${base > 1 ? "s" : ""}, and every token is stored once. A sentence that crosses a boundary is cut in two, and neither half may match a question about it.`, bars: bars(len) },
     { note: over === 0 ? "Overlap is set to 0, so nothing changes. Raise it to see the cost and the gain." : `Overlap of ${over} tokens: ${n} chunks storing ${n0(stored)} tokens, ${Math.round((stored / len - 1) * 100)}% more to embed and to store.`, tone: over ? "hot" : "warn", bars: bars(stored, over ? "hot" : undefined) },
@@ -35,7 +35,7 @@ function vecMemory(v: Record<string, number>): Flow {
 function rrfPlay(v: Record<string, number>): Flow {
   const { k, r } = v, a = 1 / (k + 1), b = 2 / (k + r), f = (x: number) => x.toFixed(4);
   const bwins = b > a + 1e-12, tie = Math.abs(a - b) < 1e-12;
-  const bars = (show: boolean) => [{ label: "A: 1st in one list", value: a, tone: !bwins && !tie ? "ok" as const : undefined }, { label: `B: ${r} in both lists`, value: show ? b : 0, tone: show && bwins ? "ok" as const : undefined }];
+  const bars = (show: boolean) => [{ label: "A: 1st in one", value: a, tone: !bwins && !tie ? "ok" as const : undefined }, { label: `B: #${r} in both`, value: show ? b : 0, tone: show && bwins ? "ok" as const : undefined }];
   return { kind: "bars", title: `RRF with k = ${k}`, max: 2 / (k + 1), format: f, steps: [
     { note: `A is ranked 1st by keyword search and missing from the vector list: 1 / (${k} + 1) = ${f(a)}.`, tone: "hot", bars: bars(false) },
     { note: `B is ranked ${r} in both lists: 2 / (${k} + ${r}) = ${f(b)}. ${tie ? "Exactly a tie." : bwins ? "B wins: agreement between the two searches beats one first place." : "A wins: B is ranked too low in both to catch up."}`, tone: tie ? "warn" : "ok", bars: bars(true) },

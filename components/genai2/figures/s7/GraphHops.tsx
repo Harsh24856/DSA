@@ -16,8 +16,8 @@ const ANSWER = suppliers.filter((s) => failed.has(s));
 
 const W = 340;
 const POS: Record<string, [number, number]> = {
-  "Supplier A": [170, 120], "Supplier B": [60, 120], "Supplier C": [280, 120],
-  "Payments team": [100, 40], "Search team": [280, 40], "2025 audit": [200, 200],
+  "Supplier A": [170, 120], "Supplier B": [60, 120], "Supplier C": [270, 120],
+  "Payments team": [100, 40], "Search team": [270, 40], "2025 audit": [200, 200],
 };
 const hot = (e: Edge) => ANSWER.includes(e[0]) && (e[2] === TEAM || e[2] === AUDIT);
 
@@ -31,7 +31,7 @@ export function GraphHops() {
         return (
           <g key={e.join()}>
             <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={h ? "var(--accent)" : "var(--line-strong)"} strokeWidth={h ? 3 : 1.5} />
-            <text x={(x1 + x2) / 2 + 6} y={(y1 + y2) / 2 + 4} fontSize={12} fill={h ? "var(--ink)" : "var(--muted)"}>{e[1]}</text>
+            <text x={(x1 + x2) / 2 + 12} y={(y1 + y2) / 2 + 4} fontSize={12} fill={h ? "var(--ink)" : "var(--muted)"}>{e[1]}</text>
           </g>
         );
       })}
