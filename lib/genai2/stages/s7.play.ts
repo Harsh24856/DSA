@@ -1,7 +1,7 @@
 // Stage 7 (RAG) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s7.calc.ts.
 import type { Flow } from "../../other/flows.ts";
 import type { PlayFlow } from "../../other/flows-play-types.ts";
-import { chunkStarts, storedTokens } from "./s7.calc.ts";
+import { chunkStarts, storedTokens, wilson } from "./s7.calc.ts";
 
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
 
@@ -57,7 +57,28 @@ function multiQuery(v: Record<string, number>): Flow {
   ] };
 }
 
+// rag-evals: how sure is a recall measured on n questions? (Wilson 95% interval)
+function evalCi(v: Record<string, number>): Flow {
+  const p = v.p / 100, n = v.n, n4 = 4 * n, pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+  const [lo, hi] = wilson(p, n), [lo4, hi4] = wilson(p, n4);
+  const bars = (l: number, h: number, tone: "warn" | "ok") => [{ label: "low end", value: l, tone }, { label: "measured", value: p, tone: "hot" as const }, { label: "high end", value: h, tone }];
+  const half = (hi - lo) / 2;
+  return { kind: "bars", title: `Recall measured as ${v.p}% on ${n} questions`, max: 1, format: pct, steps: [
+    { note: `On ${n} questions, the true recall behind ${v.p}% is likely anywhere from ${pct(lo)} to ${pct(hi)} (a 95% interval). That is the noise of a small sample, not of the system.`, tone: "warn", bars: bars(lo, hi, "warn") },
+    { note: `With ${n4} questions, 4 times as many, the interval is ${pct(lo4)} to ${pct(hi4)}: ${((hi4 - lo4) / (hi - lo)).toFixed(2)} times as wide. Width shrinks with the square root of the set size, so halving it takes 4 times the questions.`, tone: "ok", bars: bars(lo4, hi4, "ok") },
+    { note: `So on ${n} questions, treat a change smaller than about ${Math.round(half * 100)} points as noise. Compare old and new on the same questions, and grow the set where the important cases are.`, tone: "hot", bars: bars(lo, hi, "warn") },
+  ] };
+}
+
 export const PLAY_7: Record<string, PlayFlow> = {
+  "s7-eval-ci": {
+    title: "How many eval questions do you need?",
+    knobs: [
+      { key: "n", label: "Questions in the eval set", min: 20, max: 500, step: 10, value: 50 },
+      { key: "p", label: "Measured recall (%)", min: 50, max: 99, step: 1, value: 80 },
+    ],
+    make: evalCi,
+  },
   "s7-multi-query": {
     title: "Multi-query: how much do more phrasings help?",
     knobs: [

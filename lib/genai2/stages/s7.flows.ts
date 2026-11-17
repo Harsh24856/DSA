@@ -1,6 +1,6 @@
 // Stage 7 (RAG) animated walk-throughs. Every number is computed here or in s7.calc.ts.
 import type { Flow, FlowTone, GridTable, LaneStep } from "../../other/flows.ts";
-import { B, bm25, chunkStarts, cosine, DOC_TOKENS, DOCS, dot, idf, K1, norm, storedTokens, tok } from "./s7.calc.ts";
+import { B, bm25, chunkStarts, cosine, dcg, DOC_TOKENS, DOCS, dot, idf, K1, ndcg, norm, storedTokens, tok } from "./s7.calc.ts";
 
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
 
@@ -75,7 +75,24 @@ function agentic(): Flow {
   ] };
 }
 
+// rag-evals: nDCG@5 by hand, with graded relevance 0 to 3
+export const NDCG = { got: ["C4", "C1", "C9", "C2", "C7"], grade: { C1: 3, C2: 2, C3: 1, C4: 1 } as Record<string, number> };
+function ndcgFlow(): Flow {
+  const { got, grade } = NDCG, r2 = (x: number) => x.toFixed(2), g = got.map((d) => grade[d] ?? 0), all = Object.values(grade);
+  const disc = got.map((_, i) => 1 / Math.log2(i + 2)), DCG = dcg(g), ideal = [...all].sort((a, b) => b - a).slice(0, got.length);
+  const IDCG = dcg(ideal), score = ndcg(g, all), swapped = [g[1], g[0], ...g.slice(2)], better = ndcg(swapped, all);
+  const T = (cols: ("discount" | "gain")[], tones?: Record<string, FlowTone>): GridTable => ({ label: "retrieved, best first", head: ["rank", "chunk", "grade", ...cols], rows: got.map((d, i) => [i + 1, d, g[i], ...cols.map((c) => (c === "discount" ? r2(disc[i]) : r2(g[i] * disc[i])))]), tones });
+  const best = got.indexOf(Object.keys(grade).find((d) => grade[d] === Math.max(...all))!);
+  return { kind: "grid", title: "nDCG@5 for one query", steps: [
+    { note: `Recall treats every relevant chunk alike. Here a human graded them: 3 is the exact answer, 1 is related. ${got.filter((d) => grade[d]).length} of the 5 results have a grade above 0.`, tables: [T([])] },
+    { note: `A result counts less the lower it sits: its grade is divided by log2(rank + 1). Rank 1 keeps it all, rank 2 keeps ${Math.round(disc[1] * 100)}%, rank 5 only ${Math.round(disc[4] * 100)}%.`, tone: "hot", tables: [T(["discount"], { ":3": "hot" })] },
+    { note: `DCG adds the discounted grades: ${r2(DCG)}. The best possible order of the graded chunks, ${ideal.join(", ")}, would give ${r2(IDCG)} (the ideal DCG).`, tables: [T(["discount", "gain"], { ":4": "hot" }), { label: "ideal order", head: ["rank", "grade"], rows: ideal.map((x, i) => [i + 1, x]) }] },
+    { note: `nDCG = ${r2(DCG)} / ${r2(IDCG)} = ${r2(score)}. The best chunk sits at rank ${best + 1}; swap the top two and nDCG rises to ${r2(better)}. Recall@5 cannot see that difference.`, tone: "ok", tables: [T(["gain"], { [String(best)]: "ok" }), { head: ["metric", "value"], rows: [["DCG", r2(DCG)], ["ideal DCG", r2(IDCG)], ["nDCG@5", r2(score)]], tones: { "2": "ok" } }] },
+  ] };
+}
+
 export const FLOWS_7: Record<string, Flow> = {
+  "s7-ndcg": ndcgFlow(),
   "s7-agentic": agentic(),
   "s7-bm25": bm25Flow(),
   "s7-ingest": ingest(),

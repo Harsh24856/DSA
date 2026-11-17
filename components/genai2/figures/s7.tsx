@@ -3,6 +3,7 @@ import { ChunkOverlap } from "./s7/ChunkOverlap";
 import { HnswLayers } from "./s7/HnswLayers";
 import { BiCross } from "./s7/BiCross";
 import { GraphHops } from "./s7/GraphHops";
+import { Diagnose } from "./s7/Diagnose";
 
 // Exactly the ids in FIGURE_IDS_7: satisfies rejects a missing or an extra key.
 export const FIGURES_7 = {
@@ -10,4 +11,5 @@ export const FIGURES_7 = {
   "s7-hnsw-layers": HnswLayers,
   "s7-bi-cross": BiCross,
   "s7-graph-hops": GraphHops,
+  "s7-diagnose": Diagnose,
 } satisfies Record<(typeof FIGURE_IDS_7)[number], () => React.JSX.Element>;
