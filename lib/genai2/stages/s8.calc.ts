@@ -32,11 +32,11 @@ export const memScore = (ageHours: number, importance: number, relevance: number
   w[0] * recency(ageHours, halfLife) + w[1] * importance + w[2] * relevance;
 export type Memory = { id: string; text: string; age: number; imp: number; rel: number };
 export const MEMORIES: Memory[] = [
-  { id: "M1", text: "Allergic to peanuts", age: 2160, imp: 0.9, rel: 0.8 },
-  { id: "M2", text: "Asked for a table at 8", age: 1, imp: 0.3, rel: 0.6 },
-  { id: "M3", text: "Likes window seats", age: 720, imp: 0.4, rel: 0.5 },
+  { id: "M1", text: "Nut allergy", age: 2160, imp: 0.9, rel: 0.8 },
+  { id: "M2", text: "Table 8 pm", age: 1, imp: 0.3, rel: 0.6 },
+  { id: "M3", text: "Window seat", age: 720, imp: 0.4, rel: 0.5 },
   { id: "M4", text: "Said hello", age: 0.5, imp: 0.05, rel: 0.1 },
-  { id: "M5", text: "Prefers Thai food", age: 48, imp: 0.5, rel: 0.9 },
+  { id: "M5", text: "Thai food", age: 48, imp: 0.5, rel: 0.9 },
 ];
 export const MEM_QUERY = "Book dinner for me tonight";
 export const rankMemories = (halfLife: number, w = [1, 1, 1]) =>

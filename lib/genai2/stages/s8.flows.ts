@@ -1,6 +1,6 @@
 // Stage 8 (Agents) animated walk-throughs. Every number is computed here or in s8.calc.ts.
 import type { Flow } from "../../other/flows.ts";
-import { n0 } from "./s8.calc.ts";
+import { MEM_QUERY, MEMORIES, type Memory, n0, rankMemories } from "./s8.calc.ts";
 
 // tool-calling: the model sends bad arguments, your code rejects them with a useful error, the model fixes them
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -90,7 +90,24 @@ function a2a(): Flow {
   ] };
 }
 
+// agent-memory: ranking stored memories for one request by recency, importance and relevance
+export const MEM_HALF_LIFE = 24, MEM_K = 2;
+function memRank(): Flow {
+  const r2 = (x: number) => x.toFixed(2), ranked = rankMemories(MEM_HALF_LIFE), top = ranked.slice(0, MEM_K).map((m) => m.id);
+  const byRec = [...ranked].sort((a, b) => b.rec - a.rec || a.id.localeCompare(b.id)).slice(0, MEM_K).map((m) => m.id);
+  const rows = MEMORIES.map((m) => ranked.find((x) => x.id === m.id)!);
+  const tone = (ids: string[], t: "ok" | "warn") => Object.fromEntries(rows.flatMap((m, i) => (ids.includes(m.id) ? [[String(i), t]] : [])));
+  const age = (h: number) => (h >= 48 ? `${Math.round(h / 24)} d` : h >= 1 ? `${h} h` : `${Math.round(h * 60)} min`);
+  const text = (m: Memory) => m.text;
+  return { kind: "grid", title: `"${MEM_QUERY}": which ${MEM_K} memories?`, steps: [
+    { note: `The store holds ${MEMORIES.length} memories about this user. Only ${MEM_K} fit the budget for this call. Each has an age, an importance (scored when it was saved) and a relevance to the request (from embeddings).`, tables: [{ head: ["id", "memory", "age"], rows: rows.map((m) => [m.id, text(m), age(m.age)]) }] },
+    { note: `Recency alone: halve the weight every ${MEM_HALF_LIFE} hours. The top ${MEM_K} would be ${byRec.join(" and ")}, including small talk, and the allergy from ${Math.round(MEMORIES[0].age / 24)} days ago scores ${r2(rows[0].rec)}.`, tone: "warn", tables: [{ head: ["id", "age", "recency"], rows: rows.map((m) => [m.id, age(m.age), r2(m.rec)]), tones: tone(byRec, "warn") }] },
+    { note: `Add importance and relevance: score = recency + importance + relevance. The top ${MEM_K} are ${top.join(" and ")}: ${top.map((id) => MEMORIES.find((m) => m.id === id)!.text.toLowerCase()).join(", and ")}. An important old fact survives.`, tone: "ok", tables: [{ head: ["id", "rec", "imp", "rel", "score"], rows: rows.map((m) => [m.id, r2(m.rec), r2(m.imp), r2(m.rel), r2(m.score)]), tones: tone(top, "ok") }] },
+  ] };
+}
+
 export const FLOWS_8: Record<string, Flow> = {
+  "s8-mem-rank": memRank(),
   "s8-a2a": a2a(),
   "s8-reducer": reducerFlow(),
   "s8-tool-retry": toolRetry(),

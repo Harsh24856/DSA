@@ -1,7 +1,7 @@
 // Stage 8 (Agents) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s8.calc.ts.
 import type { Flow } from "../../other/flows.ts";
 import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
-import { callInput, chainOk, glue, loopInput, stepWithRetries } from "./s8.calc.ts";
+import { callInput, chainOk, glue, loopInput, MEM_QUERY, MEMORIES, rankMemories, stepWithRetries } from "./s8.calc.ts";
 
 export const kfmt = (x: number) => (x >= 1e6 ? `${(x / 1e6).toFixed(1)}M` : x >= 1e4 ? `${Math.round(x / 1e3)}k` : x >= 1e3 ? `${(x / 1e3).toFixed(1)}k` : String(Math.round(x)));
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
@@ -65,7 +65,29 @@ function nm(v: Record<string, number>): Flow {
   ] };
 }
 
+// agent-memory: how the weights decide which memories reach the context
+function memDecay(v: Record<string, number>): Flow {
+  const { half, wi, wr } = v, K = 2;
+  const stage = (w: number[]) => { const r = rankMemories(half, w), top = r.slice(0, K).map((m) => m.id); return { top, bars: MEMORIES.map((m) => ({ label: m.text, value: r.find((x) => x.id === m.id)!.score, tone: top.includes(m.id) ? "ok" as const : undefined })) }; };
+  const a = stage([1, 0, 0]), b = stage([1, wi, 0]), c = stage([1, wi, wr]);
+  const names = (ids: string[]) => ids.map((id) => MEMORIES.find((m) => m.id === id)!.text.toLowerCase()).join(" and ");
+  return { kind: "bars", title: `Half-life ${half} h, importance × ${wi}, relevance × ${wr}`, max: 1 + 3 + 3, format: (x) => x.toFixed(2), steps: [
+    { note: `Recency only, halving every ${half} hours: the top ${K} are ${names(a.top)}.`, tone: "warn", bars: a.bars },
+    { note: wi ? `Add importance × ${wi}: now ${names(b.top)}. Facts marked as important when saved hold on as they age.` : "Importance has weight 0, so nothing changes. Raise it to keep important old facts.", tone: "hot", bars: b.bars },
+    { note: wr ? `Add relevance to "${MEM_QUERY}" × ${wr}: ${names(c.top)} reach the context. Tune the weights on real requests, and check what gets left out.` : "Relevance has weight 0, so the request itself is ignored. Raise it so the memories fit what is being asked.", tone: "ok", bars: c.bars },
+  ] };
+}
+
 export const PLAY_8: Record<string, PlayFlow> = {
+  "s8-mem-decay": {
+    title: "Which memories reach the context?",
+    knobs: [
+      { key: "half", label: "Recency half-life (hours)", min: 1, max: 720, step: 1, value: 24 },
+      { key: "wi", label: "Weight on importance", min: 0, max: 3, step: 0.5, value: 1 },
+      { key: "wr", label: "Weight on relevance", min: 0, max: 3, step: 0.5, value: 1 },
+    ],
+    make: memDecay,
+  },
   "s8-nm": {
     title: "Why a shared protocol? Count the integrations",
     knobs: [
