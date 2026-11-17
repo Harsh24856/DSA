@@ -1,6 +1,6 @@
 // Stage 8 (Agents) animated walk-throughs. Every number is computed here or in s8.calc.ts.
 import type { Flow } from "../../other/flows.ts";
-import { MEM_QUERY, MEMORIES, type Memory, n0, rankMemories } from "./s8.calc.ts";
+import { MEM_QUERY, MEMORIES, type Memory, n0, rankMemories, SCREEN, SHOT, toScreen } from "./s8.calc.ts";
 
 // tool-calling: the model sends bad arguments, your code rejects them with a useful error, the model fixes them
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -106,7 +106,24 @@ function memRank(): Flow {
   ] };
 }
 
+// computer-use: see, act, check, on a screen the model only knows from screenshots
+export const CU_CLICK: [number, number] = [1004, 92];
+function cuLoop(): Flow {
+  const real = toScreen(CU_CLICK);
+  return { kind: "lanes", title: "Computer use: see, act, check", lanes: ["Your code", "Model", "Browser"], steps: [
+    { from: 0, to: 2, label: "take screenshot", note: `The screen is ${SCREEN.w} × ${SCREEN.h}. Your code shrinks the screenshot to ${SHOT.w} × ${SHOT.h}, to save tokens and stay inside the model's image limits.` },
+    { from: 0, to: 1, label: "goal + screenshot", note: "\"Search flights to Lisbon.\" The model gets the goal, the screenshot and one tool for mouse and keyboard actions." },
+    { from: 1, to: 0, label: `click(${CU_CLICK.join(", ")})`, note: "It finds the search box in the picture and asks for a click at a pixel position in the screenshot it saw.", tone: "hot" },
+    { from: 0, to: 0, label: `scale: (${real.join(", ")})`, note: `Your code maps the point back to the real screen: × ${SCREEN.w / SHOT.w} on each axis. Forget this and every click lands in the wrong place.`, tone: "warn" },
+    { from: 0, to: 2, label: "click, then screenshot", note: "It performs the click and takes a fresh screenshot. The model must see the result before its next move." },
+    { from: 0, to: 1, label: "new screenshot", note: "The box now has focus. Old screenshots can be dropped from the history: each one costs many tokens." },
+    { from: 1, to: 0, label: "type(\"Lisbon\")", note: "The loop repeats: look, act, look again." },
+    { from: 1, to: 0, label: "click(\"Pay\")", note: "Paying cannot be undone. Your code stops and asks the user to confirm instead of clicking.", tone: "bad" },
+  ] };
+}
+
 export const FLOWS_8: Record<string, Flow> = {
+  "s8-cu-loop": cuLoop(),
   "s8-mem-rank": memRank(),
   "s8-a2a": a2a(),
   "s8-reducer": reducerFlow(),

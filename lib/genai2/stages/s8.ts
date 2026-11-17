@@ -4,6 +4,7 @@ import { AGENT_LOOP_REACT } from "../modules/s8/agent-loop-react.ts";
 import { STATE_GRAPHS } from "../modules/s8/state-graphs.ts";
 import { MCP_A2A } from "../modules/s8/mcp-a2a.ts";
 import { AGENT_MEMORY } from "../modules/s8/agent-memory.ts";
+import { COMPUTER_USE } from "../modules/s8/computer-use.ts";
 
 export const MODULES_8: Record<string, GModule> = {
   "tool-calling": TOOL_CALLING,
@@ -11,4 +12,5 @@ export const MODULES_8: Record<string, GModule> = {
   "state-graphs": STATE_GRAPHS,
   "mcp-a2a": MCP_A2A,
   "agent-memory": AGENT_MEMORY,
+  "computer-use": COMPUTER_USE,
 };

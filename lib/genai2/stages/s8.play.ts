@@ -1,7 +1,7 @@
 // Stage 8 (Agents) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s8.calc.ts.
 import type { Flow } from "../../other/flows.ts";
 import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
-import { callInput, chainOk, glue, loopInput, MEM_QUERY, MEMORIES, rankMemories, stepWithRetries } from "./s8.calc.ts";
+import { callInput, chainOk, glue, loopInput, MEM_QUERY, MEMORIES, rankMemories, shotInput, stepWithRetries } from "./s8.calc.ts";
 
 export const kfmt = (x: number) => (x >= 1e6 ? `${(x / 1e6).toFixed(1)}M` : x >= 1e4 ? `${Math.round(x / 1e3)}k` : x >= 1e3 ? `${(x / 1e3).toFixed(1)}k` : String(Math.round(x)));
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
@@ -78,7 +78,29 @@ function memDecay(v: Record<string, number>): Flow {
   ] };
 }
 
+// computer-use: screenshots dominate the input; keep only the last few
+export const CU_PROMPT = 2000;
+function cuCost(v: Record<string, number>): Flow {
+  const { steps, per, keep } = v, all = shotInput(steps, per, steps, CU_PROMPT), few = shotInput(steps, per, keep, CU_PROMPT);
+  const bars = (a: number, b: number) => [{ label: "keep all", value: a, tone: "warn" as const }, { label: `keep last ${Math.min(keep, steps)}`, value: b, tone: "ok" as const }];
+  const lastAll = CU_PROMPT + steps * per;
+  return { kind: "bars", title: `${steps} actions, ${per} tokens a screenshot`, format: kfmt, steps: [
+    { note: `Every action needs a fresh screenshot. Keeping them all, the last call reads ${n0(CU_PROMPT)} + ${steps} × ${n0(per)} = ${n0(lastAll)} tokens.`, tone: "warn", bars: bars(lastAll, CU_PROMPT + Math.min(keep, steps) * per) },
+    { note: `Over the whole run that is ${n0(all)} input tokens: the screenshots pile up call after call.`, tone: "hot", bars: bars(all, all) },
+    { note: keep >= steps ? `Keeping the last ${keep} is the same as keeping all ${steps}. Lower it: the model mostly needs the current screen and a written log of what it did.` : `Keep only the last ${keep} screenshots and a text log of earlier actions: ${n0(few)} tokens, ${(all / few).toFixed(1)} times fewer.`, tone: "ok", bars: bars(all, few) },
+  ] };
+}
+
 export const PLAY_8: Record<string, PlayFlow> = {
+  "s8-cu-cost": {
+    title: "What do the screenshots cost?",
+    knobs: [
+      { key: "steps", label: "Actions in the task", min: 5, max: 100, step: 5, value: 40 },
+      { key: "per", label: "Tokens per screenshot", min: 500, max: 3000, step: 100, value: 1500 },
+      { key: "keep", label: "Screenshots kept", min: 1, max: 20, step: 1, value: 3 },
+    ],
+    make: cuCost,
+  },
   "s8-mem-decay": {
     title: "Which memories reach the context?",
     knobs: [
