@@ -4,7 +4,7 @@ import { lrAt, SCHED } from "@/lib/genai2/stages/s2.flows";
 
 const W = 340, H = 230, L = 52, R = 14, T = 24, B = 50;
 const { peak, min, warm, total } = SCHED;
-const sx = (t: number) => L + ((W - L - R) * t) / total, sy = (lr: number) => T + (H - T - B) * (1 - lr / peak);
+const sx = (t: number) => L + ((W - L - R) * t) / total, sy = (lr: number) => +(T + (H - T - B) * (1 - lr / peak)).toFixed(1);
 const pts = Array.from({ length: 201 }, (_, i) => (total * i) / 200).map((t) => `${sx(t).toFixed(1)},${sy(lrAt(t)).toFixed(1)}`).join(" ");
 const half = (warm + total) / 2;
 const sci = (x: number) => x.toExponential(2).replace(/\.?0+e/, "e");

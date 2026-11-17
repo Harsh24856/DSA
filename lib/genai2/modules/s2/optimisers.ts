@@ -154,7 +154,7 @@ assert out[0.1][1] < out[0.001][1] - 0.03
       truth: true,
       why: "SGD with L2: w -= lr × (g + λw) = w - lr × g - lr λ w. Decay: shrink w by lr λ w. Identical. They differ only in adaptive optimisers like Adam, which is the point of AdamW." },
     { id: "trap-no-hats", level: "hard", kind: "trap",
-      claim: "Without bias correction, Adam's first steps would be too small, because m and v start at zero.",
+      claim: `With the usual β1 = ${ADAM.b1} and β2 = ${ADAM.b2}, Adam without bias correction would take first steps that are too small, because m and v start at zero.`,
       truth: false,
       why: `Both start at zero, but the step is m / √v. After one step m = ${fmt(1 - ADAM.b1)} g and √v = √${fmt(1 - ADAM.b2)} × |g|, so the step is ${fmt(raw)} times lr: too big, not too small. v is biased down more than m, and the square root does not undo that.` },
   ],

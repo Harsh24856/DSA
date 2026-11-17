@@ -147,7 +147,7 @@ assert abs(train.mean() - a.mean()) < 0.01
       answer: fmt(DV / (1 - DP)), wrong: [fmt(DV * (1 - DP)), DV.toFixed(1), fmt(DV * DP)],
       why: `Kept units are divided by 1 - p = ${fmt(1 - DP)}: ${DV} / ${fmt(1 - DP)} = ${fmt(DV / (1 - DP))}. On average ${fmt(1 - DP)} of units survive, so the expected output stays ${DV}, the same as at inference.` },
     { id: "ln-params", level: "hard", kind: "numeric",
-      q: `How many learned parameters does a LayerNorm over ${n0(DM)} features have?`,
+      q: `How many learned parameters does PyTorch nn.LayerNorm(${DM}) have, with its default settings?`,
       answer: n0(2 * DM), wrong: [n0(DM), n0(DM * DM), "2"],
       why: `One scale and one shift per feature: 2 × ${n0(DM)} = ${n0(2 * DM)}. RMSNorm has only the scale, ${n0(DM)}. The mean and variance are computed from the input, not learned.` },
     { id: "norm-out", level: "medium", kind: "output",

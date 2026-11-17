@@ -9,7 +9,7 @@ const INITS = [
   { name: "Var(w) = 1/n", factor: Math.sqrt(1 / 2), dash: "2 3" },
 ];
 const LOG = 3;   // y axis runs from 10^-3 to 10^3
-const sx = (k: number) => L + ((W - L - R) * k) / DEPTH, sy = (v: number) => T + ((H - T - B) * (LOG - Math.log10(v))) / (2 * LOG);
+const sx = (k: number) => L + ((W - L - R) * k) / DEPTH, sy = (v: number) => +(T + ((H - T - B) * (LOG - Math.log10(v))) / (2 * LOG)).toFixed(1);
 const fmt = (v: number) => (v >= 10 ? Math.round(v).toLocaleString("en-US") : v >= 0.01 ? v.toFixed(2).replace(/\.?0+$/, "") : v.toExponential(1));
 
 export function Init() {
