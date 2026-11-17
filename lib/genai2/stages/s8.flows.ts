@@ -122,7 +122,24 @@ function cuLoop(): Flow {
   ] };
 }
 
+// multi-agent: a lead agent splits the work, workers search in their own contexts and return short summaries
+export const ORCH = { read: 40000, back: 300 };
+function orch(): Flow {
+  const { read, back } = ORCH;
+  return { kind: "lanes", title: "Orchestrator and workers", lanes: ["Lead", "Worker A", "Worker B"], steps: [
+    { from: 0, to: 0, label: "plan 2 subtasks", note: "\"Compare two laptops for a student.\" The lead splits it into parts that do not depend on each other: prices, and reviews." },
+    { from: 0, to: 1, label: "brief: prices", note: "Each brief states the goal, what to return and in what form, which tools to use, and when to stop. A vague brief gets duplicated or wasted work.", tone: "hot" },
+    { from: 0, to: 2, label: "brief: reviews", note: "The second worker starts at the same time. Neither sees the other's context." },
+    { from: 1, to: 1, label: "search and read", note: `Worker A searches and reads about ${n0(read)} tokens of pages in its own context window.` },
+    { from: 2, to: 2, label: "search and read", note: "Worker B does the same for reviews, in parallel. Wall-clock time is set by the slower worker." },
+    { from: 1, to: 0, label: `summary: ${back} tokens`, note: `It returns only the findings: ${n0(read)} tokens read, ${back} sent back, ${Math.round(read / back)} times smaller. The lead's context stays clean.`, tone: "ok" },
+    { from: 2, to: 0, label: `summary: ${back} tokens`, note: "Worker B reports too, with its sources." },
+    { from: 0, to: 0, label: "merge and cite", note: `The lead combines two short summaries instead of ${n0(2 * read)} tokens of raw pages. More agents means more total tokens, though: every worker read its own pages.`, tone: "warn" },
+  ] };
+}
+
 export const FLOWS_8: Record<string, Flow> = {
+  "s8-orch": orch(),
   "s8-cu-loop": cuLoop(),
   "s8-mem-rank": memRank(),
   "s8-a2a": a2a(),

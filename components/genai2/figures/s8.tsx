@@ -5,6 +5,7 @@ import { StateGraph } from "./s8/StateGraph";
 import { Glue } from "./s8/Glue";
 import { MemoryTiers } from "./s8/MemoryTiers";
 import { ScreenScale } from "./s8/ScreenScale";
+import { FanOut } from "./s8/FanOut";
 
 // Exactly the ids in FIGURE_IDS_8: satisfies rejects a missing or an extra key.
 export const FIGURES_8 = {
@@ -14,4 +15,5 @@ export const FIGURES_8 = {
   "s8-glue": Glue,
   "s8-memory-tiers": MemoryTiers,
   "s8-screen-scale": ScreenScale,
+  "s8-fan-out": FanOut,
 } satisfies Record<(typeof FIGURE_IDS_8)[number], () => React.JSX.Element>;

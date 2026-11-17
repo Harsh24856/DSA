@@ -1,7 +1,7 @@
 // Stage 8 (Agents) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s8.calc.ts.
 import type { Flow } from "../../other/flows.ts";
 import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
-import { callInput, chainOk, glue, loopInput, MEM_QUERY, MEMORIES, rankMemories, shotInput, stepWithRetries } from "./s8.calc.ts";
+import { callInput, chainOk, fanTime, glue, loopInput, MEM_QUERY, MEMORIES, rankMemories, shotInput, stepWithRetries } from "./s8.calc.ts";
 
 export const kfmt = (x: number) => (x >= 1e6 ? `${(x / 1e6).toFixed(1)}M` : x >= 1e4 ? `${Math.round(x / 1e3)}k` : x >= 1e3 ? `${(x / 1e3).toFixed(1)}k` : String(Math.round(x)));
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
@@ -91,7 +91,31 @@ function cuCost(v: Record<string, number>): Flow {
   ] };
 }
 
+// multi-agent: parallel workers save time, not tokens
+export const FAN = { plan: 2, merge: 3, brief: 1000 };
+function fanout(v: Record<string, number>): Flow {
+  const { workers, mins, ktok } = v, tasks = Array.from({ length: workers }, () => mins);
+  const seq = fanTime(FAN.plan, tasks, FAN.merge, false), par = fanTime(FAN.plan, tasks, FAN.merge, true);
+  const m = (x: number) => `${Math.round(x)} min`;
+  const one = workers * ktok * 1000, multi = one + workers * FAN.brief * 2;
+  const bars = (a: number, b: number) => [{ label: "one agent", value: a, tone: "warn" as const }, { label: `${workers} worker${workers > 1 ? "s" : ""}`, value: b, tone: "ok" as const }];
+  return { kind: "bars", title: `${workers} subtasks of ${mins} min`, format: m, steps: [
+    { note: `One agent does the ${workers} subtask${workers > 1 ? "s" : ""} in turn: ${FAN.plan} min to plan, ${workers} × ${mins} min, ${FAN.merge} min to merge = ${m(seq)}.`, tone: "warn", bars: bars(seq, seq) },
+    { note: workers > 1 ? `${workers} workers run at once, so the middle takes as long as one subtask: ${FAN.plan} + ${mins} + ${FAN.merge} = ${m(par)}, ${(seq / par).toFixed(1)} times faster.` : "With one subtask there is nothing to run in parallel. Add subtasks to see the speed-up.", tone: "ok", bars: bars(seq, par) },
+    { note: `Tokens do not shrink: the workers still read ${kfmt(one)} tokens between them, plus briefs and summaries (about ${kfmt(multi - one)} more). Fan out when the parts are independent and the time is worth the tokens.`, tone: "hot", bars: bars(seq, par) },
+  ] };
+}
+
 export const PLAY_8: Record<string, PlayFlow> = {
+  "s8-fanout": {
+    title: "What do parallel workers buy?",
+    knobs: [
+      { key: "workers", label: "Independent subtasks", min: 1, max: 8, step: 1, value: 3 },
+      { key: "mins", label: "Minutes per subtask", min: 1, max: 30, step: 1, value: 10 },
+      { key: "ktok", label: "Tokens each reads (thousands)", min: 5, max: 200, step: 5, value: 40 },
+    ],
+    make: fanout,
+  },
   "s8-cu-cost": {
     title: "What do the screenshots cost?",
     knobs: [
