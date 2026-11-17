@@ -1,5 +1,6 @@
 // Stage 8 (Agents) animated walk-throughs. Every number is computed here or in s8.calc.ts.
 import type { Flow } from "../../other/flows.ts";
+import { n0 } from "./s8.calc.ts";
 
 // tool-calling: the model sends bad arguments, your code rejects them with a useful error, the model fixes them
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -19,6 +20,22 @@ function toolRetry(): Flow {
   ] };
 }
 
+// agent-loop-react: one ReAct trace, with the context the model reads on each call
+export const REACT = { prompt: 1200, obs: 300, eta: "2026-11-19", deadline: "2026-11-20" };
+const days = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+function react(): Flow {
+  const { prompt, obs, eta, deadline } = REACT, early = days(eta, deadline);
+  return { title: "ReAct: think, act, observe, repeat", steps: [
+    { node: "Q: will A-1042 arrive by Fri?", note: `The user asks whether order A-1042 arrives by ${deadline}. Call 1 reads the prompt and tool definitions: ${n0(prompt)} tokens.` },
+    { node: "Thought: I need the order", note: "The model writes a short plan in words. The reasoning picks the next action; nobody has to code that rule.", tone: "hot" },
+    { node: "Act: get_order(A-1042)", note: "It asks for a tool. Your code runs it." },
+    { node: `Observe: eta ${eta}`, note: `The result is appended to the history. Call 2 now reads ${n0(prompt + obs)} tokens, because everything is resent.`, tone: "warn" },
+    { node: `Thought: ${eta.slice(5)} is before ${deadline.slice(5)}`, note: `The model compares the dates using the observation, not its memory: ${early} day${early === 1 ? "" : "s"} early. No more tools are needed.` },
+    { node: "Answer: yes, a day early", note: "It stops asking for tools, so the loop ends. Without a stop like this, a step limit must end it.", tone: "ok" },
+  ] };
+}
+
 export const FLOWS_8: Record<string, Flow> = {
   "s8-tool-retry": toolRetry(),
+  "s8-react": react(),
 };

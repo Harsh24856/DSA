@@ -1,6 +1,7 @@
 // Stage 8 (Agents) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s8.calc.ts.
 import type { Flow } from "../../other/flows.ts";
 import type { PlayFlow } from "../../other/flows-play-types.ts";
+import { callInput, chainOk, loopInput, stepWithRetries } from "./s8.calc.ts";
 
 export const kfmt = (x: number) => (x >= 1e6 ? `${(x / 1e6).toFixed(1)}M` : x >= 1e4 ? `${Math.round(x / 1e3)}k` : x >= 1e3 ? `${(x / 1e3).toFixed(1)}k` : String(Math.round(x)));
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
@@ -17,7 +18,48 @@ function toolBudget(v: Record<string, number>): Flow {
   ] };
 }
 
+// agent-loop-react: every call resends the history, so input grows with each step
+function loopCost(v: Record<string, number>): Flow {
+  const { calls, prompt, obs } = v, last = callInput(prompt, obs, calls - 1), run = loopInput(prompt, obs, calls), flat = calls * prompt;
+  const bars = (a: number, b: number, c: number) => [{ label: "first call", value: a }, { label: "last call", value: b, tone: "warn" as const }, { label: "whole run", value: c, tone: "hot" as const }];
+  return { kind: "bars", title: `${calls} calls, ${prompt} token prompt, ${obs} per result`, format: kfmt, steps: [
+    { note: `Call 1 reads the prompt and tool definitions: ${n0(prompt)} tokens.`, bars: bars(prompt, 0, 0) },
+    { note: calls === 1 ? "With one call there is no history to resend. Add calls to see it grow." : `Each tool result stays in the history. Call ${calls} reads ${n0(prompt)} + ${calls - 1} × ${n0(obs)} = ${n0(last)} tokens.`, tone: "warn", bars: bars(prompt, last, 0) },
+    { note: `The run reads ${n0(run)} input tokens in all, ${(run / flat).toFixed(2)} times what ${calls} calls of the bare prompt would cost. Growth is quadratic in the steps, so trim or summarise old tool results in long runs.`, tone: "hot", bars: bars(prompt, last, run) },
+  ] };
+}
+
+// agent-loop-react: small error rates compound over many steps
+function reliability(v: Record<string, number>): Flow {
+  const p = v.p / 100, { n, r } = v, task = chainOk(p, n), retry = chainOk(stepWithRetries(p, r), n);
+  const f = (x: number) => `${(x * 100).toFixed(1)}%`;
+  const bars = (b: number, c: number) => [{ label: "one step", value: p, tone: "ok" as const }, { label: `all ${n} steps`, value: b, tone: "warn" as const }, { label: "with retries", value: c, tone: "hot" as const }];
+  return { kind: "bars", title: `${v.p}% a step, ${n} steps`, max: 1, format: f, steps: [
+    { note: `Each step works ${f(p)} of the time. That sounds safe.`, tone: "ok", bars: bars(0, 0) },
+    { note: `The task needs every step to work: ${f(p)} to the power ${n} = ${f(task)}, if failures are independent. Long agent runs fail more than their steps suggest.`, tone: "warn", bars: bars(task, 0) },
+    { note: r === 1 ? "With one try per step there is no retry. Raise tries to see what checking and retrying buys." : `If a failed step can be detected (a test, a validator, an error result) and retried up to ${r} times, a step fails only ${f((1 - p) ** r)} of the time and the task succeeds ${f(retry)}. Retries help only failures you can see.`, tone: "hot", bars: bars(task, retry) },
+  ] };
+}
+
 export const PLAY_8: Record<string, PlayFlow> = {
+  "s8-loop-cost": {
+    title: "How fast does an agent's context grow?",
+    knobs: [
+      { key: "calls", label: "Model calls in the run", min: 1, max: 30, step: 1, value: 10 },
+      { key: "prompt", label: "Prompt and tools (tokens)", min: 500, max: 8000, step: 500, value: 2000 },
+      { key: "obs", label: "Tokens per tool result", min: 100, max: 3000, step: 100, value: 500 },
+    ],
+    make: loopCost,
+  },
+  "s8-reliability": {
+    title: "Why long agent runs fail",
+    knobs: [
+      { key: "p", label: "One step succeeds (%)", min: 80, max: 99.5, step: 0.5, value: 95 },
+      { key: "n", label: "Steps in the task", min: 1, max: 50, step: 1, value: 10 },
+      { key: "r", label: "Tries per step", min: 1, max: 3, step: 1, value: 1 },
+    ],
+    make: reliability,
+  },
   "s8-tool-budget": {
     title: "What do tool schemas cost?",
     knobs: [
