@@ -31,7 +31,27 @@ function vecMemory(v: Record<string, number>): Flow {
   ] };
 }
 
+// hybrid-rerank: RRF, first in one list against rank r in both
+function rrfPlay(v: Record<string, number>): Flow {
+  const { k, r } = v, a = 1 / (k + 1), b = 2 / (k + r), f = (x: number) => x.toFixed(4);
+  const bwins = b > a + 1e-12, tie = Math.abs(a - b) < 1e-12;
+  const bars = (show: boolean) => [{ label: "A: 1st in one list", value: a, tone: !bwins && !tie ? "ok" as const : undefined }, { label: `B: ${r} in both lists`, value: show ? b : 0, tone: show && bwins ? "ok" as const : undefined }];
+  return { kind: "bars", title: `RRF with k = ${k}`, max: 2 / (k + 1), format: f, steps: [
+    { note: `A is ranked 1st by keyword search and missing from the vector list: 1 / (${k} + 1) = ${f(a)}.`, tone: "hot", bars: bars(false) },
+    { note: `B is ranked ${r} in both lists: 2 / (${k} + ${r}) = ${f(b)}. ${tie ? "Exactly a tie." : bwins ? "B wins: agreement between the two searches beats one first place." : "A wins: B is ranked too low in both to catch up."}`, tone: tie ? "warn" : "ok", bars: bars(true) },
+    { note: `B wins while its rank is below k + 2 = ${k + 2}. A small k makes first place count for much more; a large k rewards documents both searches agree on. k = 60 is the usual default.`, tone: "hot", bars: bars(true) },
+  ] };
+}
+
 export const PLAY_7: Record<string, PlayFlow> = {
+  "s7-rrf": {
+    title: "Reciprocal rank fusion: one first place or two good ranks?",
+    knobs: [
+      { key: "k", label: "k", min: 1, max: 100, step: 1, value: 60 },
+      { key: "r", label: "B's rank in both lists", min: 1, max: 30, step: 1, value: 5 },
+    ],
+    make: rrfPlay,
+  },
   "s7-vec-memory": {
     title: "How much memory do the vectors need?",
     knobs: [

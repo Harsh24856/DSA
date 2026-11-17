@@ -1,6 +1,6 @@
 // Stage 7 (RAG) animated walk-throughs. Every number is computed here or in s7.calc.ts.
 import type { Flow, FlowTone, GridTable } from "../../other/flows.ts";
-import { chunkStarts, cosine, dot, norm, storedTokens } from "./s7.calc.ts";
+import { B, bm25, chunkStarts, cosine, DOC_TOKENS, DOCS, dot, idf, K1, norm, storedTokens, tok } from "./s7.calc.ts";
 
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
 
@@ -38,7 +38,27 @@ function cosineFlow(): Flow {
   ] };
 }
 
+// hybrid-rerank: BM25 by hand on the toy corpus
+export const BM25_Q = "card declined e-4021";
+function bm25Flow(): Flow {
+  const q = tok(BM25_Q), N = DOCS.length, r2 = (x: number) => x.toFixed(2);
+  const df = q.map((t) => DOC_TOKENS.filter((d) => d.includes(t)).length);
+  const scores = bm25(q, DOC_TOKENS), order = DOCS.map(([id], i) => ({ id, s: scores[i], len: DOC_TOKENS[i].length, hits: q.filter((t) => DOC_TOKENS[i].includes(t)) })).sort((a, b) => b.s - a.s);
+  const avg = DOC_TOKENS.reduce((s, d) => s + d.length, 0) / N, rare = q[df.indexOf(Math.min(...df))];
+  const none = bm25(["refund"], DOC_TOKENS);
+  if (none.some((x) => x > 0) || order[0].id !== "D2") throw new Error("s7-bm25: the walk-through no longer matches its text");
+  const terms: GridTable = { label: `${N} documents`, head: ["term", "docs with it", "idf"], rows: q.map((t, i) => [t, df[i], r2(idf(N, df[i]))]), tones: { [String(q.indexOf(rare))]: "hot" } };
+  const docs = (withScore: boolean, tones?: Record<string, FlowTone>): GridTable => ({ head: ["doc", "words", "matches", ...(withScore ? ["BM25"] : [])], rows: order.map((o) => [o.id, o.len, o.hits.join(", ") || "none", ...(withScore ? [r2(o.s)] : [])]), tones });
+  return { kind: "grid", title: `BM25 for "${BM25_Q}"`, steps: [
+    { note: `BM25 scores exact words. First, how rare is each query term? idf = ln(1 + (N - n + 0.5) / (n + 0.5)), with N = ${N} documents and n containing the term. "${rare}" is in only ${Math.min(...df)}, so it counts most.`, tone: "hot", tables: [terms] },
+    { note: `Then, for each document, which query terms it holds and how long it is. The average is ${r2(avg)} words; longer documents are scaled down a little (b = ${B}), and repeats of a word add less and less (k1 = ${K1}).`, tables: [docs(false)] },
+    { note: `Sum idf times the damped term count over the query terms: ${order.filter((o) => o.s > 0).map((o) => `${o.id} ${r2(o.s)}`).join(", ")}. ${order[0].id} holds the rare code and wins clearly.`, tone: "ok", tables: [docs(true, { "0": "ok" })] },
+    { note: `The weakness: search for "refund" and every score is 0, because the documents say "refunds" and "money back". BM25 matches spellings, not meaning, so pair it with vector search.`, tone: "warn", tables: [{ head: ["doc", "BM25 for \"refund\""], rows: DOCS.map(([id], i) => [id, r2(none[i])]), tones: { ":1": "warn" } }] },
+  ] };
+}
+
 export const FLOWS_7: Record<string, Flow> = {
+  "s7-bm25": bm25Flow(),
   "s7-ingest": ingest(),
   "s7-cosine": cosineFlow(),
 };

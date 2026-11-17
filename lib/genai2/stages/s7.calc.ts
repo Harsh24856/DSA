@@ -1,6 +1,6 @@
 // Stage 7 (RAG): the retrieval maths shared by the flows, the walk-throughs and the module text. Client-safe: no module text here.
 
-export const tok = (s: string) => s.toLowerCase().match(/[a-z0-9]+(?:-[a-z0-9]+)*/g) ?? [];
+export const tok = (s: string): string[] => s.toLowerCase().match(/[a-z0-9]+(?:-[a-z0-9]+)*/g) ?? [];
 export const dot = (a: number[], b: number[]) => a.reduce((s, v, i) => s + v * b[i], 0);
 export const norm = (a: number[]) => Math.sqrt(dot(a, a));
 export const cosine = (a: number[], b: number[]) => dot(a, b) / (norm(a) * norm(b));
