@@ -35,7 +35,45 @@ function react(): Flow {
   ] };
 }
 
+// state-graphs: how reducers merge node updates into the shared state, one super-step at a time
+type Val = string | string[];
+type Reducer = (old: Val, upd: Val) => Val;
+export const REDUCERS: Record<string, [string, Reducer]> = {
+  status: ["replace", (_o, u) => u],
+  notes: ["append", (o, u) => [...(o as string[]), ...(u as string[])]],
+};
+export function applyStep(state: Record<string, Val>, updates: Record<string, Val>[]): Record<string, Val> {
+  const next = { ...state };
+  for (const u of updates) for (const [k, v] of Object.entries(u)) next[k] = REDUCERS[k][1](next[k], v);
+  return next;
+}
+export const SUPER_STEPS: [string, Record<string, Val>][][] = [
+  [["plan", { status: "planning", notes: ["plan: 2 searches"] }]],
+  [["web", { notes: ["web: 3 hits"] }], ["docs", { notes: ["docs: 1 hit"] }]],
+  [["write", { status: "done", notes: ["draft written"] }]],
+];
+export const START_STATE: Record<string, Val> = { status: "new", notes: [] };
+function reducerFlow(): Flow {
+  const show = (v: Val) => (Array.isArray(v) ? (v.length ? `${v.length} item${v.length > 1 ? "s" : ""}` : "empty") : v);
+  let s = START_STATE;
+  const table = (st: Record<string, Val>, hot: string[]) => ({ label: "state", head: ["key", "reducer", "value"], rows: Object.keys(REDUCERS).map((k) => [k, REDUCERS[k][0], show(st[k])]), tones: Object.fromEntries(hot.map((k) => [String(Object.keys(REDUCERS).indexOf(k)), "hot" as const])) });
+  const steps = SUPER_STEPS.map((ups, i) => {
+    s = applyStep(s, ups.map(([, u]) => u));
+    const keys = [...new Set(ups.flatMap(([, u]) => Object.keys(u)))], nodes = ups.map(([n]) => n);
+    return { note: i === 1
+      ? `Super-step ${i + 1}: ${nodes.join(" and ")} run in parallel and both write notes. The append reducer keeps both, so notes now holds ${(s.notes as string[]).length} items. status is untouched.`
+      : i === 0 ? `Super-step 1: the ${nodes[0]} node returns only the keys it changes. status is replaced; the new note is appended.` : `Super-step ${i + 1}: ${nodes[0]} replaces status with "${s.status}" and appends one more note: ${(s.notes as string[]).length} in all. A checkpoint is saved after every super-step.`,
+      tone: i === 1 ? "hot" as const : i === 2 ? "ok" as const : undefined,
+      tables: [{ label: `updates from ${nodes.join(" + ")}`, head: ["node", "writes"], rows: ups.map(([n, u]) => [n, Object.keys(u).join(", ")]) }, table(s, keys)] };
+  });
+  return { kind: "grid", title: "Reducers: how updates merge into state", steps: [
+    { note: "The graph's state is one typed object. Each key has a reducer: replace (the default) or append.", tables: [table(START_STATE, [])] },
+    ...steps,
+  ] };
+}
+
 export const FLOWS_8: Record<string, Flow> = {
+  "s8-reducer": reducerFlow(),
   "s8-tool-retry": toolRetry(),
   "s8-react": react(),
 };

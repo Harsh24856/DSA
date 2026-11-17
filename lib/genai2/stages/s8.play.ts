@@ -1,6 +1,6 @@
 // Stage 8 (Agents) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s8.calc.ts.
 import type { Flow } from "../../other/flows.ts";
-import type { PlayFlow } from "../../other/flows-play-types.ts";
+import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
 import { callInput, chainOk, loopInput, stepWithRetries } from "./s8.calc.ts";
 
 export const kfmt = (x: number) => (x >= 1e6 ? `${(x / 1e6).toFixed(1)}M` : x >= 1e4 ? `${Math.round(x / 1e3)}k` : x >= 1e3 ? `${(x / 1e3).toFixed(1)}k` : String(Math.round(x)));
@@ -41,7 +41,29 @@ function reliability(v: Record<string, number>): Flow {
   ] };
 }
 
+// state-graphs: what a checkpoint saves when a long run crashes
+function resume(v: Record<string, number>): Flow {
+  const { n, k, sec } = v;
+  if (k > n) throw new PlayError(`The run has only ${n} steps, so it cannot fail at step ${k}. Move the failing step down.`);
+  const t = (x: number) => (x >= 60 ? `${(x / 60).toFixed(1)} min` : `${Math.round(x)} s`);
+  const bars = (a: number, b: number) => [{ label: "no checkpoint", value: a, tone: "warn" as const }, { label: "checkpoints", value: b, tone: "ok" as const }];
+  return { kind: "bars", title: `${n} steps of ${sec} s, crash at step ${k}`, format: t, steps: [
+    { note: `The run crashes during step ${k}. Steps 1 to ${k - 1} took ${t((k - 1) * sec)}${k === 1 ? ", which is nothing yet" : ""}.`, bars: bars((k - 1) * sec, (k - 1) * sec) },
+    { note: `Without checkpoints, a restart begins again at step 1 and repeats ${k} steps (${t(k * sec)}), side effects included. With a checkpoint after every step, ${k === 1 ? "there is nothing saved yet, so it re-runs step 1 from the input" : `it reloads the state saved after step ${k - 1} and re-runs only step ${k}`}: ${t(sec)}.`, tone: "hot", bars: bars(k * sec, sec) },
+    { note: `Finishing the whole run after the crash: ${t(n * sec)} without checkpoints, ${t((n - k + 1) * sec)} with them. The failed step still runs twice, so make its side effects idempotent.`, tone: "ok", bars: bars(n * sec, (n - k + 1) * sec) },
+  ] };
+}
+
 export const PLAY_8: Record<string, PlayFlow> = {
+  "s8-resume": {
+    title: "What does a checkpoint save after a crash?",
+    knobs: [
+      { key: "n", label: "Steps in the run", min: 3, max: 30, step: 1, value: 12 },
+      { key: "k", label: "Step that crashes", min: 1, max: 30, step: 1, value: 9 },
+      { key: "sec", label: "Seconds per step", min: 1, max: 120, step: 1, value: 20 },
+    ],
+    make: resume,
+  },
   "s8-loop-cost": {
     title: "How fast does an agent's context grow?",
     knobs: [
