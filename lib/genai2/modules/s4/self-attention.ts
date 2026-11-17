@@ -24,6 +24,7 @@ export const SELF_ATTENTION: GModule = {
   id: "self-attention",
   stage: 4,
   title: "Self-attention",
+  lab: "transformer",
   hook: "Every word looks at every other word and decides how much each one matters right now. That one idea is the engine of the transformer.",
   blocks: [
     { kind: "figure", id: "s4-qkv", caption: "Each word's whole vector is projected three ways, by three learned matrices. The query of \"sat\" is compared with the key of every word, itself included." },

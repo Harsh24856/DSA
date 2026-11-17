@@ -37,6 +37,7 @@ Placement practice tracker, now public: anyone can sign in with Google and gets 
 - `npm run check`: rolling-window schedule checks (`lib/logic.check.ts`)
 - `npm run check:solutions`: solution examples and visualisers
 - `npm run check:other`: Other section simulators, SQL results, Java and C++ programs
+- `npm run check:genai`: Gen AI roadmap and module rules, then the code-lab grader (`lib/genai2/labs/labs.check.ts`: every step's reference passes, starters and known wrong answers fail); needs python3 with numpy and torch
 - `npm run test:e2e`: Playwright (`e2e/`, `playwright.config.ts`); starts `next dev` on :4100 with `NEXT_PUBLIC_E2E=1`, which makes `lib/store.tsx` act signed in without Supabase. `e2e/navigation.spec.ts` clicks through every route and fails if content is not visible within 500 ms.
 - `npm run test:ui`: Playwright UI checks (`e2e/ui.spec.ts`): every page, Settings and Solve at 1280px and 375px in Classic light/dark, Frieren and Starfall; fails on sideways scroll, console errors or text under AA contrast; screenshots land in `test-results/ui/`. Runs `next dev` with `NEXT_PUBLIC_E2E=1` (fake signed-in user, no Supabase); set `E2E_PORT` if 4100 is busy
 
