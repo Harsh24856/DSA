@@ -61,6 +61,7 @@ const VIEWS: { name: string; path: string; open?: (p: Page) => Promise<void>; pr
   { name: "syntax-containers", path: "/syntax#iterate-remove", prep: async (p) => { await p.getByRole("group", { name: "Language" }).getByRole("button", { name: "Java", exact: true }).click(); await p.getByText("Every container in Java").click(); } },
   { name: "genai", path: "/genai" },
   { name: "genai-attention", path: "/genai/self-attention" },
+  { name: "genai-lab", path: "/genai/lab/transformer" },
   { name: "genai-module", path: "/genai/m4" },
   { name: "genai-labs", path: "/genai/m2" },
   { name: "genai-labs-2", path: "/genai/m7" },

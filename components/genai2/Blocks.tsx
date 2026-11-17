@@ -13,7 +13,7 @@ const FlowPlayer = dynamic(() => import("../other/FlowPlayer"), { ssr: false, lo
 const FlowLab = dynamic(() => import("../other/FlowLab"), { ssr: false, loading: () => <div className="gx-diagram h-[560px]" aria-hidden /> });
 const GenaiLab = dynamic(() => import("../labs").then((m) => m.GenaiLab), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
 
-// Figures load per stage: a page fetches only figures/s<N>.tsx for its own stage (FIGURES in figures/index.tsx exists for the type check).
+// Figures load per stage: a page fetches only figures/s<N>.tsx for its own stage (each sN.tsx type-checks its own keys; genai.check asserts FIGURE_IDS is their union).
 type FigMap = Record<string, () => React.JSX.Element>;
 const byId = (map: FigMap) => function StageFigure({ id }: { id: string }) { const F = map[id]; return F ? <F /> : null; };
 const STAGE_FIGURES = [

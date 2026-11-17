@@ -3,13 +3,14 @@ import { BookOpen, ChatsCircle, Compass, ListBullets, TreeStructure } from "@pho
 import type { Icon } from "@phosphor-icons/react";
 import { GENAI } from "@/lib/genai/content";
 import { RoadmapHub } from "@/components/genai2/RoadmapHub";
+import { LABS } from "@/lib/genai2/labs";
 
 const REFS: [string, Icon, string][] = [["start", Compass, "Roadmap, setup, and what matters vs hype"], ["interview", ChatsCircle, "40 questions with short answers"], ["design", TreeStructure, "Eight-step framework for design rounds"], ["glossary", ListBullets, "Terms you will hear every day"], ["resources", BookOpen, "Where to go deeper, by module"]];
 
 export default function GenAI() {
   return (
     <div className="flex flex-col gap-6">
-      <RoadmapHub />
+      <RoadmapHub genaiModules={GENAI.filter((s) => s.module).map((s) => s.id)} labs={Object.values(LABS).map((l) => ({ id: l.id, title: l.title, blurb: l.blurb, steps: l.steps.length }))} />
       <section aria-labelledby="gx-ref" className="flex flex-col gap-3">
         <h2 id="gx-ref" className="t-h3">Start, prepare and look things up</h2>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">

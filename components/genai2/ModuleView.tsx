@@ -1,7 +1,7 @@
 "use client";
 // One rebuilt Gen AI module: head, visual blocks, key points, questions, prev/next along the roadmap.
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, ArrowSquareOut, Check } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, ArrowSquareOut, Check, Code } from "@phosphor-icons/react";
 import { moduleKey, STAGES } from "@/lib/genai2/core";
 import type { GModule } from "@/lib/genai2/core";
 import { usePatterns } from "@/lib/patternStore";
@@ -9,8 +9,9 @@ import { BlockView } from "./Blocks";
 import { Questions } from "./Questions";
 
 type Nav = { id: string; title: string } | null;
+export type LabLink = { id: string; title: string; steps: number } | null;
 
-export function ModuleView({ module: m, prev, next }: { module: GModule; prev: Nav; next: Nav }) {
+export function ModuleView({ module: m, prev, next, lab = null }: { module: GModule; prev: Nav; next: Nav; lab?: LabLink }) {
   const { done, toggle } = usePatterns();
   const id = m.id, on = !!done[moduleKey(id)];
   const stage = STAGES.find((s) => s.n === m.stage);
@@ -38,6 +39,19 @@ export function ModuleView({ module: m, prev, next }: { module: GModule; prev: N
         </section>
       )}
 
+      {lab && (
+        <section className="card flex flex-col gap-3 p-6 sm:flex-row sm:items-center sm:justify-between" aria-labelledby="gl-title">
+          <div className="flex items-start gap-3">
+            <span className="badge-icon"><Code size={16} aria-hidden /></span>
+            <div>
+              <h2 id="gl-title" className="t-h2">Build it yourself</h2>
+              <p className="mt-1 text-sm text-muted">{lab.title}: {lab.steps} steps, each graded by hidden tests in your browser.</p>
+            </div>
+          </div>
+          <Link href={`/genai/lab/${lab.id}`} className="btn btn-primary w-fit">Open the lab<ArrowRight size={16} aria-hidden /></Link>
+        </section>
+      )}
+
       {m.real && m.real.length > 0 && (
         <section className="card flex flex-col gap-3 p-6" aria-labelledby="gr-title">
           <h2 id="gr-title" className="t-h2">In the real world</h2>
@@ -55,8 +69,8 @@ export function ModuleView({ module: m, prev, next }: { module: GModule; prev: N
       <Questions moduleId={id} questions={m.questions} />
 
       <nav className="grid gap-3 sm:grid-cols-2" aria-label="Modules">
-        {prev ? <Link href={`/genai/${prev.id}`} className="btn btn-nav justify-start gap-3"><ArrowLeft size={16} aria-hidden /><span><span className="block text-xs font-normal text-muted">Previous</span>{prev.title}</span></Link> : <span />}
-        {next && <Link href={`/genai/${next.id}`} className="btn btn-nav justify-end gap-3 text-right"><span><span className="block text-xs font-normal text-muted">Next</span>{next.title}</span><ArrowRight size={16} aria-hidden /></Link>}
+        {prev ? <Link href={`/genai/${prev.id}`} className="btn btn-nav justify-start gap-3 whitespace-normal"><ArrowLeft size={16} aria-hidden /><span><span className="block text-xs font-normal text-muted">Previous</span>{prev.title}</span></Link> : <span />}
+        {next && <Link href={`/genai/${next.id}`} className="btn btn-nav justify-end gap-3 text-right whitespace-normal"><span><span className="block text-xs font-normal text-muted">Next</span>{next.title}</span><ArrowRight size={16} aria-hidden /></Link>}
       </nav>
     </div>
   );

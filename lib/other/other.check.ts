@@ -510,6 +510,7 @@ globalThis.__server.close(); process.exit(0);`);
     assert.ok(G.find((g) => g.id === sec)?.html.includes(`id="${slide}"`), `Gen AI slot ${sec}/${slide}: no such slide`);
     used.add(flow);
   }
+  for (const m of Object.values(GENAI_MODULES)) for (const b of m.blocks) if (b.kind === "flow") used.add(b.id);
   for (const [id, f] of Object.entries(FLOWS)) {
     assert.ok(used.has(id), `flow ${id} is not shown anywhere`);
     assert.ok(f.steps.length >= 2 && f.title, `flow ${id}`);
