@@ -141,7 +141,7 @@ assert train.sum() == 2
     { id: "trap-packing", level: "hard", kind: "trap",
       claim: "Packing several short examples into one row needs no change to attention.",
       truth: false,
-      why: "With a plain causal mask, a later example could attend to an earlier, unrelated one. Packed training uses a block mask (and restarts positions) so each example sees only itself." },
+      why: "With a plain causal mask, a later example can attend to an earlier, unrelated one. Careful packing uses a block mask (and restarts positions) so each example sees only itself; some setups accept the leak, but it is a change to weigh, not a free one." },
   ],
   real: [
     { who: "Long Ouyang and co-authors", when: "2022",

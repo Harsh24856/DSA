@@ -12,7 +12,7 @@ export function GrpoGroup() {
   return (
     <svg viewBox={`0 0 ${W} 250`} className="mx-auto w-full max-w-[520px]" role="img" aria-labelledby={titleId}>
       <title id={titleId}>{`One prompt, ${REW.length} sampled answers. A checker marks ${k} right and ${REW.length - k} wrong. The group mean reward is ${a.mean.toFixed(2)}, so right answers get an advantage of plus ${a.right.toFixed(2)} and wrong ones minus ${Math.abs(a.wrong).toFixed(2)}.`}</title>
-      <rect x={W / 2 - 90} y={TOP} width={180} height={28} rx={8} fill="var(--surface-2)" stroke="var(--line-strong)" />
+      <rect x={W / 2 - 104} y={TOP} width={208} height={28} rx={8} fill="var(--surface-2)" stroke="var(--line-strong)" />
       <text x={W / 2} y={TOP + 19} textAnchor="middle" fontSize={13} fontWeight={600} fill="var(--ink)">prompt: what is 17 × 24?</text>
       {REW.map((r, i) => (
         <g key={i}>

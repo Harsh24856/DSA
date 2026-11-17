@@ -81,7 +81,7 @@ assert obj[0] <= 1.2 * adv[0] + 1e-9  # a big jump on a good answer earns no ext
       why: "A verifiable reward is computed by a program with a clear right answer. Reward models and thumbs up are learned or human judgements, and length is a proxy that is easy to game." },
     { id: "no-critic", level: "medium", kind: "concept",
       q: "What does GRPO use in place of PPO's value network?",
-      answer: "The mean reward of the other answers sampled for the same prompt",
+      answer: "The mean reward of the group of answers sampled for the same prompt",
       wrong: ["A frozen reward model", "The reward of the single best answer ever seen", "A fixed baseline of 0.5"],
       why: "PPO trains a critic to predict the expected reward. GRPO estimates it directly from the group, which removes a whole model from memory and from training." },
     { id: "normalise", level: "medium", kind: "concept",
