@@ -18,6 +18,7 @@ export const TRANSFORMER_BLOCK: GModule = {
   id: "transformer-block",
   stage: 4,
   title: "The block (norm, FFN, residual)",
+  lab: "transformer",
   hook: "A transformer is one block repeated dozens of times. Each block lets tokens talk (attention), lets each token think on its own (the FFN), and never throws away what came before (the residual).",
   blocks: [
     { kind: "figure", id: "s4-block", caption: "A pre-norm block. The residual stream runs straight down. Each sublayer reads a normalised copy and adds its answer back, so the stream is edited, never replaced." },
