@@ -8,10 +8,10 @@ const W = 340, CY = 100;
 
 export function RopeDial() {
   const titleId = useId();
-  const gap = deg(Math.abs(Q0 + PAIRS[0][0] * THETA - (K0 + PAIRS[0][1] * THETA)));
+  const gaps = PAIRS.map(([m, n]) => deg(Math.abs(Q0 + m * THETA - (K0 + n * THETA))));
   return (
     <svg viewBox={`0 0 ${W} 230`} className="mx-auto w-full max-w-[520px]" role="img" aria-labelledby={titleId}>
-      <title id={titleId}>{`Two dials. Left: q at position ${PAIRS[0][0]}, k at position ${PAIRS[0][1]}. Right: q at ${PAIRS[1][0]}, k at ${PAIRS[1][1]}. Both arrows have turned further on the right, but the angle between q and k is ${gap} degrees in both, so their dot product is the same.`}</title>
+      <title id={titleId}>{`Two dials. Left: q at position ${PAIRS[0][0]}, k at position ${PAIRS[0][1]}. Right: q at ${PAIRS[1][0]}, k at ${PAIRS[1][1]}. Both arrows have turned further on the right, but the angle between q and k is ${gaps[0]} degrees on the left and ${gaps[1]} on the right, so their dot product is the same.`}</title>
       {PAIRS.map(([m, n], i) => {
         const cx = W / 4 + (i * W) / 2, qa = Q0 + m * THETA, ka = K0 + n * THETA;
         // rounded, so server and browser Math.cos agree to the last digit (no hydration mismatch)
@@ -28,7 +28,7 @@ export function RopeDial() {
             <text x={lkx} y={lky + 4} textAnchor="middle" fontSize={13} fontWeight={600} fill="var(--ink)">k</text>
             <text x={lqx} y={lqy + 4} textAnchor="middle" fontSize={13} fontWeight={600} fill="var(--ink)">q</text>
             <text x={cx} y={CY + R + 34} textAnchor="middle" fontSize={13} fill="var(--ink)">q at {m}, k at {n}</text>
-            <text x={cx} y={CY + R + 54} textAnchor="middle" fontSize={13} fill="var(--accent)">angle between: {gap} degrees</text>
+            <text x={cx} y={CY + R + 54} textAnchor="middle" fontSize={13} fill="var(--accent)">angle between: {gaps[i]} degrees</text>
           </g>
         );
       })}

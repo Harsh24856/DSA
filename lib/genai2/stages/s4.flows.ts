@@ -97,17 +97,22 @@ function mhaFlow(): Flow {
 }
 
 function padFlow(): Flow {
-  const a = ["I", "like", "tea"], b = ["Hi", "pad", "pad"], real = [true, false, false], n = 3;
+  // left padding, as in batched generation: the pads come first, so the causal mask alone does not hide them
+  const a = ["I", "like", "tea"], b = ["pad", "pad", "Hi"], real = [false, false, true], n = 3, np = real.filter((x) => !x).length;
+  const right = ["Hi", "pad", "pad"], realR = [true, false, false];
   const cell = (ok: boolean) => (ok ? "0" : "-inf");
   const M = (f: (i: number, j: number) => boolean): (string | number)[][] => Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => cell(f(i, j))));
   const tones = (f: (i: number, j: number) => boolean): GridTable["tones"] => { const t: GridTable["tones"] = {}; for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (!f(i, j)) t[`${i}:${j}`] = "bad"; return t; };
   const pad = (_: number, j: number) => real[j], causal = (i: number, j: number) => j <= i, both = (i: number, j: number) => pad(i, j) && causal(i, j);
-  const G = (f: (i: number, j: number) => boolean, label: string): GridTable => ({ label, head: b, rowHead: b, rows: M(f), tones: tones(f) });
+  const G = (f: (i: number, j: number) => boolean, label: string, h = b): GridTable => ({ label, head: h, rowHead: h, rows: M(f), tones: tones(f) });
+  const hi = n - 1, seenByHi = (f: (i: number, j: number) => boolean) => Array.from({ length: n }, (_, j) => j).filter((j) => f(hi, j) && !real[j]).length;
+  const rightHiPads = Array.from({ length: n }, (_, j) => j).filter((j) => causal(0, j) && !realR[j]).length;
   return { kind: "grid", title: "Padding and causal masks together", steps: [
-    { note: `A batch must be a rectangle. "Hi" is shorter than "I like tea", so it is filled with pad tokens to length ${n}.`, tables: [{ head: ["", "1", "2", "3"], rows: [["row 1", ...a], ["row 2", ...b]], tones: { "1:2": "warn", "1:3": "warn" } }] },
-    { note: "Padding mask for row 2: no query may read a pad key, so pad columns get minus infinity before softmax.", tone: "warn", tables: [G(pad, "padding mask, row 2")] },
-    { note: "Causal mask: query i may read keys up to i. Minus infinity above the diagonal.", tone: "hot", tables: [G(causal, "causal mask")] },
-    { note: "A decoder in a batch uses both: add the two masks. A key is open only if it is real and not in the future. Pad rows' outputs are ignored by the loss.", tone: "ok", tables: [G(both, "combined, row 2")] },
+    { note: `A batch must be a rectangle. For generation, short prompts are padded on the left, so every row ends on a real token and the next token goes straight after it. "Hi" gets ${np} pads in front.`, tables: [{ head: ["", "1", "2", "3"], rows: [["row 1", ...a], ["row 2", ...b]], tones: Object.fromEntries(real.flatMap((r, j) => (r ? [] : [[`1:${j + 1}`, "warn"]]))) as GridTable["tones"] }] },
+    { note: `Causal mask alone: query i may read keys up to i. The pads come before "Hi", so it leaves them open: "Hi" would mix in ${seenByHi(causal)} pads.`, tone: "warn", tables: [G(causal, "causal mask, row 2")] },
+    { note: "Padding mask: no query may read a pad key, so pad columns get minus infinity before softmax.", tone: "hot", tables: [G(pad, "padding mask, row 2")] },
+    { note: `Add the two masks: a key is open only if it is real and not in the future. "Hi" now reads ${seenByHi(both)} pads. The pad rows are fully closed; in practice they read something harmless, and their outputs are ignored.`, tone: "ok", tables: [G(both, "combined, row 2")] },
+    { note: `With right padding the pads come after "Hi", so the causal mask alone already hides them: "Hi" reads ${rightHiPads} pads. Only pad queries see pads, and their outputs are ignored.`, tone: "ok", tables: [G(causal, "causal mask, right padded", right)] },
   ] };
 }
 

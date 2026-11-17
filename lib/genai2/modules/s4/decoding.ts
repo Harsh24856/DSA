@@ -16,6 +16,8 @@ const L = [2, 1, 0], TT = 0.5, t1 = softmax(L), tHalf = softmax(L.map((x) => x /
 const g1 = TREE.first.reduce((m, x) => (x[1] > m[1] ? x : m)), g2 = TREE.second[g1[0]].reduce((m, x) => (x[1] > m[1] ? x : m));
 const leaves = TREE.first.flatMap(([a, pa]) => TREE.second[a].map(([b, pb]) => ({ a, b, p: pa * pb })));
 const best = leaves.reduce((m, l) => (l.p > m.p ? l : m)), greedyP = g1[1] * g2[1];
+// numeric: top-k renormalises
+const K2 = 2, topK = [...PP].sort((a, b) => b - a).slice(0, K2), kSum = topK.reduce((a, b) => a + b, 0);
 // output: top-p count in numpy
 const OP = [0.4, 0.3, 0.2, 0.1], OPP = 0.8, okept = keptCount(OP, OPP);
 // min-p
@@ -126,10 +128,10 @@ assert all(d in words[:${st.final.filter((x) => x > 0).length}] for d in draws) 
       answer: `Those with probability at least ${MINP} times the top token's`,
       wrong: [`Those with probability at least ${MINP}`, `The ${MINP * 100}% least likely tokens`, "The smallest set reaching a total of the top token's probability"],
       why: `The threshold scales with the top token. If the top token has 0.80, the cut is ${r2(0.8 * MINP)}; if it has 0.20, the cut is ${r2(0.2 * MINP)}, so more tokens survive when the model is unsure.` },
-    { id: "kept", level: "easy", kind: "numeric",
-      q: `Probabilities are ${OP.join(", ")}. How many tokens does top-p = ${OPP} keep?`,
-      answer: String(okept), wrong: [String(okept - 1), String(OP.length), "1"],
-      why: `Running totals: ${OP.map((_, i) => OP.slice(0, i + 1).reduce((a, b) => a + b, 0).toFixed(1)).join(", ")}. The total first reaches ${OPP} at token ${okept}.` },
+    { id: "topk-renorm", level: "easy", kind: "numeric",
+      q: `Probabilities are ${PP.join(", ")}. After top-k with k = ${K2}, what is the top token's probability, to 2 decimals?`,
+      answer: r2(topK[0] / kSum), wrong: [r2(topK[0]), r2(kSum), r2(topK[1] / kSum)],
+      why: `Top-k keeps ${topK.join(" and ")}, which add up to ${r2(kSum)}. Renormalising divides each by that total: ${r2(topK[0])} / ${r2(kSum)} = ${r2(topK[0] / kSum)}. Forgetting to renormalise leaves ${r2(topK[0])}.` },
     { id: "temp-num", level: "medium", kind: "numeric",
       q: `Logits [${L.join(", ")}] at temperature ${TT}. What is the top token's probability, to 2 decimals?`,
       answer: r2(tHalf[0]), wrong: [r2(t1[0]), r2(softmax(L.map((x) => x * TT))[0]), r2(1)],

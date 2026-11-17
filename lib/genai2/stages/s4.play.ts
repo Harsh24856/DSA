@@ -53,7 +53,7 @@ function ropeShift(v: Record<string, number>): Flow {
   const spread = Math.max(...abs) - Math.min(...abs);
   return { kind: "grid", title: `One query and one key, ${gap} apart, d = ${d}`, steps: [
     { note: `No position at all: the score is ${r2(plain)} wherever the pair sits, and at any distance too. Attention alone cannot see order.`, tone: "warn", tables: [T(STARTS.map(() => plain), "warn")] },
-    { note: `Add sinusoidal vectors to q and k: the score now changes with where the pair sits, by up to ${r2(spread)}, though the gap is the same.`, tone: "hot", tables: [T(abs, "hot")] },
+    { note: `Sinusoidal position vectors added to the vectors: the score now changes with where the pair sits, by up to ${r2(spread)}, though the gap is the same.`, tone: "hot", tables: [T(abs, "hot")] },
     { note: `RoPE: rotate q by its position and k by its own. The score is ${r2(rot[0])} at every start: it depends only on the gap, ${gap}. Move the gap slider and it changes.`, tone: "ok", tables: [T(rot, "ok")] },
   ] };
 }

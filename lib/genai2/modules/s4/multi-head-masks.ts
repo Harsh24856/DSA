@@ -14,10 +14,11 @@ const [QH, KVH] = [32, 8];
 const CTX = 4096, mhaGB = kvGB(QH, CTX), gqaGB = kvGB(KVH, CTX), mqaGB = kvGB(1, CTX);
 // output: split into heads
 const { T, d, h } = MHA;
-// output: causal and padding together
-const MN = 4, REAL = [true, true, true, false];
+// output: causal and padding together, left padded (pads first, as in batched generation)
+const MN = 4, REAL = [false, true, true, true];
 let open = 0;
 for (let i = 0; i < MN; i++) for (let j = 0; j <= i; j++) if (REAL[j]) open++;
+const causalPairs = (MN * (MN + 1)) / 2, padIdx = REAL.indexOf(false);
 
 export const MULTI_HEAD_MASKS: GModule = {
   id: "multi-head-masks",
@@ -41,7 +42,7 @@ export const MULTI_HEAD_MASKS: GModule = {
       head: ["Mask", "Blocks", "Used for"],
       rows: [
         ["Causal", "Keys after the query", "Decoders, so a token cannot see the word it predicts"],
-        ["Padding", "Pad keys", "Any batch of different lengths, encoder or decoder"],
+        ["Padding", "Pad keys", "Encoders on any padded batch; decoders when pads come first (left padding)"],
         ["Sliding window", "Keys more than W back", "Long context at lower cost; stacked layers still reach further"],
         ["Document", "Keys from another document", "Training on several documents packed into one sequence"],
       ],
@@ -68,6 +69,7 @@ def mha(X, Wq, Wk, Wv, Wo, h, key_ok):
     Q, K, V = split(X @ Wq), split(X @ Wk), split(X @ Wv)
     s = Q @ K.transpose(0, 2, 1) / np.sqrt(dh)                  # (h, T, T)
     allowed = np.tril(np.ones((T, T), dtype=bool)) & key_ok[None, :]   # causal and padding
+    allowed[~key_ok] = np.eye(T, dtype=bool)[~key_ok]           # a pad query reads only itself; its output is ignored
     s = np.where(allowed, s, -np.inf)
     w = np.exp(s - s.max(-1, keepdims=True))
     w = w / w.sum(-1, keepdims=True)
@@ -78,13 +80,13 @@ rng = np.random.default_rng(0)
 T, d, h = 5, 8, 2
 X = rng.normal(size=(T, d))
 Wq, Wk, Wv, Wo = (rng.normal(size=(d, d)) / np.sqrt(d) for _ in range(4))
-key_ok = np.array([True, True, True, True, False])              # the last token is padding
+key_ok = np.array([False, True, True, True, True])              # left padded: the first token is padding
 out, w = mha(X, Wq, Wk, Wv, Wo, h, key_ok)
 print("output", out.shape, "weights", w.shape)
 print("head 1, token 5:", np.round(w[0, 4], 2))
 
 assert np.allclose(w.sum(-1), 1)          # every row sums to 1
-assert np.all(w[:, :, 4] == 0)            # nobody reads the pad key
+assert np.all(w[:, 1:, 0] == 0)           # no real token reads the pad key
 assert np.all(np.triu(w[0], k=1) == 0)    # nobody reads the future
 `,
     },
@@ -123,10 +125,10 @@ assert np.all(np.triu(w[0], k=1) == 0)    # nobody reads the future
       wrong: ["Each head is given a fixed role when the model is built", "The tokenizer labels tokens for each head", "Heads are sorted by role after training"],
       why: "All heads start random and are trained together. Some end up with readable patterns, which interpretability work finds afterwards; many do not." },
     { id: "mask-combine", level: "hard", kind: "concept",
-      q: "A decoder trains on a padded batch. How are the causal and padding masks used together?",
-      answer: "Both are applied: a key is open only if it is not in the future and is not padding",
-      wrong: ["Only the causal mask, since it already hides padding at the end", "Only the padding mask, since causal is for generation only", "They are averaged, so blocked keys get half weight"],
-      why: "Padding can sit anywhere a sequence is short, and the causal mask does not know which tokens are pads. Adding both minus-infinity masks blocks the union." },
+      q: "A decoder generates for a batch of prompts padded on the left, so the pads come first. Which masks does it need?",
+      answer: "Both: a key is open only if it is not in the future and is not padding",
+      wrong: ["Only the causal mask, since it already hides the pads", "Only the padding mask, since the causal mask is for training only", "Both, averaged, so blocked keys get half weight"],
+      why: "Pads at the front come before every real token, so the causal mask leaves them open. The padding mask closes their columns, and adding both minus-infinity masks blocks the union. With right padding the pads come after the real tokens, so the causal mask alone already hides them from every real token." },
     { id: "head-size", level: "easy", kind: "numeric",
       q: `Model width ${D1} with ${H1} heads. What is each head's size?`,
       answer: String(D1 / H1), wrong: [String(D1), String(D1 * H1), String(H1)],
@@ -145,10 +147,10 @@ assert np.all(np.triu(w[0], k=1) == 0)    # nobody reads the future
       answer: `(${h}, ${T}, ${d / h})`, wrong: [`(${T}, ${h}, ${d / h})`, `(${h}, ${d / h}, ${T})`, `(${T}, ${d})`],
       why: `reshape cuts each of the ${T} rows into ${h} slices of ${d / h}; transpose(1, 0, 2) moves the head axis first, so each head gets its own (${T}, ${d / h}) block.` },
     { id: "open-count", level: "medium", kind: "output",
-      q: "The last of 4 tokens is padding. How many query-key pairs stay open? What does this print?",
+      q: `${MN} tokens, left padded: token ${padIdx + 1} is padding. How many query-key pairs stay open under both masks? What does this print?`,
       code: `import numpy as np\nn = ${MN}\ncausal = np.tril(np.ones((n, n), dtype=bool))\nreal = np.array([${REAL.map((x) => (x ? "True" : "False")).join(", ")}])\nprint(int((causal & real[None, :]).sum()))`,
-      answer: String(open), wrong: [String((MN * (MN + 1)) / 2), String(MN * MN), String(((MN - 1) * MN) / 2)],
-      why: `The causal mask leaves ${(MN * (MN + 1)) / 2} pairs. The pad key's column loses its only open cell, on the diagonal of the last row, leaving ${open}.` },
+      answer: String(open), wrong: [String(causalPairs), String(MN * MN), String(causalPairs - 1)],
+      why: `The causal mask leaves ${causalPairs} pairs. The pad comes first, so every query can see it: its whole column of ${causalPairs - open} closes, leaving ${open}. With the pad last instead, only its own diagonal cell would close (${causalPairs - 1}), because the causal mask already hides a trailing pad.` },
     { id: "explain-mha", level: "medium", kind: "explain",
       q: "Walk through multi-head attention with shapes.",
       answer: `Take x of shape (${T}, ${d}) with ${h} heads.\n1. Q, K, V = x W_Q, x W_K, x W_V, each (${T}, ${d}).\n2. Split each into ${h} heads: (${h}, ${T}, ${d / h}).\n3. Each head: softmax(Q K^T / sqrt(${d / h}) + mask) V, giving (${h}, ${T}, ${d / h}). The scores are (${h}, ${T}, ${T}).\n4. Join the heads: (${T}, ${d}).\n5. Multiply by W_O and add to the residual stream.\n\nSame weights as one big head; the gain is ${h} separate attention patterns.` },
@@ -157,7 +159,7 @@ assert np.all(np.triu(w[0], k=1) == 0)    # nobody reads the future
       answer: `- MHA: every query head has its own K and V head. Best quality, biggest KV cache (${r2(mhaGB)} GB in the example above).\n- MQA: one K, V head shared by all query heads. Smallest cache (${r2(mqaGB)} GB) and fastest decoding, but quality can drop.\n- GQA: groups of query heads share a K, V head (${QH} query heads, ${KVH} K, V heads). Quality close to MHA with a cache ${QH / KVH} times smaller (${r2(gqaGB)} GB).\n\nOnly K and V are shared. Every head keeps its own queries, so the attention patterns can still differ.` },
     { id: "explain-masks", level: "medium", kind: "explain",
       q: "Why does a decoder need a causal mask in training, and when is a padding mask needed?",
-      answer: "Training feeds the whole sentence at once and every position predicts its next token. Without the causal mask, position i could read token i + 1, its own answer, and learn to copy instead of predict.\n\nA padding mask is needed whenever sequences of different lengths share a batch, in encoders and decoders alike, so that no real token mixes in the filler. The pad positions are also left out of the loss." },
+      answer: "Training feeds the whole sentence at once and every position predicts its next token. Without the causal mask, position i could read token i + 1, its own answer, and learn to copy instead of predict.\n\nA padding mask is needed whenever an encoder reads a padded batch, since every token sees every position. In a decoder it is needed when the pads come before real tokens, as with left padding for batched generation, because the causal mask leaves earlier positions open. With right padding the causal mask already hides the trailing pads from every real token; only the pad positions read them, and their outputs are ignored. Pad positions are left out of the loss either way." },
     { id: "trap-params", level: "medium", kind: "trap",
       claim: `Attention with ${PH} heads of ${PD / PH} has the same number of projection weights as one head of ${PD}.`,
       truth: true,
@@ -165,7 +167,7 @@ assert np.all(np.triu(w[0], k=1) == 0)    # nobody reads the future
     { id: "trap-pad-decoder", level: "easy", kind: "trap",
       claim: "Padding masks are only needed in decoders.",
       truth: false,
-      why: "Any batch of different lengths needs one. An encoder that classifies short and long reviews in one batch must stop real tokens from attending to pads, exactly like a decoder." },
+      why: "Encoders need one most: every token sees every position, so an encoder that classifies short and long reviews in one batch must stop real tokens from attending to pads. A decoder needs one when pads come first; with right padding its causal mask already hides them." },
     { id: "trap-gqa-queries", level: "hard", kind: "trap",
       claim: "Grouped-query attention makes all heads in a group use the same attention weights.",
       truth: false,

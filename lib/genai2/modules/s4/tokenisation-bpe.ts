@@ -173,7 +173,7 @@ assert encode("${NEW}") == ${py(newToks)}
   real: [
     { who: "Rico Sennrich, Barry Haddow and Alexandra Birch", when: "2015",
       what: "Their paper \"Neural Machine Translation of Rare Words with Subword Units\" encoded rare and unknown words as sequences of subword units, and used byte pair encoding, a compression algorithm, to choose them.",
-      takeaway: "On WMT 15 translation tasks, subword models beat a back-off dictionary baseline by 1.1 BLEU for English-German and 1.3 BLEU for English-Russian.",
+      takeaway: "On the WMT 15 translation tasks English-German and English-Russian, subword models improve over a back-off dictionary baseline by up to 1.1 and 1.3 BLEU, respectively.",
       url: "https://arxiv.org/abs/1508.07909" },
   ],
 };

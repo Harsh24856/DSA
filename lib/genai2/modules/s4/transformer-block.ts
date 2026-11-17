@@ -26,7 +26,7 @@ export const TRANSFORMER_BLOCK: GModule = {
     { kind: "flow", id: "s4-block-pass" },
     {
       kind: "predict",
-      q: `A block's attention and FFN both output all zeros for a token whose vector is [${X0.join(", ")}]. What leaves the block?`,
+      q: `A pre-norm block's attention and FFN both output all zeros for a token whose vector is [${X0.join(", ")}]. What leaves the block?`,
       answer: `[${X0.join(", ")}], unchanged`,
       wrong: [`[${X0.map(() => 0).join(", ")}]`, `Its normalised copy, [${X0.map((v) => r2(v / Math.sqrt(X0.reduce((s, x) => s + x * x, 0) / X0.length))).join(", ")}]`, "Nothing: the token is dropped from the sequence"],
       why: "Each sublayer is added: x + 0 = x. A block can therefore learn to do almost nothing, which is why stacking many blocks is safe, and why gradients reach early layers through the plain additions.",
