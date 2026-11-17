@@ -156,6 +156,8 @@
   .btn:active{transform:scale(.98)}
   .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+  .btn[aria-disabled="true"],.btn[aria-disabled="true"]:hover{background:var(--surface);transform:none;cursor:default}
+  .btn-primary[aria-disabled="true"],.btn-primary[aria-disabled="true"]:hover{background:var(--accent)}
   .btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
   .btn-primary:hover{background:color-mix(in oklab,var(--accent) 88%,var(--ink))}
   .btn-ghost{border-color:transparent;background:transparent;color:var(--muted)}
