@@ -177,11 +177,11 @@ assert abs(train.mean() - a.mean()) < 0.01
       why: "The mean and variance used to normalise come from the whole batch, so changing a neighbour changes them, and with them this example's output. LayerNorm avoids this by using only the example's own features." },
   ],
   real: [
-    { who: "Kaiming He, Xiangyu Zhang, Shaoqing Ren and Jian Sun", when: "2015",
+    { who: "Kaiming He, Xiangyu Zhang, Shaoqing Ren and Jian Sun", when: "February 2015",
       what: "The paper \"Delving Deep into Rectifiers\" derived a weight initialisation designed for rectifier (ReLU-family) units. The abstract says it makes it possible to train very deep rectified networks from scratch.",
       takeaway: "The factor of 2 in He init comes from treating ReLU's effect on variance properly.",
       url: "https://arxiv.org/abs/1502.01852" },
-    { who: "Kaiming He, Xiangyu Zhang, Shaoqing Ren and Jian Sun", when: "2015",
+    { who: "Kaiming He, Xiangyu Zhang, Shaoqing Ren and Jian Sun", when: "December 2015",
       what: "The paper \"Deep Residual Learning for Image Recognition\" had layers learn residual functions of their inputs. The abstract reports networks of 152 layers on ImageNet and analyses 100 and 1000 layer networks on CIFAR-10; an ensemble won first place in the ILSVRC 2015 classification task.",
       takeaway: "Skip connections turned extreme depth from untrainable into routine.",
       url: "https://arxiv.org/abs/1512.03385" },
