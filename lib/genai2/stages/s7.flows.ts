@@ -67,6 +67,7 @@ function agentic(): Flow {
     { from: 1, to: 2, label: "hybrid search", note: "Your code runs the normal retrieval: keyword plus vector, fused and reranked." },
     { from: 2, to: 0, label: "contracts: A, B", note: "Two contract chunks come back: Supplier A and Supplier B serve the Payments team. Nothing about audits yet." },
     { from: 0, to: 1, label: `search("${s2.split(" ")[0]} ...")`, note: `The model sees a gap and searches again with a new query, "${s2}", built from what it just learned.`, tone: "hot" },
+    { from: 1, to: 2, label: "hybrid search", note: "Your code runs the same retrieval again with the new query." },
     { from: 2, to: 0, label: "audit report: A, C", note: "The audit report says Supplier A and Supplier C failed. Joining the two results gives the answer." },
   ];
   const calls = steps.filter((s) => s.from === 0).length + 1;

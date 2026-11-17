@@ -175,7 +175,7 @@ assert (recall2(kw), recall2(vec), recall2(hy)) == (${rKw}, ${rVec}, ${rHy})
   ],
   real: [
     { who: "Gordon V. Cormack, Charles L. A. Clarke and Stefan Büttcher", when: "2009",
-      what: "Their SIGIR paper proposed reciprocal rank fusion: sort documents by the sum of 1 / (k + rank) over the input rankings, with k = 60 fixed after a pilot run. On TREC collections it beat each individual ranking and the standard fusion methods Condorcet and CombMNZ.",
+      what: "Their SIGIR paper proposed reciprocal rank fusion: sort documents by the sum of 1 / (k + rank) over the input rankings, with k = 60 fixed after a pilot run. On TREC collections its MAP beat the best individual run and Condorcet Fuse every time, and CombMNZ in all but one case.",
       takeaway: "A formula with one constant and no training is a strong, safe default for merging search results.",
       url: "https://cormack.uwaterloo.ca/cormacksigir09-rrf.pdf" },
   ],

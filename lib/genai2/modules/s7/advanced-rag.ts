@@ -47,7 +47,7 @@ export const ADVANCED_RAG: GModule = {
     a5["agentic RAG"]:::hot
   end
   R1 --> R2 --> R3 --> R4 --> R5`,
-      caption: "Match the fix to the failure. Read top to bottom: the lower the row, the more each question costs.",
+      caption: "Match the fix to the failure. Read top to bottom: the lower the row, the more the fix costs in model calls.",
     },
     { kind: "play", id: "s7-multi-query" },
     { kind: "text", md: "**HyDE: search with a guess.** Questions and documents are written differently: a question is short and asks, a document is long and states. HyDE has a model write a plausible answer first, then embeds that and searches with it. The guess can be wrong in its details; it only has to read like the documents that hold the real answer." },

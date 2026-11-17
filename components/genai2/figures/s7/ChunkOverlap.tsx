@@ -7,7 +7,7 @@ const starts = chunkStarts(N, SIZE, OVER), stored = storedTokens(N, SIZE, OVER);
 const W = 340, X = 8, SPAN = 324, TOP = 40, ROW = 30;
 const sx = (t: number) => X + (t / N) * SPAN;
 const n0 = (x: number) => x.toLocaleString("en-US");
-// a 50 token passage that straddles the first boundary at SIZE - OVER / 2
+// a 50 token passage that crosses the end of chunk 1 (at SIZE) but starts after chunk 2 begins (at SIZE - OVER)
 const FACT = [SIZE - 40, SIZE + 10] as const;
 
 export function ChunkOverlap() {
