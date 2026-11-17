@@ -31,6 +31,8 @@ export const ACTS: { name: string; f: (z: number) => number; d: (z: number) => n
 export const act = (name: string) => ACTS.find((a) => a.name === name)!;
 
 // The neuron used by the figure, the walk-through and the module text.
+// A sum written with its signs: [[1.2, "1.2"], [-0.4, "0.4"]] gives "1.2 - 0.4". Each text is the term's size, without its sign.
+export const signedSum = (terms: [number, string][]) => terms.map(([v, t], i) => (i === 0 ? (v < 0 ? `-${t}` : t) : `${v < 0 ? "-" : "+"} ${t}`)).join(" ");
 export const NEURON = { x: [2, -1, 0.5], w: [0.6, 0.4, -0.8], b: 0.1, bLow: -1 };
 export const neuronZ = (b: number) => NEURON.x.reduce((s, x, i) => s + x * NEURON.w[i], b);
 
@@ -43,10 +45,10 @@ function neuron(): Flow {
   return { kind: "grid", title: "One neuron, by hand", steps: [
     { note: `A neuron has one weight per input and one bias. Here 3 inputs, weights ${w.join(", ")} and bias ${b}.`, tables: [T(["", "", ""])] },
     { note: `Multiply each input by its weight: ${prod.map(fmt).join(", ")}. A big weight means that input matters a lot.`, tables: [T(prod.map(fmt), { ":3": "hot" })] },
-    { note: `Add them up and add the bias: z = ${prod.map(fmt).join(" + ")} + ${b} = ${fmt(z)}. This is w · x + b, a straight-line function of the inputs.`, tone: "hot",
+    { note: `Add them up and add the bias: z = ${signedSum([...prod, b].map((v): [number, string] => [v, fmt(Math.abs(v))]))} = ${fmt(z)}. This is w · x + b, a straight-line function of the inputs.`, tone: "hot",
       tables: [T(prod.map(fmt)), { label: "pre-activation", rows: [[`z = ${fmt(z)}`]], tones: { "0": "hot" } }] },
     { note: `Pass z through an activation. Each one bends the line differently. The slope column is what the gradient gets multiplied by on the way back.`, tone: "ok", tables: [A(z, { ":1": "ok" })] },
-    { note: `Lower the bias to ${bLow}: z = ${fmt(zl)}. ReLU now outputs 0 and its slope is 0, so this input teaches its weights nothing. Sigmoid, tanh and GELU still pass a little gradient.`, tone: "warn",
+    { note: `Lower the bias to ${bLow}: z = ${fmt(zl)}. ReLU now outputs 0 and its slope is 0, so this input teaches its weights nothing. Sigmoid, tanh and GELU still pass gradient: slopes ${["sigmoid", "tanh", "GELU"].map((n) => fmt(act(n).d(zl))).join(", ")}.`, tone: "warn",
       tables: [A(zl, { "0": "bad" })] },
   ] };
 }
@@ -135,7 +137,7 @@ function adamFlow(): Flow {
   return { kind: "grid", title: "Adam against SGD, step by step", steps: [
     { note: `Weight A sees gradients near ${gA[0]}, weight B near ${gB[0]}: ${ratio} times smaller. SGD with lr ${lr} moves each by lr × gradient, so B barely moves.`, tone: "warn",
       tables: [{ head: ["weight", "gradient", "SGD step"], rows: [["A", gA[0], fmt(lr * gA[0])], ["B", gB[0], fmt(lr * gB[0])]], tones: { "1:2": "bad" } }] },
-    { note: `Adam keeps m, an average of gradients, and v, an average of squared gradients. Step = lr × m̂ / √v̂. At t = 1, m̂ = g and √v̂ = |g|, so both weights move exactly lr.`, tone: "ok",
+    { note: `Adam keeps m, an average of gradients, and v, an average of squared gradients. Step = lr × m̂ / √v̂. At t = 1, m̂ = g and √v̂ = |g|, so both weights move lr (ε aside).`, tone: "ok",
       tables: [{ head: ["g", "m̂", "√v̂", "step"], rowHead: ["A", "B"], rows: [A[0], B[0]].map((x) => [fmt(x.g), fmt(x.mh), fmt(x.sv), fmt(x.step)]), tones: { ":3": "ok" } }] },
     { note: `Why the hats? m and v start at 0, so early averages are too small. Uncorrected at t = 1: m = ${fmt(raw.mh)}, √v = ${fmt(raw.sv)}, a step of ${fmt(raw.step)}, ${fmt(raw.step / lr)} times lr. Dividing by (1 - β^t) fixes it.`, tone: "warn",
       tables: [{ head: ["version", "m", "√v", "step"], rows: [["no hats", fmt(raw.mh), fmt(raw.sv), fmt(raw.step)], ["with hats", fmt(A[0].mh), fmt(A[0].sv), fmt(A[0].step)]], tones: { "0:3": "bad", "1:3": "ok" } }] },

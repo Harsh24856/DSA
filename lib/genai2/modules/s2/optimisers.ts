@@ -43,7 +43,7 @@ export const OPTIMISERS: GModule = {
       rows: [
         ["SGD", "w -= lr × g", "0", "Simple; generalises well when tuned", "One lr for every weight; slow in ravines"],
         ["Momentum", "v = β v + g; w -= lr × v", "1 (velocity)", "Speeds along steady slopes, smooths noise", "Can overshoot and swing"],
-        ["Adam", "w -= lr × m̂ / (√v̂ + ε)", "2 (m and v)", "Per-weight step size, little tuning", "Weight decay via L2 is weakened"],
+        ["Adam", "w -= lr × m̂ / (√v̂ + ε)", "2 (m and v)", "Per-weight step size, little tuning", "L2 decay is distorted: rescaled by the adaptive step, so weights with small gradients get stronger decay and weights with large ones weaker"],
         ["AdamW", "Adam step, then w -= lr × λ × w", "2 (m and v)", "Decay that does what λ says", "Same memory as Adam"],
       ],
     },
@@ -59,6 +59,8 @@ def adam(w, g, m, v, t, lr=0.01, b1=0.9, b2=0.999, eps=1e-8):
     return w - lr * m_hat / (np.sqrt(v_hat) + eps), m, v
 
 # a weight the loss no longer cares about (loss gradient 0): only decay acts on it
+# Adam+L2 distorts the decay: lam * w is the whole gradient here, and Adam rescales it by its adaptive
+# step, m_hat / sqrt(v_hat), to about lr per step whatever lam is, so the decay no longer follows lam
 lr, steps, out = 0.01, 50, {}
 for lam in (0.001, 0.1):
     w1, m, v = 1.0, 0.0, 0.0
@@ -81,7 +83,7 @@ assert out[0.1][1] < out[0.001][1] - 0.03
     "SGD steps against the gradient with one learning rate for every weight; momentum steps along a running sum of past gradients.",
     "Adam divides each weight's averaged gradient by the root of its averaged squared gradient, so every weight moves about lr per step whatever its gradient's scale.",
     "Bias correction divides m and v by (1 - β^t) because both start at zero.",
-    "AdamW subtracts weight decay from the weights directly; L2 added to the gradient gets rescaled away by Adam.",
+    "AdamW subtracts weight decay from the weights directly; L2 added to the gradient is rescaled by Adam's adaptive step, which distorts the decay.",
     "Transformers usually train with AdamW, a short linear warmup, cosine decay and gradient clipping by norm.",
   ],
   questions: [
@@ -108,7 +110,7 @@ assert out[0.1][1] < out[0.001][1] - 0.03
       q: "What does the W in AdamW change?",
       answer: "Weight decay is applied to the weights directly, separate from the gradient step",
       wrong: ["It adds a warmup to the learning rate", "It uses each weight's size to set β2", "It removes the second moment v"],
-      why: "In Adam with L2, λw is added to the gradient and then divided by √v, so the decay is weakened or distorted per weight. AdamW keeps the Adam step as it is and then shrinks the weights by lr × λ × w." },
+      why: "In Adam with L2, λw is added to the gradient and then divided by √v, so the decay is distorted per weight: Adam rescales it by its adaptive step. AdamW keeps the Adam step as it is and then shrinks the weights by lr × λ × w." },
     { id: "warmup-why", level: "easy", kind: "concept",
       q: "Why start training with a learning-rate warmup?",
       answer: "Early weights are random and Adam's averages hold only a few noisy gradients, so small first steps avoid a blow-up",

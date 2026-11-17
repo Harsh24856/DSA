@@ -33,7 +33,7 @@ function mlpParams(v: Record<string, number>): Flow {
   const L = sizes.slice(1).map((b, i) => ({ label: `${sizes[i]}→${b}`, w: sizes[i] * b, b }));
   const W = L.reduce((s, l) => s + l.w, 0), B = L.reduce((s, l) => s + l.b, 0), big = L.reduce((m, l) => (l.w > m.w ? l : m));
   return { kind: "bars", title: `MLP ${sizes.join("-")}`, format: n0, steps: [
-    { note: `Each Linear layer from a to b inputs holds a × b weights. The biggest is ${big.label}: ${n0(big.w)} weights, ${Math.round((100 * big.w) / W)}% of all ${n0(W)}.`,
+    { note: `A Linear layer from a inputs to b outputs holds a × b weights. The biggest is ${big.label}: ${n0(big.w)} weights, ${Math.round((100 * big.w) / W)}% of all ${n0(W)}.`,
       bars: L.map((l) => ({ label: l.label, value: l.w, tone: l === big ? "hot" as const : undefined })) },
     { note: `Add one bias per output unit: ${n0(B)} biases in all, ${((100 * B) / (W + B)).toFixed(1)}% of the total. The network has ${n0(W + B)} parameters, ${((4 * (W + B)) / 1e6).toFixed(2)} MB at 4 bytes each.`, tone: "ok",
       bars: L.map((l) => ({ label: l.label, value: l.w + l.b, tone: l === big ? "hot" as const : undefined })) },
@@ -48,7 +48,7 @@ function gradCheck(v: Record<string, number>): Flow {
   const rel = (n: number) => Math.abs(n - g) / Math.abs(g);
   const sig = (n: number) => n.toPrecision(7), err = (n: number) => rel(n).toExponential(1);
   const tone = (n: number) => (rel(n) < 1e-6 ? "ok" as const : rel(n) > 1e-3 ? "bad" as const : "warn" as const);
-  const why = k <= 3 ? "h is large, so the curve bends inside the step (truncation error). The central difference cancels the first bend and does far better."
+  const why = k <= 3 ? "h is large, so the curve bends inside the step (truncation error). The central difference cancels the curvature term, so its error shrinks like h² instead of h."
     : k >= 10 ? "h is tiny, so L(w + h) and L(w) agree in almost every digit and the subtraction keeps only rounding noise." : "This middle range is where gradient checks are done.";
   const head = ["method", "gradient", "rel. error"];
   return { kind: "grid", title: `Gradient check at w = ${w}, h = 1e-${k}`, steps: [

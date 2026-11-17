@@ -1,6 +1,6 @@
 // One neuron with real numbers: three inputs times their weights, summed with a bias into z, then bent by ReLU.
 import { useId } from "react";
-import { act, fmt, NEURON, neuronZ } from "@/lib/genai2/stages/s2.flows";
+import { act, fmt, NEURON, neuronZ, signedSum } from "@/lib/genai2/stages/s2.flows";
 
 const { x, w, b } = NEURON, z = neuronZ(b), y = act("ReLU").f(z);
 const IN_X = 34, SUM_X = 176, SUM_Y = 96, ACT_X = 236, OUT_X = 322;
@@ -39,7 +39,7 @@ export function Neuron() {
       <circle cx={OUT_X} cy={SUM_Y} r={16} fill="var(--surface-2)" stroke="var(--line-strong)" />
       <text x={OUT_X} y={SUM_Y + 5} textAnchor="middle" fontSize={13} fill="var(--ink)">{fmt(y)}</text>
       <text x={OUT_X - 6} y={SUM_Y + 38} textAnchor="middle" fontSize={12} fill="var(--muted)">output</text>
-      <text x={8} y={206} fontSize={13} fill="var(--ink)">{`z = ${x.map((v, i) => `${v}×${w[i]}`).join(" + ")} + ${b} = ${fmt(z)}`}</text>
+      <text x={8} y={206} fontSize={13} fill="var(--ink)">{`z = ${signedSum([...x.map((v, i): [number, string] => [v * w[i], `${Math.abs(v)}×${Math.abs(w[i])}`]), [b, `${Math.abs(b)}`]])} = ${fmt(z)}`}</text>
       <text x={8} y={226} fontSize={13} fill="var(--ink)">{`output = ReLU(${fmt(z)}) = ${fmt(y)}`}</text>
     </svg>
   );

@@ -28,9 +28,9 @@ export const DEEP_NETS_TRAIN: GModule = {
     { kind: "figure", id: "s2-init", caption: `Each ReLU layer scales the signal by √(n × Var(w) / 2). Only Var(w) = 2/n, He init, keeps that factor at 1 through all ${DEPTH} layers.` },
     {
       kind: "predict",
-      q: `A ReLU network uses Var(w) = 1/n, forgetting He's factor of 2. After ${DEPTH} layers, what is the activations' variance compared with the input's?`,
+      q: `A ReLU network uses Var(w) = 1/n, forgetting He's factor of 2. After ${DEPTH} layers, what is the activations' mean square compared with the input's?`,
       answer: `About ${sci(shrink)} of it`, wrong: ["About the same", "About half of it", `About ${n0(2 ** DEPTH)} times larger`],
-      why: `ReLU zeroes about half its inputs, so each layer multiplies the variance by n × (1/n) / 2 = 1/2. Over ${DEPTH} layers that is (1/2)^${DEPTH} = ${sci(shrink)}: the signal is gone. He init uses 2/n to make the factor exactly 1.`,
+      why: `ReLU zeroes about half its inputs, so each layer multiplies the mean square by n × (1/n) / 2 = 1/2. Over ${DEPTH} layers that is (1/2)^${DEPTH} = ${sci(shrink)}: the signal is gone. He init uses 2/n to make the factor exactly 1.`,
     },
     { kind: "figure", id: "s2-norms", caption: "Normalisation rescales numbers to mean 0 and spread 1, then lets the model learn a scale (and shift). The difference is which numbers are averaged." },
     {
@@ -52,7 +52,7 @@ export const DEEP_NETS_TRAIN: GModule = {
   F --> ADD(("+")):::hot
   X -->|"skip path"| ADD
   ADD --> Y["x + F(norm(x))"]:::ok`,
-      caption: "A pre-norm residual block. The skip path carries x, and its gradient, straight through: the derivative of x + F(x) is 1 + F'(x), so it never multiplies down to zero.",
+      caption: "A pre-norm residual block. The skip path carries x, and its gradient, straight through: the derivative of x + F(x) is 1 + F'(x), so the gradient keeps a direct path and rarely multiplies down to zero.",
     },
     { kind: "play", id: "s2-dropout" },
     {
@@ -132,7 +132,7 @@ assert abs(train.mean() - a.mean()) < 0.01
       q: "For a residual block y = x + F(x), what is dy/dx?",
       answer: "1 + dF/dx",
       wrong: ["dF/dx", "1 - dF/dx", "2"],
-      why: "The derivative of x is 1, and the sum rule adds F's part. Even when dF/dx is tiny, the gradient keeps the 1 and passes straight through, so stacking blocks does not multiply it toward zero." },
+      why: "The derivative of x is 1, and the sum rule adds F's part. Even when dF/dx is tiny, the gradient keeps the 1 and passes straight through, so stacking blocks does not force it toward zero." },
     { id: "pre-norm", level: "hard", kind: "concept",
       q: "In a pre-norm transformer block, where does the normalisation sit?",
       answer: "Inside the branch, before the layer: y = x + F(norm(x)), leaving the skip path untouched",
