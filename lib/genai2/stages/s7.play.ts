@@ -43,7 +43,29 @@ function rrfPlay(v: Record<string, number>): Flow {
   ] };
 }
 
+// advanced-rag: multi-query, the chance at least one rewrite finds the chunk if misses were independent (a ceiling)
+const MAXQ = 8;
+export const anyHit = (p: number, n: number) => 1 - (1 - p) ** n;
+function multiQuery(v: Record<string, number>): Flow {
+  const p = v.p / 100, n = v.n, pct = (x: number) => (x ? `${Math.round(x * 100)}%` : "");
+  const bars = (upto: number) => Array.from({ length: MAXQ }, (_, i) => ({ label: `${i + 1} quer${i ? "ies" : "y"}`, value: i < upto ? anyHit(p, i + 1) : 0, tone: i + 1 === upto ? "hot" as const : undefined }));
+  const gain = anyHit(p, n) - p;
+  return { kind: "bars", title: `Each phrasing finds the chunk ${v.p}% of the time`, max: 1, format: pct, steps: [
+    { note: `One phrasing of the question finds the right chunk in its top k ${v.p}% of the time.`, bars: bars(1) },
+    { note: n === 1 ? "With one query there is nothing to merge. Add rewrites to see the effect." : `${n} phrasings: at best, at least one of them finds it ${pct(anyHit(p, n))} of the time, ${Math.round(gain * 100)} points more. Their lists are then merged with RRF. Each new phrasing adds less than the one before.`, tone: n > 1 ? "ok" : "warn", bars: bars(n) },
+    { note: `That best case assumes each phrasing misses independently. Rewrites of one question tend to miss together, so the real gain is smaller. The cost is certain: ${n} searches and one extra model call to write them.`, tone: "warn", bars: bars(n) },
+  ] };
+}
+
 export const PLAY_7: Record<string, PlayFlow> = {
+  "s7-multi-query": {
+    title: "Multi-query: how much do more phrasings help?",
+    knobs: [
+      { key: "p", label: "One phrasing finds it (%)", min: 10, max: 90, step: 5, value: 60 },
+      { key: "n", label: "Phrasings", min: 1, max: MAXQ, step: 1, value: 3 },
+    ],
+    make: multiQuery,
+  },
   "s7-rrf": {
     title: "Reciprocal rank fusion: one first place or two good ranks?",
     knobs: [

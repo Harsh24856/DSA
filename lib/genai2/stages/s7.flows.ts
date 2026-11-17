@@ -1,5 +1,5 @@
 // Stage 7 (RAG) animated walk-throughs. Every number is computed here or in s7.calc.ts.
-import type { Flow, FlowTone, GridTable } from "../../other/flows.ts";
+import type { Flow, FlowTone, GridTable, LaneStep } from "../../other/flows.ts";
 import { B, bm25, chunkStarts, cosine, DOC_TOKENS, DOCS, dot, idf, K1, norm, storedTokens, tok } from "./s7.calc.ts";
 
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
@@ -57,7 +57,26 @@ function bm25Flow(): Flow {
   ] };
 }
 
+// advanced-rag: retrieval as a tool the model calls until it has enough (lanes: model, your code, search)
+export const AGENT_SEARCHES = ["Payments team suppliers", "2025 audit failures"];
+function agentic(): Flow {
+  const [s1, s2] = AGENT_SEARCHES;
+  const steps: LaneStep[] = [
+    { from: 1, to: 0, label: "question + search tool", note: "Your code sends the question and describes one tool: search(query) over the document index. The model decides whether and how to use it." },
+    { from: 0, to: 1, label: `search("${s1.split(" ")[0]} ...")`, note: `The model splits the question. First it asks for "${s1}".`, tone: "hot" },
+    { from: 1, to: 2, label: "hybrid search", note: "Your code runs the normal retrieval: keyword plus vector, fused and reranked." },
+    { from: 2, to: 0, label: "contracts: A, B", note: "Two contract chunks come back: Supplier A and Supplier B serve the Payments team. Nothing about audits yet." },
+    { from: 0, to: 1, label: `search("${s2.split(" ")[0]} ...")`, note: `The model sees a gap and searches again with a new query, "${s2}", built from what it just learned.`, tone: "hot" },
+    { from: 2, to: 0, label: "audit report: A, C", note: "The audit report says Supplier A and Supplier C failed. Joining the two results gives the answer." },
+  ];
+  const calls = steps.filter((s) => s.from === 0).length + 1;
+  return { kind: "lanes", title: "Agentic RAG: search, read, search again", lanes: ["Model", "Your code", "Search"], steps: [...steps,
+    { from: 0, to: 1, label: "answer: Supplier A", note: `It answers with both sources cited. That took ${calls} model calls and ${AGENT_SEARCHES.length} searches, against 1 and 1 for plain RAG: more cost and latency, bought for a question one search could not answer.`, tone: "ok" },
+  ] };
+}
+
 export const FLOWS_7: Record<string, Flow> = {
+  "s7-agentic": agentic(),
   "s7-bm25": bm25Flow(),
   "s7-ingest": ingest(),
   "s7-cosine": cosineFlow(),
