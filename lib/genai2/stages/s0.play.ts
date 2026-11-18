@@ -1,7 +1,7 @@
 // Stage 0 (Python for AI): slider walk-throughs, placed in modules by a `play` block. Spread by stages/play.ts into PLAY_FLOWS.
-import type { Flow } from "../../other/flows.ts";
+import type { Flow, FlowTone } from "../../other/flows.ts";
 import type { PlayFlow } from "../../other/flows-play-types.ts";
-import { broadcastAxes, broadcastShape, fmt, reduceShape, shapeStr } from "./s0.calc.ts";
+import { broadcastAxes, broadcastShape, cell, fmt, groupBy, LOG, nanMean, reduceShape, shapeStr, sorted } from "./s0.calc.ts";
 
 // Arrays and broadcasting: reduce one axis of a (B, T, D) array, then subtract the result back from x.
 // The subtraction is really carried out, element by element, and compared with the intended answer.
@@ -54,7 +54,30 @@ function reduceBack(v: Record<string, number>): Flow {
   return { kind: "grid", title: `Reduce axis ${axis}, subtract back`, steps };
 }
 
+// Data with pandas: a latency filter before a groupby. A gap never passes a comparison, and a group with no rows left disappears.
+function latencyFilter(v: Record<string, number>): Flow {
+  const { cut, failed } = v, withFailed = failed === 1;
+  const pool = withFailed ? LOG : LOG.filter((r) => r.ok);
+  const kept = pool.filter((r) => r.ms !== null && r.ms <= cut), gaps = pool.filter((r) => r.ms === null).length;
+  const mask = withFailed ? `df["ms"] <= ${cut}` : `(df["ms"] <= ${cut}) & df["ok"]`;
+  const all = sorted(groupBy(pool, (r) => r.model)), g = new Map(sorted(groupBy(kept, (r) => r.model)));
+  const gone = all.filter(([m]) => !g.has(m)).map(([m]) => m);
+  return { kind: "grid", title: `Calls at or under ${cut} ms`, steps: [
+    { note: `The mask ${mask} keeps ${kept.length} of ${LOG.length} rows.${gaps ? ` The row with no latency is dropped too: comparing a gap with <= gives False.` : ""}`, tone: "hot",
+      tables: [{ head: ["id", "model", "ms", "kept"], rows: LOG.map((r) => [r.id, r.model, cell(r.ms), kept.includes(r) ? "True" : "False"]),
+        tones: Object.fromEntries(LOG.flatMap((r, i): [string, FlowTone][] => (kept.includes(r) ? [[`${i}:3`, "ok"]] : r.ms === null && pool.includes(r) ? [[`${i}:2`, "warn"]] : []))) }] },
+    { note: gone.length ? `groupby("model") only sees the rows that survived. ${gone.join(" and ")} ${gone.length > 1 ? "have" : "has"} none left, so ${gone.length > 1 ? "they are" : "it is"} missing from the result, not shown as 0.`
+      : `groupby("model") only sees the rows that survived. Every model still has at least one, so each keeps its row.`, tone: gone.length ? "warn" : "ok",
+      tables: [{ head: ["model", "calls", "mean ms"], rows: [...g.entries()].map(([m, rs]) => [m, rs.length, fmt(nanMean(rs.map((r) => r.ms))!)]) },
+        ...(gone.length ? [{ label: "not in the result", rows: gone.map((m) => [m]), tones: { ":0": "warn" as const } }] : [])] },
+  ] };
+}
+
 export const PLAY_0: Record<string, PlayFlow> = {
+  "s0-filter": { title: "Filter, then group", make: latencyFilter, knobs: [
+    { key: "cut", label: "latency cut-off", min: 100, max: 2000, step: 50, value: 500, unit: "ms" },
+    { key: "failed", label: "keep failed calls (0 = no, 1 = yes)", min: 0, max: 1, value: 0 },
+  ] },
   "s0-reduce": { title: "Reduce an axis, then broadcast back", make: reduceBack, knobs: [
     { key: "B", label: "batch B", min: 1, max: 4, value: 2 },
     { key: "T", label: "tokens T", min: 1, max: 4, value: 3 },

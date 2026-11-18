@@ -54,21 +54,23 @@ export const M23 = [[1, 2, 3], [4, 5, 6]];
 export const COL = [[0], [10], [20]], ROW = [[1, 2, 3, 4]];
 
 // ---------- pandas ----------
-export type Req = { id: number; model: string; user: string; tok: number; ms: number | null; ok: boolean };
+export type Req = { id: number; model: string; tok: number; ms: number | null; ok: boolean };
 /** A small request log: one row per call to a model. ms is null where the latency was not recorded (NaN in pandas). */
 export const LOG: Req[] = [
-  { id: 1, model: "small", user: "ana", tok: 120, ms: 210, ok: true },
-  { id: 2, model: "large", user: "ben", tok: 480, ms: 1350, ok: true },
-  { id: 3, model: "small", user: "ben", tok: 90, ms: null, ok: true },
-  { id: 4, model: "large", user: "ana", tok: 610, ms: 1720, ok: false },
-  { id: 5, model: "small", user: "cy", tok: 150, ms: 260, ok: false },
-  { id: 6, model: "tiny", user: "cy", tok: 40, ms: 95, ok: true },
-  { id: 7, model: "large", user: "ana", tok: 520, ms: 1480, ok: true },
-  { id: 8, model: "small", user: "ana", tok: 110, ms: 230, ok: true },
+  { id: 1, model: "small", tok: 120, ms: 210, ok: true },
+  { id: 2, model: "large", tok: 480, ms: 1350, ok: true },
+  { id: 3, model: "small", tok: 90, ms: null, ok: true },
+  { id: 4, model: "large", tok: 610, ms: 1720, ok: false },
+  { id: 5, model: "small", tok: 150, ms: 260, ok: false },
+  { id: 6, model: "tiny", tok: 40, ms: 95, ok: true },
+  { id: 7, model: "large", tok: 520, ms: 1480, ok: true },
+  { id: 8, model: "small", tok: 110, ms: 230, ok: true },
 ];
 /** Price list in credits per 1,000 tokens. "tiny" is missing on purpose, so a left merge leaves a gap. */
 export const PRICES: { model: string; per1k: number }[] = [{ model: "small", per1k: 0.5 }, { model: "large", per1k: 3 }];
 
+/** A missing value as Python prints a float nan (flows avoid the capitalised form, which their checks treat as a broken number). */
+export const cell = (x: number | null, f: (v: number) => string = String) => (x === null ? "nan" : f(x));
 /** pandas mean: missing values are skipped; no values left gives NaN, returned here as null. */
 export const nanMean = (xs: (number | null)[]) => { const v = xs.filter((x): x is number => x !== null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
 /** Groups in order of first appearance (groupby(sort=False)); sort the keys yourself for pandas' default order. */
