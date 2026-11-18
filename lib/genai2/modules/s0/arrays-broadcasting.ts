@@ -21,7 +21,6 @@ const [VOCAB, WIDTH] = [50_000, 768], mbOf = (bytes: number) => fmt((VOCAB * WID
 // numeric: a vector store
 const [NV, DV] = [1_000_000, 384], gbOf = (bytes: number) => `${fmt((NV * DV * bytes) / 1e9)} GB`;
 // output questions
-const ADD = must(broadcastShape([2, 3], [3])), OUTER = must(broadcastShape([4, 1], [5]));
 const AR = [[0, 1, 2], [3, 4, 5]], AR0 = AR[0].map((_, j) => AR[0][j] + AR[1][j]);
 const INTS = [1, 2, 3], NEWV = 2.7, AFTER = [Math.trunc(NEWV), ...INTS.slice(1)];
 // concept: (3,) plus (3, 1)
@@ -121,21 +120,11 @@ assert big.strides[0] == 0    # step 0 bytes to reach the next row: the same row
       answer: "x[0, 0] becomes 99 too, because the slice is a view",
       wrong: ["Nothing: slicing makes a copy", "A ValueError, because views are read only", "x gets a new third column"],
       why: "Basic slicing returns a view over the same memory with a new shape. That is fast, but an edit through the view changes the original. Call .copy() when you need separate data." },
-    { id: "add-shape", level: "easy", kind: "output",
-      q: "What does this print?",
-      code: "import numpy as np\nprint((np.ones((2, 3)) + np.arange(3)).shape)",
-      answer: shapeStr(ADD), wrong: [shapeStr([3]), shapeStr([2]), shapeStr([3, 2])],
-      why: "np.arange(3) has shape (3,), which lines up with the last axis of (2, 3) and is reused for both rows." },
     { id: "axis0-sum", level: "medium", kind: "output",
       q: "What does this print?",
       code: "import numpy as np\nx = np.arange(6).reshape(2, 3)\nprint(x.sum(axis=0).tolist())",
       answer: pyList(AR0), wrong: [pyList(AR.map((r) => r.reduce((a, b) => a + b, 0))), pyList([AR.flat().reduce((a, b) => a + b, 0)]), pyList(AR[1])],
       why: `x is ${AR.map((r) => pyList(r)).join(" over ")}. axis=0 collapses the rows, so each column is summed: ${AR0.join(", ")}. Summing each row instead (axis=1) would give ${AR.map((r) => r.reduce((a, b) => a + b, 0)).join(", ")}.` },
-    { id: "outer-shape", level: "medium", kind: "output",
-      q: "What does this print?",
-      code: "import numpy as np\nprint((np.zeros((4, 1)) + np.zeros(5)).shape)",
-      answer: shapeStr(OUTER), wrong: [shapeStr([4, 1]), shapeStr([5]), shapeStr([4])],
-      why: "(5,) counts as (1, 5). The 4 meets a 1 and the 1 meets a 5, so both stretch: one row per entry of the first array, one column per entry of the second." },
     { id: "int-assign", level: "hard", kind: "output",
       q: "What does this print?",
       code: `import numpy as np\nx = np.array([${INTS.join(", ")}])\nx[0] = ${NEWV}\nprint(x.tolist())`,

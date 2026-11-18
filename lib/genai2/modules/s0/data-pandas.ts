@@ -1,6 +1,6 @@
 // Stage 0: pandas for the tables around model work: request logs, eval results, price lists. Every number below is computed here.
 import type { GModule } from "../../types.ts";
-import { fmt, groupBy, LOG, mergeRows, nanMean, pyDict, sorted } from "../../stages/s0.calc.ts";
+import { groupBy, LOG, mergeRows, nanMean, pyDict, sorted } from "../../stages/s0.calc.ts";
 
 // predict: the mean of one model's latencies, one of them missing
 const SMALL = LOG.filter((r) => r.model === "small").map((r) => r.ms), smallMean = nanMean(SMALL)!;
@@ -12,7 +12,7 @@ const COUNTS = sorted(groupBy(LOG, (r) => r.model)).map(([m, rs]): [string, numb
 const BY_TOK = [...LOG].sort((a, b) => b.tok - a.tok).map((r) => r.id);
 if (new Set(LOG.map((r) => r.tok)).size !== LOG.length) throw new Error("token counts must differ so the sort order is fixed");
 // output questions
-const XS = [3, 1, 4, 1, 5], XCUT = 1, S3 = [100, null, 300];
+const XS = [3, 1, 4, 1, 5], XCUT = 1;
 const GM = ["a", "b", "a", "b"], GT = [1, 2, 3, 4], GSUM = sorted(groupBy(GM.map((m, i) => ({ m, t: GT[i] })), (r) => r.m)).map(([m, rs]): [string, number] => [m, rs.reduce((s, r) => s + r.t, 0)]);
 // numeric: a merge with repeated keys
 const [LK, RK] = [["a", "b", "b", "c"], ["a", "b", "b", "d"]];
@@ -47,7 +47,7 @@ import pandas as pd
 csv = """${CSV}
 """
 df = pd.read_csv(io.StringIO(csv))
-print(df.dtypes.to_dict())       # ms is object: one "-" turned the column into text
+print(df.dtypes.to_dict())       # ms is text (object, or str in pandas 3): one "-" did that
 
 df["ms"] = pd.to_numeric(df["ms"], errors="coerce")   # text that is not a number becomes NaN
 print(df["ms"].dtype, "gaps:", int(df["ms"].isna().sum()))
@@ -110,11 +110,6 @@ assert df.sort_values("tok", ascending=False)["id"].tolist() == [${BY_TOK.join("
       code: `import pandas as pd\ndf = pd.DataFrame({"x": [${XS.join(", ")}]})\nprint(len(df[df["x"] > ${XCUT}]))`,
       answer: String(XS.filter((x) => x > XCUT).length), wrong: [String(XS.length), String(XS.filter((x) => x <= XCUT).length), String(XS.filter((x) => x > XCUT).reduce((a, b) => a + b, 0))],
       why: `The mask is True for ${XS.filter((x) => x > XCUT).join(", ")}, so ${XS.filter((x) => x > XCUT).length} rows survive. len counts rows.` },
-    { id: "series-mean", level: "medium", kind: "output",
-      q: "What does this print?",
-      code: `import pandas as pd\nprint(pd.Series(${py(S3)}).mean())`,
-      answer: `${nanMean(S3)}.0`, wrong: [`${fmt(S3.reduce<number>((a, b) => a + (b ?? 0), 0) / S3.length)}`, "nan", `${S3.reduce<number>((a, b) => a + (b ?? 0), 0)}.0`],
-      why: `None becomes NaN in a float Series, and mean skips it: (${S3.filter((x) => x !== null).join(" + ")}) / ${S3.filter((x) => x !== null).length} = ${nanMean(S3)}. Pass skipna=False to get NaN instead.` },
     { id: "group-sum", level: "medium", kind: "output",
       q: "What does this print?",
       code: `import pandas as pd\ndf = pd.DataFrame({"m": ${py(GM)}, "t": [${GT.join(", ")}]})\nprint(df.groupby("m")["t"].sum().to_dict())`,
@@ -147,7 +142,7 @@ assert df.sort_values("tok", ascending=False)["id"].tolist() == [${BY_TOK.join("
     { id: "trap-coerce", level: "hard", kind: "trap",
       claim: "pd.read_csv turns any text it cannot read as a number into NaN.",
       truth: false,
-      why: "Only a fixed list of markers, such as an empty field, NA or n/a, becomes NaN. Any other text, like \"-\", makes the whole column text (dtype object). pd.to_numeric(col, errors=\"coerce\") fixes it, as the code above shows." },
+      why: "Only a fixed list of markers, such as an empty field, NA or n/a, becomes NaN. Any other text, like \"-\", makes the whole column text (dtype object, or str from pandas 3). pd.to_numeric(col, errors=\"coerce\") fixes it, as the code above shows." },
   ],
   real: [
     { who: "Wes McKinney", when: "2010",
