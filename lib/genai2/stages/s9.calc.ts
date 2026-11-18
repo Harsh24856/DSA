@@ -1,4 +1,5 @@
 // Stage 9 (Production): the small calculations shared by the flows, the walk-throughs, the figures and the module text. Client-safe: no module text here.
+import { seededRng } from "../rng.ts";
 
 export const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
 export const r1 = (x: number) => x.toFixed(1);
@@ -78,6 +79,16 @@ export function quantise(xs: number[], bits: number, group = xs.length) {
   }
   return out;
 }
+// A fixed sample of 1,024 weights: roughly normal (sum of uniforms), small, with a few large outliers, as real layers have.
+export const WEIGHTS = (() => {
+  const r = seededRng("s9-weights");
+  return Array.from({ length: 1024 }, (_, i) => (i % 509 === 7 ? 12 : 1) * 0.02 * (r() + r() + r() + r() - 2));
+})();
+// Root mean square error after quantising, relative to the weights' own root mean square.
+export const relErr = (xs: number[], bits: number, group: number) => {
+  const q = quantise(xs, bits, group), rms = (a: number[]) => Math.sqrt(a.reduce((s, v) => s + v * v, 0) / a.length);
+  return rms(xs.map((x, i) => x - q[i].back)) / rms(xs);
+};
 // Effective bits per weight when every group of `group` weights also stores one 16-bit scale.
 export const effBits = (bits: number, group: number) => bits + 16 / group;
 export const quantGB = (paramsB: number, bits: number, group = Infinity) => (paramsB * effBits(bits, group)) / 8;

@@ -1,7 +1,7 @@
 // Stage 9 (Production) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s9.calc.ts.
 import type { Flow } from "../../other/flows.ts";
 import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
-import { continuous, decodeStep, GPU, kvGB, mean, MODEL, n0, pct, staticSpans, weightsGB } from "./s9.calc.ts";
+import { continuous, decodeCeiling, decodeStep, effBits, GPU, kvGB, mean, MODEL, n0, pct, quantGB, relErr, staticSpans, weightsGB, WEIGHTS } from "./s9.calc.ts";
 
 const ms = (s: number) => `${(s * 1000).toFixed(s < 0.001 ? 2 : 1)} ms`;
 
@@ -42,7 +42,30 @@ function batching(v: Record<string, number>): Flow {
   ] };
 }
 
+// quantisation: bits and group size against memory, the decode speed limit and rounding error
+function quantPlay(v: Record<string, number>): Flow {
+  const { params, bits, group } = v, gb = quantGB(params, bits, group), base = quantGB(params, 16);
+  if (gb > GPU.mem * 8) throw new PlayError(`${gb.toFixed(0)} GB of weights would need more than 8 GPUs of ${GPU.mem} GB. Pick fewer parameters or fewer bits.`);
+  const err = relErr(WEIGHTS, bits, group), errT = relErr(WEIGHTS, bits, WEIGHTS.length), gpus = Math.ceil(gb / (GPU.mem * 0.9));
+  const f = (x: number) => `${x.toFixed(x < 10 ? 1 : 0)} GB`;
+  const bars = (b: number) => [{ label: "16-bit", value: base, tone: "warn" as const }, { label: `${bits}-bit`, value: b, tone: "ok" as const }];
+  return { kind: "bars", title: `${params}B parameters, ${bits}-bit, groups of ${group}`, format: f, steps: [
+    { note: `In 16-bit the weights take ${params} × 2 = ${f(base)}. Each decode step reads all of them.`, tone: "warn", bars: bars(base) },
+    { note: `${bits} bits a weight plus one 16-bit scale per ${group} weights is ${effBits(bits, group).toFixed(3)} bits: ${f(gb)}, ${(base / gb).toFixed(1)} times smaller. That needs ${gpus} GPU${gpus > 1 ? "s" : ""} of ${GPU.mem} GB, and raises the decode limit from ${n0(decodeCeiling(base))} to ${n0(decodeCeiling(gb))} tokens a second.`, tone: "ok", bars: bars(gb) },
+    { note: `The price is rounding error. On a sample layer with a few outliers, the error is ${pct(err, 1)} of the weights' size with groups of ${group}, and ${pct(errT, 1)} with one scale for the whole layer. ${bits <= 3 ? "Below 4 bits errors grow fast; such models need careful methods and evals." : "Smaller groups keep each outlier's damage local."}`, tone: bits <= 3 ? "bad" : "hot", bars: bars(gb) },
+  ] };
+}
+
 export const PLAY_9: Record<string, PlayFlow> = {
+  "s9-quant": {
+    title: "Bits against size, speed and error",
+    knobs: [
+      { key: "params", label: "Parameters (billions)", min: 1, max: 120, step: 1, value: 70 },
+      { key: "bits", label: "Bits per weight", min: 2, max: 8, step: 1, value: 4 },
+      { key: "group", label: "Weights per scale (group)", min: 32, max: 512, step: 32, value: 128 },
+    ],
+    make: quantPlay,
+  },
   "s9-batching": {
     title: "Static against continuous batching",
     knobs: [
