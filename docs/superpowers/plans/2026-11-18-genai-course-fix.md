@@ -59,7 +59,7 @@ The 2026-11-18 audit found 106 issues: 31 prerequisite gaps, 30 repeats, 10 fill
 - [x] V1: stage 1 visualizers, plus `decision-trees` and `classic-models`: 7bc21d7 to the "Text as numbers" commit (six commits). Adds the `scene` flow kind (`components/other/FlowShapes.tsx`, typed in `lib/other/flows.ts`) for trees, scatter plots, regions and curves; shapes keep their id between steps and glide.
 - [x] V2: stage 2 visualizers, plus `cnn` (network forward and backward scenes, kernel slide with pooling, receptive field figure, CNN shapes flow)
 - [x] V3: stage 3 visualizers (unrolled RNN with the pulse fading, LSTM cell with live gates; seq2seq keeps its lanes flow, GRU its gate slider)
-- [ ] Stages 5 and 6. Known: `evals-judge` must not need RAG knowledge.
-- [ ] Stages 7 and 8, plus `embedding-models`. Known: the stage 8 blurb and planning.
+- [x] Stages 5 and 6: 3dbc59f (ZeRO memory slider, formats and parallelism, PPO, hallucination, generation metrics; evals-judge no longer assumes RAG). Done by the main agent, no subagents.
+- [x] Stages 7 and 8: new `embedding-models` (contrastive training scene, InfoNCE flow, pooling figure, index-size slider, MTEB and Matryoshka sources fetched), fine-tune vs RAG vs prompt table in `rag-ingest`, planning block in `agent-loop-react`.
 - [ ] Stages 9 and 10. Known: the `kv-cache-paged` repeat. Six arXiv URLs in stage 9 still need fetching.
 - [ ] Final read-through of all modules, and every check.

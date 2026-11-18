@@ -1,7 +1,7 @@
 // Stage 7 (RAG) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s7.calc.ts.
-import type { Flow } from "../../other/flows.ts";
+import type { Flow, SceneTone, Shape } from "../../other/flows.ts";
 import type { PlayFlow } from "../../other/flows-play-types.ts";
-import { chunkStarts, storedTokens, wilson } from "./s7.calc.ts";
+import { chunkStarts, indexBytes, PAIRS, storedTokens, trainPairs, wilson } from "./s7.calc.ts";
 
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
 
@@ -70,7 +70,63 @@ function evalCi(v: Record<string, number>): Flow {
   ] };
 }
 
+// embedding-models: contrastive training. Questions (filled dots) and their passages (rings) move on the unit circle.
+const TONES: SceneTone[] = ["ok", "warn", "hot", "bad"], CX = 240, CY = 200, RAD = 150, SNAPS = [0, 5, 20, 100, 300];
+function contrastive(v: Record<string, number>): Flow {
+  const tau = v.t, run = trainPairs(tau, SNAPS), r2 = (x: number) => x.toFixed(2);
+  const pt = (u: number[]) => [CX + RAD * u[0], CY - RAD * u[1]];
+  const shapes = (k: number): Shape[] => {
+    const s = run[k], out: Shape[] = [{ t: "path", id: "circle", pts: Array.from({ length: 65 }, (_, i) => [CX + RAD * Math.cos((i / 64) * 2 * Math.PI), CY - RAD * Math.sin((i / 64) * 2 * Math.PI)]).flat(), tone: "muted", w: 1.5, dash: true }];
+    s.q.forEach((qv, i) => {
+      const [qx, qy] = pt(qv), [px, py] = pt(s.p[i]);
+      out.push({ t: "line", id: `pair${i}`, x1: qx, y1: qy, x2: px, y2: py, tone: TONES[i], w: 2, dash: true });
+      out.push({ t: "dot", id: `q${i}`, x: qx, y: qy, r: 9, tone: TONES[i] }, { t: "dot", id: `p${i}`, x: px, y: py, r: 9, tone: TONES[i], ring: true });
+      out.push({ t: "text", id: `l${i}`, x: CX + (RAD + 34) * qv[0], y: CY - (RAD + 26) * qv[1], text: PAIRS[i], size: 16, anchor: "middle", tone: TONES[i] });
+    });
+    out.push({ t: "text", id: "stat", x: 12, y: 384, text: `step ${s.step}   loss ${r2(s.loss)}   match cos ${r2(s.pos)}   other cos ${r2(s.neg)}`, size: 16, bold: true });
+    return out;
+  };
+  const last = run[run.length - 1];
+  return { kind: "scene", title: `Contrastive training, temperature ${tau}`, height: 400, steps: run.map((s, k) => ({
+    note: k === 0 ? `Four questions (dots) and their right passages (rings), placed at random. Matching pairs point apart: average cosine ${r2(s.pos)}. Try: change the temperature.`
+      : k < run.length - 1 ? `Step ${s.step}: each question is pulled towards its own passage and pushed from the other three, the in-batch negatives. Loss ${r2(s.loss)}.`
+      : `Step ${s.step}: matching pairs sit at cosine ${r2(last.pos)} and other pairs at ${r2(last.neg)}. ${tau >= 0.5 ? `The loss stays at ${r2(last.loss)} even now: a high temperature flattens the softmax, so it cannot be sure.` : tau <= 0.1 ? "A low temperature is strict: the loss hits about 0 as soon as each pair wins clearly, so the pull stops early." : "The four pairs have spread out evenly, as far from each other as a circle allows."}`,
+    tone: k === run.length - 1 ? "ok" as const : undefined,
+    shapes: shapes(k),
+  })) };
+}
+
+// embedding-models: what the index costs at each dimension and precision
+function indexSize(v: Record<string, number>): Flow {
+  const { m, d } = v, N = m * 1e6, gb = (bits: number, dims = d) => indexBytes(N, dims, bits) / 1e9;
+  const fmt = (x: number) => (x < 1 ? x.toFixed(2) : x < 10 ? x.toFixed(1) : x.toFixed(0));
+  const bars = (dims: number) => [
+    { label: "float32", value: gb(32, dims), tone: "bad" as const }, { label: "float16", value: gb(16, dims), tone: "warn" as const },
+    { label: "int8", value: gb(8, dims) }, { label: "binary (1 bit)", value: gb(1, dims), tone: "ok" as const },
+  ];
+  const cut = Math.min(256, d);
+  return { kind: "bars", title: `${m} million chunks at ${d} dimensions`, max: gb(32), format: (x) => `${fmt(x)} GB`, steps: [
+    { note: `Each vector is ${d} numbers. At float32 that is ${n0(d * 4)} bytes per chunk and ${fmt(gb(32))} GB for ${m} million chunks, before any index structure. Try: more chunks, or fewer dimensions.`, bars: bars(d) },
+    { note: `Quantise to cut it: int8 is a quarter of float32, and 1-bit binary a thirty-second, at some loss in ranking quality. A common fix is to search the small copy, then rescore the top results with the full vectors.`, tone: "ok", bars: bars(d) },
+    { note: d > cut ? `Matryoshka-trained models put the most important information first, so a vector can be cut to its first ${cut} numbers and still work: ${fmt(gb(32, cut))} GB at float32. Check recall on your own eval set before cutting.`
+      : `At ${d} dimensions the vectors are already short. Cutting further, even with a Matryoshka-trained model, starts to cost recall quickly.`, tone: "ok", bars: bars(cut) },
+  ] };
+}
+
 export const PLAY_7: Record<string, PlayFlow> = {
+  "s7-contrastive": {
+    title: "Train an embedder",
+    knobs: [{ key: "t", label: "Temperature", min: 0.05, max: 1, step: 0.05, value: 0.2 }],
+    make: contrastive,
+  },
+  "s7-index-size": {
+    title: "What the vectors cost",
+    knobs: [
+      { key: "m", label: "Chunks (millions)", min: 1, max: 100, step: 1, value: 10 },
+      { key: "d", label: "Dimensions", min: 256, max: 3072, step: 256, value: 1024 },
+    ],
+    make: indexSize,
+  },
   "s7-eval-ci": {
     title: "How many eval questions do you need?",
     knobs: [

@@ -61,3 +61,45 @@ export const DOCS: [string, string][] = [
   ["D6", "Return labels can be printed from the Orders page for 30 days."],
 ];
 export const DOC_TOKENS = DOCS.map(([, t]) => tok(t));
+
+// ---- Embedding models: contrastive training in 2D ----
+// Four questions and their matching passages start at fixed angles on the unit circle. Each step takes a gradient step on
+// the in-batch InfoNCE loss: for question i, softmax over its similarity to every passage, target passage i.
+export const PAIRS = ["refund", "password", "shipping", "invoice"];
+const START_Q = [0.3, 2.1, 3.9, 5.2], START_P = [2.6, 4.4, 0.9, 1.5];
+const unit = (a: number): [number, number] => [Math.cos(a), Math.sin(a)];
+export function infoNCE(q: number[][], p: number[][], tau: number) {
+  let loss = 0;
+  const gq = q.map(() => [0, 0]), gp = p.map(() => [0, 0]);
+  q.forEach((qi, i) => {
+    const s = p.map((pj) => dot(qi, pj) / tau), m = Math.max(...s), e = s.map((x) => Math.exp(x - m)), z = e.reduce((a, b) => a + b, 0);
+    const pr = e.map((x) => x / z);
+    loss += -Math.log(pr[i]);
+    p.forEach((pj, j) => {
+      const c = (pr[j] - (i === j ? 1 : 0)) / tau;   // d loss / d s_ij
+      gq[i][0] += c * pj[0]; gq[i][1] += c * pj[1];
+      gp[j][0] += c * qi[0]; gp[j][1] += c * qi[1];
+    });
+  });
+  return { loss: loss / q.length, gq, gp };
+}
+/** Run plain gradient descent, renormalising to length 1 after each step. Returns snapshots at the asked steps. */
+export function trainPairs(tau: number, snaps: number[], lr = 0.05) {
+  let q = START_Q.map(unit) as number[][], p = START_P.map(unit) as number[][];
+  const out: { step: number; q: number[][]; p: number[][]; loss: number; pos: number; neg: number }[] = [];
+  const nrm = (v: number[]) => { const n = Math.hypot(v[0], v[1]); return [v[0] / n, v[1] / n]; };
+  for (let t = 0; t <= Math.max(...snaps); t++) {
+    const r = infoNCE(q, p, tau);
+    if (snaps.includes(t)) {
+      const pos = q.reduce((s, qi, i) => s + dot(qi, p[i]), 0) / q.length;
+      let neg = 0, k = 0;
+      q.forEach((qi, i) => p.forEach((pj, j) => { if (i !== j) { neg += dot(qi, pj); k++; } }));
+      out.push({ step: t, q: q.map((v) => [...v]), p: p.map((v) => [...v]), loss: r.loss, pos, neg: neg / k });
+    }
+    q = q.map((v, i) => nrm([v[0] - lr * r.gq[i][0], v[1] - lr * r.gq[i][1]]));
+    p = p.map((v, i) => nrm([v[0] - lr * r.gp[i][0], v[1] - lr * r.gp[i][1]]));
+  }
+  return out;
+}
+/** Bytes to store N vectors of d dimensions at a precision: float32 4 bytes, float16 2, int8 1, binary 1 bit. */
+export const indexBytes = (N: number, d: number, bits: number) => (N * d * bits) / 8;

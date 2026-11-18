@@ -23,6 +23,16 @@ export const RAG_INGEST: GModule = {
   blocks: [
     { kind: "flow", id: "g-rag" },
     { kind: "text", md: "**Why RAG at all?** A model knows only what it saw in training. It has never read your handbook, and it knew nothing after its cutoff. RAG finds the right passages at question time and puts them in the prompt, so the answer can quote and cite them. Updating knowledge means re-indexing a file, not retraining a model." },
+    {
+      kind: "compare",
+      head: ["Need", "Reach for", "Why"],
+      rows: [
+        ["Answers from your own or changing documents", "RAG", "update by re-indexing; answers can cite sources"],
+        ["A format, tone or task the model gets wrong", "Prompting first, then fine-tuning", "examples fix most format issues; tuning bakes in the rest"],
+        ["New facts the model must know without lookups", "Neither alone", "fine-tuning teaches style better than facts; prefer RAG"],
+        ["Lower cost or latency at scale", "Fine-tune a smaller model", "a tuned small model can match a big one on one task"],
+      ],
+    },
     { kind: "flow", id: "s7-ingest" },
     { kind: "figure", id: "s7-chunk-overlap", caption: `Chunks of ${PS} tokens that overlap by ${PO}. The shared spans are stored twice, which is the price of never cutting a short passage in half.` },
     {
@@ -44,7 +54,7 @@ export const RAG_INGEST: GModule = {
         ["Contextual", "Prepend a line saying where the chunk comes from", "One model call per chunk at ingest"],
       ],
     },
-    { kind: "text", md: "**An embedding is a meaning fingerprint.** A model reads a chunk and returns one vector, often a few hundred to a few thousand numbers. Chunks that mean similar things get nearby vectors, even with different words. Every chunk and every question must go through the same model: vectors from two models are not comparable." },
+    { kind: "text", md: "**An embedding is a meaning fingerprint.** A model reads a chunk and returns one vector, often a few hundred to a few thousand numbers. Chunks that mean similar things get nearby vectors, even with different words. Every chunk and every question must go through the same model. How these models are trained is the next module, [[embedding-models]]." },
     {
       kind: "code",
       run: true,

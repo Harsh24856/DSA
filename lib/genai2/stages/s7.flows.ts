@@ -1,5 +1,6 @@
 // Stage 7 (RAG) animated walk-throughs. Every number is computed here or in s7.calc.ts.
 import type { Flow, FlowTone, GridTable, LaneStep } from "../../other/flows.ts";
+import { PAIRS, trainPairs } from "./s7.calc.ts";
 import { B, bm25, chunkStarts, cosine, dcg, DOC_TOKENS, DOCS, dot, idf, K1, ndcg, norm, storedTokens, tok } from "./s7.calc.ts";
 
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
@@ -92,7 +93,30 @@ function ndcgFlow(): Flow {
   ] };
 }
 
+// embedding-models: the InfoNCE loss for one question, number by number, before and after training
+function infoNceSteps(): Flow {
+  const TAU = 0.2, [s0, s1] = trainPairs(TAU, [0, 100]), q = 0, r2 = (x: number) => (x !== 0 && Math.abs(x) < 0.005 ? x.toExponential(1) : x.toFixed(2));
+  const row = (snap: typeof s0) => {
+    const sims = snap.p.map((p) => dot(snap.q[q], p)), sc = sims.map((x) => x / TAU), m = Math.max(...sc);
+    const e = sc.map((x) => Math.exp(x - m)), z = e.reduce((a, b) => a + b, 0), pr = e.map((x) => x / z);
+    return { sims, sc, pr, loss: -Math.log(pr[q]) };
+  };
+  const a = row(s0), b = row(s1);
+  const table = (r: ReturnType<typeof row>, cols: number): GridTable => ({
+    head: ["passage", "cosine", "÷ τ", "softmax"].slice(0, cols), rowHead: PAIRS,
+    rows: PAIRS.map((_, j) => [r2(r.sims[j]), r2(r.sc[j]), r2(r.pr[j])].slice(0, cols - 1)),
+    tones: { [`${q}`]: "hot" as FlowTone },
+  });
+  return { kind: "grid", title: `InfoNCE for the question "${PAIRS[q]}", τ = ${TAU}`, steps: [
+    { note: `Compare the question with every passage in the batch. Its own passage, "${PAIRS[q]}", is the target; the other three are in-batch negatives.`, tables: [table(a, 2)] },
+    { note: `Divide by the temperature τ = ${TAU}: every gap grows ${1 / TAU} times.`, tables: [table(a, 3)] },
+    { note: `Softmax turns the scores into probabilities. The right passage gets ${r2(a.pr[q])}, so the loss -ln(${r2(a.pr[q])}) = ${r2(a.loss)}. Training moves the vectors to raise it.`, tone: "bad", tables: [table(a, 4)] },
+    { note: `After 100 steps the right passage is closest and gets ${r2(b.pr[q])} of the probability: loss ${r2(b.loss)}.`, tone: "ok", tables: [table(b, 4)] },
+  ] };
+}
+
 export const FLOWS_7: Record<string, Flow> = {
+  "s7-infonce": infoNceSteps(),
   "s7-ndcg": ndcgFlow(),
   "s7-agentic": agentic(),
   "s7-bm25": bm25Flow(),

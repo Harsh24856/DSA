@@ -88,6 +88,7 @@ assert agent(fake_model, "q")[1] == 2
 assert agent(stuck_model, "q")[0].startswith("Stopped")
 `,
     },
+    { kind: "text", md: "**Planning.** For long tasks, ask the model for a short plan first, then run the loop one step at a time and let it revise the plan when an observation surprises it (plan and execute). The plan is shown and testable; a cheap model can run the steps while a stronger one plans. Keep plans short: a long plan goes stale after the first surprise." },
     { kind: "text", md: "**Guard rails for every loop.** Cap the steps and the spend. Stop when the model repeats the same call with the same arguments. Log every thought, call and result, so a bad run can be replayed. Trim old tool results once they are used, because each one is reread on every later call." },
   ],
   keyPoints: [
@@ -98,6 +99,11 @@ assert agent(stuck_model, "q")[0].startswith("Stopped")
     "Always add a step limit, a budget, repeat detection and logs; prefer a workflow when the steps are known.",
   ],
   questions: [
+    { id: "plan-execute", level: "medium", kind: "concept",
+      q: "What does a plan-and-execute agent add to a plain ReAct loop?",
+      answer: "It writes a short plan first, runs the steps one by one and revises the plan when a result surprises it",
+      wrong: ["It runs every tool call in parallel", "It removes the need for observations", "It stores the plan as the final answer"],
+      why: "Planning up front gives a visible, testable list of steps and lets a cheaper model execute them. Revising on surprises keeps the plan from going stale, which a fixed long plan always does." },
     { id: "what-agent", level: "easy", kind: "concept",
       q: "What separates an agent from a workflow?",
       answer: "In an agent the model decides the next step; in a workflow your code does",
