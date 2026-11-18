@@ -69,9 +69,9 @@ assert h.shape == (d, N) and y.shape == (n, d)
     {
       kind: "mermaid",
       src: `flowchart TB
-  I["tokens"] --> S1["SSM layers x 3"]:::ok
+  I["tokens"] --> S1["SSM layers x ${EVERY - 1}"]:::ok
   S1 --> A1["attention layer"]:::hot
-  A1 --> S2["SSM layers x 3"]:::ok
+  A1 --> S2["SSM layers x ${EVERY - 1}"]:::ok
   S2 --> A2["attention layer"]:::hot
   A2 --> O["next token"]`,
       caption: `A hybrid stack: mostly SSM layers for cheap long-range mixing, with a few attention layers for exact lookups. With 1 attention layer in ${EVERY}, the KV cache shrinks ${EVERY} times.`,

@@ -1,6 +1,6 @@
 // Stage 10 (Frontier) animated walk-throughs. Every number is computed here or in s10.calc.ts.
 import type { Flow, GridStep } from "../../other/flows.ts";
-import { AUDIO, cascadeMs, CLIP_FIG, eulerCurved, eulerStraight, melFrames, n0, r2, ropeAngle, route, ROUTE_EX, scan, THINK, thinkCost, turns, videoTokens, VOICE } from "./s10.calc.ts";
+import { AUDIO, cascadeMs, CLIP_FIG, eulerCurved, eulerStraight, melFrames, n0, r2, ropeAngle, route, ROUTE_EX, scan, THINK, thinkCost, turns, VID, videoTokens, VOICE } from "./s10.calc.ts";
 
 const sec = (s: number) => `${s.toFixed(s < 10 ? 1 : 0)} s`;
 
@@ -29,7 +29,7 @@ function moeRoute(): Flow {
     };
   });
   const load = Array.from({ length: 8 }, (_, e) => ROUTE_EX.filter(([, s]) => route(s, 2).top.some((x) => x.e === e)).length);
-  steps.push({ note: `Across the four tokens, experts got ${load.join(", ")} tokens. Some sit idle while expert 1 works twice. Training adds pressure to spread tokens evenly, or GPUs holding busy experts become the bottleneck.`, tone: "warn",
+  steps.push({ note: `Across the four tokens, experts got ${load.join(", ")} tokens. ${load.filter((l) => l === 0).length} experts sit idle while experts ${load.flatMap((l, e) => (l === Math.max(...load) ? [e + 1] : [])).join(" and ")} get ${Math.max(...load)} tokens each. Training adds pressure to spread tokens evenly, or GPUs holding busy experts become the bottleneck.`, tone: "warn",
     tables: [{ label: "tokens per expert", head: ["expert", "tokens"], rows: load.map((l, e) => [e + 1, l]) }] });
   return { kind: "grid", title: "Top-2 routing over 8 experts", steps };
 }
@@ -71,8 +71,8 @@ function videoChain(): Flow {
   const { seconds, fps, w, h } = CLIP, v = videoTokens(seconds, fps, w, h);
   return { title: `${seconds} s of ${w} x ${h} video to tokens`, steps: [
     { node: `${v.frames} frames of ${w} x ${h}`, note: `${seconds} seconds at ${fps} frames a second is ${v.frames} frames, ${n0(v.frames * w * h)} pixels. Far too many to attend over directly.` },
-    { node: "video autoencoder", note: `The encoder shrinks each side 8 times and time 4 times: ${v.lat} latent frames of ${w / 8} x ${h / 8}. Nearby frames are nearly the same, so time compresses well.`, tone: "hot" },
-    { node: "cut 2 x 2 spacetime patches", note: `Each latent frame becomes ${n0(v.perFrame)} patches. In all, ${n0(v.tokens)} tokens for the clip.` },
+    { node: "video autoencoder", note: `In this example the encoder shrinks each side ${VID.space} times and time ${VID.time} times: ${v.lat} latent frames of ${w / VID.space} x ${h / VID.space}. Nearby frames are nearly the same, so time compresses well.`, tone: "hot" },
+    { node: `cut ${VID.patch} x ${VID.patch} spacetime patches`, note: `Each latent frame becomes ${n0(v.perFrame)} patches. In all, ${n0(v.tokens)} tokens for the clip.` },
     { node: "diffusion transformer", note: `Full attention over ${n0(v.tokens)} tokens is ${n0(v.tokens ** 2 / 1e9)} billion score pairs per head per layer, at every denoising step. That is why video is the most expensive thing to generate.`, tone: "warn" },
     { node: "decode back to pixels", note: "After the last denoising step, the decoder turns the latents back into frames.", tone: "ok" },
   ] };
