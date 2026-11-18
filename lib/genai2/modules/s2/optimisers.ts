@@ -23,7 +23,7 @@ export const OPTIMISERS: GModule = {
   id: "optimisers",
   stage: 2,
   title: "Optimisers (SGD, Adam, AdamW, schedules)",
-  hook: "Backprop says which way is downhill. The optimiser decides how big a step to take, for every weight, every step. Get it wrong and training crawls or blows up.",
+  hook: "Backprop says which way is downhill. The optimiser decides how big a step to take, for every weight, every step. Get it wrong and training crawls or blows up. Builds on [[backprop-graph]] and [[loss-gradient-descent]].",
   blocks: [
     { kind: "lab", id: "descent" },
     { kind: "text", md: "**SGD** takes one step against the gradient: w = w - lr × g, using a mini-batch to estimate g. One learning rate serves every weight.\n\n**Momentum** keeps a running sum of past gradients and steps along that instead. Noise cancels out, and a steady slope builds up speed, like a ball rolling downhill. Try both in the lab above." },
@@ -83,7 +83,7 @@ assert out[0.1][1] < out[0.001][1] - 0.03
     "SGD steps against the gradient with one learning rate for every weight; momentum steps along a running sum of past gradients.",
     "Adam divides each weight's averaged gradient by the root of its averaged squared gradient, so every weight moves about lr per step whatever its gradient's scale.",
     "Bias correction divides m and v by (1 - β^t) because both start at zero.",
-    "AdamW subtracts weight decay from the weights directly; L2 added to the gradient is rescaled by Adam's adaptive step, which distorts the decay.",
+    "AdamW subtracts weight decay from the weights directly; the L2 penalty from [[overfitting-evaluation]], added to the gradient, is rescaled by Adam's adaptive step, which distorts the decay.",
     "Transformers usually train with AdamW, a short linear warmup, cosine decay and gradient clipping by norm.",
   ],
   questions: [

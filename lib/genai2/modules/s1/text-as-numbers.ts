@@ -23,7 +23,7 @@ export const TEXT_AS_NUMBERS: GModule = {
   id: "text-as-numbers",
   stage: 1,
   title: "Text as numbers (one-hot, TF-IDF, word2vec)",
-  hook: "A model only does arithmetic, so every word must become a list of numbers. How you choose those numbers decides whether \"cat\" and \"dog\" look related or like strangers.",
+  hook: "A model only does arithmetic, so every word must become a list of numbers. How you choose those numbers decides whether \"cat\" and \"dog\" look related or like strangers. Builds on [[arrays-broadcasting]] and [[loss-gradient-descent]].",
   blocks: [
     { kind: "figure", id: "s1-cos", caption: `Cosine similarity between four words. One-hot vectors make every pair a stranger. Word2vec vectors, trained here on ${CORPUS.length} toy sentences, put cat near dog and milk near water, because they appear among the same neighbours.` },
     { kind: "text", md: "**One-hot:** give every word in the vocabulary a slot. A word is a vector of zeros with a single 1 in its slot. It is exact but carries no meaning: every pair of different words is equally far apart.\n\n**Bag of words:** add up the one-hot vectors of a document's words, so a document becomes a vector of counts." },
@@ -35,7 +35,7 @@ export const TEXT_AS_NUMBERS: GModule = {
     },
     { kind: "flow", id: "s1-tfidf" },
     { kind: "play", id: "s1-idf" },
-    { kind: "text", md: "**Word2vec** learns short, dense vectors from raw text, with no labels. The idea: words used in the same company mean similar things. Train a tiny model to tell real neighbour pairs from random ones, and words that share neighbours are pushed toward the same vectors.\n\nAn LLM's embedding table, in stage 4, holds learned vectors of the same kind, trained with the rest of the model." },
+    { kind: "text", md: "**Word2vec** learns short, dense vectors from raw text, with no labels. The idea: words used in the same company mean similar things. Train a tiny model to tell real neighbour pairs from random ones, and words that share neighbours are pushed toward the same vectors.\n\nAn LLM's embedding table, in stage 4, holds learned vectors of the same kind. A whole text's simplest vector is the mean of its word vectors; [[rag-ingest]] (later, stage 7) uses trained sentence encoders instead." },
     { kind: "flow", id: "s1-w2v" },
     {
       kind: "compare",

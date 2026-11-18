@@ -107,7 +107,8 @@ for (const [id, m] of Object.entries(MODULES)) {
     assert.equal(python(q.code), q.answer, `${id}/${q.id}: code prints the answer`);
   }
   for (const b of m.blocks) {
-    if (b.kind === "code" && b.run) python(b.src);
+    if (b.kind === "code" && (b.run || b.torch)) python(b.src);
+    if (b.kind === "code" && b.torch) assert.ok(!b.run && /^import torch/m.test(b.src), `${id}: a torch block imports torch and has no browser Run button`);
     if (b.kind === "flow") assert.ok(FLOWS[b.id], `${id}: unknown flow ${b.id}`);
     if (b.kind === "play") {
       const pf = PLAY_FLOWS[b.id];

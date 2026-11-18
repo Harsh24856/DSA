@@ -16,7 +16,8 @@ export type Block =
   | { kind: "mermaid"; src: string; caption: string }
   | { kind: "text"; md: string }
   | { kind: "compare"; head: string[]; rows: string[][] }
-  | { kind: "code"; src: string; run?: boolean }
+  // run: a Run button (Pyodide, numpy only) and check:genai runs it. torch: PyTorch code, shown with no Run button; check:genai runs it with the local python3 and torch.
+  | { kind: "code"; src: string; run?: boolean; torch?: boolean }
   | { kind: "predict"; q: string; answer: string; wrong: string[]; why: string };
 
 export type GModule = {

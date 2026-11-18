@@ -24,7 +24,7 @@ export const DATA_PANDAS: GModule = {
   id: "data-pandas",
   stage: 0,
   title: "Data with pandas",
-  hook: "Training data, eval scores and request logs all arrive as tables. pandas loads them, finds the gaps, and answers per-group questions in a line or two.",
+  hook: "Training data, eval scores and request logs all arrive as tables. pandas loads them, finds the gaps, and answers per-group questions in a line or two. Builds on [[arrays-broadcasting]].",
   blocks: [
     { kind: "figure", id: "s0-split", caption: "The same groupby, two outputs. agg gives one row per group; transform puts each group's answer back on every row, so it lines up with the original table." },
     { kind: "text", md: "**A DataFrame is a table of named columns.** Each column is a Series: one typed array plus the index, the row labels that every column shares. Operations work a whole column at a time, and rows keep their index labels through filters and sorts, so results always line up again." },
@@ -60,7 +60,7 @@ assert df["model"].value_counts().to_dict() == ${pyDict(COUNTS)}
 assert df.sort_values("tok", ascending=False)["id"].tolist() == [${BY_TOK.join(", ")}]
 `,
     },
-    { kind: "text", md: "**Two habits.** Write with df.loc[mask, \"col\"] = value, in one step. The chained form df[mask][\"col\"] = value may write into a temporary copy and leave df unchanged.\n\nPrefer whole-column maths to df.apply(f, axis=1), which calls a Python function once per row. The next module shows why that is slow." },
+    { kind: "text", md: "**Two habits.** Write with df.loc[mask, \"col\"] = value, in one step. The chained form df[mask][\"col\"] = value may write into a temporary copy and leave df unchanged.\n\nPrefer whole-column maths to df.apply(f, axis=1), which calls a Python function once per row. The next module, [[vectorising-loops]], shows why that is slow." },
   ],
   keyPoints: [
     "A DataFrame is named columns, each a typed Series, sharing one row index.",

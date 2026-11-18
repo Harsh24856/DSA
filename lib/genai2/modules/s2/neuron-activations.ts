@@ -19,7 +19,7 @@ export const NEURON_ACTIVATIONS: GModule = {
   id: "neuron-activations",
   stage: 2,
   title: "Neuron and activations",
-  hook: "A neuron is a weighted sum and a bend. Without the bend, a stack of a hundred layers is no smarter than one.",
+  hook: "A neuron is a weighted sum and a bend. Without the bend, a stack of a hundred layers is no smarter than one. Builds on [[loss-gradient-descent]].",
   blocks: [
     { kind: "figure", id: "s2-neuron", caption: "Thicker lines carry bigger weights. The weighted sum plus bias gives z, a straight-line function of the inputs; the activation then bends it." },
     { kind: "text", md: `**A neuron** multiplies each input by a weight, adds a bias and passes the total through an **activation**: y = f(w · x + b). Training only ever changes w and b.\n\nThe activation is the bend. Without it, layer after layer of weighted sums collapses into one weighted sum, so the network can only draw straight boundaries.` },

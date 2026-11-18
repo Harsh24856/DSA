@@ -80,6 +80,7 @@ export function BlockView({ b, seed }: { b: Block; seed: string }) {
         <div className="grid gap-2">
           <pre className="code"><code>{b.src}</code></pre>
           {b.run && <RunPanel src={b.src} />}
+          {b.torch && <p className="caption-1 text-muted">PyTorch does not run in the browser: copy this into Python with torch installed.</p>}
         </div>
       );
     case "predict": return <Predict b={b} seed={seed} />;

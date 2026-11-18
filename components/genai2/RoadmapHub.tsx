@@ -25,7 +25,7 @@ export function RoadmapHub({ genaiModules, labs = [] }: { genaiModules: string[]
       <section className="card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
         <div className="max-w-[62ch]">
           <h2 className="t-h2">Gen AI roadmap</h2>
-          <p className="mt-1 text-sm text-muted">{STAGES.length} stages from Python habits to production agents. Each module is built to be seen and tried, with diagrams, labs and practice questions. Ticks sync to your account and never change your daily plan.</p>
+          <p className="mt-1 text-sm text-muted">{STAGES.length} stages from NumPy arrays to production agents. Each module is built to be seen and tried, with diagrams, labs and practice questions. Ticks sync to your account and never change your daily plan.</p>
         </div>
         <div className="flex shrink-0 flex-col gap-3 md:w-[220px]">
           <div><span className="num text-2xl font-semibold"><Count value={doneN} /><span className="text-sm font-normal text-muted"> / {ALL.length}</span></span><div className="text-xs text-muted">modules done</div></div>
@@ -68,6 +68,7 @@ export function RoadmapHub({ genaiModules, labs = [] }: { genaiModules: string[]
               <div className="t-eyebrow">Stage {s.n}</div>
               <h3 id={`stage-t-${s.n}`} className="t-h3 mt-0.5">{s.title}</h3>
               <p className="mt-1 max-w-[62ch] text-sm text-muted">{s.blurb}</p>
+              {s.n === 0 && <p className="mt-1 max-w-[62ch] text-xs text-muted">Python itself (dataclasses, generators, JSON, pydantic, asyncio) is in the <Link href="/syntax#gx-dataclass" className="font-medium text-ink underline underline-offset-2 hover:text-accent">Python for Gen AI</Link> syntax track.</p>}
             </div>
             {s.builds.length > 0 && (
               <p className="m-0 flex flex-wrap items-center gap-1 text-xs text-muted">

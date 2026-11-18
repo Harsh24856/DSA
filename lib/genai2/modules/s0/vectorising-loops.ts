@@ -24,7 +24,7 @@ export const VECTORISING_LOOPS: GModule = {
   id: "vectorising-loops",
   stage: 0,
   title: "Vectorising loops",
-  hook: "The same maths can take seconds in a Python loop or milliseconds as one array call. Learn to see the array version of a loop, and when to keep the loop.",
+  hook: "The same maths can take seconds in a Python loop or milliseconds as one array call. Learn to see the array version of a loop, and when to keep the loop. Builds on [[arrays-broadcasting]].",
   blocks: [
     { kind: "figure", id: "s0-loopvec", caption: "A Python loop pays the interpreter for every element. NumPy pays it once, then a compiled loop runs over numbers packed side by side." },
     { kind: "text", md: "**Rewriting a loop, in four moves.**\n\n1. Name what each loop index walks over: i over rows of A, j over rows of B, k over features.\n2. Give each index its own axis, using None where an array lacks one.\n3. Turn the innermost sum into .sum(axis=...) or a matrix multiply.\n4. Compare with the loop on a small random input, using np.allclose." },

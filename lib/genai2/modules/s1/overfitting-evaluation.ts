@@ -1,5 +1,5 @@
 // Stage 1: how we know a model works. Overfitting, the three splits, and precision, recall and F1. Every number below is computed here or in stages/s1.calc.ts.
-// Regularisation tools (dropout, weight decay) are stage 2; this module is about measuring.
+// Cures here are data, model size, the L2 penalty, early stopping and k-fold; dropout is stage 2.
 import type { GModule } from "../../types.ts";
 import { BEST_DEG, confusion, DEGREES, fmt, POLY, SPAM } from "../../stages/s1.calc.ts";
 
@@ -22,12 +22,19 @@ const trainFalls = DEGREES.every((d, i) => i === 0 || d.train <= DEGREES[i - 1].
 if (!trainFalls) throw new Error("training error rose with degree: the trap below would be wrong");
 // numeric: k-fold
 const [NK, K] = [1200, 5];
+// ROC-AUC: the chance a random positive scores above a random negative (ties count half)
+const auc = (pos: number[], neg: number[]) => pos.reduce((s, a) => s + neg.reduce((t, b) => t + (a > b ? 1 : a === b ? 0.5 : 0), 0), 0) / (pos.length * neg.length);
+const aucSpam = auc(SPAM.scores.filter((_, i) => SPAM.labels[i]), SPAM.scores.filter((_, i) => !SPAM.labels[i]));
+const [AP, AN] = [[0.9, 0.7, 0.4], [0.8, 0.3, 0.2]], aucQ = auc(AP, AN);
+const accQ = (AP.filter((s) => s >= 0.5).length + AN.filter((s) => s < 0.5).length) / (AP.length + AN.length);
+const winsQ = Math.round(aucQ * AP.length * AN.length);
+const lossQ = AP.flatMap((a) => AN.filter((b) => a < b).map((b) => `${a} against ${b}`));
 
 export const OVERFITTING_EVALUATION: GModule = {
   id: "overfitting-evaluation",
   stage: 1,
   title: "Overfitting and evaluation",
-  hook: "A model that aces its training data can still fail on everything new. The only honest score comes from data it never saw, and the right score depends on which mistakes hurt.",
+  hook: "A model that aces its training data can still fail on everything new. The only honest score comes from data it never saw, and the right score depends on which mistakes hurt. Builds on [[learning-as-fitting]] and [[loss-gradient-descent]].",
   blocks: [
     { kind: "figure", id: "s1-curves", caption: `Polynomials of rising degree fitted to the same ${POLY.tx.length} noisy points. Training error (dashed) keeps falling. Validation error, on ${POLY.vx.length} new points, bottoms out at degree ${BEST_DEG} and then climbs.` },
     { kind: "play", id: "s1-data" },
@@ -40,7 +47,7 @@ export const OVERFITTING_EVALUATION: GModule = {
     A1["yes"] --> A2["underfit: bigger model, better features, train longer"]:::warn
   end
   subgraph B["Training low, validation much higher?"]
-    B1["yes"] --> B2["overfit: more data, simpler model, regularise (stage 2)"]:::bad
+    B1["yes"] --> B2["overfit: more data, simpler model, regularise"]:::bad
   end
   subgraph C["Both low and close?"]
     C1["yes"] --> C2["score once on test"]:::ok
@@ -48,14 +55,28 @@ export const OVERFITTING_EVALUATION: GModule = {
   A --> B --> C`,
       caption: "Reading the two errors. Compare training error with validation error first; the test set waits until the end.",
     },
+    { kind: "text", md: "**What to do about overfitting.** Get more data, or use a simpler model. Add an **L2 penalty**, also called weight decay: λ × the sum of squared weights joins the loss, so big weights cost something and the fit stays smooth. Use **early stopping**: keep the checkpoint with the lowest validation loss. With little data, **k-fold cross-validation** (code below) gives a steadier validation score than one split." },
     {
       kind: "predict",
       q: `${NALL.toLocaleString("en-US")} emails, ${NPOS} of them spam. A filter marks every email "not spam". What are its accuracy and its recall on spam?`,
       answer: `Accuracy ${pct(accNo)}, recall 0%`, wrong: [`Accuracy ${pct(accNo)}, recall ${pct(accNo)}`, `Accuracy ${pct(NPOS / NALL)}, recall 0%`, "Accuracy 50%, recall 50%"],
       why: `It is right on all ${NALL - NPOS} good emails, so accuracy is ${NALL - NPOS} / ${NALL.toLocaleString("en-US")} = ${pct(accNo)}. It catches none of the ${NPOS} spam, so recall is 0 / ${NPOS} = 0%. On a rare class accuracy hides everything; precision and recall do not.`,
     },
+    { kind: "text", md: "**Scores and thresholds.** A classifier's score from 0 to 1 is its probability for yes, made by sigmoid ([[loss-gradient-descent]]). It says yes when the score clears a threshold, and moving the threshold trades one kind of mistake for the other." },
     { kind: "play", id: "s1-threshold" },
     { kind: "text", md: "**Which metric?** **Precision** asks: when the model says yes, how often is it right? **Recall** asks: of all the real yeses, how many did it find? **F1** is their harmonic mean, high only when both are.\n\nPick by the cost of each mistake. A spam filter that hides a real email is worse than one that lets spam through, so favour precision. A cancer screen should favour recall." },
+    {
+      kind: "compare",
+      head: ["Metric", "From the confusion matrix", "Reads as"],
+      rows: [
+        ["Confusion matrix", "TP, FP, FN, TN: flagged or not, against really positive or not", "The four counts every metric below is built from"],
+        ["Accuracy", "(TP + TN) / all", "Share right; misleads on a rare class"],
+        ["Precision", "TP / (TP + FP)", "When it says yes, how often it is right"],
+        ["Recall, or true positive rate", "TP / (TP + FN)", "Of the real yeses, how many it found"],
+        ["False positive rate", "FP / (FP + TN)", "Of the real noes, how many it flagged"],
+        ["ROC-AUC", "Area under recall against false positive rate as the threshold sweeps from 1 to 0", `Chance a random positive scores above a random negative, with no threshold: 1 is a perfect ranking, 0.5 a coin flip. The walk-through's emails: ${fmt(aucSpam)}`],
+      ],
+    },
     {
       kind: "code",
       run: true,
@@ -91,8 +112,9 @@ assert scores[1] > scores[best] and scores[9] > scores[best]
     "Overfitting fits the noise in the training data: training error is low and validation error is much higher. Underfitting is high error on both.",
     "Train fits the parameters, validation picks settings such as degree or checkpoint, and test is scored once at the end.",
     "Tuning on the test set, or letting test examples leak into training, makes the score optimistic.",
-    "Precision is TP / (TP + FP), recall is TP / (TP + FN), and F1 is their harmonic mean; accuracy misleads on a rare class.",
+    "Precision is TP / (TP + FP), recall is TP / (TP + FN), and F1 is their harmonic mean; accuracy misleads on a rare class. ROC-AUC scores the ranking over every threshold at once.",
     "Moving the decision threshold trades precision against recall; choose it by the cost of each kind of mistake.",
+    "Against overfitting: more data, a simpler model, an L2 penalty or early stopping on validation loss. With little data, k-fold cross-validation validates every example once.",
   ],
   questions: [
     { id: "val-role", level: "easy", kind: "concept",
@@ -131,6 +153,10 @@ assert scores[1] > scores[best] and scores[9] > scores[best]
       q: `In the threshold walk-through at 0.5, the filter flags ${c50.tp + c50.fp} emails and ${c50.tp} of them are spam. What is the precision, to 3 decimals?`,
       answer: fmt(c50.precision), wrong: [fmt(c50.recall), fmt(c50.acc), fmt(c50.tp / SPAM.scores.length)],
       why: `${c50.tp} / ${c50.tp + c50.fp} = ${fmt(c50.precision)}. Recall at this threshold is ${fmt(c50.recall)} and accuracy ${fmt(c50.acc)}. Raise the threshold to 0.9 and precision reaches ${fmt(c90.precision)} while recall falls to ${fmt(c90.recall)}.` },
+    { id: "auc-calc", level: "hard", kind: "numeric",
+      q: `Three spam emails score ${AP.join(", ")}; three good emails score ${AN.join(", ")}. What is the ROC-AUC, to 3 decimals?`,
+      answer: fmt(aucQ), wrong: [fmt(accQ), fmt(1 - aucQ), "0.5"],
+      why: `Compare every spam with every good email: ${AP.length} × ${AN.length} = ${AP.length * AN.length} pairs, and the spam scores higher in ${winsQ}, so AUC = ${winsQ} / ${AP.length * AN.length} = ${fmt(aucQ)}. Only ${lossQ.join(" and ")} go the wrong way. ${fmt(accQ)} is the accuracy at threshold 0.5, which depends on the threshold; AUC does not.` },
     { id: "pr-out", level: "medium", kind: "output",
       q: "What does this print?",
       code: `scores = [${OS.join(", ")}]\nlabels = [${OL.join(", ")}]\nflag = [s >= ${OT} for s in scores]\ntp = sum(1 for f, y in zip(flag, labels) if f and y)\nprint(round(tp / sum(flag), 2), round(tp / sum(labels), 2))`,
@@ -149,6 +175,10 @@ assert scores[1] > scores[best] and scores[9] > scores[best]
       claim: "On a fixed training set, raising the degree of a least squares polynomial never increases its training error.",
       truth: true,
       why: `A degree d + 1 polynomial can copy any degree d one by setting its top coefficient to 0, so its best fit is at least as good. On the module's data training error falls from ${fmt(DEGREES[0].train)} at degree 0 to ${fmt(DEGREES[10].train)} at degree 10. Validation error is another story.` },
+    { id: "trap-auc-threshold", level: "medium", kind: "trap",
+      claim: "ROC-AUC goes up or down when you move the decision threshold.",
+      truth: false,
+      why: "AUC sums up every threshold at once: it only asks whether positives score above negatives. Moving the threshold changes precision, recall and accuracy, but not AUC. That makes AUC good for comparing models and useless for picking the threshold." },
     { id: "trap-precision-up", level: "hard", kind: "trap",
       claim: "Raising the decision threshold can never lower precision.",
       truth: false,

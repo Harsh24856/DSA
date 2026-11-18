@@ -17,7 +17,7 @@ export const BACKPROP_GRAPH: GModule = {
   id: "backprop-graph",
   stage: 2,
   title: "Backprop on a graph",
-  hook: "Every network is a graph of small steps, and each step knows its own derivative. Backprop just multiplies those derivatives from the loss back to every weight, in one pass.",
+  hook: "Every network is a graph of small steps, and each step knows its own derivative. Backprop just multiplies those derivatives from the loss back to every weight, in one pass. Builds on [[mlp-forward]] and the loss from [[loss-gradient-descent]].",
   blocks: [
     { kind: "figure", id: "s2-graph", caption: `Values flow down; gradients flow back up. Each gradient is the one above it times a local derivative: ∂L/∂w = ∂L/∂z × x = ${fmt(g.dz)} × ${BP.x}, and ∂L/∂b = ∂L/∂z × 1.` },
     { kind: "text", md: "**Backprop is the chain rule, run backwards.** The forward pass computes each node's value and keeps it. The backward pass starts at the loss with ∂L/∂L = 1 and visits nodes in reverse order. Each node multiplies the gradient arriving from above by its own local derivative and hands the result to its inputs. A negative gradient means increasing that weight lowers the loss." },
@@ -47,7 +47,7 @@ export const BACKPROP_GRAPH: GModule = {
       rows: [
         ["Passes to get ∂L/∂(every weight)", "One per weight", "One backward pass"],
         [`At ${n0(NP)} weights`, `${n0(NP)} passes`, "1 pass, about 2 forward passes of work"],
-        ["Memory", "Small: nothing kept", "Keeps the forward activations"],
+        ["Memory", "Small: nothing kept", "Keeps the forward activations; activation checkpointing keeps some and recomputes the rest"],
         ["Wins when", "Few inputs, many outputs", "Many inputs (weights), one output (the loss)"],
       ],
     },
@@ -93,6 +93,46 @@ print("p - onehot:", np.round(grad, 3))
 assert np.allclose(grad, num, atol=1e-7)
 `,
     },
+    { kind: "text", md: "**The same in PyTorch.** Frameworks build the graph for you. A tensor made with `requires_grad=True` records every operation on it, and `loss.backward()` runs the backward pass, adding each gradient into `.grad`. An `nn.Module` holds the weights, the optimiser's `step()` updates them, and `zero_grad()` clears the gradients first. `model.train()` and `model.eval()` switch layers such as dropout between training and inference." },
+    {
+      kind: "code",
+      torch: true,
+      src: `import torch
+from torch import nn
+
+# the same neuron, L = (sigmoid(w*x + b) - y)^2, with autograd doing the backward pass
+f64 = torch.float64
+w = torch.tensor(${BP.w}, dtype=f64, requires_grad=True)    # record every use of w
+b = torch.tensor(${BP.b}, dtype=f64, requires_grad=True)
+x, y = torch.tensor(${BP.x.toFixed(1)}, dtype=f64), torch.tensor(${BP.y.toFixed(1)}, dtype=f64)
+L = (torch.sigmoid(w * x + b) - y) ** 2       # the forward pass builds the graph
+L.backward()                                  # fills w.grad and b.grad
+print("dL/dw", round(w.grad.item(), 4), " dL/db", round(b.grad.item(), 4))
+assert abs(w.grad.item() - (${g.dw})) < 1e-12  # the chain rule by hand gave the same
+
+L = (torch.sigmoid(w * x + b) - y) ** 2
+L.backward()                                  # not zeroed: the new gradient is added (+=)
+print("after a second backward:", round(w.grad.item(), 4))
+assert abs(w.grad.item() - 2 * (${g.dw})) < 1e-12
+
+# the training loop: a module holds the weights, an optimiser updates them
+torch.manual_seed(0)
+model = nn.Sequential(nn.Linear(1, 1), nn.Sigmoid())
+opt = torch.optim.SGD(model.parameters(), lr=1.0)
+xs, ys = torch.tensor([[${BP.x.toFixed(1)}]]), torch.tensor([[${BP.y.toFixed(1)}]])
+model.train()                                 # training mode: dropout on, BatchNorm uses the batch
+for step in range(200):
+    opt.zero_grad()                           # clear last step's gradients
+    loss = ((model(xs) - ys) ** 2).mean()
+    loss.backward()
+    opt.step()                                # every weight: w -= lr * w.grad
+model.eval()                                  # inference mode
+with torch.no_grad():                         # no graph needed when nothing will call backward
+    final = ((model(xs) - ys) ** 2).item()
+print("loss after 200 steps:", round(final, 4))
+assert final < loss.item() < 0.1
+`,
+    },
   ],
   keyPoints: [
     "Backprop is the chain rule applied in reverse over the computation graph: each node multiplies the incoming gradient by its local derivative.",
@@ -100,6 +140,7 @@ assert np.allclose(grad, num, atol=1e-7)
     "For Y = X W: ∂L/∂W = Xᵀ ∂L/∂Y and ∂L/∂X = ∂L/∂Y Wᵀ; a gradient always has the shape of its tensor.",
     "Reverse mode gets the gradient for every weight in one backward pass of about twice the forward cost, but it must keep the forward activations.",
     "For softmax with cross-entropy, the gradient on the logits is simply p minus the one-hot label.",
+    "In PyTorch, `loss.backward()` adds each gradient into `.grad`; a training step is `zero_grad()`, forward, `backward()`, `step()`.",
   ],
   questions: [
     { id: "backward-computes", level: "easy", kind: "concept",
@@ -137,6 +178,10 @@ assert np.allclose(grad, num, atol=1e-7)
       answer: "Zero the stored gradients before the next backward pass",
       wrong: ["Call backward twice", "Divide the gradients by the step number", "Nothing: each backward pass overwrites the last"],
       why: "Accumulating is what makes fan-out correct within one pass. Across steps it means stale gradients pile up unless they are cleared. Leaving them on purpose is gradient accumulation, a way to fake a bigger batch." },
+    { id: "torch-grad", level: "easy", kind: "concept",
+      q: "In PyTorch, after `loss.backward()`, where is the gradient of the loss with respect to a weight tensor `w`?",
+      answer: "In `w.grad`, added to whatever was already there", wrong: ["It is the return value of `loss.backward()`", "In `loss.grad`", "Nowhere: `w` itself has already been updated"],
+      why: "`backward()` returns nothing; it walks the recorded graph and accumulates into the `.grad` of every tensor made with `requires_grad=True`. Updating `w` is the optimiser's `step()`, which reads `w.grad`." },
     { id: "chain-numeric", level: "medium", kind: "numeric",
       q: `In the figure, ∂L/∂p = ${fmt(g.dp)}, sigmoid's slope is ${fmt(g.pz)} and x = ${BP.x}. What is ∂L/∂w?`,
       answer: fmt(g.dw), wrong: [fmt(g.dz), fmt(g.dp * BP.x), fmt(-g.dw)],

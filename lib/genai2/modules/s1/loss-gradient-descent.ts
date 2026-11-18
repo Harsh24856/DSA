@@ -17,12 +17,18 @@ const mseO = mean(OUTLIER.map((e) => e * e)), maeO = mean(OUTLIER.map(Math.abs))
 const OX = [1, 2, 3], OY = [2, 4, 6], og = gradLine(0, 0, OX, OY);
 // text: the gradient descent run and the stability limit
 const run = gdLine(GD.lr, 100), end = run[100];
+// KL divergence: text example, and a numeric with other numbers
+const kl = (p: number[], q: number[]) => p.reduce((s, x, i) => s + x * Math.log(x / q[i]), 0);
+const ent = (p: number[]) => -p.reduce((s, x) => s + x * Math.log(x), 0), xent = (p: number[], q: number[]) => -p.reduce((s, x, i) => s + x * Math.log(q[i]), 0);
+const [KP, KQ] = [[0.8, 0.2], [0.5, 0.5]], [QP, QQ] = [[0.9, 0.1], [0.6, 0.4]];
+const pv = (v: number[]) => `(${v.join(", ")})`;
+if (Math.abs(kl(QP, QQ) - (xent(QP, QQ) - ent(QP))) > 1e-12) throw new Error("KL is not cross-entropy minus entropy");
 
 export const LOSS_GRADIENT_DESCENT: GModule = {
   id: "loss-gradient-descent",
   stage: 1,
   title: "Loss and gradient descent",
-  hook: "A line has a formula for its best fit. A network with billions of knobs does not. Gradient descent finds good knobs anyway: measure which way is downhill, take a small step, repeat.",
+  hook: "A line has a formula for its best fit. A network with billions of knobs does not. Gradient descent finds good knobs anyway: measure which way is downhill, take a small step, repeat. Builds on [[learning-as-fitting]].",
   blocks: [
     { kind: "figure", id: "s1-bowl", caption: "The loss of the practice line as you vary its slope: a bowl. The dashed tangent is the gradient at the start. Each step moves against it, and the steps shrink as the bowl flattens." },
     { kind: "text", md: "**The loss is a landscape.** Every setting of the parameters has a height: its loss. Training wants the lowest point.\n\nThe **gradient** is the slope of that landscape, one number per parameter. It points uphill, so gradient descent steps the other way:\n\nw = w - lr × dL/dw\n\nThe **learning rate** lr sets the step size. The formula needs only the slope where you stand, so it works for any model you can differentiate." },
@@ -44,7 +50,8 @@ export const LOSS_GRADIENT_DESCENT: GModule = {
         ["Cross-entropy (log loss)", "-ln(probability given to the right answer)", "Classes, and every next token in an LLM", `Near 0 when confident and right, ${fmt(-Math.log(PWR))} at p = ${PWR}, unbounded as p goes to 0`],
       ],
     },
-    { kind: "text", md: `**Batches.** The true gradient averages over every example, which is slow for a big dataset. A **mini-batch** estimates it from a random handful, say ${BATCH}, so each step is cheap and slightly noisy. One **epoch** is one pass through all the data: ${NEX.toLocaleString("en-US")} examples in batches of ${BATCH} make ${NEX / BATCH} steps.` },
+    { kind: "text", md: `**Probabilities.** Sigmoid (two classes) or softmax (many) turns a classifier's raw scores into probabilities; the next stage builds both in [[neuron-activations]] and [[mlp-forward]].\n\n**KL divergence** measures how far a prediction q is from a target p: KL(p || q) = cross-entropy(p, q) - entropy(p), where entropy(p) = -Σ p ln p. It is 0 only when q = p, and not symmetric: for p = ${pv(KP)}, q = ${pv(KQ)} it is ${fmt(kl(KP, KQ))}; swapped, ${fmt(kl(KQ, KP))}.` },
+    { kind: "text", md: `**Batches.** The true gradient averages over every example, which is slow for a big dataset. A **mini-batch** estimates it from a random handful, say ${BATCH}, so each step is cheap and slightly noisy. One **epoch** is one pass through all the data: ${NEX.toLocaleString("en-US")} examples in batches of ${BATCH} make ${NEX / BATCH} steps. Adding up the gradients of several mini-batches before one step, **gradient accumulation**, acts like one bigger batch.` },
     {
       kind: "code",
       run: true,
@@ -77,6 +84,7 @@ assert abs(w - w_best) < 0.05 and abs(b - b_best) < 0.1
     "Too small a learning rate crawls; above a limit set by the steepest direction, every step overshoots and the loss grows.",
     "MSE punishes big misses most, MAE is robust to outliers, and cross-entropy, -ln of the probability of the right answer, is the loss for classes and for LLMs.",
     "A mini-batch estimates the gradient from a few examples; an epoch is one pass through all the data.",
+    "KL(p || q) = cross-entropy(p, q) - entropy(p): 0 only when q = p, and not symmetric. With a one-hot target the entropy is 0, so minimising cross-entropy minimises KL.",
   ],
   questions: [
     { id: "grad-dir", level: "easy", kind: "concept",
@@ -90,7 +98,7 @@ assert abs(w - w_best) < 0.05 and abs(b - b_best) < 0.1
     { id: "lr-big", level: "medium", kind: "concept",
       q: "The training loss gets larger every step and soon prints as inf. What is the most likely cause?",
       answer: "The learning rate is too large, so each step overshoots the minimum", wrong: ["The learning rate is too small", "The model has too few parameters", "The data set is too large"],
-      why: `Beyond a limit each step lands further from the bottom than it started, so the error grows geometrically. For the practice line that happens above lr ${fmt(LIMIT.max)}; stage 2, Optimisers, shows where such a limit comes from. Too small a rate makes the loss fall slowly, never rise.` },
+      why: `Beyond a limit each step lands further from the bottom than it started, so the error grows geometrically. For the practice line that happens above lr ${fmt(LIMIT.max)}; [[optimisers]], in the next stage, shows where such a limit comes from. Too small a rate makes the loss fall slowly, never rise.` },
     { id: "minibatch", level: "medium", kind: "concept",
       q: "Why train on mini-batches instead of computing the gradient over the whole data set each step?",
       answer: "Each step is far cheaper, and a noisy estimate of the gradient is good enough to make progress", wrong: ["The gradient from a mini-batch is exact", "Mini-batches remove the need for a learning rate", "Full-data gradients point uphill"],
@@ -120,6 +128,14 @@ assert abs(w - w_best) < 0.05 and abs(b - b_best) < 0.1
       code: `import numpy as np\nx = np.array([${OX.join(", ")}])\ny = np.array([${OY.join(", ")}])\nw, b = 0.0, 0.0\ne = w * x + b - y\nprint(round(2 * np.mean(e * x), 2))`,
       answer: String(Number(og.dw.toFixed(2))), wrong: [String(Number((-og.dw).toFixed(2))), String(Number(og.db.toFixed(2))), String(Number((og.dw / 2).toFixed(2)))],
       why: `The errors are ${OX.map((x, i) => -OY[i]).join(", ")}. Times x: ${OX.map((x, i) => -OY[i] * x).join(", ")}, mean ${fmt(og.dw / 2)}, doubled ${fmt(og.dw)}. Negative means increasing w lowers the loss, so the step raises w.` },
+    { id: "kl-calc", level: "medium", kind: "numeric",
+      q: `Target p = ${pv(QP)}, model q = ${pv(QQ)}. What is KL(p || q) in nats, to 3 decimals?`,
+      answer: fmt(kl(QP, QQ)), wrong: [fmt(kl(QQ, QP)), fmt(xent(QP, QQ)), fmt(ent(QP))],
+      why: `Σ p ln(p / q) = ${QP[0]} ln(${QP[0]} / ${QQ[0]}) + ${QP[1]} ln(${QP[1]} / ${QQ[1]}) = ${fmt(kl(QP, QQ))}. Check: cross-entropy ${fmt(xent(QP, QQ))} minus entropy ${fmt(ent(QP))}. Swapping the order gives ${fmt(kl(QQ, QP))}, a different number, because KL is not symmetric.` },
+    { id: "kl-onehot", level: "hard", kind: "concept",
+      q: "The target is one-hot: the right next token has probability 1. Why does minimising cross-entropy also minimise KL(target || model)?",
+      answer: "A one-hot target has entropy 0, so KL equals the cross-entropy", wrong: ["KL and cross-entropy are equal for every target", "KL is symmetric, so the order of the two distributions does not matter", "The cross-entropy of a one-hot target is always 0"],
+      why: "KL = cross-entropy - entropy(target), and -1 × ln 1 = 0. For a soft target, such as a teacher model's probabilities in distillation (stage 5), the entropy is not 0, but it is fixed, so minimising either still gives the same model." },
     { id: "gd-explain", level: "medium", kind: "explain",
       q: "Explain gradient descent to someone who knows no calculus.",
       answer: "- Picture the loss as hilly ground, one direction for each parameter. You are standing somewhere, blindfolded, and want the lowest point.\n- Feel the slope under your feet: that is the gradient.\n- Take a step downhill, sized by the learning rate.\n- Repeat until the ground is flat.\n\nIt needs only the local slope, which backprop computes for any network, so it scales to billions of parameters where no formula exists." },
@@ -130,6 +146,10 @@ assert abs(w - w_best) < 0.05 and abs(b - b_best) < 0.1
       claim: "Minus the gradient always points straight at the minimum.",
       truth: false,
       why: "It points down the steepest slope where you stand. In a long narrow valley that is mostly across the valley, not along it, which is why plain gradient descent can zigzag. Only in a perfectly round bowl do the two agree." },
+    { id: "trap-kl-sym", level: "medium", kind: "trap",
+      claim: "KL(p || q) and KL(q || p) are always equal, so it does not matter which distribution goes first.",
+      truth: false,
+      why: `They differ in general: for p = ${pv(KP)} and q = ${pv(KQ)} they are ${fmt(kl(KP, KQ))} and ${fmt(kl(KQ, KP))}. KL(p || q) weighs the log ratio by p, so it punishes q most where p puts its mass. Both are 0 only when the distributions match.` },
     { id: "trap-convex", level: "hard", kind: "trap",
       claim: "For a straight line fitted by mean squared error, gradient descent with a small enough learning rate reaches the same line as the least squares formula.",
       truth: true,

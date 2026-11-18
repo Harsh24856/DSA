@@ -16,12 +16,24 @@ const DM = 4096;
 const ROW = [2, 4, 6, 8];
 // the vanishing-gradient walk-through, at the first layer
 const first = REACH.map((r) => r[VANISH.depth]);
+// number formats: [exponent bits, mantissa bits]; largest finite value and smallest positive one (subnormal)
+const FMT = { fp32: [8, 23], fp16: [5, 10], bf16: [8, 7] } as const;
+const bias = (e: number) => 2 ** (e - 1) - 1;
+const maxOf = ([e, m]: readonly [number, number]) => (2 - 2 ** -m) * 2 ** bias(e);
+const tinyOf = ([e, m]: readonly [number, number]) => 2 ** (1 - bias(e) - m);
+const bytesOf = ([e, m]: readonly [number, number]) => (1 + e + m) / 8;
+if (maxOf(FMT.fp16) !== 65504 || bytesOf(FMT.bf16) !== 2 || bytesOf(FMT.fp32) !== 4) throw new Error("float format sums are off");
+// training memory per parameter: mixed precision with AdamW
+const MEM = [["Weights used in the forward and backward pass", "bf16"], ["Gradients", "bf16"], ["Master copy of the weights, which the optimiser updates", "fp32"],
+  ["Adam m, the running mean of gradients", "fp32"], ["Adam v, the running mean of squared gradients", "fp32"]] as const;
+const perParam = MEM.reduce((t, [, f]) => t + bytesOf(FMT[f]), 0);
+const [NB7, NB3] = [7e9, 3e9], gb = (b: number) => `${Math.round(b / 1e9)} GB`;
 
 export const DEEP_NETS_TRAIN: GModule = {
   id: "deep-nets-train",
   stage: 2,
   title: "Making deep nets train (init, normalisation, residuals, dropout)",
-  hook: "Stack 100 layers and, left alone, the signal either dies or explodes before it reaches the end. Four habits keep it alive: careful init, normalisation, skip connections and dropout.",
+  hook: "Stack 100 layers and, left alone, the signal either dies or explodes before it reaches the end. Four habits keep it alive: careful init, normalisation, skip connections and dropout. Builds on [[backprop-graph]] and [[optimisers]].",
   blocks: [
     { kind: "flow", id: "s2-vanish" },
     { kind: "text", md: `**The backward pass multiplies one factor per layer.** If the factors sit below 1, the gradient shrinks exponentially and the first layers stop learning (vanishing). Above 1, it blows up (exploding). In the walk-through, after ${VANISH.depth} layers the sigmoid net keeps ${sci(first[0])} of its gradient while the He-initialised ReLU net keeps ${fmt(first[2])}.` },
@@ -88,7 +100,17 @@ print("inference mean", round(a.mean(), 3), " training mean", round(train.mean()
 assert abs(train.mean() - a.mean()) < 0.01
 `,
     },
-    { kind: "text", md: "**Dropout** zeroes each unit with probability p on every training step, so no unit can rely on one particular partner. Inverted dropout divides the survivors by 1 - p, so the average is unchanged and inference simply uses every unit with no scaling.\n\nCall `model.eval()` before testing: dropout and BatchNorm both behave differently in training and inference." },
+    { kind: "text", md: `**Number formats.** A float splits its bits between exponent (range) and mantissa (precision). fp32 takes ${bytesOf(FMT.fp32)} bytes; fp16 and bf16 take ${bytesOf(FMT.fp16)}. fp16 has ${FMT.fp16[0]} exponent bits: it tops out at ${n0(maxOf(FMT.fp16))} and rounds anything below about ${sci(tinyOf(FMT.fp16))} to zero, so fp16 training needs **loss scaling** (multiply the loss, divide the gradients back). bf16 keeps fp32's ${FMT.bf16[0]} exponent bits, so it has fp32's range and needs no scaling; it pays with ${FMT.bf16[1]} mantissa bits against fp16's ${FMT.fp16[1]}.` },
+    {
+      kind: "compare",
+      head: ["Kept per parameter: mixed precision, AdamW", "Format", "Bytes"],
+      rows: [
+        ...MEM.map(([what, f]) => [what, f, String(bytesOf(FMT[f]))]),
+        ["Total, before activations", "", String(perParam)],
+        [`A ${NB7 / 1e9}B model`, "", `${gb(perParam * NB7)} to train, against ${gb(bytesOf(FMT.bf16) * NB7)} to run in bf16`],
+      ],
+    },
+    { kind: "text", md: "**Dropout** zeroes each unit with probability p on every training step, so no unit can rely on one particular partner. Inverted dropout divides the survivors by 1 - p, so the average is unchanged and inference simply uses every unit with no scaling.\n\nCall `model.eval()`, the PyTorch switch from [[backprop-graph]], before testing: dropout and BatchNorm both behave differently in training and inference." },
   ],
   keyPoints: [
     "Gradients pass through one factor per layer; factors below 1 make them vanish, above 1 make them explode.",
@@ -96,6 +118,7 @@ assert abs(train.mean() - a.mean()) < 0.01
     "BatchNorm normalises each feature across the batch; LayerNorm and RMSNorm normalise each example across its features, so they act the same at any batch size and at inference.",
     "A residual connection computes x + F(x); its gradient has a direct path of 1, so very deep stacks still train.",
     "Dropout zeroes units at random during training only; inverted dropout rescales by 1 / (1 - p) so inference needs no change.",
+    `fp16 and bf16 take 2 bytes; bf16 keeps fp32's range, so it needs no loss scaling. Mixed-precision AdamW training keeps about ${perParam} bytes per parameter before activations.`,
   ],
   questions: [
     { id: "init-goal", level: "easy", kind: "concept",
@@ -163,10 +186,18 @@ assert abs(train.mean() - a.mean()) < 0.01
       answer: "- BatchNorm's statistics come from the batch, which is noisy for small batches and awkward with variable-length sequences and padding.\n- It behaves differently in training (batch statistics) and inference (running averages), a source of bugs and mismatch.\n- In generation the model handles one token at a time, so there is no meaningful batch.\n\nLayerNorm and RMSNorm normalise each token's own vector, so they behave the same at any batch size, any sequence length, in training and at inference." },
     { id: "overfit", level: "medium", kind: "explain",
       q: "Training loss keeps falling, but validation loss starts rising after epoch 5. What do you do?",
-      answer: "The model is overfitting: it is memorising the training set.\n\n- Keep the epoch 5 checkpoint (early stopping).\n- Add regularisation: dropout, weight decay, data augmentation.\n- Get more data, or use a smaller model.\n\nAlso check the split itself: overlap between training and validation data (leakage) can hide or fake this pattern." },
+      answer: "The model is overfitting: it is memorising the training set.\n\n- Keep the epoch 5 checkpoint (early stopping, from [[overfitting-evaluation]]).\n- Add regularisation: dropout, weight decay, data augmentation.\n- Get more data, or use a smaller model.\n\nAlso check the split itself: overlap between training and validation data (leakage) can hide or fake this pattern." },
     { id: "bf16", level: "medium", kind: "explain",
       q: "Why is bf16 usually preferred over fp16 for training large models?",
       answer: "Both use 16 bits, split differently.\n\n- bf16 keeps fp32's 8 exponent bits, so it covers the same range of magnitudes. Tiny gradients and large activations neither underflow nor overflow, and no loss scaling is needed.\n- fp16 has more mantissa (precision) bits but only 5 exponent bits, so its range is much smaller. Training in fp16 needs loss scaling to stop small gradients rounding to zero.\n\nFor training, range matters more than the extra precision." },
+    { id: "train-mem", level: "medium", kind: "numeric",
+      q: `A ${NB3 / 1e9}B parameter model is trained with AdamW in mixed precision. How much memory do its weights, gradients and optimiser state take, before activations?`,
+      answer: gb(perParam * NB3), wrong: [gb(bytesOf(FMT.bf16) * NB3), gb(8 * NB3), gb(bytesOf(FMT.fp32) * NB3)],
+      why: `${perParam} bytes per parameter: bf16 weights and gradients (2 + 2), an fp32 master copy (4) and Adam's m and v (4 + 4). ${perParam} × ${NB3 / 1e9}B = ${gb(perParam * NB3)}. ${gb(bytesOf(FMT.bf16) * NB3)} is only the bf16 weights, enough to run the model but not to train it.` },
+    { id: "trap-same-range", level: "medium", kind: "trap",
+      claim: "fp16 and bf16 both take 2 bytes, so they can hold the same range of values.",
+      truth: false,
+      why: `They split the 16 bits differently. fp16 has ${FMT.fp16[0]} exponent bits and tops out at ${n0(maxOf(FMT.fp16))}; bf16 has ${FMT.bf16[0]}, like fp32, and reaches about ${sci(maxOf(FMT.bf16))}. bf16 gives up precision instead: ${FMT.bf16[1]} mantissa bits against ${FMT.fp16[1]}.` },
     { id: "trap-dropout-infer", level: "easy", kind: "trap",
       claim: "Dropout should also be applied at inference, so the network sees the same conditions as in training.",
       truth: false,
