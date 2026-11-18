@@ -58,7 +58,17 @@ function outlier(): Flow {
   ] };
 }
 
+// Overfitting and evaluation: three splits, three jobs.
+const split: Flow = { title: "Train, validation, test", steps: [
+  { node: "shuffle, then split the data", note: "A common split is 80% train, 10% validation, 10% test. Split before you look at anything, and keep near-duplicates on the same side." },
+  { node: "train: fit the parameters", note: "Gradient descent sees only this part. Its error says how well the model memorised, not how well it generalises.", tone: "hot" },
+  { node: "validation: choose the settings", note: "Compare degrees, learning rates and checkpoints here. Every choice you make by looking at it leaks a little of it into the model.", tone: "warn" },
+  { node: "test: score once, at the end", note: "Untouched until the very end, so it stays an honest estimate of performance on new data.", tone: "ok" },
+  { node: "tune on test and it stops being a test", note: "Pick the best of many runs by their test score and the score is now optimistic. You need fresh data to know the truth.", tone: "bad" },
+] };
+
 export const FLOWS_1: Record<string, Flow> = {
+  "s1-split": split,
   "s1-loop": loop,
   "s1-lsq": lsq(),
   "s1-gd": gd(),

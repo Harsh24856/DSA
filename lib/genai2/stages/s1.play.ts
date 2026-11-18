@@ -1,7 +1,7 @@
 // Stage 1 (ML basics for LLMs): slider walk-throughs, placed in modules by a `play` block. Spread by stages/play.ts into PLAY_FLOWS.
 import type { Flow } from "../../other/flows.ts";
-import type { PlayFlow } from "../../other/flows-play-types.ts";
-import { BEST, fmt, gdLine, LIMIT, LINE, mse, predict } from "./s1.calc.ts";
+import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
+import { BEST, BEST_DEG, confusion, DEGREES, fmt, gdLine, LIMIT, LINE, mse, POLY, predict, SPAM } from "./s1.calc.ts";
 
 // Learning as fitting: fit the line by hand, then compare with least squares.
 function line(v: Record<string, number>): Flow {
@@ -40,7 +40,50 @@ function lrRun(v: Record<string, number>): Flow {
   ] };
 }
 
+// Overfitting and evaluation: polynomial degree against training and validation error.
+function degree(v: Record<string, number>): Flow {
+  const d = DEGREES[v.d], best = DEGREES[BEST_DEG], n = POLY.tx.length;
+  const state = d.deg < BEST_DEG - 1 && d.val > 1.5 * best.val ? "under" : d.val > 1.5 * best.val ? "over" : "fine";
+  const tone = state === "fine" ? "ok" as const : state === "over" ? "bad" as const : "warn" as const;
+  const row = (x: typeof d, label: string) => [label, x.deg, fmt(x.train), fmt(x.val)];
+  return { kind: "grid", title: `Degree ${d.deg}: ${d.deg + 1} parameters, ${n} points`, steps: [
+    { note: `A degree ${d.deg} polynomial has ${d.deg + 1} coefficients. Fitted by least squares to ${n} noisy samples of a smooth curve, its training MSE is ${fmt(d.train)}.${d.deg + 1 >= n ? " With as many coefficients as points it can pass through every one." : ""}`, tone: "hot",
+      tables: [{ head: ["", "degree", "train MSE", "val MSE"], rows: [row(d, "yours")], tones: { "0:2": "hot" } }] },
+    { note: state === "under" ? `Underfitting: too stiff to follow the curve. Both errors are high; validation ${fmt(d.val)} against the best ${fmt(best.val)} at degree ${BEST_DEG}.`
+      : state === "over" ? `Overfitting: training error ${fmt(d.train)} looks great, but on ${POLY.vx.length} new points the error is ${fmt(d.val)}, ${fmt(d.val / best.val)} times the best. Its largest coefficient is ${fmt(d.size)}: it bends hard to hit the noise.`
+      : `A good fit: validation error ${fmt(d.val)} is close to the lowest, ${fmt(best.val)} at degree ${BEST_DEG}. The noise itself has variance ${fmt(POLY.noise ** 2)}, so no model can do much better.`,
+      tone, tables: [{ head: ["", "degree", "train MSE", "val MSE"], rows: [row(d, "yours"), row(best, "best on val")], tones: { [`0:3`]: tone, "1:3": "ok" } }] },
+  ] };
+}
+
+// Overfitting and evaluation: one threshold, four counts, three metrics.
+function threshold(v: Record<string, number>): Flow {
+  const t = Math.round(v.t * 100) / 100, c = confusion(t), pos = c.tp + c.fn;
+  if (c.tp + c.fp === 0) throw new PlayError("Nothing is flagged at this threshold, so precision is undefined. Lower it.");
+  const pct = (x: number) => `${Math.round(100 * x)}%`;
+  return { kind: "grid", title: `Threshold ${fmt(t)}`, steps: [
+    { note: `${SPAM.scores.length} emails, ${pos} really spam. Flag every email scoring ${fmt(t)} or more. The confusion matrix counts the four outcomes.`, tone: "hot",
+      tables: [{ head: ["", "flagged", "not flagged"], rowHead: ["spam", "not spam"], rows: [[c.tp, c.fn], [c.fp, c.tn]], tones: { "0:0": "ok", "1:1": "ok", "0:1": "bad", "1:0": "bad" } }] },
+    { note: `Precision: of ${c.tp + c.fp} flagged, ${c.tp} are spam, ${pct(c.precision)}. Recall: of ${pos} spam, ${c.tp} caught, ${pct(c.recall)}. F1, their harmonic mean, is ${fmt(c.f1)}. Accuracy is ${pct(c.acc)}.`,
+      tone: c.f1 >= 0.7 ? "ok" : "warn",
+      tables: [{ head: ["metric", "formula", "value"], rows: [["precision", "TP / (TP + FP)", fmt(c.precision)], ["recall", "TP / (TP + FN)", fmt(c.recall)], ["F1", "2PR / (P + R)", fmt(c.f1)], ["accuracy", "right / all", fmt(c.acc)]] }] },
+    { note: t >= 0.6 ? `A high threshold flags only sure cases: few false alarms, but ${c.fn} spam slip through. Raise it further and recall keeps falling.`
+      : `A low threshold catches more spam but flags ${c.fp} good emails. Lower it further and precision keeps falling.`, tone: "warn",
+      tables: [{ head: ["moving the threshold", "precision", "recall"], rows: [["up", "rises (usually)", "falls or stays"], ["down", "falls (usually)", "rises or stays"]] }] },
+  ] };
+}
+
 export const PLAY_1: Record<string, PlayFlow> = {
+  "s1-degree": {
+    title: "Turn up the degree",
+    knobs: [{ key: "d", label: "Polynomial degree", min: 0, max: 11, step: 1, value: 1 }],
+    make: degree,
+  },
+  "s1-threshold": {
+    title: "Move the threshold",
+    knobs: [{ key: "t", label: "Spam threshold", min: 0.05, max: 0.95, step: 0.05, value: 0.5 }],
+    make: threshold,
+  },
   "s1-lr": {
     title: "Pick the learning rate",
     knobs: [
