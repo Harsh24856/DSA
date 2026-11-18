@@ -72,6 +72,20 @@ function reducerFlow(): Flow {
   ] };
 }
 
+// mcp-a2a: one tool call over MCP, as the 2026-07-28 spec has it (stateless: no initialize handshake, no session)
+export const MCP_VERSION = "2026-07-28";
+function mcp(): Flow {
+  return { kind: "lanes", title: "One tool call over MCP", lanes: ["App + model", "MCP client", "MCP server"], steps: [
+    { from: 1, to: 2, label: "server/discover", note: `Optional: the client asks which protocol versions and capabilities the server supports. Since the ${MCP_VERSION} spec there is no initialize handshake and no session.` },
+    { from: 1, to: 2, label: "tools/list", note: "Every request carries the protocol version and the client's capabilities in its _meta field, so the server keeps no state between requests." },
+    { from: 2, to: 1, label: "names + schemas", note: "The app adds them to the model's tool list. It wrote no custom code for this tool.", tone: "hot" },
+    { from: 0, to: 1, label: "model picks a tool", note: "The model asks for a tool in the usual way. The spec wants a person able to deny tool calls, so risky ones are confirmed first.", tone: "warn" },
+    { from: 1, to: 2, label: "tools/call", note: "A JSON-RPC request with an id: one line on stdio for a local server, an HTTP POST for a remote one." },
+    { from: 2, to: 1, label: "isError: true", note: "The upstream API is down. That is a tool execution error, so it returns as a normal result, not a JSON-RPC error.", tone: "bad" },
+    { from: 1, to: 0, label: "result to model", note: "The model reads the error and can wait or try another way. Treat every result as untrusted input.", tone: "ok" },
+  ] };
+}
+
 // mcp-a2a: one agent hands a task to another over A2A, including a pause for the user's input
 export const HOTEL = { nights: 2, budget: 150, offers: [["Hotel Rio", 180], ["Casa Azul", 140], ["Hostel Sol", 60]] as [string, number][] };
 function a2a(): Flow {
@@ -142,6 +156,7 @@ export const FLOWS_8: Record<string, Flow> = {
   "s8-orch": orch(),
   "s8-cu-loop": cuLoop(),
   "s8-mem-rank": memRank(),
+  "s8-mcp": mcp(),
   "s8-a2a": a2a(),
   "s8-reducer": reducerFlow(),
   "s8-tool-retry": toolRetry(),

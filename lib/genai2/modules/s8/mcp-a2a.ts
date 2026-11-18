@@ -7,7 +7,7 @@ const [NA, NT] = [5, 20], g = glue(NA, NT);
 // numeric: one more tool
 const [NA2, NT2] = [8, 30], add1 = glue(NA2, NT2 + 1).pairs - glue(NA2, NT2).pairs;
 // output: messages on a stdio stream
-const MSGS = ["initialize", "notifications/initialized", "tools/list", "tools/call"];
+const MSGS = ["server/discover", "tools/list", "tools/call", "notifications/cancelled"];
 
 export const MCP_A2A: GModule = {
   id: "mcp-a2a",
@@ -17,7 +17,7 @@ export const MCP_A2A: GModule = {
   blocks: [
     { kind: "figure", id: "s8-glue", caption: "Top: each app wires each tool itself. Bottom: each side implements one protocol once. The saving grows with both sides." },
     { kind: "text", md: "**MCP's three roles.** The **host** is the AI app the user runs, such as a chat app or an IDE. Inside it, one **client** per connection talks to one **server**. A server is a small program that offers tools, resources and prompts. Messages are JSON-RPC 2.0, sent over stdio to a local process or over Streamable HTTP to a remote one." },
-    { kind: "flow", id: "g-mcp" },
+    { kind: "flow", id: "s8-mcp" },
     {
       kind: "compare",
       head: ["Server offers", "Who controls it", "Example"],
@@ -39,26 +39,30 @@ export const MCP_A2A: GModule = {
       run: true,
       src: `import json
 
+VERSION = "2026-07-28"
+
 def msg(id_, method, params=None):
     m = {"jsonrpc": "2.0", "method": method}
-    if id_ is not None:
-        m["id"] = id_                       # requests have an id; notifications do not
+    if id_ is not None:                     # requests have an id; notifications do not
+        m["id"] = id_
+        # no handshake: every request carries its protocol version in _meta
+        params = {**(params or {}), "_meta": {"io.modelcontextprotocol/protocolVersion": VERSION}}
     if params is not None:
         m["params"] = params
     return json.dumps(m)                    # one line: stdio messages may not contain newlines
 
 stream = "\\n".join([
-    msg(1, "initialize", {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "demo", "version": "1"}}),
-    msg(None, "notifications/initialized"),
+    msg(1, "server/discover"),
     msg(2, "tools/list"),
     msg(3, "tools/call", {"name": "get_order", "arguments": {"order_id": "A-1042"}}),
+    msg(None, "notifications/cancelled", {"requestId": 3, "reason": "user closed the chat"}),
 ])
 for line in stream.split("\\n"):
     m = json.loads(line)
-    print(m.get("id", "-"), m["method"])
+    print(m.get("id", "-"), m["method"], "version" if "_meta" in m.get("params", {}) else "")
 
 # a tool that fails returns a normal result flagged isError, not a protocol error
-reply = {"jsonrpc": "2.0", "id": 3, "result": {"content": [{"type": "text", "text": "No order A-1042"}], "isError": True}}
+reply = {"jsonrpc": "2.0", "id": 3, "result": {"resultType": "complete", "content": [{"type": "text", "text": "No order A-1042"}], "isError": True}}
 assert "error" not in reply and reply["result"]["isError"]
 `,
     },
@@ -120,7 +124,7 @@ assert "error" not in reply and reply["result"]["isError"]
       q: "A tool's upstream API hits its rate limit. How should the MCP server report this?",
       answer: "As a normal tools/call result with isError set to true and a message the model can read",
       wrong: ["As a JSON-RPC protocol error with an error code", "By closing the connection", "By returning an empty result with no flag"],
-      why: "The spec separates protocol errors (unknown tool, bad arguments) from tool execution errors. Execution errors go in the result, so the model sees them and can react, for example by waiting or trying another way." },
+      why: "The spec separates protocol errors (an unknown tool, a malformed request) from tool execution errors (a failing API, an invalid input value, a broken business rule). Execution errors go in the result, so the model sees them and can react, for example by waiting or trying another way." },
     { id: "a2a-vs-mcp", level: "easy", kind: "concept",
       q: "What does A2A add that MCP does not cover?",
       answer: "A standard way for one agent to hand work to another agent and follow it as a task",
@@ -136,11 +140,11 @@ assert "error" not in reply and reply["result"]["isError"]
       answer: "The task is paused, waiting for more input from the client, and is not finished",
       wrong: ["The task failed and must be resubmitted", "The task completed with no artifacts", "The agent card is missing a field"],
       why: "Input required and auth required pause a task. The client answers with a message to the same task, and work continues. Completed, failed, canceled and rejected are the final states." },
-    { id: "sampling", level: "hard", kind: "concept",
-      q: "What is MCP sampling?",
-      answer: "A server asking the client's host to run an LLM completion for it, with the user's approval",
-      wrong: ["The client picking a random subset of tools", "The server training a model on the user's data", "The model choosing a temperature"],
-      why: "Sampling lets a server get a model completion through the host instead of calling a model itself. The spec says users must approve sampling requests and should control the prompt and what the server sees." },
+    { id: "stateless", level: "hard", kind: "concept",
+      q: "Under the MCP spec revision of 2026-07-28, how does a server learn which protocol version a client speaks?",
+      answer: "Every request carries the version in its _meta field; there is no opening handshake",
+      wrong: ["From an Agent Card at a well-known URL", "From the Mcp-Session-Id header set when the session opened", "It does not need to: every version is compatible"],
+      why: "That revision made MCP stateless: it removed the initialize handshake and protocol-level sessions, Mcp-Session-Id included. A client may call server/discover first to see what a server supports, but it does not have to. Agent Cards belong to A2A." },
     { id: "count-glue", level: "easy", kind: "numeric",
       q: `${NA} AI apps each want to use the same ${NT} tools. How many integrations does a shared protocol need, against pairwise connectors?`,
       answer: `${g.protocol} instead of ${g.pairs}`, wrong: [`${g.pairs} instead of ${g.protocol}`, `${NT} instead of ${g.pairs}`, `${g.protocol} instead of ${NA + NT * 2}`],
@@ -153,7 +157,7 @@ assert "error" not in reply and reply["result"]["isError"]
       q: "Messages on a stdio stream are newline-delimited. How many of these are notifications? What does this print?",
       code: `import json\nlines = [\n${MSGS.map((m, i) => `    json.dumps({"jsonrpc": "2.0", ${m.startsWith("notifications") ? "" : `"id": ${i + 1}, `}"method": "${m}"})`).join(",\n")},\n]\nstream = "\\n".join(lines)\nmsgs = [json.loads(l) for l in stream.split("\\n")]\nprint(sum("id" not in m for m in msgs))`,
       answer: String(MSGS.filter((m) => m.startsWith("notifications")).length), wrong: ["0", String(MSGS.length), "2"],
-      why: "A JSON-RPC notification has no id and gets no response. Here only notifications/initialized is one: the client sends it after initialize to say it is ready." },
+      why: "A JSON-RPC notification has no id and gets no response. Here only notifications/cancelled is one: the client sends it to abandon a request it no longer needs." },
     { id: "why-mcp", level: "easy", kind: "explain",
       q: "What problem does MCP solve, and how?",
       answer: `Without it, every AI app writes its own connector for every tool, so ${NA} apps and ${NT} tools mean ${g.pairs} integrations to build and maintain.\n\nMCP fixes one protocol between them. A tool is wrapped once as a server that lists its tools, resources and prompts; an app implements a client once. Any client can then discover and call any server: ${g.protocol} pieces instead of ${g.pairs}.` },

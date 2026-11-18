@@ -26,7 +26,7 @@ export const STATE_GRAPHS: GModule = {
       kind: "predict",
       q: "The key notes has an append reducer and holds [\"a\"]. Two nodes run in the same step and return {\"notes\": [\"b\"]} and {\"notes\": [\"c\"]}. How many notes are there after the step?",
       answer: String(afterTwo.notes.length), wrong: ["1", "2", "0"],
-      why: `The reducer merges each update into the old value, so both appends survive: ${afterTwo.notes.length} notes. With the default replace behaviour, a key keeps only the update it is given, which is why lists written by parallel branches need an append reducer.`,
+      why: `The reducer merges each update into the old value, so both appends survive: ${afterTwo.notes.length} notes. With no reducer, LangGraph cannot tell how to combine two updates to one key in the same step and raises INVALID_CONCURRENT_GRAPH_UPDATE, which is why lists written by parallel branches need an append reducer.`,
     },
     {
       kind: "mermaid",
@@ -171,7 +171,7 @@ assert saved["t1"]["state"]["done"] is True and log.count("approve started") == 
     { id: "trap-replace", level: "hard", kind: "trap",
       claim: "If two parallel nodes append to a list key with no reducer, the list ends up holding both additions.",
       truth: false,
-      why: "With no reducer, an update replaces the value rather than merging into it. Lists that several nodes add to need an append reducer, such as operator.add or add_messages." },
+      why: "With no reducer, two updates to the same key in one step leave LangGraph unsure how to combine them, so it raises an INVALID_CONCURRENT_GRAPH_UPDATE error. Lists that several nodes add to need an append reducer, such as operator.add or add_messages." },
   ],
   real: [
     { who: "The LangGraph documentation", when: "Read in November 2026",
