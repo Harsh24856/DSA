@@ -61,5 +61,5 @@ The 2026-11-18 audit found 106 issues: 31 prerequisite gaps, 30 repeats, 10 fill
 - [x] V3: stage 3 visualizers (unrolled RNN with the pulse fading, LSTM cell with live gates; seq2seq keeps its lanes flow, GRU its gate slider)
 - [x] Stages 5 and 6: 3dbc59f (ZeRO memory slider, formats and parallelism, PPO, hallucination, generation metrics; evals-judge no longer assumes RAG). Done by the main agent, no subagents.
 - [x] Stages 7 and 8: new `embedding-models` (contrastive training scene, InfoNCE flow, pooling figure, index-size slider, MTEB and Matryoshka sources fetched), fine-tune vs RAG vs prompt table in `rag-ingest`, planning block in `agent-loop-react`.
-- [ ] Stages 9 and 10. Known: the `kv-cache-paged` repeat. Six arXiv URLs in stage 9 still need fetching.
+- [x] Stages 9 and 10: `kv-cache-paged` links back to `decoding` instead of repeating it, `time-memory` links the attention cost, `long-context` loses its GQA and lost-in-the-middle repeats. All six unfetched stage 9 arXiv sources (LLM.int8, GPTQ, AWQ, speculative sampling, MT-Bench, indirect prompt injection) were fetched; each says what its entry claims.
 - [ ] Final read-through of all modules, and every check.

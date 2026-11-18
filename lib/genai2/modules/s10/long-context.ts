@@ -18,7 +18,7 @@ export const LONG_CONTEXT: GModule = {
   hook: "Models now read hundreds of thousands of tokens in one prompt. Getting there means taming positions the model never trained on, a KV cache bigger than the model, and a model that tends to skim the middle.",
   blocks: [
     { kind: "figure", id: "s10-ctx-memory", caption: `Each token keeps ${PER / 1024} KiB of keys and values in the example 8B model. Past about ${n0(CROSS)} tokens, one request's cache outweighs the ${LC.weightsGB} GB of weights.` },
-    { kind: "text", md: "**Three walls.** Positions: a model trained to 4K tokens has never seen the angles RoPE gives to position 16K. Memory: the KV cache grows with every token, and attention's work grows with n squared. Use: even when it fits, the model may not use the middle of a long prompt well. Each wall has its own fix." },
+    { kind: "text", md: "**Three walls**, each met earlier. Positions: RoPE from [[embeddings-positions]] gives position 16K angles a 4K-trained model never saw. Memory: the KV cache from [[decoding]] and GQA from [[multi-head-masks]]. Use: the lost-in-the-middle effect from [[context-caching]]. This module is about the fixes that stretch each wall." },
     { kind: "flow", id: "s10-rope" },
     {
       kind: "predict",
@@ -82,7 +82,6 @@ assert np.isclose(near, far)               # the score depends only on the offse
     "RoPE encodes position as rotation angles; positions past the trained length give unseen angles, so models are extended with interpolation (as in YaRN) and a short fine-tune.",
     `The KV cache grows with every token (${PER / 1024} KiB a token in the example model) and can outweigh the weights at long context.`,
     "Grouped-query attention, a quantised cache and hybrid layers shrink the cache; FlashAttention and ring attention handle the n squared work.",
-    "Models often use information at the start and end of a long prompt better than the middle.",
     "A claimed context length is not an effective one: test multi-step tasks at your real lengths, not just a needle search.",
   ],
   questions: [
@@ -90,15 +89,6 @@ assert np.isclose(near, far)               # the score depends only on the offse
       q: "What usually limits how long a context a GPU can serve?",
       answer: "The KV cache, which grows with every token", wrong: ["The size of the vocabulary", "The number of layer norms", "The tokenizer's speed"],
       why: `Weights are fixed; the cache grows. In the example model ${n0(K128)} tokens need ${r1(G128)} GB, more than the ${LC.weightsGB} GB of weights.` },
-    { id: "middle", level: "medium", kind: "concept",
-      q: "In the lost in the middle study, where did models use relevant information best?",
-      answer: "At the beginning or end of the input", wrong: ["In the middle", "Evenly everywhere", "Only in the last 100 tokens"],
-      why: "Accuracy was often highest when the key passage was first or last, and dropped when it sat in the middle, even for long-context models. Put the question and key facts at the edges." },
-    { id: "gqa", level: "medium", kind: "concept",
-      q: "How does grouped-query attention shrink the KV cache?",
-      answer: "Several query heads share each key and value head, so fewer keys and values are stored",
-      wrong: ["It stores only every second token", "It drops the value vectors", "It compresses the cache with a zip algorithm"],
-      why: `Queries keep their full count; keys and values are shared in groups. Going from 32 to ${LC.kvHeads} KV heads cuts the cache ${32 / LC.kvHeads} times, with quality close to full multi-head attention.` },
     { id: "interp", level: "hard", kind: "concept",
       q: `A model trained to ${n0(ROPE_EX.train)} tokens must read ${n0(ROPE_EX.target)}. What does position interpolation do?`,
       answer: `Divides positions by ${stretch}, so every angle stays inside the trained range`,

@@ -21,11 +21,10 @@ export const KV_CACHE_PAGED: GModule = {
   id: "kv-cache-paged",
   stage: 9,
   title: "KV cache and paged attention",
-  hook: "Every token a model has seen leaves a key and a value in every layer. Keeping them saves recomputing the past, but they fill GPU memory fast. How you store them decides how many users one GPU can serve.",
+  hook: "The KV cache saves recomputing the past, but it fills GPU memory fast. How you store it decides how many users one GPU can serve.",
   blocks: [
     { kind: "figure", id: "s9-kv-blocks", caption: `Reserving the maximum for every request leaves most of the memory empty: ${pctUsed(USED, RES)} used. Fixed blocks handed out on demand waste at most part of the last block: ${pctUsed(USED, PG)} used.` },
-    { kind: "flow", id: "g-kv" },
-    { kind: "text", md: `**What the cache holds.** For each token, each layer stores its key and value vectors, for each KV head. That is ${perTok / 1024} KiB a token for the example ${MODEL.params}B model. A new token's query must meet every old key, so dropping them means recomputing the whole prefix at every step.\n\n**The waste.** A server does not know how long an answer will be. Reserving the maximum length per request leaves most of it empty.` },
+    { kind: "text", md: `**Builds on [[decoding]]**, where the KV cache and its size formula were introduced: for the example ${MODEL.params}B model it is ${perTok / 1024} KiB a token. This module is about storing it well.\n\n**The waste.** A server does not know how long an answer will be. Reserving the maximum length per request leaves most of it empty.` },
     {
       kind: "predict",
       q: `A request holds ${PL} tokens. The cache hands out blocks of 16 tokens. How many blocks does it use, and how many slots sit empty?`,

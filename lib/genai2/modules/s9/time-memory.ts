@@ -20,7 +20,7 @@ export const TIME_MEMORY: GModule = {
   id: "time-memory",
   stage: 9,
   title: "Where time and memory go",
-  hook: "A model that answers in a notebook can still be slow and expensive for a thousand users. Before any fix, know the two phases of a request and which one is waiting on memory rather than maths.",
+  hook: "A model that answers in a notebook can still be slow and expensive for a thousand users. Before any fix, know the two phases of a request and which one is waiting on memory rather than maths. Builds on [[decoding]] (the KV cache) and the cost of attention in [[self-attention]].",
   blocks: [
     { kind: "figure", id: "s9-roofline", caption: `The roof is what the example GPU can reach. Decode for one user does about ${intensity(1)} FLOP per byte it reads, so it sits far down the memory slope. The bend is at about ${Math.round(RIDGE)} FLOPs per byte.` },
     { kind: "text", md: "**Two phases.** *Prefill* reads the whole prompt in one pass. Many tokens share each weight read, so it is limited by maths (compute bound). It sets the **time to first token** (TTFT).\n\n**Decode** makes one token per step, and each step reads every weight again for only a few FLOPs. It waits on memory bandwidth (memory bound). It sets the **time per output token** (TPOT)." },
