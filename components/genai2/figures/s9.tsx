@@ -4,6 +4,7 @@ import { KvBlocks } from "./s9/KvBlocks";
 import { BatchGantt } from "./s9/BatchGantt";
 import { QuantSizes } from "./s9/QuantSizes";
 import { SpecTokens } from "./s9/SpecTokens";
+import { CiBars } from "./s9/CiBars";
 
 // Exactly the ids in FIGURE_IDS_9: satisfies rejects a missing or an extra key.
 export const FIGURES_9 = {
@@ -12,4 +13,5 @@ export const FIGURES_9 = {
   "s9-batch-gantt": BatchGantt,
   "s9-quant-sizes": QuantSizes,
   "s9-spec-tokens": SpecTokens,
+  "s9-ci-bars": CiBars,
 } satisfies Record<(typeof FIGURE_IDS_9)[number], () => React.JSX.Element>;

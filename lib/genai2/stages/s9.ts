@@ -4,6 +4,7 @@ import { KV_CACHE_PAGED } from "../modules/s9/kv-cache-paged.ts";
 import { BATCHING_ENGINES } from "../modules/s9/batching-engines.ts";
 import { QUANTISATION } from "../modules/s9/quantisation.ts";
 import { SPECULATIVE_DECODING } from "../modules/s9/speculative-decoding.ts";
+import { EVALS_JUDGE } from "../modules/s9/evals-judge.ts";
 
 export const MODULES_9: Record<string, GModule> = {
   "time-memory": TIME_MEMORY,
@@ -11,4 +12,5 @@ export const MODULES_9: Record<string, GModule> = {
   "batching-engines": BATCHING_ENGINES,
   quantisation: QUANTISATION,
   "speculative-decoding": SPECULATIVE_DECODING,
+  "evals-judge": EVALS_JUDGE,
 };
