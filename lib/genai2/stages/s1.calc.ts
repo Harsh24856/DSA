@@ -49,6 +49,10 @@ export function lrLimit(xs = LINE.xs) {
   return { big, small, max: 2 / big };
 }
 export const LIMIT = lrLimit();
+/** The learning rate used by the gradient descent walk-through, the figure and the module text. */
+export const GD = { lr: 0.1, show: [0, 1, 2, 3, 5, 10, 20, 50, 100] };
+/** Five errors, one of them an outlier: how squared and absolute losses weigh it. */
+export const OUTLIER = [0.5, -0.4, 0.3, -0.2, 4];
 
 // ---------- overfitting: polynomials of rising degree on noisy samples of sin(pi x) ----------
 const gauss = (r: () => number) => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());

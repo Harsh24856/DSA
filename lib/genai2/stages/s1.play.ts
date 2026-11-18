@@ -1,7 +1,7 @@
 // Stage 1 (ML basics for LLMs): slider walk-throughs, placed in modules by a `play` block. Spread by stages/play.ts into PLAY_FLOWS.
 import type { Flow } from "../../other/flows.ts";
 import type { PlayFlow } from "../../other/flows-play-types.ts";
-import { BEST, fmt, LINE, mse, predict } from "./s1.calc.ts";
+import { BEST, fmt, gdLine, LIMIT, LINE, mse, predict } from "./s1.calc.ts";
 
 // Learning as fitting: fit the line by hand, then compare with least squares.
 function line(v: Record<string, number>): Flow {
@@ -21,7 +21,34 @@ function line(v: Record<string, number>): Flow {
   ] };
 }
 
+// Loss and gradient descent: the learning rate decides between crawling, converging and blowing up.
+function lrRun(v: Record<string, number>): Flow {
+  const { lr, steps } = v, hist = gdLine(lr, steps), { max, big } = LIMIT;
+  const at = [0, 1, 2, 5, 10, 20, 50, 100, 200].filter((t) => t <= steps);
+  if (at[at.length - 1] !== steps) at.push(steps);
+  const end = hist[steps], L0 = hist[0].loss, gap = end.loss - BEST.loss;
+  const verdict = lr >= max ? "bad" as const : gap < 0.01 ? "ok" as const : "warn" as const;
+  const table = { head: ["step", "w", "b", "MSE"], rows: at.map((t) => [t, fmt(hist[t].w), fmt(hist[t].b), fmt(hist[t].loss)]),
+    tones: Object.fromEntries(at.flatMap((t, i) => (hist[t].loss > L0 ? [[String(i), "bad" as const]] : []))) };
+  return { kind: "grid", title: `lr ${lr}, ${steps} steps`, steps: [
+    { note: `The bowl's steepest direction has curvature ${fmt(big)}. Gradient descent shrinks the error along it only while lr × ${fmt(big)} < 2, so lr must stay under ${fmt(max)}. Here lr × ${fmt(big)} = ${fmt(lr * big)}.`, tone: lr >= max ? "bad" : "ok",
+      tables: [{ head: ["", "value"], rows: [["your lr", fmt(lr)], ["limit", fmt(max)]], tones: { "0:1": lr >= max ? "bad" : "ok" } }] },
+    { note: lr >= max ? `Too big: every step overshoots the bottom by more than it started, so the loss grows. After ${steps} steps the MSE is ${fmt(end.loss)}.`
+      : gap < 0.01 ? `Converged: after ${steps} steps the MSE is ${fmt(end.loss)}, within 0.01 of the best possible ${fmt(BEST.loss)}.`
+      : `Still crawling: the MSE is ${fmt(end.loss)} after ${steps} steps, ${fmt(gap)} above the best ${fmt(BEST.loss)}. A larger lr or more steps would finish the job.`,
+      tone: verdict, tables: [table] },
+  ] };
+}
+
 export const PLAY_1: Record<string, PlayFlow> = {
+  "s1-lr": {
+    title: "Pick the learning rate",
+    knobs: [
+      { key: "lr", label: "Learning rate", min: 0.01, max: 0.2, step: 0.01, value: 0.05 },
+      { key: "steps", label: "Steps", min: 10, max: 200, step: 10, value: 50 },
+    ],
+    make: lrRun,
+  },
   "s1-line": {
     title: "Fit the line by hand",
     knobs: [

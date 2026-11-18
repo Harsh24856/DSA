@@ -1,6 +1,6 @@
 // Stage 1 (ML basics for LLMs): animated walk-throughs. Client-safe: imports only flow types and s1.calc.ts. Every number shown is computed there.
 import type { Flow, GridTable } from "../../other/flows.ts";
-import { BEST, fmt, LINE, mse } from "./s1.calc.ts";
+import { BEST, fmt, GD, gdLine, gradLine, LINE, mse, OUTLIER, predict } from "./s1.calc.ts";
 
 // Learning as fitting: the loop every supervised model runs, from a tiny line to an LLM.
 const loop: Flow = { title: "The learning loop", steps: [
@@ -31,7 +31,36 @@ function lsq(): Flow {
   ] };
 }
 
+// Loss and gradient descent: the same line, found by stepping downhill instead of by formula.
+function gd(): Flow {
+  const { xs, ys } = LINE, { lr, show } = GD, hist = gdLine(lr, show[show.length - 1]);
+  const e0 = xs.map((x, i) => predict(0, 0, x) - ys[i]), g0 = gradLine(0, 0), h1 = hist[1];
+  return { kind: "grid", title: `Gradient descent, lr ${lr}`, steps: [
+    { note: `Start anywhere: w = 0, b = 0. The line predicts 0 for everyone, so every error is minus the score. MSE ${fmt(hist[0].loss)}.`, tone: "bad",
+      tables: [{ head: ["x", "y", "error e"], rows: xs.map((x, i) => [x, ys[i], fmt(e0[i])]) }] },
+    { note: `The gradient says how the loss changes per unit of each knob: dL/dw = 2 × mean(e × x) = ${fmt(g0.dw)}, dL/db = 2 × mean(e) = ${fmt(g0.db)}. Both negative: raising w or b lowers the loss.`, tone: "hot",
+      tables: [{ head: ["knob", "gradient"], rows: [["w", fmt(g0.dw)], ["b", fmt(g0.db)]], tones: { ":1": "hot" } }] },
+    { note: `Step against the gradient: w = 0 - ${lr} × (${fmt(g0.dw)}) = ${fmt(h1.w)}, b = ${fmt(h1.b)}. The MSE falls from ${fmt(hist[0].loss)} to ${fmt(h1.loss)}.`, tone: "ok",
+      tables: [{ head: ["step", "w", "b", "MSE"], rows: hist.slice(0, 2).map((h) => [h.t, fmt(h.w), fmt(h.b), fmt(h.loss)]), tones: { "1:3": "ok" } }] },
+    { note: `Repeat: new errors, new gradient, new step. The loss drops fast at first, then slowly as the bowl flattens. After ${hist.length - 1} steps w = ${fmt(hist[hist.length - 1].w)}, b = ${fmt(hist[hist.length - 1].b)}; the formula gives ${fmt(BEST.w)} and ${fmt(BEST.b)}.`, tone: "ok",
+      tables: [{ head: ["step", "w", "b", "MSE"], rows: show.map((t) => [t, fmt(hist[t].w), fmt(hist[t].b), fmt(hist[t].loss)]), tones: { [`${show.length - 1}:3`]: "ok" } }] },
+  ] };
+}
+
+// Loss and gradient descent: squared against absolute error when one example is far off.
+function outlier(): Flow {
+  const sq = OUTLIER.map((e) => e * e), ab = OUTLIER.map(Math.abs), top = OUTLIER.length - 1;
+  const share = (xs: number[]) => Math.round((100 * xs[top]) / xs.reduce((s, x) => s + x, 0));
+  const bars = (xs: number[]) => xs.map((v, i) => ({ label: `e = ${OUTLIER[i]}`, value: v, tone: i === top ? "bad" as const : undefined }));
+  return { kind: "bars", title: "One outlier, two losses", format: fmt, steps: [
+    { note: `Five errors. Four are small; one example is off by ${OUTLIER[top]}, perhaps a typo in its label. Absolute error counts each miss by its size.`, bars: bars(ab) },
+    { note: `Absolute error: the outlier is ${share(ab)}% of the total. Squared error: ${fmt(sq[top])} out of ${fmt(sq.reduce((s, x) => s + x, 0))}, ${share(sq)}% of the total. Minimising MSE will bend the whole fit toward that one point.`, tone: "warn", bars: bars(sq) },
+  ] };
+}
+
 export const FLOWS_1: Record<string, Flow> = {
   "s1-loop": loop,
   "s1-lsq": lsq(),
+  "s1-gd": gd(),
+  "s1-outlier": outlier(),
 };
