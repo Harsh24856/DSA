@@ -95,7 +95,7 @@ export function polyErrorsN(deg: number, n: number) {
   const err = (xs: number[], ys: number[]) => mean(xs.map((x, i) => (polyval(c, x) - ys[i]) ** 2));
   return { deg, n, train: err(tx, ty), val: err(POLY.vx, POLY.vy) };
 }
-export const DEGREES =Array.from({ length: 12 }, (_, d) => polyErrors(d));
+export const DEGREES = Array.from({ length: 12 }, (_, d) => polyErrors(d));
 export const BEST_DEG = DEGREES.slice(0, 10).reduce((m, d) => (d.val < m.val ? d : m)).deg;
 
 // ---------- precision, recall and F1: a spam filter's scores on 20 emails ----------
@@ -143,7 +143,7 @@ export function sgnsStep(v: number[], u: number[], n: number[], lr: number) {
 }
 export const W2V = { v: [0.2, -0.1, 0.4], u: [0.1, 0.3, -0.2], n: [0.3, -0.2, 0.5], lr: 0.5 };
 
-/** A real, tiny skip-gram with negative sampling, trained at load on a toy corpus where cat and dog, and milk and water, share contexts. */
+/** A real, tiny skip-gram with negative sampling, trained on first use (embCos) on a toy corpus where cat and dog, and milk and water, share contexts. */
 export const CORPUS = [
   "the cat drinks milk", "the dog drinks water", "the cat drinks water", "the dog drinks milk",
   "a cat sleeps on the mat", "a dog sleeps on the mat", "the cat eats fish", "the dog eats meat",
@@ -164,9 +164,16 @@ export const trainW2V = () => {
     update(c, o, 1);
     for (let k = 0; k < negatives; k++) { const n = Math.floor(r() * vocab.length); if (n !== o) update(c, n, 0); }
   }
-  return { vocab, vec: (w: string) => V[id.get(w)!], pairs: pairs.length };
+  return { vocab, vec: (w: string) => V[id.get(w)!] };
 };
-export const EMB = trainW2V();
+/** Training pairs in one pass over the corpus, counted without training. */
+export const W2V_PAIRS = CORPUS.map(tokens).flatMap((s) => skipPairs(s, W2V_CFG.window)).length;
 export const SHOW = ["cat", "dog", "milk", "water"];
-export const EMB_COS = SHOW.map((a) => SHOW.map((b) => cosine(EMB.vec(a), EMB.vec(b))));
-if (!(EMB_COS[0][1] > EMB_COS[0][2] && EMB_COS[2][3] > EMB_COS[1][3])) throw new Error("the toy word2vec no longer puts cat near dog and milk near water");
+let embCosCache: number[][] | undefined;
+/** Cosine grid over SHOW from the toy run. Trained on first call (about 27 ms), so pages that never show it never pay. */
+export function embCos() {
+  if (embCosCache) return embCosCache;
+  const emb = trainW2V(), c = SHOW.map((a) => SHOW.map((b) => cosine(emb.vec(a), emb.vec(b))));
+  if (!(c[0][1] > c[0][2] && c[2][3] > c[1][3] && c[0][2] < 0)) throw new Error("the toy word2vec no longer puts cat near dog, milk near water, and cat and milk below 0");
+  return (embCosCache = c);
+}

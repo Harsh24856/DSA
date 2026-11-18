@@ -1,18 +1,19 @@
-// Cosine similarity between four words, as one-hot vectors and as word2vec vectors trained at load on the stage's toy corpus. Computed from EMB_COS.
+// Cosine similarity between four words, as one-hot vectors and as word2vec vectors trained on the stage's toy corpus the first time this figure renders. Computed from embCos.
 import { useId } from "react";
-import { CORPUS, EMB_COS, fmt, SHOW, W2V_CFG } from "@/lib/genai2/stages/s1.calc";
+import { CORPUS, embCos, fmt, SHOW, W2V_CFG } from "@/lib/genai2/stages/s1.calc";
 
 const W = 340, CELL = 32, TOP = 64, LEFT = 44, GAP = 16;
 const X0 = [LEFT, LEFT + 4 * CELL + GAP];
 const onehot = SHOW.map((_, i) => SHOW.map((__, j) => (i === j ? 1 : 0)));
-const panels: [string, number[][]][] = [["one-hot", onehot], ["word2vec", EMB_COS]];
 
 export function CosGrid() {
   const titleId = useId();
+  const cos = embCos();
+  const panels: [string, number[][]][] = [["one-hot", onehot], ["word2vec", cos]];
   const H = TOP + 4 * CELL + 36;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="mx-auto w-full max-w-[520px]" role="img" aria-labelledby={titleId}>
-      <title id={titleId}>{`Two 4 by 4 grids of cosine similarity between ${SHOW.join(", ")}. With one-hot vectors every different pair scores 0. With ${W2V_CFG.dim}-number word2vec vectors trained on ${CORPUS.length} toy sentences, cat and dog score ${fmt(EMB_COS[0][1])}, milk and water ${fmt(EMB_COS[2][3])}, and cat and milk ${fmt(EMB_COS[0][2])}.`}</title>
+      <title id={titleId}>{`Two 4 by 4 grids of cosine similarity between ${SHOW.join(", ")}. With one-hot vectors every different pair scores 0. With ${W2V_CFG.dim}-number word2vec vectors trained on ${CORPUS.length} toy sentences, cat and dog score ${fmt(cos[0][1])}, milk and water ${fmt(cos[2][3])}, and cat and milk ${fmt(cos[0][2])}.`}</title>
       {panels.map(([name, m], p) => (
         <g key={name}>
           <text x={X0[p] + 2 * CELL} y={16} textAnchor="middle" fontSize={13} fontWeight={600} fill="var(--ink)">{name}</text>

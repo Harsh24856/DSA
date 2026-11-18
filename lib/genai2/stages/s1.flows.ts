@@ -1,6 +1,6 @@
 // Stage 1 (ML basics for LLMs): animated walk-throughs. Client-safe: imports only flow types and s1.calc.ts. Every number shown is computed there.
 import type { Flow, GridTable } from "../../other/flows.ts";
-import { BEST, CORPUS, COUNTS, DF, DOCS, dot, EMB, fmt, GD, gdLine, gradLine, IDF, LINE, mse, OUTLIER, pairCos, predict, SENT, sgnsStep, skipPairs, TFIDF, VOCAB, W2V, W2V_CFG } from "./s1.calc.ts";
+import { BEST, CORPUS, COUNTS, DF, DOCS, dot, fmt, GD, gdLine, gradLine, IDF, LINE, mse, OUTLIER, pairCos, predict, SENT, sgnsStep, skipPairs, TFIDF, VOCAB, W2V, W2V_CFG, W2V_PAIRS } from "./s1.calc.ts";
 
 // Learning as fitting: the loop every supervised model runs, from a tiny line to an LLM.
 const loop: Flow = { title: "The learning loop", steps: [
@@ -96,7 +96,7 @@ function w2vFlow(): Flow {
     { note: `Loss = -ln σ(v · u) - ln(1 - σ(v · u')) = ${fmt(s.loss)}. One gradient step with lr ${lr} pulls cat's vector toward sat's and pushes it from log's. The loss falls to ${fmt(s.loss2)}.`, tone: "ok",
       tables: [{ head: ["pair", "σ before", "σ after"], rows: [["cat, sat", fmt(s.sp), fmt(s.sp2)], ["cat, log", fmt(s.sn), fmt(s.sn2)]], tones: { "0:2": "ok", "1:2": "ok" } }] },
     { note: `Repeat over every pair in a big corpus. Words that appear next to the same neighbours get pulled toward the same vectors, so they end up close. Negative sampling scores ${W2V_CFG.negatives} random words per pair instead of the whole vocabulary, which keeps each step cheap.`, tone: "ok",
-      tables: [{ head: ["toy run", "value"], rows: [["sentences", CORPUS.length], ["pairs per pass", EMB.pairs], ["passes", W2V_CFG.epochs], ["vector size", W2V_CFG.dim]] }] },
+      tables: [{ head: ["toy run", "value"], rows: [["sentences", CORPUS.length], ["pairs per pass", W2V_PAIRS], ["passes", W2V_CFG.epochs], ["vector size", W2V_CFG.dim]] }] },
   ] };
 }
 

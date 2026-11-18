@@ -24,13 +24,13 @@ export const LEARNING_AS_FITTING: GModule = {
     { kind: "figure", id: "s1-fit", caption: `Eight students: hours practised and the score they got. The line y = ${fmt(BEST.w)} x + ${fmt(BEST.b)} is the line with the smallest mean squared error on them. Training means finding that line.` },
     { kind: "text", md: "**Supervised learning** starts from examples: an input (hours practised) and the right answer, the **label** (the score). The **model** is a function with adjustable numbers, its **parameters**. Here the function is a line, y = w x + b, so it has two.\n\nTraining picks the parameters that make the model's outputs closest to the labels. Then you use it on inputs it has never seen." },
     { kind: "play", id: "s1-line" },
-    { kind: "flow", id: "s1-lsq" },
     {
       kind: "predict",
       q: `The best line has w = ${fmt(BEST.w)} and b = ${fmt(BEST.b)}. The students practised ${fmt(BEST.mx)} hours on average and scored ${fmt(BEST.my)} on average. What does the line predict for ${fmt(BEST.mx)} hours?`,
       answer: fmt(atMean), wrong: [fmt(BEST.w * BEST.mx), fmt(BEST.b), fmt(BEST.my + BEST.b)],
       why: `${fmt(BEST.w)} × ${fmt(BEST.mx)} + ${fmt(BEST.b)} = ${fmt(atMean)}, the mean score. A least squares line with an intercept always passes through the mean point, because b is chosen as ȳ - w x̄.`,
     },
+    { kind: "flow", id: "s1-lsq" },
     { kind: "flow", id: "s1-loop" },
     {
       kind: "compare",
@@ -136,7 +136,7 @@ assert abs(np.mean(A @ params - y)) < 1e-9      # with an intercept, the errors 
   ],
   real: [
     { who: "Adrien-Marie Legendre and Carl Friedrich Gauss", when: "1805 and 1809",
-      what: "Legendre published the first clear account of the method of least squares in 1805, in a work on finding the orbits of comets. Gauss published his own version in 1809 and said he had used it since 1795, which started a dispute over who came first. Gauss had used least squares to predict where the lost asteroid Ceres would reappear, and it was found again using his predictions.",
+      what: "Legendre published the first clear account of the method of least squares in 1805, in a work on finding the orbits of comets. Gauss published his own version in 1809 and claimed he had had the method since 1795, which started a dispute over who came first. Gauss had used least squares to predict where the lost asteroid Ceres would reappear, and it was found again using his predictions.",
       takeaway: "Fitting a model to noisy observations so it predicts something unseen is over two hundred years old.",
       url: "https://en.wikipedia.org/wiki/Least_squares" },
   ],

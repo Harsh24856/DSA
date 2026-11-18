@@ -7,8 +7,10 @@ import { BEST, fmt, GD, gdLine, gradLine, LIMIT, mean, OUTLIER } from "../../sta
 const [PW, PC, PLR] = [5, 3, 0.25], pg = 2 * (PW - PC), pw1 = PW - PLR * pg;
 // numeric: cross-entropy for a confident right and a confident wrong answer
 const [PR, PWR] = [0.9, 0.1];
+// text: one epoch of mini-batches
+const [NEX, BATCH] = [10000, 100];
 // numeric: steps in training
-const [NEX, BATCH, EPOCHS] = [10000, 100, 5];
+const [QEX, QBATCH, EPOCHS] = [60000, 200, 4];
 // numeric: MSE and MAE on the outlier errors
 const mseO = mean(OUTLIER.map((e) => e * e)), maeO = mean(OUTLIER.map(Math.abs));
 // output: gradient of the MSE at w = b = 0
@@ -79,8 +81,8 @@ assert abs(w - w_best) < 0.05 and abs(b - b_best) < 0.1
   questions: [
     { id: "grad-dir", level: "easy", kind: "concept",
       q: "Which way does the gradient of the loss point?",
-      answer: "Uphill: the direction in which the loss grows fastest", wrong: ["Downhill, straight to the minimum", "Toward the parameters' starting values", "Toward zero for every parameter"],
-      why: "That is why the update subtracts it. Minus the gradient is the steepest way down from where you stand, which is not the same as pointing at the minimum." },
+      answer: "Uphill: the direction in which the loss grows fastest", wrong: ["Downhill: the direction in which the loss falls fastest", "Toward the parameters' starting values", "Toward zero for every parameter"],
+      why: "The gradient is the direction of steepest increase. That is why the update subtracts it: minus the gradient is the steepest way down from where you stand." },
     { id: "at-min", level: "easy", kind: "concept",
       q: "At the bottom of a smooth loss bowl, what is the gradient?",
       answer: "Zero for every parameter", wrong: ["Its largest value", "Equal to the learning rate", "Negative for every parameter"],
@@ -89,10 +91,6 @@ assert abs(w - w_best) < 0.05 and abs(b - b_best) < 0.1
       q: "The training loss gets larger every step and soon prints as inf. What is the most likely cause?",
       answer: "The learning rate is too large, so each step overshoots the minimum", wrong: ["The learning rate is too small", "The model has too few parameters", "The data set is too large"],
       why: `Beyond a limit each step lands further from the bottom than it started, so the error grows geometrically. For the practice line that happens above lr ${fmt(LIMIT.max)}; stage 2, Optimisers, shows where such a limit comes from. Too small a rate makes the loss fall slowly, never rise.` },
-    { id: "lr-small", level: "easy", kind: "concept",
-      q: "What goes wrong if the learning rate is far too small?",
-      answer: "The loss falls, but so slowly that training takes far too many steps", wrong: ["The loss rises every step", "The model overfits after one step", "The gradient becomes zero"],
-      why: "Each step is tiny, so you reach the bottom eventually but pay for thousands of extra steps. Small rates are safe, just expensive." },
     { id: "minibatch", level: "medium", kind: "concept",
       q: "Why train on mini-batches instead of computing the gradient over the whole data set each step?",
       answer: "Each step is far cheaper, and a noisy estimate of the gradient is good enough to make progress", wrong: ["The gradient from a mini-batch is exact", "Mini-batches remove the need for a learning rate", "Full-data gradients point uphill"],
@@ -110,9 +108,9 @@ assert abs(w - w_best) < 0.05 and abs(b - b_best) < 0.1
       answer: fmt(-Math.log(PR)), wrong: [fmt(-Math.log(PWR)), fmt(1 - PR), fmt(-Math.log10(PR))],
       why: `-ln(${PR}) = ${fmt(-Math.log(PR))}. Natural log is the convention. 1 - p = ${fmt(1 - PR)} is a different quantity, and a wrong answer at p = ${PWR} would cost ${fmt(-Math.log(PWR))}.` },
     { id: "epochs", level: "medium", kind: "numeric",
-      q: `${NEX.toLocaleString("en-US")} training examples, batches of ${BATCH}, ${EPOCHS} epochs. How many gradient steps is that?`,
-      answer: String((NEX / BATCH) * EPOCHS), wrong: [String(NEX / BATCH), String(NEX * EPOCHS), String(NEX / EPOCHS)],
-      why: `One epoch is ${NEX.toLocaleString("en-US")} / ${BATCH} = ${NEX / BATCH} steps, one per batch. ${EPOCHS} epochs make ${(NEX / BATCH) * EPOCHS}.` },
+      q: `${QEX.toLocaleString("en-US")} training examples, batches of ${QBATCH}, ${EPOCHS} epochs. How many gradient steps is that?`,
+      answer: String((QEX / QBATCH) * EPOCHS), wrong: [String(QEX / QBATCH), String(QEX * EPOCHS), String(QEX / EPOCHS)],
+      why: `One epoch is ${QEX.toLocaleString("en-US")} / ${QBATCH} = ${QEX / QBATCH} steps, one per batch. ${EPOCHS} epochs make ${(QEX / QBATCH) * EPOCHS}. The epoch count multiplies the steps; it does not multiply the examples per step.` },
     { id: "mae-calc", level: "medium", kind: "numeric",
       q: `The errors are ${OUTLIER.join(", ")}. What is the mean absolute error?`,
       answer: fmt(maeO), wrong: [fmt(mseO), fmt(mean(OUTLIER)), fmt(maeO * OUTLIER.length)],

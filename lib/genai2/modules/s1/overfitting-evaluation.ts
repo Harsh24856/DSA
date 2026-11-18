@@ -13,6 +13,10 @@ const c50 = confusion(0.5), c90 = confusion(0.9), c30 = confusion(0.3), c80 = co
 if (!(c85.precision < c80.precision)) throw new Error("precision no longer falls from 0.8 to 0.85: fix the trap below");
 // explain: under, good, over
 const [U, G, O] = [DEGREES[1], DEGREES[BEST_DEG], DEGREES[10]];
+// output: precision and recall read off flags in code
+const [OS, OL, OT] = [[0.9, 0.8, 0.6, 0.4, 0.2], [1, 0, 1, 1, 1], 0.5];
+const oFlag = OS.map((s) => s >= OT), oTp = OL.filter((y, i) => y && oFlag[i]).length, oP = oTp / oFlag.filter(Boolean).length, oR = oTp / OL.filter(Boolean).length;
+const r2 = (x: number) => String(Number(x.toFixed(2)));
 // trap: training error never rises with degree
 const trainFalls = DEGREES.every((d, i) => i === 0 || d.train <= DEGREES[i - 1].train + 1e-12);
 if (!trainFalls) throw new Error("training error rose with degree: the trap below would be wrong");
@@ -91,10 +95,6 @@ assert scores[1] > scores[best] and scores[9] > scores[best]
     "Moving the decision threshold trades precision against recall; choose it by the cost of each kind of mistake.",
   ],
   questions: [
-    { id: "overfit-sign", level: "easy", kind: "concept",
-      q: "Which pattern shows overfitting?",
-      answer: "Low training error, much higher validation error", wrong: ["High training error, high validation error", "Training and validation error both low and close", "Validation error lower than training error"],
-      why: "The model has learned things true only of its training examples, including their noise. High error on both sets is underfitting; both low and close is what you want." },
     { id: "val-role", level: "easy", kind: "concept",
       q: "What is the validation set for?",
       answer: "Choosing settings such as model size, degree or when to stop", wrong: ["Fitting the parameters by gradient descent", "Reporting the final score in the paper", "Adding more training examples"],
@@ -131,11 +131,11 @@ assert scores[1] > scores[best] and scores[9] > scores[best]
       q: `In the threshold walk-through at 0.5, the filter flags ${c50.tp + c50.fp} emails and ${c50.tp} of them are spam. What is the precision, to 3 decimals?`,
       answer: fmt(c50.precision), wrong: [fmt(c50.recall), fmt(c50.acc), fmt(c50.tp / SPAM.scores.length)],
       why: `${c50.tp} / ${c50.tp + c50.fp} = ${fmt(c50.precision)}. Recall at this threshold is ${fmt(c50.recall)} and accuracy ${fmt(c50.acc)}. Raise the threshold to 0.9 and precision reaches ${fmt(c90.precision)} while recall falls to ${fmt(c90.recall)}.` },
-    { id: "f1-out", level: "medium", kind: "output",
+    { id: "pr-out", level: "medium", kind: "output",
       q: "What does this print?",
-      code: `tp, fp, fn = ${TP}, ${FP}, ${FN}\nprecision = tp / (tp + fp)\nrecall = tp / (tp + fn)\nprint(round(2 * precision * recall / (precision + recall), 3))`,
-      answer: String(Number(F1.toFixed(3))), wrong: [String(Number(meanPR.toFixed(3))), String(Number(P.toFixed(3))), String(Number(R.toFixed(3)))],
-      why: `Precision ${fmt(P)}, recall ${fmt(R)}, F1 ${fmt(F1)}. The same value comes from 2TP / (2TP + FP + FN) = ${2 * TP} / ${2 * TP + FP + FN}.` },
+      code: `scores = [${OS.join(", ")}]\nlabels = [${OL.join(", ")}]\nflag = [s >= ${OT} for s in scores]\ntp = sum(1 for f, y in zip(flag, labels) if f and y)\nprint(round(tp / sum(flag), 2), round(tp / sum(labels), 2))`,
+      answer: `${r2(oP)} ${r2(oR)}`, wrong: [`${r2(oR)} ${r2(oP)}`, `${r2(oP)} ${r2(oP)}`, `${r2(oTp / OS.length)} ${r2(oR)}`],
+      why: `${oFlag.filter(Boolean).length} emails are flagged and ${oTp} of them are spam, so precision is ${oTp} / ${oFlag.filter(Boolean).length}. There are ${OL.filter(Boolean).length} spam in all, so recall is ${oTp} / ${OL.filter(Boolean).length}. The denominators are what tell them apart: sum(flag) for precision, sum(labels) for recall.` },
     { id: "bias-var", level: "hard", kind: "explain",
       q: "Explain underfitting and overfitting using training and validation error.",
       answer: `- Underfitting: the model is too simple for the pattern. Training error is high and validation error is about as high. On the polynomial data, degree ${U.deg} has train ${fmt(U.train)} and validation ${fmt(U.val)}.\n- Overfitting: the model is flexible enough to fit the noise. Training error is low but validation error is much higher. Degree ${O.deg} has train ${fmt(O.train)} and validation ${fmt(O.val)}.\n- In between, degree ${G.deg} gives the lowest validation error, ${fmt(G.val)}.\n\nFixes: for underfitting a bigger model or better features; for overfitting more data, a simpler model, regularisation or early stopping.` },

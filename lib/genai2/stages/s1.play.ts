@@ -81,9 +81,10 @@ function threshold(v: Record<string, number>): Flow {
 function idfPlay(v: Record<string, number>): Flow {
   const { N, p, tf } = v, df = Math.max(1, Math.round((N * p) / 100)), w = idf(N, df);
   const rows = [["in every document", N, fmt(idf(N, N)), fmt(tf * idf(N, N))], ["your word", df, fmt(w), fmt(tf * w)], ["in one document", 1, fmt(idf(N, 1)), fmt(tf * idf(N, 1))]];
-  const doubled = Math.max(1, Math.round(df / 2));
+  const half = Math.round(df / 2);
+  const gentle = df >= 2 ? ` The log keeps it gentle: halving the documents that contain the word (${df} to ${half}) adds only ${fmt(idf(N, half) - w)}, whatever N is.` : " One document is as rare as a word can be, so this is the largest idf here.";
   return { kind: "grid", title: `${N.toLocaleString("en-US")} documents, word in ${df}`, steps: [
-    { note: `idf = ln(N / df) = ln(${N.toLocaleString("en-US")} / ${df}) = ${fmt(w)}. The log keeps it gentle: halving the documents that contain the word (${df} to ${doubled}) adds only ${fmt(idf(N, doubled) - w)}, whatever N is.`, tone: "hot",
+    { note: `idf = ln(N / df) = ln(${N.toLocaleString("en-US")} / ${df}) = ${fmt(w)}.${gentle}`, tone: "hot",
       tables: [{ head: ["word", "df", "idf"], rows: rows.map((r) => r.slice(0, 3)), tones: { "1:2": "hot" } }] },
     { note: `The word appears ${tf} times in this document, so its weight is ${tf} × ${fmt(w)} = ${fmt(tf * w)}. A word in every document scores 0 however often it repeats; one found in a single document scores ${fmt(tf * idf(N, 1))}.`, tone: w > 0 ? "ok" : "warn",
       tables: [{ head: ["word", "df", "idf", "tf × idf"], rows, tones: { "1:3": w > 0 ? "ok" : "warn" } }] },

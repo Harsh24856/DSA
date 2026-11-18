@@ -1,7 +1,7 @@
 // Stage 1: turning text into vectors. One-hot, bag of words, TF-IDF with cosine similarity, and word2vec. Every number below is computed here or in stages/s1.calc.ts.
 // Tokenisation and the transformer's embedding table are stage 4; this module stops at whole words.
 import type { GModule } from "../../types.ts";
-import { CORPUS, cosine, COUNTS, DOCS, EMB_COS, fmt, idf, SENT, skipPairs, VOCAB, W2V_CFG } from "../../stages/s1.calc.ts";
+import { CORPUS, cosine, COUNTS, DOCS, embCos, fmt, idf, SENT, skipPairs, VOCAB, W2V_CFG } from "../../stages/s1.calc.ts";
 
 // predict: the weight of a word found in every document
 const theJ = VOCAB.indexOf("the"), theCount = COUNTS[0][theJ];
@@ -9,8 +9,11 @@ const theJ = VOCAB.indexOf("the"), theCount = COUNTS[0][theJ];
 const [BN, BDF] = [1000, 10];
 // numeric: cosine of two small vectors
 const [CA, CB] = [[1, 2, 0], [2, 1, 2]], cab = cosine(CA, CB), cdot = CA.reduce((s, x, i) => s + x * CB[i], 0);
-// output: cosine of two overlapping vectors
-const [OA, OB] = [[1, 1, 0], [1, 0, 1]];
+// output: the smoothed idf libraries use, ln((1 + N) / (1 + df)) + 1
+const sIdf = (N: number, df: number) => Math.log((1 + N) / (1 + df)) + 1, ON = DOCS.length;
+// as Python prints a rounded float: 1.0, not 1
+const r3 = (x: number) => { const n = Number(x.toFixed(3)); return Number.isInteger(n) ? n.toFixed(1) : String(n); };
+const [dfThe, dfCat] = [VOCAB.indexOf("the"), VOCAB.indexOf("cat")].map((j) => COUNTS.filter((c) => c[j] > 0).length);
 // numeric: skip-gram pairs
 const WIN = 2, nPairs = skipPairs(SENT, WIN).length;
 // concept: one-hot length
@@ -128,11 +131,11 @@ assert idf[col["the"]] < idf[col["red"]]    # common words weigh less than rare 
       q: `How many skip-gram pairs does "${SENT.join(" ")}" give with a window of ${WIN} words each side?`,
       answer: String(nPairs), wrong: [String(SENT.length * 2 * WIN), String(SENT.length * WIN), String(skipPairs(SENT, 1).length)],
       why: `Each word pairs with up to ${WIN} words on each side, but words near the ends have fewer neighbours: ${SENT.map((_, i) => SENT.filter((__, j) => j !== i && Math.abs(i - j) <= WIN).length).join(" + ")} = ${nPairs}, not ${SENT.length} × ${2 * WIN} = ${SENT.length * 2 * WIN}.` },
-    { id: "cos-out", level: "easy", kind: "output",
-      q: "What does this print?",
-      code: `import numpy as np\na = np.array([${OA.join(", ")}])\nb = np.array([${OB.join(", ")}])\nprint(round(float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b))), 2))`,
-      answer: String(Number(cosine(OA, OB).toFixed(2))), wrong: ["1.0", "0.0", String(Number((1 / Math.hypot(...OA)).toFixed(2)))],
-      why: `They share one word: dot product 1. Each has length √2, so 1 / (√2 × √2) = ${fmt(cosine(OA, OB))}. Dividing by only one length would give ${fmt(1 / Math.hypot(...OA))}.` },
+    { id: "idf-smooth-out", level: "medium", kind: "output",
+      q: "Many libraries smooth the idf. What does this print?",
+      code: `import math\nN = ${ON}\nidf = lambda df: math.log((1 + N) / (1 + df)) + 1\nprint(round(idf(${dfThe}), 3), round(idf(${dfCat}), 3))`,
+      answer: `${r3(sIdf(ON, dfThe))} ${r3(sIdf(ON, dfCat))}`, wrong: [`${r3(idf(ON, dfThe))} ${r3(idf(ON, dfCat))}`, `${r3(idf(ON, dfThe))} ${r3(sIdf(ON, dfCat))}`, `${r3(sIdf(ON, dfThe))} ${r3(idf(ON, dfCat) + 1)}`],
+      why: `The +1 inside stops a division by zero for a word no document contains; the +1 outside keeps a word that is in every document, like "the" (df ${dfThe}), at weight ${r3(sIdf(ON, dfThe))} instead of 0. "cat" (df ${dfCat}) gets ln(${1 + ON} / ${1 + dfCat}) + 1 = ${r3(sIdf(ON, dfCat))}, against plain ln(${ON} / ${dfCat}) = ${r3(idf(ON, dfCat))}. Rare words still weigh more; common ones just no longer vanish.` },
     { id: "tfidf-explain", level: "medium", kind: "explain",
       q: "Explain TF-IDF to a product manager, and say when you would still use it.",
       answer: "- Score each word in a document by how often it appears there (TF), times how rare it is across all documents (IDF). Common words like \"the\" score 0; distinctive words score high.\n- A document becomes a vector of these scores, and a search query is scored the same way, then compared by cosine similarity.\n- Still useful: keyword search, where exact terms such as product codes or names matter; as a cheap baseline; and next to embedding search in a hybrid retriever (stage 7, RAG).\n- Weak spot: it only matches the same words, so \"car\" never finds \"automobile\"." },
@@ -146,7 +149,7 @@ assert idf[col["the"]] < idf[col["red"]]    # common words weigh less than rare 
     { id: "trap-neg", level: "medium", kind: "trap",
       claim: "The cosine similarity of two TF-IDF document vectors can be negative.",
       truth: false,
-      why: `Counts and idf are never negative, so every entry is at least 0 and so is every dot product. TF-IDF cosine runs from 0 to 1. Learned word vectors have signed entries, so their cosine can go below 0: cat and milk score ${fmt(EMB_COS[0][2])} in the toy run.` },
+      why: `Counts and idf are never negative, so every entry is at least 0 and so is every dot product. TF-IDF cosine runs from 0 to 1. Learned word vectors have signed entries, so their cosine can go below 0: cat and milk score ${fmt(embCos()[0][2])} in the toy run.` },
   ],
   real: [
     { who: "Karen Spärck Jones", when: "1972",
