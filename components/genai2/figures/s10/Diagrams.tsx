@@ -44,7 +44,7 @@ export function CtxMemory() {
   const t = useId(), L = 44, R = 50, max = kvGB(CTX_STEPS[CTX_STEPS.length - 1]), sx = (gb: number) => ((W - L - R) * gb) / max;
   return (
     <svg viewBox={`0 0 ${W} ${CTX_STEPS.length * 30 + 60}`} className="mx-auto w-full max-w-[520px]" role="img" aria-labelledby={t}>
-      <title id={t}>{`KV cache of one request for an example 8B model with ${LC.kvHeads} KV heads: ${CTX_STEPS.map((n) => `${kTok(n)} tokens ${kvGB(n).toFixed(1)} GB`).join(", ")}. The weights are ${LC.weightsGB} GB, so past about 128K tokens the cache is bigger than the model.`}</title>
+      <title id={t}>{`KV cache of one request for an example 8B model with ${LC.kvHeads} KV heads: ${CTX_STEPS.map((n) => `${kTok(n)} tokens ${kvGB(n).toFixed(1)} GB`).join(", ")}. The weights are ${LC.weightsGB} GB, so past about ${Math.round(LC.weightsGB / kvGB(1) / 1000)}K tokens the cache is bigger than the model.`}</title>
       <text x={0} y={14} fontSize={12} fontWeight={600} fill="var(--ink)">KV cache for one request, GB</text>
       {CTX_STEPS.map((n, i) => {
         const gb = kvGB(n), y = 26 + i * 30, over = gb > LC.weightsGB;
