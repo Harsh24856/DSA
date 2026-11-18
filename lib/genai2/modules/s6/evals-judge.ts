@@ -16,7 +16,7 @@ const PB = pairwise(0.5, 0.3);
 // output: kappa code
 const OK_ = [14, 3, 1, 2], ok = kappa(...(OK_ as [number, number, number, number]));
 const r2 = (x: number) => x.toFixed(2);
-// generation metrics: token F1 for short answers, and the unbiased pass@k estimate for code
+// generation metrics: token F1 for short answers
 const toks = (t: string) => t.toLowerCase().split(/\s+/).filter(Boolean);
 function tokenF1(pred: string, gold: string) {
   const p = toks(pred), g = toks(gold), left = [...g];
@@ -26,10 +26,7 @@ function tokenF1(pred: string, gold: string) {
   const pr = hit / p.length, rc = hit / g.length;
   return (2 * pr * rc) / (pr + rc);
 }
-const choose = (n: number, k: number) => { let r = 1; for (let i = 0; i < k; i++) r = (r * (n - i)) / (i + 1); return r; };
-const passAtK = (n: number, c: number, k: number) => (n - c < k ? 1 : 1 - choose(n - c, k) / choose(n, k));
 const [GOLD, PRED] = ["the eiffel tower in paris", "eiffel tower paris"], F1 = tokenF1(PRED, GOLD);
-const [PN, PC, PK] = [10, 3, 5], PASS = passAtK(PN, PC, PK);
 if (Math.abs(F1 - 0.75) > 1e-9) throw new Error("F1 example drifted");
 
 export const EVALS_JUDGE: GModule = {
@@ -168,10 +165,6 @@ assert p2 - p1 - half < 0 < kappa
       q: `The reference is "${GOLD}" and the model answers "${PRED}". What is the token F1 (lowercased, split on spaces)?`,
       answer: r2(F1), wrong: ["0", r2(3 / 5), "1.00"],
       why: `3 words overlap. Precision is 3 of ${toks(PRED).length} = 1, recall is 3 of ${toks(GOLD).length} = 0.6, and F1 = 2 × 1 × 0.6 / 1.6 = ${r2(F1)}. Exact match would give 0 for the same answer.` },
-    { id: "pass-at-k", level: "hard", kind: "numeric",
-      q: `You sample ${PN} programs for a task and ${PC} pass the tests. Using the unbiased estimate 1 - C(n - c, k) / C(n, k), what is pass@${PK}?`,
-      answer: r2(PASS), wrong: [r2(PC / PN), r2(1 - (1 - PC / PN) ** PK), "1.00"],
-      why: `C(${PN - PC}, ${PK}) / C(${PN}, ${PK}) = ${choose(PN - PC, PK)} / ${choose(PN, PK)} is the chance that all ${PK} picks fail, so pass@${PK} = ${r2(PASS)}. Plain accuracy, ${r2(PC / PN)}, is pass@1.` },
     { id: "trap-contamination", level: "medium", kind: "trap",
       claim: "A model that scores much higher on an old public benchmark than on a fresh set of similar questions may have seen the benchmark in training.",
       truth: true,
