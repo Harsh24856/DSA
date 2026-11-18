@@ -1,7 +1,7 @@
 // Stage 9 (Production) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s9.calc.ts.
 import type { Flow } from "../../other/flows.ts";
 import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
-import { decodeStep, GPU, kvGB, MODEL, n0, weightsGB } from "./s9.calc.ts";
+import { continuous, decodeStep, GPU, kvGB, mean, MODEL, n0, pct, staticSpans, weightsGB } from "./s9.calc.ts";
 
 const ms = (s: number) => `${(s * 1000).toFixed(s < 0.001 ? 2 : 1)} ms`;
 
@@ -23,7 +23,35 @@ function roofline(v: Record<string, number>): Flow {
   ] };
 }
 
+// batching-engines: static against continuous batching on a mix of short and long requests
+export const MIX = { n: 16, short: 40 };
+export const mixLens = (every: number, long: number) => Array.from({ length: MIX.n }, (_, i) => (i % every === every - 1 ? long : MIX.short));
+function batching(v: Record<string, number>): Flow {
+  const { slots, long, every } = v, lens = mixLens(every, long);
+  const st = staticSpans(lens, slots), co = continuous(lens, slots);
+  const endS = Math.max(...st.map((s) => s[1])), endC = Math.max(...co.map((s) => s[1]));
+  const mS = mean(st.map((s) => s[1])), mC = mean(co.map((s) => s[1]));
+  const shortS = mean(st.filter((_, i) => lens[i] === MIX.short).map((s) => s[1])), shortC = mean(co.filter((_, i) => lens[i] === MIX.short).map((s) => s[1]));
+  const work = lens.reduce((a, b) => a + b, 0), busy = (end: number) => work / (end * slots);
+  const f = (x: number) => `${n0(x)} steps`;
+  const bars = (a: number, b: number) => [{ label: "static", value: a, tone: "warn" as const }, { label: "continuous", value: b, tone: "ok" as const }];
+  return { kind: "bars", title: `${MIX.n} requests on ${slots} slots: 1 in ${every} is ${long} tokens`, format: f, steps: [
+    { note: `Static batching takes ${slots} requests at a time and starts the next batch only when the longest one ends: ${f(endS)} in all. Slots are busy ${pct(busy(endS))} of the time.`, tone: "warn", bars: bars(endS, endS) },
+    { note: `Continuous batching puts a waiting request into a slot the step it frees: ${f(endC)}, slots busy ${pct(busy(endC))}. Same GPU, same requests.`, tone: "ok", bars: bars(endS, endC) },
+    { note: `What users feel: a ${MIX.short} token request finishes after ${f(shortS)} on average with static batches, ${f(shortC)} with continuous. Overall average finish: ${f(mS)} against ${f(mC)}. Short requests stop waiting for long ones.`, tone: "hot", bars: bars(shortS, shortC) },
+  ] };
+}
+
 export const PLAY_9: Record<string, PlayFlow> = {
+  "s9-batching": {
+    title: "Static against continuous batching",
+    knobs: [
+      { key: "slots", label: "Batch slots", min: 1, max: 8, step: 1, value: 4 },
+      { key: "long", label: "Long request (tokens)", min: 50, max: 1000, step: 50, value: 400 },
+      { key: "every", label: "One long request in every", min: 2, max: 8, step: 1, value: 4 },
+    ],
+    make: batching,
+  },
   "s9-roofline": {
     title: "Batch size against tokens per second",
     knobs: [

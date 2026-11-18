@@ -1,6 +1,6 @@
 // Stage 9 (Production) animated walk-throughs. Every number is computed here or in s9.calc.ts.
 import type { Flow, GridStep } from "../../other/flows.ts";
-import { BF16, blocksFor, BlockPool, decodeStep, latency, MODEL, n0, prefillS, weightsGB } from "./s9.calc.ts";
+import { BF16, blocksFor, BlockPool, decodeStep, kvPerToken, latency, MODEL, n0, prefillS, weightsGB } from "./s9.calc.ts";
 
 const ms = (s: number) => `${(s * 1000).toFixed(s < 0.01 ? 1 : 0)} ms`;
 const sec = (s: number) => (s >= 1 ? `${s.toFixed(2)} s` : ms(s));
@@ -50,7 +50,23 @@ function blockTable(): Flow {
   return { kind: "grid", title: "Block tables and a shared prefix", steps };
 }
 
+// batching-engines: a long prompt arrives while others are streaming; chunked prefill, then separate prefill and decode pools
+export const LONGP = { prompt: 32768, chunk: 2048, batch: 32, ctx: 2048 };
+function longPrompt(): Flow {
+  const { prompt, chunk, batch, ctx } = LONGP, full = prefillS(prompt), part = prefillS(chunk), step = decodeStep(batch, ctx).stepS;
+  return { kind: "lanes", title: "A long prompt meets a busy server", lanes: ["Router", "Prefill", "Decode"], steps: [
+    { from: 2, to: 2, label: `${batch} users streaming`, note: `${batch} users are mid-answer. Each decode step takes about ${ms(step)}, so every user sees a new token that often.` },
+    { from: 0, to: 1, label: `${n0(prompt)} token prompt`, note: `A request arrives with a ${n0(prompt)} token document. Its prefill takes about ${ms(full)} on the example GPU, for the weight multiplies alone.`, tone: "warn" },
+    { from: 1, to: 1, label: `stall: ${ms(full)}`, note: `On one GPU running both phases, that pass blocks the batch: ${batch} users get no token for ${ms(full)}, about ${Math.round(full / step)} missed steps. The stream visibly freezes.`, tone: "bad" },
+    { from: 1, to: 1, label: `chunks of ${n0(chunk)}`, note: `Chunked prefill cuts the prompt into ${prompt / chunk} pieces of ${n0(chunk)} tokens and runs one piece alongside each decode step. Each piece adds about ${ms(part)}, so the others keep streaming.`, tone: "hot" },
+    { from: 0, to: 1, label: "prefill pool", note: "Larger services go further and split the phases: prefill on one pool of GPUs tuned for compute, decode on another tuned for memory bandwidth." },
+    { from: 1, to: 2, label: "send KV cache", note: `When prefill ends, its KV cache moves to a decode GPU: ${n0(prompt)} × ${kvPerToken() / 1024} KiB = ${(prompt * kvPerToken() / 2 ** 30).toFixed(0)} GiB here. Moving it costs network time, which is the price of the split.`, tone: "warn" },
+    { from: 2, to: 0, label: "tokens stream", note: "The new user joins the running decode batch in the next step. Neither phase waits on the other.", tone: "ok" },
+  ] };
+}
+
 export const FLOWS_9: Record<string, Flow> = {
+  "s9-long-prompt": longPrompt(),
   "s9-request": request(),
   "s9-block-table": blockTable(),
 };
