@@ -38,6 +38,16 @@ export const reserved = (lens: number[], max: number) => lens.length * max;
 export const pagedSlots = (lens: number[], block: number) => lens.reduce((a, l) => a + Math.ceil(l / block) * block, 0);
 export const used = (lens: number[]) => lens.reduce((a, b) => a + b, 0);
 export const blocksFor = (len: number, block: number) => Math.ceil(len / block);
+// The three requests drawn in the KV blocks figure.
+export const KV_EX = { lens: [37, 90, 12], max: 128, block: 16 };
+// A tiny block allocator with reference counts, as a paged KV cache keeps it.
+export class BlockPool {
+  free: number[]; ref = new Map<number, number>();
+  constructor(n: number, order: number[]) { this.free = order.slice(0, n); }
+  take() { const b = this.free.shift(); if (b === undefined) throw new Error("pool empty"); this.ref.set(b, 1); return b; }
+  share(b: number) { this.ref.set(b, (this.ref.get(b) ?? 0) + 1); return b; }
+  drop(b: number) { const r = (this.ref.get(b) ?? 0) - 1; if (r <= 0) { this.ref.delete(b); this.free.push(b); } else this.ref.set(b, r); }
+}
 
 // Batching: static batches wait for their longest member; continuous batching refills a slot as soon as it frees.
 export function staticSteps(lens: number[], slots: number) {
