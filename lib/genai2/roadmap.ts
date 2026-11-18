@@ -7,9 +7,10 @@ type Def = { title: string; blurb: string; builds: number[]; old?: string; rows:
 const DEFS: Def[] = [
   { title: "Python for AI", blurb: "NumPy arrays, broadcasting and pandas tables, and how to replace slow Python loops with array operations.", builds: [], rows: [
     ["arrays-broadcasting", "Arrays and broadcasting"], ["data-pandas", "Data with pandas"], ["vectorising-loops", "Vectorising loops"]] },
-  { title: "ML basics for LLMs", blurb: "How a model learns from examples, how we know it works, and how text becomes numbers.", builds: [0], rows: [
+  { title: "ML basics for LLMs", blurb: "How a model learns from examples, how we know it works, the classic models from trees to PCA, and how text becomes numbers.", builds: [0], rows: [
     ["learning-as-fitting", "Learning as fitting"], ["loss-gradient-descent", "Loss and gradient descent"],
-    ["overfitting-evaluation", "Overfitting and evaluation"], ["text-as-numbers", "Text as numbers (one-hot, TF-IDF, word2vec)"]] },
+    ["overfitting-evaluation", "Overfitting and evaluation"],
+    ["decision-trees", "Decision trees and ensembles"], ["classic-models", "Classic models (logistic regression, k-NN, SVM, k-means, PCA)"], ["text-as-numbers", "Text as numbers (one-hot, TF-IDF, word2vec)"]] },
   { title: "Neural networks", blurb: "Build a neuron, stack them, and learn how backprop and good training habits make deep nets work.", builds: [1], old: "m0", rows: [
     ["neuron-activations", "Neuron and activations"], ["mlp-forward", "MLP and the forward pass"], ["backprop-graph", "Backprop on a graph"],
     ["optimisers", "Optimisers (SGD, Adam, AdamW, schedules)"], ["deep-nets-train", "Making deep nets train (init, normalisation, residuals, dropout)"]] },
