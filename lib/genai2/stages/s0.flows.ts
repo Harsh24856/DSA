@@ -1,6 +1,6 @@
 // Stage 0 (Python for AI): animated walk-throughs. Client-safe: imports only flow types and s0.calc.ts. Every number shown is computed here.
-import type { Flow, GridTable } from "../../other/flows.ts";
-import { add, bcast2, broadcastAxes, cell, credits, fmt, groupBy, LOG, mergeRows, nanMean, PRICES, type Req, shapeStr, sorted } from "./s0.calc.ts";
+import type { Flow, FlowTone, GridTable } from "../../other/flows.ts";
+import { add, bcast2, broadcastAxes, cell, credits, fmt, groupBy, LOG, maskedMean, MASK, mergeRows, MX, n0, nanMean, PA, PB, plainMean, PRICES, type Req, shapeStr, sorted, sqdistLoop, sqdistTrick } from "./s0.calc.ts";
 
 // Arrays and broadcasting: the right-aligned rule, a failure, and the fix with None.
 function broadcast(): Flow {
@@ -72,7 +72,47 @@ function mergePrices(): Flow {
   ] };
 }
 
+// Vectorising loops: pairwise squared distances, from three nested loops to broadcasting, then to one matrix multiply.
+const BIG = [10_000, 10_000, 64];
+function pairwise(): Flow {
+  const [n, m, d] = [PA.length, PB.length, PA[0].length], loop = sqdistLoop(PA, PB), trick = sqdistTrick(PA, PB);
+  if (loop.some((r, i) => r.some((v, j) => Math.abs(v - trick[i][j]) > 1e-9))) throw new Error("the matmul identity must match the loop");
+  const pairs = PA.flatMap((a, i) => PB.map((b, j) => ({ i, j, diff: a.map((v, k) => v - b[k]) })));
+  const sq = (v: number[]) => v.reduce((t, x) => t + x * x, 0), dots = PA.map((a) => PB.map((b) => a.reduce((t, x, k) => t + x * b[k], 0)));
+  const rowHead = PA.map((_, i) => `a${i + 1}`), colHead = PB.map((_, j) => `b${j + 1}`);
+  return { kind: "grid", title: "Pairwise distances, three ways", steps: [
+    { note: `${n} points a against ${m} points b, ${d} numbers each. Three nested Python loops (i, j, k) run the inner line ${n * m * d} times. At ${n0(BIG[0])} by ${n0(BIG[1])} by ${BIG[2]} it would be ${n0(BIG[0] * BIG[1] * BIG[2])}.`,
+      tables: [{ label: `A ${shapeStr([n, d])}`, rowHead, rows: PA }, { label: `B ${shapeStr([m, d])}`, rowHead: colHead, rows: PB }] },
+    { note: `Give each loop index its own axis. A[:, None, :] is ${shapeStr([n, 1, d])} and B[None, :, :] is ${shapeStr([1, m, d])}, so their difference broadcasts to ${shapeStr([n, m, d])}: every pair, every coordinate.`, tone: "hot",
+      tables: [{ label: `A[:, None] - B[None] ${shapeStr([n, m, d])}`, head: ["pair", ...Array.from({ length: d }, (_, k) => `coord ${k + 1}`)], rows: pairs.map((p) => [`a${p.i + 1} - b${p.j + 1}`, ...p.diff]) }] },
+    { note: `Square, then sum over the last axis: (diff ** 2).sum(axis=-1) is ${shapeStr([n, m])}, one distance per pair. It matches the loop exactly, with no Python loop left.`, tone: "ok",
+      tables: [{ label: `squared distances ${shapeStr([n, m])}`, head: colHead, rowHead, rows: loop, tones: { ":0": "ok", ":1": "ok" } }] },
+    { note: `Or expand the square: |a - b|² = |a|² + |b|² - 2 a·b. A @ B.T gives every a·b at once, and the norms broadcast as a column and a row. The ${shapeStr([n, m, d])} array is never built.`, tone: "ok",
+      tables: [{ label: "|a|²", rowHead, rows: PA.map((a) => [sq(a)]) }, { label: "|b|²", head: colHead, rows: [PB.map(sq)] }, { label: "A @ B.T", head: colHead, rowHead, rows: dots },
+        { label: "|a|² + |b|² - 2 A @ B.T", head: colHead, rowHead, rows: trick, tones: { ":0": "ok", ":1": "ok" } }] },
+  ] };
+}
+
+// Vectorising loops: a mean over real tokens only, with a 0/1 mask instead of a loop that stops at the padding.
+function maskedMeanFlow(): Flow {
+  const plain = plainMean(MX), right = maskedMean(MX, MASK), lens = MASK.map((r) => r.reduce((a, b) => a + b, 0));
+  const sums = MX.map((r, i) => r.reduce((t, v, j) => t + v * MASK[i][j], 0)), pad = MX[0][MX[0].length - 1];
+  const rowHead = MX.map((_, i) => `seq ${i + 1}`), padTones = Object.fromEntries(MASK.flatMap((r, i) => r.flatMap((v, j): [string, FlowTone][] => (v ? [] : [[`${i}:${j}`, "warn"]]))));
+  return { kind: "grid", title: "A mean that skips padding", steps: [
+    { note: `Two sequences padded to the same length ${MX[0].length} so they fit in one array. The padding value ${pad} means nothing. mask is 1 on real tokens and 0 on padding.`,
+      tables: [{ label: "x", rowHead, rows: MX, tones: padTones }, { label: "mask", rowHead, rows: MASK, tones: padTones }] },
+    { note: `x.mean(axis=1) averages the padding too: ${plain.map(fmt).join(" and ")}. The real means are ${right.map(fmt).join(" and ")}.`, tone: "bad",
+      tables: [{ head: ["", "x.mean(axis=1)", "real mean"], rows: plain.map((p, i) => [rowHead[i], fmt(p), fmt(right[i])]), tones: { ":1": "bad" } }] },
+    { note: `Multiply by the mask: padding becomes 0. Sum each row for the real total, and sum the mask for the real length.`, tone: "hot",
+      tables: [{ label: "x * mask", rowHead, rows: MX.map((r, i) => r.map((v, j) => v * MASK[i][j])) }, { head: ["", "(x * mask).sum(1)", "mask.sum(1)"], rows: sums.map((s, i) => [rowHead[i], s, lens[i]]) }] },
+    { note: `Divide: ${sums.map((s, i) => `${s} / ${lens[i]} = ${fmt(right[i])}`).join(", ")}. One line, every sequence at once, whatever its length.`, tone: "ok",
+      tables: [{ head: ["", "masked mean"], rows: right.map((v, i) => [rowHead[i], fmt(v)]), tones: { ":1": "ok" } }] },
+  ] };
+}
+
 export const FLOWS_0: Record<string, Flow> = {
+  "s0-pairwise": pairwise(),
+  "s0-mask": maskedMeanFlow(),
   "s0-broadcast": broadcast(),
   "s0-log": cleanLog(),
   "s0-merge": mergePrices(),
