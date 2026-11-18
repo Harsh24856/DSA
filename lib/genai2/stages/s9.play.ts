@@ -1,7 +1,7 @@
 // Stage 9 (Production) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s9.calc.ts.
 import type { Flow } from "../../other/flows.ts";
 import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
-import { continuous, decodeCeiling, decodeStep, effBits, GPU, kvGB, mean, MODEL, n0, pct, quantGB, relErr, staticSpans, weightsGB, WEIGHTS } from "./s9.calc.ts";
+import { bestK, continuous, decodeCeiling, decodeStep, effBits, GPU, kvGB, mean, MODEL, n0, pct, quantGB, relErr, specCost, specSpeedup, specTokens, staticSpans, weightsGB, WEIGHTS } from "./s9.calc.ts";
 
 const ms = (s: number) => `${(s * 1000).toFixed(s < 0.001 ? 2 : 1)} ms`;
 
@@ -56,7 +56,30 @@ function quantPlay(v: Record<string, number>): Flow {
   ] };
 }
 
+// speculative-decoding: acceptance rate, draft length and draft cost against the speedup
+function spec(v: Record<string, number>): Flow {
+  const a = v.alpha / 100, { k } = v, c = v.cost / 100, e = specTokens(a, k), cost = specCost(k, c), s = e / cost, best = bestK(a, c);
+  const f = (x: number) => x.toFixed(2);
+  const bars = (x: number, y: number, z: number) => [{ label: "tokens a pass", value: x, tone: "ok" as const }, { label: "cost a pass", value: y, tone: "warn" as const }, { label: "speedup", value: z, tone: "hot" as const }];
+  return { kind: "bars", title: `Accept ${v.alpha}%, draft ${k}, draft cost ${v.cost}%`, format: f, steps: [
+    { note: `The draft guesses ${k} tokens. Each is accepted with chance ${f(a)}, and the run stops at the first rejection. The large pass always adds one token of its own, so on average it yields (1 - ${f(a)}^${k + 1}) / (1 - ${f(a)}) = ${f(e)} tokens.`, tone: "ok", bars: bars(e, 0, 0) },
+    { note: `That pass also cost ${k} draft steps at ${f(c)} of a large step each: ${f(cost)} large steps in all.`, tone: "warn", bars: bars(e, cost, 0) },
+    { note: s > 1
+      ? `Speedup ${f(e)} / ${f(cost)} = ${f(s)} times, with the output unchanged. ${best === k ? `${k} is the best draft length here.` : `A draft of ${best} would do better (${f(specSpeedup(a, best, c))} times).`} The gain assumes verifying ${k + 1} tokens costs about one step, which holds when the GPU is memory bound.`
+      : `Speedup ${f(s)}: no gain over plain decoding. The draft is accepted too rarely or costs too much. Shorten the draft or use a better one.`, tone: s > 1 ? "hot" : "bad", bars: bars(e, cost, s) },
+  ] };
+}
+
 export const PLAY_9: Record<string, PlayFlow> = {
+  "s9-spec": {
+    title: "When does speculative decoding pay?",
+    knobs: [
+      { key: "alpha", label: "Draft tokens accepted (%)", min: 30, max: 95, step: 5, value: 80 },
+      { key: "k", label: "Tokens drafted per step", min: 1, max: 10, step: 1, value: 4 },
+      { key: "cost", label: "Draft step cost (% of large)", min: 1, max: 40, step: 1, value: 5 },
+    ],
+    make: spec,
+  },
   "s9-quant": {
     title: "Bits against size, speed and error",
     knobs: [

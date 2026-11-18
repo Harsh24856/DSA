@@ -1,5 +1,5 @@
 // Stage 9 (Production) animated walk-throughs. Every number is computed here or in s9.calc.ts.
-import type { Flow, GridStep } from "../../other/flows.ts";
+import type { Flow, GridStep, LaneStep } from "../../other/flows.ts";
 import { BF16, blocksFor, BlockPool, decodeStep, kvPerToken, latency, MODEL, n0, prefillS, weightsGB } from "./s9.calc.ts";
 
 const ms = (s: number) => `${(s * 1000).toFixed(s < 0.01 ? 1 : 0)} ms`;
@@ -65,7 +65,28 @@ function longPrompt(): Flow {
   ] };
 }
 
+// speculative-decoding: three rounds of draft and verify, counting large-model passes
+export const SPEC_ROUNDS = { k: 4, accepted: [3, 4, 0] };
+function specRounds(): Flow {
+  const { k, accepted } = SPEC_ROUNDS;
+  let total = 0;
+  const steps: LaneStep[] = [];
+  accepted.forEach((n, r) => {
+    const got = n + 1;   // accepted draft tokens, plus one token from the large model (a correction, or a bonus if all were accepted)
+    total += got;
+    steps.push({ from: 0, to: 1, label: `round ${r + 1}: ${k} guesses`, note: r === 0 ? `The small draft model writes ${k} tokens one by one. It is cheap, so this takes a fraction of one large step.` : `${k} new guesses, starting after the ${total - got} tokens kept so far.` });
+    steps.push({ from: 1, to: 1, label: `check ${k} in 1 pass`, note: r === 0 ? `The large model scores all ${k} guesses at once, like a short prefill. Decode is memory bound, so checking ${k + 1} positions costs about the same as making 1.` : `Again one pass for all ${k} guesses.`, tone: "hot" });
+    steps.push({ from: 1, to: 0, label: n === k ? `all ${k} kept + 1 bonus` : n === 0 ? "first guess wrong" : `${n} kept, then a fix`, note: n === k
+      ? `Every guess matches, and the same pass gives one more token for free: ${got} tokens. ${total} so far, in ${r + 1} large passes.`
+      : n === 0 ? `The first guess is rejected. The large model's own token replaces it, so the round still makes ${got} token, no worse than plain decoding. ${total} so far, in ${r + 1} passes.`
+      : `It keeps ${n} and rejects guess ${n + 1}, replacing it with its own choice. Guesses after it are thrown away. ${got} tokens: ${total} so far, in ${r + 1} large pass${r ? "es" : ""}.`, tone: n === 0 ? "warn" : "ok" });
+  });
+  steps.push({ from: 1, to: 0, label: `${total} tokens, ${accepted.length} passes`, note: `Plain decoding would need ${total} large passes for ${total} tokens. Here it took ${accepted.length}, plus ${k * accepted.length} draft steps. The accept rule keeps the output distribution exactly the large model's.`, tone: "ok" });
+  return { kind: "lanes", title: "Draft, verify, repeat", lanes: ["Draft model", "Large model"], steps };
+}
+
 export const FLOWS_9: Record<string, Flow> = {
+  "s9-spec-rounds": specRounds(),
   "s9-long-prompt": longPrompt(),
   "s9-request": request(),
   "s9-block-table": blockTable(),
