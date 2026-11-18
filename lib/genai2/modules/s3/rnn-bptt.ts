@@ -27,6 +27,7 @@ export const RNN_BPTT: GModule = {
   blocks: [
     { kind: "figure", id: "s3-unroll", caption: "One cell with a loop is the same as a chain of copies that share W and U. Training sends the gradient back along the chain (dashed), through U at every step." },
     { kind: "text", md: "**The recurrence:** h_t = tanh(W x_t + U h_{t-1} + b). The new state mixes the current input with the previous state, through the same W and U at every step. An output, if the task needs one, is read from h_t.\n\nThe walk-through runs a one-number RNN forward on a single pulse of input, then sends the gradient back." },
+    { kind: "play", id: "s3-rnn-unroll" },
     { kind: "flow", id: "s3-rnn-steps" },
     {
       kind: "predict",

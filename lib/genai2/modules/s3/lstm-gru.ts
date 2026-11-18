@@ -22,6 +22,7 @@ export const LSTM_GRU: GModule = {
   hook: "Give the memory a protected lane and let small gates decide what to erase, what to write and what to show. That is how an RNN learns to remember for hundreds of steps. Builds on [[rnn-bptt]] and the sigmoid and tanh from [[neuron-activations]].",
   blocks: [
     { kind: "figure", id: "s3-lstm", caption: "The cell state runs along the top, touched only by one multiply (forget) and one add (write). Four small layers read the previous output and the input: three sigmoid gates and one tanh candidate." },
+    { kind: "play", id: "s3-lstm-cell" },
     { kind: "flow", id: "s3-lstm-step" },
     { kind: "text", md: "**The equations**, each a learned layer over [h_{t-1}, x_t]:\n\nf = σ(...), i = σ(...), o = σ(...), g = tanh(...)\n\nc_t = f ⊙ c_{t-1} + i ⊙ g, and h_t = o ⊙ tanh(c_t)\n\nThe cell update is a multiply and an add, not a squash through a weight matrix. Going back one step along c multiplies the gradient by f alone. With f near 1 the gradient survives." },
     {
