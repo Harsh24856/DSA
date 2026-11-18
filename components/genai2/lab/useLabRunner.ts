@@ -1,11 +1,11 @@
 "use client";
-// Runs one graded lab program in the sandboxed Pyodide worker and reads its results.
+// Runs one graded lab program: NumPy in the sandboxed Pyodide worker, PyTorch on the Modal grader through /api/genai/grade.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { wasmHost, type WasmMsg } from "@/components/other/playground/wasm";
 import { parseResults, RUN_SECONDS } from "@/lib/genai2/labs/harness";
 import type { TestResult } from "@/lib/genai2/labs/types";
 
-export type RunState = "idle" | "loading" | "running" | "done" | "failed" | "stopped";
+export type RunState = "idle" | "loading" | "running" | "done" | "failed" | "stopped" | "error";
 
 export function useLabRunner() {
   const [state, setState] = useState<RunState>("idle");
@@ -40,5 +40,20 @@ export function useLabRunner() {
     cur.current.id = host.current?.run(program) ?? 0;
   }, []);
 
-  return { state, results, output, run };
+  // PyTorch: the server builds the program with the hidden tests, so only the step and the learner's code go out
+  const runRemote = useCallback(async (job: { lab: string; step: string; code: string }) => {
+    setResults(null); setOutput(""); setState("running");
+    const id = ++cur.current.id;
+    let data: { error?: string; results?: TestResult[] | null; output?: string; timedOut?: boolean } | null = null;
+    try {
+      const res = await fetch("/api/genai/grade", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(job) });
+      data = await res.json();
+    } catch { data = null; }
+    if (id !== cur.current.id) return;   // a newer run started meanwhile
+    if (!data || data.error) { setOutput(data?.error ?? "Could not reach the grader. Check your connection and try again."); setState("error"); return; }
+    setResults(data.results ?? null); setOutput(data.output ?? "");
+    setState(data.timedOut ? "stopped" : "done");
+  }, []);
+
+  return { state, results, output, run, runRemote };
 }

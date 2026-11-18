@@ -59,7 +59,7 @@ export function LabView({ lab }: { lab: Lab }) {
   const busy = runner.state === "loading" || runner.state === "running";
 
   // a full pass stores progress; the first pass is kept
-  // ponytail: stores a plain tick, not "numpy" / "torch": PTick has no string field, and only NumPy is graded today
+  // ponytail: stores a plain tick, not "numpy" / "torch": PTick has no string field; store the framework if both are ever shown
   useEffect(() => {
     const k = `genailab:${lab.id}:${step.id}`;
     if (allPass && !done[k]) toggle(k, true);
@@ -73,12 +73,17 @@ export function LabView({ lab }: { lab: Lab }) {
     if (busy) return;
     if (code.length > MAX_CODE) { setNote(`Your code is over ${MAX_CODE / 1000} KB, so it was not run. Trim it and try again.`); return; }
     setNote("");
+    if (fw === "torch") {
+      ran.current = { key, off: userLineOffset(lab.steps, i, fw), lines: code.split("\n").length, program: "" };
+      void runner.runRemote({ lab: lab.id, step: step.id, code });
+      return;
+    }
     const token = crypto.randomUUID().replaceAll("-", "");
     const program = buildProgram(lab.steps, i, fw, code, token);
     ran.current = { key, off: userLineOffset(lab.steps, i, fw), lines: code.split("\n").length, program };
     runner.run(program, token);
   };
-  const retry = () => runner.run(ran.current.program, crypto.randomUUID().replaceAll("-", ""));
+  const retry = () => (fw === "torch" ? run() : runner.run(ran.current.program, crypto.randomUUID().replaceAll("-", "")));
 
   return (
     <div className="flex flex-col gap-6">
@@ -132,11 +137,9 @@ export function LabView({ lab }: { lab: Lab }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {fw === "numpy" && (
-              <button type="button" className="btn btn-primary" onClick={run} aria-disabled={busy || undefined}>
-                <Play size={16} weight="fill" aria-hidden />{busy ? "Running..." : "Run tests"}
-              </button>
-            )}
+            <button type="button" className="btn btn-primary" onClick={run} aria-disabled={busy || undefined}>
+              <Play size={16} weight="fill" aria-hidden />{busy ? "Running..." : "Run tests"}
+            </button>
             <button type="button" className="btn" onClick={reset}><ArrowCounterClockwise size={16} aria-hidden />Reset to starter</button>
             {hints < step.hints.length && (
               <button type="button" className="btn btn-ghost" onClick={() => setHints((h) => h + 1)}><Lightbulb size={16} aria-hidden />Hint {hints + 1} of {step.hints.length}</button>
@@ -146,13 +149,19 @@ export function LabView({ lab }: { lab: Lab }) {
             )}
           </div>
 
-          {fw === "torch" && <p className="callout text-sm">PyTorch grading comes online soon. You can write here and your code is saved; switch to NumPy to run the tests{step.starter.numpy ? "" : " (this step is PyTorch only)"}.</p>}
+          {fw === "torch" && <p className="text-sm text-muted">PyTorch runs on a grading server, so a run takes about 10 to 30 seconds. You need to be signed in.</p>}
           {note && <p className="callout callout-warn text-sm" role="alert">{note}</p>}
           {hints > 0 && <ol className="grid gap-2">{step.hints.slice(0, hints).map((h, k) => <li key={k} className="callout text-sm leading-relaxed"><b>Hint {k + 1}.</b> {h}</li>)}</ol>}
 
           <div aria-live="polite" className="flex flex-col gap-3 empty:hidden">
             {mine && runner.state === "loading" && <p className="text-sm text-muted">Loading Python. The first run downloads about 10 MB, so it can take a moment.</p>}
             {mine && runner.state === "running" && <p className="text-sm text-muted">Running the tests...</p>}
+            {mine && runner.state === "error" && (
+              <div className="callout callout-warn flex flex-wrap items-center justify-between gap-3 text-sm" role="alert">
+                <span>{runner.output}</span>
+                <button type="button" className="btn btn-sm" onClick={retry}>Retry</button>
+              </div>
+            )}
             {mine && runner.state === "failed" && (
               <div className="callout callout-warn flex flex-wrap items-center justify-between gap-3 text-sm">
                 <span>Python could not load. Check your connection and try again.</span>

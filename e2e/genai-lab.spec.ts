@@ -38,3 +38,22 @@ test("Python failing to load offers Retry", async ({ page }) => {
   await expect(page.getByText("Python could not load")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
 });
+
+test("a PyTorch step goes to the grader route and shows its results", async ({ page }) => {
+  // the real grader runs on Modal; tests never call it, so the route answers here
+  let sent: { lab: string; step: string; code: string } | null = null;
+  await page.route("**/api/genai/grade", async (route) => {
+    sent = route.request().postDataJSON();
+    await route.fulfill({ json: { results: [{ name: "test_loss_falls", pass: true, msg: "" }, { name: "test_adamw", pass: false, msg: "expected AdamW" }], output: "step done", timedOut: false } });
+  });
+  await page.goto(URL);
+  await page.getByRole("button", { name: /Training step/ }).click();
+  await page.getByRole("button", { name: "Run tests" }).click();
+  await expect(page.getByText("1 of 2 passed")).toBeVisible();
+  expect(sent).toMatchObject({ lab: "transformer", step: "train-step" });
+
+  await page.unroute("**/api/genai/grade");
+  await page.route("**/api/genai/grade", (route) => route.fulfill({ status: 429, json: { error: "That is 30 PyTorch runs in 10 minutes." } }));
+  await page.getByRole("button", { name: "Run tests" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "30 PyTorch runs" })).toBeVisible();
+});
