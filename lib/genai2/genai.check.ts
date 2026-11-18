@@ -8,6 +8,8 @@ import { FLOWS } from "../other/flows.ts";
 import { knobDefaults, PLAY_FLOWS, PlayError } from "../other/flows-play.ts";
 import { BUILT, entry, FIGURE_IDS, mcqOptions, MODULES, seededRng, moduleKey, nextUp, STAGES, withNeeds } from "./index.ts";
 import { LABS } from "./labs/index.ts";
+import { EXTRAS } from "./extras/index.ts";
+import { FACTS } from "../landingFacts.ts";
 import type { Block, Stage } from "./types.ts";
 
 const mulberry32 = (a: number) => () => {
@@ -197,5 +199,17 @@ for (const m of Object.values(MODULES)) for (const b of m.blocks) if (b.kind ===
 
 for (const m of Object.values(MODULES)) if (m.lab) assert.ok(LABS[m.lab], `${m.id} links lab ${m.lab}, which does not exist`);
 assert.equal(MODULES["self-attention"]?.lab, "transformer", "self-attention links the transformer lab");
+
+assert.equal(FACTS.genaiModules, BUILT.length, "lib/landingFacts.ts genaiModules is out of date");
+
+// reference pages (interview, design, capstone, glossary, resources): exempt from the module rules, but every module link
+// must resolve, question ids are unique per page, and no text keeps an em dash or an old "Module N" reference
+for (const p of EXTRAS) {
+  const text = JSON.stringify(p);
+  for (const l of text.matchAll(LINK)) assert.ok(ids.includes(l[1]), `${p.id}: link to unknown module ${l[1]}`);
+  const qids = p.sections.flatMap((s) => (s.questions ?? []).map((q) => q.id));
+  assert.equal(new Set(qids).size, qids.length, `${p.id}: question ids are unique`);
+  assert.ok(!text.includes("\u2014") && !/\bModules? \d/.test(text), `${p.id}: no em dashes or old module numbers`);
+}
 
 console.log(`genai ok: ${STAGES.length} stages, ${ids.length} modules, ${Object.keys(MODULES).length} built`);

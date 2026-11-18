@@ -105,7 +105,6 @@ import { REACT } from "./react.ts";
 import { NODE } from "./node.ts";
 import { DESIGN } from "./design.ts";
 import { FLOWS, type BarStep, type Flow, type GridStep, type LaneStep } from "./flows.ts";
-import { FLOW_SLOTS } from "../genai/labs.ts";
 import { TOPIC_FLOWS } from "./flows-dsa.ts";
 import { knobDefaults, PATTERN_PLAY, PLAY_FLOWS, PlayError } from "./flows-play.ts";
 import { MODULES as GENAI_MODULES } from "../genai2/index.ts";
@@ -123,7 +122,8 @@ import { langsOf, SYN_GROUPS, SYN_TOPICS } from "../syntax/topics.ts";
 import { createRequire } from "node:module";
 import { geohash, matchBuy } from "./flows-design.ts";
 import { CPP_TEMPLATES } from "../revise/cpp.ts";
-import { htmlQuestions, short } from "../revise/extract.ts";
+import { short } from "../revise/extract.ts";
+import { EXTRAS } from "../genai2/extras/index.ts";
 
 const SUBJECTS: Subject[] = [OS, DBMS, CN, SQL, OOPS, APTITUDE, SYNTAX, REACT, NODE, DESIGN];
 // further reading: https only, no repeats, and only on chapters that exist
@@ -339,10 +339,8 @@ for (const s of SUBJECTS) for (const ch of s.chapters) {
     }
   }
   assert.ok(!JSON.stringify(CPP_TEMPLATES).includes(String.fromCharCode(0x2014)), "no em dashes in templates");
-  const genaiSrc = readFileSync(join(process.cwd(), "lib/genai/content.ts"), "utf8");
-  const sections = JSON.parse(genaiSrc.slice(genaiSrc.indexOf("= [") + 2).replace(/;\s*$/, "")) as { id: string; html: string }[];
-  const qs = sections.flatMap((g) => htmlQuestions(g.html));
-  assert.ok(qs.length >= 150 && qs.every((q) => q.q && q.a && !/[<>]/.test(q.q)), `Gen AI revision questions: ${qs.length}`);
+  const qs = [...Object.values(GENAI_MODULES).flatMap((m) => m.questions), ...EXTRAS.flatMap((p) => p.sections.flatMap((x) => x.questions ?? []))].filter((q) => q.kind === "explain");
+  assert.ok(qs.length >= 150 && qs.every((q) => q.q && q.answer && !/[<>]/.test(q.q)), `Gen AI revision questions: ${qs.length}`);
   assert.equal(short("One. Two.\n\nThree."), "One. Two.");
   console.log(`revision ok: ${ok} C++ templates pass their tests, ${qs.length} Gen AI questions`);
 }
@@ -503,13 +501,6 @@ globalThis.__server.close(); process.exit(0);`);
   const used = new Set<string>();
   for (const s of SUBJECTS) for (const c of s.chapters) if (c.anim) used.add(c.anim);
   for (const [topic, ids] of Object.entries(TOPIC_FLOWS)) for (const id of ids) { assert.ok(FLOWS[id], `topic ${topic}: unknown flow ${id}`); used.add(id); }
-  const source = readFileSync(join(process.cwd(), "lib/genai/content.ts"), "utf8");
-  const G = JSON.parse(source.slice(source.indexOf("= [") + 2).replace(/;\s*$/, "")) as { id: string; html: string }[];
-  for (const [sec, list] of Object.entries(FLOW_SLOTS)) for (const [slide, flow] of list) {
-    assert.ok(FLOWS[flow], `Gen AI slot ${sec}: unknown flow ${flow}`);
-    assert.ok(G.find((g) => g.id === sec)?.html.includes(`id="${slide}"`), `Gen AI slot ${sec}/${slide}: no such slide`);
-    used.add(flow);
-  }
   for (const m of Object.values(GENAI_MODULES)) for (const b of m.blocks) if (b.kind === "flow") used.add(b.id);
   for (const [id, f] of Object.entries(FLOWS)) {
     assert.ok(used.has(id), `flow ${id} is not shown anywhere`);

@@ -81,7 +81,7 @@ function fitModel(v: Record<string, number>): Flow {
 // evals-judge: a pairwise judge that favours the first answer it sees, and the order-swap fix
 function position(v: Record<string, number>): Flow {
   const pA = v.pA / 100, bias = v.bias / 100, r = pairwise(pA, bias);
-  const bars = (x: number, y: number, z: number) => [{ label: "A always first", value: x, tone: "bad" as const }, { label: "random order", value: y, tone: "warn" as const }, { label: "both orders agree", value: z, tone: "ok" as const }];
+  const bars = (x: number, y: number, z: number) => [{ label: "A always first", value: x, tone: "bad" as const }, { label: "random order", value: y, tone: "warn" as const }, { label: "both orders", value: z, tone: "ok" as const }];
   return { kind: "bars", title: `A is truly better ${v.pA}% of the time; judge bias ${v.bias}%`, max: 1, format: (x) => pct(x), steps: [
     { note: `The judge compares answer A (new prompt) with B (old). ${v.bias}% of the time it just picks whichever it saw first. Always showing A first, A wins ${pct(r.aFirst)}, not ${pct(pA)}.`, tone: "bad", bars: bars(r.aFirst, 0, 0) },
     { note: `Randomising the order cancels the bias on average: ${pct(r.mixed)}. ${bias > 0 ? "But the bias still adds noise, and pulls the result towards 50%." : "With no bias, order does not matter."}`, tone: "warn", bars: bars(r.aFirst, r.mixed, 0) },

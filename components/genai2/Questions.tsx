@@ -1,7 +1,7 @@
 "use client";
 // The question bank at the bottom of a module: filter by level, answer, see why. The score is for this visit only.
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Check, X } from "@phosphor-icons/react";
 import { entry, mcqOptions, questionKey, seededRng, type GQuestion, type Level } from "@/lib/genai2/core";
 import { usePatterns } from "@/lib/patternStore";
@@ -85,26 +85,30 @@ function Explain({ q, moduleId }: { q: Extract<GQuestion, { kind: "explain" }>; 
   );
 }
 
-export function Questions({ moduleId, questions }: { moduleId: string; questions: GQuestion[] }) {
+export function Questions({ moduleId, questions, title = "Questions" }: { moduleId: string; questions: GQuestion[]; title?: string }) {
+  const titleId = useId();
   const [level, setLevel] = useState<"all" | Level>("all");
   const [picks, setPicks] = useState<Picks>({});
   const onPick: Pick = (id, v) => setPicks((p) => ({ ...p, [id]: v }));
   const right = (q: GQuestion) => (q.kind === "trap" ? picks[q.id] === q.truth : q.kind !== "explain" && picks[q.id] === q.answer);
   const score = { right: questions.filter((q) => q.id in picks && right(q)).length, tried: questions.filter((q) => q.id in picks).length };
   const shown = questions.filter((q) => level === "all" || q.level === level);
+  const explainOnly = questions.every((q) => q.kind === "explain");
   return (
-    <section className="card flex flex-col gap-4 p-6" aria-labelledby="gq-title">
+    <section className="card flex flex-col gap-4 p-6" aria-labelledby={titleId}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="gq-title" className="t-h2">Questions</h2>
-        <span className="num text-sm text-muted">{score.right} right of {score.tried} tried</span>
+        <h2 id={titleId} className="t-h2">{title}</h2>
+        {!explainOnly && <span className="num text-sm text-muted">{score.right} right of {score.tried} tried</span>}
       </div>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Level">
-        {LEVELS.map((l) => <button key={l} type="button" className="chip" aria-pressed={level === l} onClick={() => setLevel(l)}>{l === "all" ? "All" : l[0].toUpperCase() + l.slice(1)}</button>)}
-      </div>
+      {!explainOnly && (
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Level">
+          {LEVELS.map((l) => <button key={l} type="button" className="chip" aria-pressed={level === l} onClick={() => setLevel(l)}>{l === "all" ? "All" : l[0].toUpperCase() + l.slice(1)}</button>)}
+        </div>
+      )}
       <ol className="grid gap-4">
         {shown.map((q) => (
           <li key={q.id} className="tile grid min-w-0 gap-3 p-4">
-            <span className={`pill lv-${q.level} w-fit`}>{q.level}</span>
+            {!explainOnly && <span className={`pill lv-${q.level} w-fit`}>{q.level}</span>}
             {q.kind === "explain" ? <Explain q={q} moduleId={moduleId} /> : q.kind === "trap" ? <Trap q={q} pick={picks[q.id]} onPick={onPick} /> : <Mcq q={q} moduleId={moduleId} pick={picks[q.id]} onPick={onPick} />}
           </li>
         ))}

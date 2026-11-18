@@ -12,7 +12,7 @@ import { ProgressCard } from "../ProgressCard";
 export type SubjectSummary = { id: string; name: string; short: string; blurb: string; chapters: string[]; cards: string[]; labs: number };   // cards: tick keys of its interview questions
 const ICON: Record<string, Icon> = { os: Cpu, dbms: Database, cn: Globe, sql: Table, oops: Cube, aptitude: Calculator, syntax: Code, react: Atom, node: HardDrives, design: ShareNetwork };
 
-export function OtherHub({ subjects, oaCount, syntaxCount, genaiModules }: { subjects: SubjectSummary[]; oaCount: number; syntaxCount: number; genaiModules: string[] }) {
+export function OtherHub({ subjects, oaCount, syntaxCount }: { subjects: SubjectSummary[]; oaCount: number; syntaxCount: number }) {
   const { done } = usePatterns();
   const doneIn = (s: SubjectSummary) => s.chapters.filter((c) => done[chapterKey(s.id, c)]).length;
   const total = subjects.reduce((n, s) => n + s.chapters.length, 0), finished = subjects.reduce((n, s) => n + doneIn(s), 0);
@@ -27,7 +27,7 @@ export function OtherHub({ subjects, oaCount, syntaxCount, genaiModules }: { sub
         <div className="max-w-[62ch]">
           <h2 className="t-h2">CS core subjects</h2>
           <p className="mt-1 text-sm text-muted">Operating systems, DBMS, networks, SQL, OOP, aptitude, system design, and the languages and frameworks you will code in: C++, Java, Python, JavaScript, TypeScript, React, Node and Express. Each chapter has short notes, diagrams, interactive labs and interview questions with answers you open after trying.</p>
-          <div className="mt-3"><ProgressCard genaiModules={genaiModules} otherTotal={total} /></div>
+          <div className="mt-3"><ProgressCard otherTotal={total} /></div>
         </div>
         <div className="flex shrink-0 gap-6">
           <div><span className="num text-2xl font-semibold"><Count value={finished} /><span className="text-sm font-normal text-muted"> / {total}</span></span><div className="text-xs text-muted">chapters done</div></div>

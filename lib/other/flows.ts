@@ -1,6 +1,6 @@
 // Animated walk-throughs: one request, one algorithm or one idea, a step at a time. Played by
 // components/other/FlowPlayer.tsx (Remotion Player). A CS chapter opts in with `anim: "<id>"`; a Gen AI slide is listed in
-// FLOW_SLOTS (lib/genai/labs.ts). Numbers in grids and bars are computed from real code wherever an algorithm is shown.
+// `flow` block in a Gen AI module (lib/genai2). Numbers in grids and bars are computed from real code wherever an algorithm is shown.
 import { CS_FLOWS } from "./flows-cs.ts";
 import { GENAI_FLOWS } from "./flows-genai.ts";
 import { DESIGN_FLOWS } from "./flows-design.ts";

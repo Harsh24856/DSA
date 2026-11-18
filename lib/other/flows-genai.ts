@@ -244,14 +244,6 @@ export const GENAI_FLOWS: Record<string, Flow> = {
     { from: 0, to: 1, label: "tool_result", note: "Append it and call the model again with the whole history." },
     { from: 1, to: 0, label: "end_turn: answer", note: "When it has enough, it answers. Always cap the number of loops and the budget.", tone: "ok" },
   ] },
-  "g-mcp": { kind: "lanes", title: "One tool call over MCP", lanes: ["App + LLM", "MCP client", "MCP server"], steps: [
-    { from: 1, to: 2, label: "initialize", note: "When the app starts, each client connects to one server and they agree capabilities." },
-    { from: 1, to: 2, label: "tools/list", note: "The client asks what the server offers." },
-    { from: 2, to: 1, label: "names + schemas", note: "The app adds these to the model's tool list. It did not need custom code for this tool.", tone: "hot" },
-    { from: 0, to: 1, label: "LLM wants a tool", note: "The model picks a tool in the usual way. A good app asks the user first if the action is risky.", tone: "warn" },
-    { from: 1, to: 2, label: "tools/call", note: "A JSON-RPC request over stdio for local servers, or HTTP for remote ones." },
-    { from: 2, to: 0, label: "result", note: "Write the tool once and every MCP-capable app can use it. Treat its output as untrusted input.", tone: "ok" },
-  ] },
   "g-interrupt": { title: "Human approval in an agent graph", steps: [
     { node: "agent plans a refund of 5,000", note: "A real, irreversible action. The agent must not do this alone." },
     { node: "checkpoint: save the whole state", note: "After every step, the graph state goes to a database under a thread id.", tone: "hot" },
@@ -276,12 +268,6 @@ export const GENAI_FLOWS: Record<string, Flow> = {
     { node: "project to text embedding size", note: "A small projection makes image tokens the same shape as text tokens." },
     { node: "insert into the prompt", note: "They sit among the text tokens, so an image costs tokens, and bigger images cost more.", tone: "warn" },
     { node: "LLM reads both together", note: "From here it is ordinary attention. It can read charts, but small text can get lost to low resolution.", tone: "ok" },
-  ] },
-  "g-voice": { kind: "bars", title: "A voice reply's latency budget (example numbers)", max: 1000, format: (v) => `${Math.round(v)} ms`, steps: [
-    { note: "People notice pauses over about a second in conversation. Treat one second as a budget and spend it.", bars: [{ label: "speech to text", value: 0 }, { label: "LLM first word", value: 0 }, { label: "text to speech", value: 0 }, { label: "total", value: 0, tone: "hot" }] },
-    { note: "Streaming speech to text gives a transcript soon after the person stops talking.", bars: [{ label: "speech to text", value: 300, tone: "hot" }, { label: "LLM first word", value: 0 }, { label: "text to speech", value: 0 }, { label: "total", value: 300, tone: "hot" }] },
-    { note: "Only the first token matters here, because the reply is spoken as it streams. Waiting for the full reply would add seconds.", bars: [{ label: "speech to text", value: 300 }, { label: "LLM first word", value: 400, tone: "hot" }, { label: "text to speech", value: 0 }, { label: "total", value: 700, tone: "hot" }] },
-    { note: "Send text to the speech model sentence by sentence, and play audio as soon as the first chunk arrives. Total: 900 ms.", tone: "ok", bars: [{ label: "speech to text", value: 300 }, { label: "LLM first word", value: 400 }, { label: "text to speech", value: 200, tone: "hot" }, { label: "total", value: 900, tone: "ok" }] },
   ] },
   "g-diffusion": { title: "Generating an image from noise", steps: [
     { node: "prompt becomes text embeddings", note: "A text encoder turns your prompt into vectors that guide every later step." },

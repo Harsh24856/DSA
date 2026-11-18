@@ -197,7 +197,7 @@
   .lv-CF{color:var(--accent);background:var(--accent-soft)}
   .num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 
-  /* Gen AI playbook pages (components/GenaiDoc.tsx): the playbook HTML in lib/genai/content.ts uses gx- classes */
+  /* gx- classes: diagrams (useMermaid), flow players and the interactive labs (components/labs) */
   .gx{display:flex;flex-direction:column;gap:24px;font-size:16px;line-height:24px}
   .gx-slide{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:24px;min-width:0;scroll-margin-top:96px}
   .gx-slide-tag{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}

@@ -229,7 +229,7 @@ export function Landing() {
             <h2 className="heading-4 max-w-[680px] sm:heading-3">Everything is checked, not just written</h2>
             <p className="mt-4 max-w-[680px] body-3 text-muted">Python solutions run against LeetCode&apos;s own examples. SQL answers run in SQLite and are compared with their result tables. Java and C++ programs are compiled and run. Incidents link to their sources, so you can read them yourself.</p>
             <dl className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-              {([[F.problems, `problems: ${F.leetcode} LeetCode, ${F.sql} SQL, ${F.codeforces} Codeforces`], [F.visualised, "LeetCode questions with their own visualiser"], [F.questions, "interview questions with answers you open after trying"], [F.genaiModules, "Gen AI engineer modules with runnable code"]] as const).map(([n, l]) => (
+              {([[F.problems, `problems: ${F.leetcode} LeetCode, ${F.sql} SQL, ${F.codeforces} Codeforces`], [F.visualised, "LeetCode questions with their own visualiser"], [F.questions, "interview questions with answers you open after trying"], [F.genaiModules, "Gen AI modules you can see, drag and step through"]] as const).map(([n, l]) => (
                 <div key={l} className="card p-6"><dd className="num text-3xl font-semibold tracking-tight">{n}</dd><dt className="mt-2 caption-5 text-muted">{l}</dt></div>
               ))}
             </dl>

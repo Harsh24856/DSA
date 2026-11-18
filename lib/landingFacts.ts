@@ -4,5 +4,5 @@ export const FACTS = {
   visualised: 768,      // LeetCode questions (plan + pattern lists) with their own solution and visualiser
   topics: 14, patterns: 118,
   subjects: 10, chapters: 149, questions: 776, stories: 59,
-  genaiModules: 13,
+  genaiModules: 69,
 };

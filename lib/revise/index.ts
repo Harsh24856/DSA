@@ -1,13 +1,14 @@
 // Last-day revision sheets, built on the server from the site's own content, so they always match the chapters:
 // DSA from the pattern library plus C++ templates, every CS core subject from its interview cards, Gen AI from the
 // playbook's question blocks. Only the /other/revise pages import this.
-import { GENAI } from "../genai/content";
+import { MODULES, STAGES } from "../genai2";
+import { EXTRA } from "../genai2/extras";
 import { SUBJECT_IDS, loadSubject, partsOf, type SubjectId } from "../other";
 import type { Table } from "../other/types";
 import { TOPICS } from "../patterns";
 import { PLAIN } from "../patterns/plain";
 import { CPP_TEMPLATES, type CppTemplate } from "./cpp";
-import { htmlQuestions, short, type RevItem } from "./extract";
+import { short, type RevItem } from "./extract";
 import { FACTS } from "./facts";
 
 /** `collapsible` sections start closed and open on demand (the DSA topics); `meta` is the line shown while closed. */
@@ -162,13 +163,18 @@ async function subjectSheet(id: SubjectId): Promise<Sheet> {
 }
 
 function genaiSheet(): Sheet {
-  const order = ["interview", ...GENAI.filter((g) => g.module).map((g) => g.id), "design"];
-  const sections = order.flatMap((id) => {
-    const g = GENAI.find((x) => x.id === id);
-    const items = g ? htmlQuestions(g.html) : [];
-    return g && items.length ? [{ id: slug(g.id), title: g.title, items }] : [];
+  const titles = new Map(STAGES.flatMap((st) => st.modules.map((m) => [m.id, m.title] as const)));
+  // module links [[id]] or [[id|label]] read as plain words on the sheet
+  const plain = (t: string) => t.replace(/\[\[([a-z0-9-]+)(?:\|([^\]]+))?\]\]/g, (_, id: string, label?: string) => label ?? titles.get(id) ?? id);
+  const explain = (qs: { kind: string; q?: string; answer?: string }[]): RevItem[] =>
+    qs.filter((q) => q.kind === "explain").map((q) => ({ q: plain(q.q!), a: short(plain(q.answer!)) }));
+  const page = (id: string) => EXTRA[id].sections.flatMap((s) => explain(s.questions ?? []));
+  const stages = STAGES.flatMap((st) => {
+    const items = st.modules.flatMap((m) => (MODULES[m.id] ? explain(MODULES[m.id].questions) : []));
+    return items.length ? [{ id: `stage-${st.n}`, title: `Stage ${st.n}: ${st.title}`, items }] : [];
   });
-  return { id: "genai", title: "Gen AI", blurb: "The top Gen AI engineer interview questions first, then every question from each module and the system design sheet, with short answers.", sections };
+  const sections = [{ id: "interview", title: EXTRA.interview.title, items: page("interview") }, ...stages, { id: "design", title: EXTRA.design.title, items: page("design") }];
+  return { id: "genai", title: "Gen AI", blurb: "The top Gen AI engineer interview questions first, then every explain question from each stage and the system design sheet, with short answers.", sections };
 }
 
 export async function buildSheet(id: SheetId): Promise<Sheet> {

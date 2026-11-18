@@ -103,7 +103,7 @@ function infoNceSteps(): Flow {
   };
   const a = row(s0), b = row(s1);
   const table = (r: ReturnType<typeof row>, cols: number): GridTable => ({
-    head: ["passage", "cosine", "÷ τ", "softmax"].slice(0, cols), rowHead: PAIRS,
+    head: ["cosine", "÷ τ", "softmax"].slice(0, cols - 1), rowHead: PAIRS,
     rows: PAIRS.map((_, j) => [r2(r.sims[j]), r2(r.sc[j]), r2(r.pr[j])].slice(0, cols - 1)),
     tones: { [`${q}`]: "hot" as FlowTone },
   });

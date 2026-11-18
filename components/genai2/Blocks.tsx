@@ -6,7 +6,7 @@ import type { Block } from "@/lib/genai2/core";
 import { mcqOptions, seededRng } from "@/lib/genai2/core";
 import { RunPanel } from "../RunPanel";
 import { useMermaid } from "../useMermaid";
-import { Choices, GRich } from "./Questions";
+import { Choices, ginline, GRich } from "./Questions";
 
 const FlowPlayer = dynamic(() => import("../other/FlowPlayer"), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
 const FlowLab = dynamic(() => import("../other/FlowLab"), { ssr: false, loading: () => <div className="gx-diagram h-[560px]" aria-hidden /> });
@@ -71,7 +71,7 @@ export function BlockView({ b, seed }: { b: Block; seed: string }) {
         <div className="tile overflow-x-auto" tabIndex={0} role="region" aria-label={`Table: ${b.head.join(", ")}`}>
           <table className="w-full text-sm">
             <thead><tr>{b.head.map((h) => <th key={h} scope="col" className="p-2 text-left font-semibold">{h}</th>)}</tr></thead>
-            <tbody>{b.rows.map((r, i) => <tr key={i} className="border-t border-line">{r.map((c, j) => <td key={j} className="p-2 align-top">{c}</td>)}</tr>)}</tbody>
+            <tbody>{b.rows.map((r, i) => <tr key={i} className="border-t border-line">{r.map((c, j) => <td key={j} className="p-2 align-top">{ginline(c)}</td>)}</tr>)}</tbody>
           </table>
         </div>
       );

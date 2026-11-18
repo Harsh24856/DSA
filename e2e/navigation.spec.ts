@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const ROUTES = ["/", "/analytics", "/patterns", "/patterns/array", "/problems", "/drill", "/mock", "/genai", "/genai/self-attention", "/genai/lab/transformer", "/other", "/syntax", "/other", "/other/oa", "/other", "/other/os", "/other/os/scheduling"];
+const ROUTES = ["/", "/analytics", "/patterns", "/patterns/array", "/problems", "/drill", "/mock", "/genai", "/genai/interview", "/genai", "/genai/self-attention", "/genai/lab/transformer", "/other", "/syntax", "/other", "/other/oa", "/other", "/other/os", "/other/os/scheduling"];
 
 /** Main content is on screen: it has text, and nothing in the viewport is still faded out. */
 async function visible(page: Page) {

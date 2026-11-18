@@ -97,18 +97,7 @@ export function DescentLab() {
   );
 }
 
-/* ---------- convolution ---------- */
-const IMG = [
-  [0, 0, 0, 0, 0, 0, 0], [0, 1, 1, 1, 1, 1, 0], [0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 1, 0, 0, 0],
-  [0, 0, 1, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0],
-];
-const KERNELS = {
-  vertical: ["Vertical edge", [[1, 0, -1], [1, 0, -1], [1, 0, -1]]],
-  horizontal: ["Horizontal edge", [[1, 1, 1], [0, 0, 0], [-1, -1, -1]]],
-  blur: ["Blur", [[1, 1, 1], [1, 1, 1], [1, 1, 1]].map((r) => r.map((v) => v / 9))],
-  sharpen: ["Sharpen", [[0, -1, 0], [-1, 5, -1], [0, -1, 0]]],
-} as const;
-type Kern = keyof typeof KERNELS;
+/* ---------- shared grid ---------- */
 const r1 = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
 
 function Grid({ rows, cell, label }: { rows: { v: number | null; bg: string; fg?: string; hl?: boolean }[][]; cell: number; label: string }) {
@@ -118,40 +107,6 @@ function Grid({ rows, cell, label }: { rows: { v: number | null; bg: string; fg?
         <div key={i} className="num grid place-items-center text-xs font-semibold transition-colors" style={{ height: cell, background: c.bg, color: c.fg ?? "var(--ink)", outline: c.hl ? "2px solid var(--accent)" : undefined, outlineOffset: -2 }}>{c.v === null ? "" : r1(c.v)}</div>
       ))}
     </div>
-  );
-}
-
-export function ConvLab() {
-  const [k, setK] = useState<Kern>("vertical");
-  const [pos, setPos] = useState(0), [playing, setPlaying] = useState(false);
-  const K = KERNELS[k][1];
-  const out = useMemo(() => Array.from({ length: 5 }, (_, r) => Array.from({ length: 5 }, (_, c) => {
-    let s = 0; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) s += IMG[r + i][c + j] * K[i][j]; return s;
-  })), [K]);
-  const max = Math.max(...out.flat().map(Math.abs)) || 1;
-  useTicker(playing, 450, () => setPos((p) => { if (p >= 24) { setPlaying(false); return 24; } return p + 1; }));
-  const R = Math.floor(pos / 5), C = pos % 5;
-  return (
-    <Lab title="A 3×3 kernel sliding over an image" hint="A convolution multiplies the kernel with each 3×3 window and adds the 9 products into one output pixel. Edge kernels light up where brightness changes.">
-      <Seg<Kern> label="Kernel" value={k} onChange={(v) => { setK(v); setPos(0); }} className="flex flex-wrap" options={(Object.keys(KERNELS) as Kern[]).map((x) => [x, KERNELS[x][0]] as const)} />
-      <div className="flex flex-wrap items-start gap-4">
-        <div className="grid gap-1"><span className="t-eyebrow text-xs">Input 7×7</span>
-          <Grid cell={26} label="Input image of the digit 7" rows={IMG.map((row, r) => row.map((v, c) => ({ v, bg: tint(v ? 70 : 0, "var(--ink)"), fg: v ? "var(--surface)" : "var(--muted)", hl: r >= R && r < R + 3 && c >= C && c < C + 3 })))} /></div>
-        <div className="grid gap-1"><span className="t-eyebrow text-xs">Kernel</span>
-          <Grid cell={26} label={`${KERNELS[k][0]} kernel`} rows={K.map((row) => row.map((v) => ({ v, bg: v > 0 ? tint(30) : v < 0 ? tint(30, "var(--hard)") : "var(--surface)" })))} /></div>
-        <div className="grid gap-1"><span className="t-eyebrow text-xs">Output 5×5</span>
-          <Grid cell={26} label="Feature map so far" rows={out.map((row, r) => row.map((v, c) => {
-            const i = r * 5 + c, shown = i <= pos, p = (Math.abs(v) / max) * 40;   // tints stay light enough for ink text in every theme
-            return { v: shown ? v : null, bg: shown ? tint(p, v < 0 ? "var(--hard)" : "var(--accent)") : "var(--surface)", hl: i === pos };
-          }))} /></div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className="btn btn-sm btn-primary" onClick={() => { if (pos >= 24) setPos(0); setPlaying((p) => !p); }}>{playing ? "Pause" : "Slide"}</button>
-        <button type="button" className="btn btn-sm" onClick={() => setPos((p) => Math.min(24, p + 1))}>Step</button>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={() => { setPlaying(false); setPos(0); }}>Reset</button>
-        <span className="num text-sm" role="status">window ({R}, {C}): sum of window × kernel = <b>{r1(out[R][C])}</b></span>
-      </div>
-    </Lab>
   );
 }
 

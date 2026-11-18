@@ -10,7 +10,7 @@ function vote(v: Record<string, number>): Flow {
   const p = v.p / 100, { n } = v;
   if (n % 2 === 0) throw new PlayError("Pick an odd number of samples, so a vote cannot tie.");
   const one = p, maj = majority(p, n), best = anyRight(p, n);
-  const bars = (a: number, b: number, c: number) => [{ label: "1 sample", value: a, tone: "warn" as const }, { label: "majority vote", value: b, tone: "hot" as const }, { label: "best with checker", value: c, tone: "ok" as const }];
+  const bars = (a: number, b: number, c: number) => [{ label: "1 sample", value: a, tone: "warn" as const }, { label: "majority vote", value: b, tone: "hot" as const }, { label: "with checker", value: c, tone: "ok" as const }];
   return { kind: "bars", title: `${n} samples, each right ${v.p}% of the time`, format: (x) => pct(x), max: 1, steps: [
     { note: `One sample is right with chance ${r2(p)}. Assume the wrong answers all agree, the worst case for voting.`, bars: bars(one, 0, 0) },
     { note: `Majority of ${n}: right when more than ${Math.floor(n / 2)} samples are. That is ${pct(maj, 1)}. ${p > 0.5 ? "Above one half, voting amplifies the right answer." : p < 0.5 ? "Below one half, voting amplifies the wrong answer: worse than one sample." : "At exactly one half, voting changes nothing."}`, tone: p >= 0.5 ? "hot" : "bad", bars: bars(one, maj, 0) },

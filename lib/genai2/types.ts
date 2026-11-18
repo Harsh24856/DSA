@@ -1,4 +1,6 @@
-import type { LabKind } from "../genai/labs.ts";
+/** The interactive labs in components/labs, placed in a module by a `lab` block. */
+export type LabKind = "activation" | "descent" | "noise" | "attention" | "sampling" | "bpe" | "cost" | "chunk" | "vector" | "agent" | "lora" | "memory"
+  | "significance" | "voting" | "paging" | "speculative";
 
 export type Level = "easy" | "medium" | "hard";
 

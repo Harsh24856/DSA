@@ -12,7 +12,7 @@ const ALL = STAGES.flatMap((s) => s.modules);
 
 export type LabCard = { id: string; title: string; blurb: string; steps: number };
 
-export function RoadmapHub({ genaiModules, labs = [] }: { genaiModules: string[]; labs?: LabCard[] }) {
+export function RoadmapHub({ labs = [] }: { labs?: LabCard[] }) {
   const { done } = usePatterns();
   const isDone = (id: string) => !!done[moduleKey(id)];
   const doneN = ALL.filter((m) => m.built && isDone(m.id)).length;
@@ -32,7 +32,7 @@ export function RoadmapHub({ genaiModules, labs = [] }: { genaiModules: string[]
           <Bar value={doneN} max={ALL.length} />
           {cont ? <Link href={cont} className="btn btn-primary btn-sm">Continue: {nextE!.title}<ArrowRight size={14} aria-hidden /></Link>
             : <Link href={`/genai/${first.id}`} className="btn btn-primary btn-sm">Review {first.title}<ArrowRight size={14} aria-hidden /></Link>}
-          <ProgressCard genaiModules={genaiModules} />
+          <ProgressCard />
         </div>
       </section>
 

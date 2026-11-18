@@ -6,6 +6,7 @@ import { ShareNetwork, X } from "@phosphor-icons/react";
 import { usePatterns } from "@/lib/patternStore";
 import { useStore } from "@/lib/store";
 import { ALL_LC } from "@/lib/patterns";
+import { BUILT, moduleKey } from "@/lib/genai2/core";
 
 /** Resolved token color as an rgba() string the canvas understands (tokens may be color-mix or oklab). */
 function token(name: string) {
@@ -47,15 +48,14 @@ function draw(cv: HTMLCanvasElement, rows: Row[], date: string) {
   cx.fillStyle = muted; cx.font = `400 22px ${font}`; cx.fillText(location.host, 100, H - 70);
 }
 
-// genaiModules: ids of the old playbook modules, passed from the server so lib/genai/content.ts stays off the client.
-export function ProgressCard({ genaiModules, otherTotal }: { genaiModules: string[]; otherTotal?: number }) {
+export function ProgressCard({ otherTotal }: { otherTotal?: number }) {
   const { done } = usePatterns();
   const { state } = useStore();
   const ref = useRef<HTMLDialogElement>(null), canvas = useRef<HTMLCanvasElement>(null);
   const [open, setOpen] = useState(false), [msg, setMsg] = useState(""), [canShare, setCanShare] = useState(false);
   useEffect(() => { setCanShare(!!navigator.canShare?.({ files: [new File([""], "x.png", { type: "image/png" })] })); }, []);   // after mount: no server/client mismatch
   const rows: Row[] = [
-    { label: "Gen AI modules done", value: genaiModules.filter((id) => done[`genai:${id}`]).length, total: genaiModules.length },
+    { label: "Gen AI modules done", value: BUILT.filter((id) => done[moduleKey(id)]).length, total: BUILT.length },
     { label: "CS core chapters done", value: Object.keys(done).filter((k) => k.startsWith("other:")).length, total: otherTotal },
     { label: "pattern problems solved", value: ALL_LC.filter((lc) => done[lc]).length, total: ALL_LC.length },
     { label: "daily problems solved", value: Object.keys(state.done).length },
