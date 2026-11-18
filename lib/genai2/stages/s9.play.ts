@@ -1,7 +1,7 @@
 // Stage 9 (Production) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s9.calc.ts.
 import type { Flow } from "../../other/flows.ts";
 import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
-import { bestK, pairwise, ROLL, continuous, decodeCeiling, decodeStep, effBits, GPU, kvGB, mean, MODEL, n0, pct, quantGB, relErr, specCost, specSpeedup, specTokens, staticSpans, weightsGB, WEIGHTS } from "./s9.calc.ts";
+import { atLeastOnce, bestK, pairwise, ROLL, continuous, decodeCeiling, decodeStep, effBits, GPU, kvGB, mean, MODEL, n0, pct, quantGB, relErr, specCost, specSpeedup, specTokens, staticSpans, weightsGB, WEIGHTS } from "./s9.calc.ts";
 
 const ms = (s: number) => `${(s * 1000).toFixed(s < 0.001 ? 2 : 1)} ms`;
 
@@ -100,7 +100,28 @@ function rollout(v: Record<string, number>): Flow {
   ] };
 }
 
+// security-guardrails: a filter that catches most attacks, against an attacker who keeps trying
+function attack(v: Record<string, number>): Flow {
+  const miss = 1 - v.catch / 100, { tries } = v, any = atLeastOnce(miss, tries), approve = v.approve / 100, harm = atLeastOnce(miss * approve, tries);
+  const f = (x: number) => pct(x, x < 0.1 ? 1 : 0);
+  const bars = (a: number, b: number, c: number) => [{ label: "one try passes", value: a, tone: "warn" as const }, { label: `any of ${tries} passes`, value: b, tone: "bad" as const }, { label: "harm done", value: c, tone: "ok" as const }];
+  return { kind: "bars", title: `Filter catches ${v.catch}%, ${tries} tries, ${v.approve}% approved`, max: 1, format: f, steps: [
+    { note: `A guardrail model flags ${v.catch}% of injection attempts. One attempt gets past it ${f(miss)} of the time. That sounds safe.`, tone: "warn", bars: bars(miss, 0, 0) },
+    { note: `Attackers retry for free. Over ${tries} tries, at least one passes with chance 1 - ${v.catch / 100}^${tries} = ${f(any)}. A filter lowers the rate; it does not make the system safe.`, tone: "bad", bars: bars(miss, any, 0) },
+    { note: `Now limit what a passing attack can do: the risky action needs a person to approve it, and a person approves a malicious request ${v.approve}% of the time. Harm needs both: ${f(harm)} over ${tries} tries. ${v.approve === 0 ? "With no risky action possible, the attack has nowhere to go." : "Cutting the capability works better than a better filter."}`, tone: "ok", bars: bars(miss, any, harm) },
+  ] };
+}
+
 export const PLAY_9: Record<string, PlayFlow> = {
+  "s9-attack": {
+    title: "Filters against a patient attacker",
+    knobs: [
+      { key: "catch", label: "Filter catches (%)", min: 50, max: 99.5, step: 0.5, value: 95 },
+      { key: "tries", label: "Attacker's tries", min: 1, max: 200, step: 1, value: 50 },
+      { key: "approve", label: "Malicious action approved (%)", min: 0, max: 50, step: 1, value: 2 },
+    ],
+    make: attack,
+  },
   "s9-rollout": {
     title: "How big should a canary be?",
     knobs: [

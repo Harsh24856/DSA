@@ -6,6 +6,7 @@ import { QuantSizes } from "./s9/QuantSizes";
 import { SpecTokens } from "./s9/SpecTokens";
 import { CiBars } from "./s9/CiBars";
 import { TraceSpans } from "./s9/TraceSpans";
+import { Trifecta } from "./s9/Trifecta";
 
 // Exactly the ids in FIGURE_IDS_9: satisfies rejects a missing or an extra key.
 export const FIGURES_9 = {
@@ -16,4 +17,5 @@ export const FIGURES_9 = {
   "s9-spec-tokens": SpecTokens,
   "s9-ci-bars": CiBars,
   "s9-trace-spans": TraceSpans,
+  "s9-trifecta": Trifecta,
 } satisfies Record<(typeof FIGURE_IDS_9)[number], () => React.JSX.Element>;
