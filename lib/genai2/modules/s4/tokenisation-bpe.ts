@@ -25,10 +25,10 @@ export const TOKENISATION_BPE: GModule = {
   id: "tokenisation-bpe",
   stage: 4,
   title: "Tokenisation and BPE",
-  hook: "A model never sees letters or words. It sees a list of numbers, one per token, and BPE decides where one token ends and the next begins.",
+  hook: "A model never sees letters or words. It sees a list of numbers, one per token, and BPE decides where one token ends and the next begins. Builds on the out-of-vocabulary problem from [[text-as-numbers]].",
   blocks: [
     { kind: "figure", id: "s4-bpe-tree", caption: `The word "lowest" after each merge BPE learned from a small corpus. It starts as ${"lowest".length} characters plus an end marker and ends as ${bpeEncode("lowest", frames).length} tokens.` },
-    { kind: "text", md: "**A tokenizer turns text into ids** from a fixed list, the vocabulary. Whole words fail on any word not in the list. Single characters never fail, but make sequences long, and attention costs grow with length squared.\n\n**Subwords sit in between.** Byte-pair encoding (BPE) starts from characters (or the 256 byte values) and keeps merging the most frequent neighbouring pair into a new token." },
+    { kind: "text", md: "**A tokenizer turns text into ids** from a fixed list, the vocabulary. Whole words fail on any word not in the list. Single characters never fail, but make sequences long, and attention costs grow with length squared ([[self-attention]], later in this stage).\n\n**Subwords sit in between.** Byte-pair encoding (BPE) starts from characters (or the 256 byte values) and keeps merging the most frequent neighbouring pair into a new token." },
     { kind: "flow", id: "s4-bpe-train" },
     {
       kind: "predict",

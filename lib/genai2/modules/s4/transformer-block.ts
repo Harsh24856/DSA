@@ -11,18 +11,23 @@ const X0 = [1.5, -2, 0.5];
 // numeric: FFN weights; SwiGLU width that matches; attention weights
 const DF = 768, ffn = 2 * DF * 4 * DF, swiH = (8 * DF) / 3;
 const DA = 512;
-// output: RMSNorm of [3, 4]
-const RX = [3, 4], rms = Math.sqrt(RX.reduce((s, v) => s + v * v, 0) / RX.length), rn = RX.map((v) => r2(v / rms));
+// compare: a whole small decoder, counted (RMSNorm scales only, output tied to the embedding table)
+const [CV, CD, CL] = [50_000, 768, 12], cEmb = CV * CD, cAttn = 4 * CD * CD, cFfn = 8 * CD * CD, cNorm = 2 * CD;
+const cStack = CL * (cAttn + cFfn + cNorm) + CD, cTotal = cEmb + cStack;
+// per token per block: weights cost 2 FLOPs per weight (24d^2), attention scores and the value mix 4nd, so they cross at n = 6d
+const blockF = (d: number) => 2 * (4 + 8) * d * d, crossN = (d: number) => blockF(d) / (4 * d);
+const DX = 4096;
+if (crossN(CD) !== 6 * CD) throw new Error("block crossover");
 
 export const TRANSFORMER_BLOCK: GModule = {
   id: "transformer-block",
   stage: 4,
   title: "The block (norm, FFN, residual)",
   lab: "transformer",
-  hook: "A transformer is one block repeated dozens of times. Each block lets tokens talk (attention), lets each token think on its own (the FFN), and never throws away what came before (the residual).",
+  hook: "A transformer is one block repeated dozens of times. Each block lets tokens talk (attention), lets each token think on its own (the FFN), and never throws away what came before (the residual). Builds on [[deep-nets-train]] (norms, residuals, pre-norm) and [[multi-head-masks]].",
   blocks: [
     { kind: "figure", id: "s4-block", caption: "A pre-norm block. The residual stream runs straight down. Each sublayer reads a normalised copy and adds its answer back, so the stream is edited, never replaced." },
-    { kind: "text", md: "**Two sublayers, two jobs.** Attention moves information between tokens. The feed-forward network (FFN) then works on each token alone, with the same weights at every position: widen, apply a nonlinearity, narrow back.\n\n**Residuals and norms keep it trainable.** Each sublayer adds to x instead of replacing it, and a norm keeps the numbers each sublayer sees at a steady size." },
+    { kind: "text", md: "**Two sublayers, two jobs.** Attention moves information between tokens. The feed-forward network (FFN) then works on each token alone, with the same weights at every position: widen, apply a nonlinearity, narrow back.\n\n**Residuals and norms** work as in deep nets: each sublayer reads a normalised copy of x and adds its answer back." },
     { kind: "flow", id: "s4-block-pass" },
     {
       kind: "predict",
@@ -31,27 +36,18 @@ export const TRANSFORMER_BLOCK: GModule = {
       wrong: [`[${X0.map(() => 0).join(", ")}]`, `Its normalised copy, [${X0.map((v) => r2(v / Math.sqrt(X0.reduce((s, x) => s + x * x, 0) / X0.length))).join(", ")}]`, "Nothing: the token is dropped from the sequence"],
       why: "Each sublayer is added: x + 0 = x. A block can therefore learn to do almost nothing, which is why stacking many blocks is safe, and why gradients reach early layers through the plain additions.",
     },
-    {
-      kind: "mermaid",
-      caption: "Post-norm (the original transformer) normalises after each addition. Pre-norm (most recent LLMs) normalises only the copy each sublayer reads, leaving a clean path down the stream.",
-      src: `flowchart TB
-  subgraph POST["Post-norm"]
-    P1["x"] --> P2["x + attention(x)"] --> P3["norm"]:::warn
-  end
-  subgraph PRE["Pre-norm"]
-    Q1["x"] --> Q2["norm, then attention"] --> Q3["x + result"]:::ok
-  end
-  POST ~~~ PRE`,
-    },
     { kind: "play", id: "s4-ffn-share" },
     {
       kind: "compare",
-      head: ["", "Post-norm", "Pre-norm"],
+      head: ["Part", "Formula", `At d = ${CD}`],
       rows: [
-        ["Where the norm sits", "After x + sublayer(x)", "Before the sublayer, on its input only"],
-        ["Path down the stream", "Passes through a norm in every block", "Plain additions all the way"],
-        ["Training", "Usually needs a careful learning-rate warm-up", "Stable gradients at the start; one 2020 paper trained it without warm-up"],
-        ["Extra", "", "One final norm after the last block"],
+        ["Embedding table, tied with the output", "V × d", `${n0(cEmb)} at V = ${n0(CV)}`],
+        ["Attention, one block", "4d²", n0(cAttn)],
+        ["FFN 4d wide, one block", "8d²", n0(cFfn)],
+        ["Two norm scales, one block", "2d", n0(cNorm)],
+        [`${CL} blocks and a final norm`, `${CL} × (12d² + 2d) + d`, n0(cStack)],
+        ["Whole model", "", n0(cTotal)],
+        ["Forward FLOPs per token, one block", "24d² for the weights, 4nd for attention", `Equal at n = 6d = ${n0(crossN(CD))}`],
       ],
     },
     {
@@ -93,14 +89,14 @@ zero = {**p, "attn": [np.zeros((d, d))] * 4, "ffn": [np.zeros((d, hid))] * 2 + [
 assert np.allclose(block(x, zero), x)           # zero sublayers: the residual passes x through
 `,
     },
-    { kind: "text", md: "**Modern defaults.** RMSNorm replaces LayerNorm: it only divides by the root mean square, with no mean subtraction. SwiGLU replaces the plain ReLU FFN: a gate branch and an up branch are multiplied, then projected down. With three matrices instead of two, the hidden width is cut to about 8d/3 to keep the weights equal." },
+    { kind: "text", md: "**Modern defaults.** RMSNorm is the usual norm. SwiGLU replaces the plain ReLU FFN: a gate branch and an up branch are multiplied, then projected down. With three matrices instead of two, the hidden width is cut to about 8d/3 to keep the weights equal." },
   ],
   keyPoints: [
     "A block is attention (tokens exchange information) then an FFN (each token processed alone with shared weights).",
     "Each sublayer is residual: x = x + sublayer(norm(x)), so the stream is added to, never replaced.",
-    "Pre-norm puts the norm before each sublayer and leaves a clean additive path, which trains deep stacks more stably than post-norm.",
-    "RMSNorm rescales by the root mean square only; SwiGLU is a gated FFN with three matrices.",
+    "SwiGLU is a gated FFN with three matrices, so its hidden width drops to about 8d/3 to keep the weights equal.",
     "The FFN holds most of a block's weights: about 8d squared against 4d squared for attention at a 4d hidden width.",
+    "Per token and block, the weights cost about 24d² FLOPs and attention 4nd, so attention dominates only past n = 6d.",
   ],
   questions: [
     { id: "ffn-job", level: "easy", kind: "concept",
@@ -108,31 +104,25 @@ assert np.allclose(block(x, zero), x)           # zero sublayers: the residual p
       answer: "Transforms each token's vector on its own, with the same weights at every position",
       wrong: ["Moves information between tokens", "Predicts the next token directly", "Applies the causal mask"],
       why: "Mixing between tokens happens only in attention. The FFN is a small MLP run on every position independently, which is where much of the model's stored knowledge appears to live." },
-    { id: "residual-is", level: "easy", kind: "concept",
-      q: "What is a residual connection?",
-      answer: "The sublayer's output is added to its input: x + f(x)",
-      wrong: ["The sublayer's output replaces its input", "The input is multiplied by the output", "The previous block's weights are reused"],
-      why: "Adding keeps the original signal. A sublayer only has to learn a change to x, and gradients flow back through the plus sign unchanged." },
-    { id: "pre-norm", level: "medium", kind: "concept",
-      q: "In a pre-norm block, where is the normalisation applied?",
-      answer: "To the input of each sublayer, before attention or the FFN reads it",
-      wrong: ["To the residual stream after each addition", "Only once, after the last block", "To the attention weights after softmax"],
-      why: "Pre-norm computes x + f(norm(x)). The stream itself is never normalised inside the stack, so there is a clean additive path from the output back to the input. A final norm sits after the last block." },
-    { id: "rmsnorm", level: "medium", kind: "concept",
-      q: "How does RMSNorm differ from LayerNorm?",
-      answer: "It skips subtracting the mean and only divides by the root mean square, times a learned scale",
-      wrong: ["It normalises across the batch instead of across features", "It subtracts the mean but does not divide", "It has no learned parameters at all"],
-      why: "LayerNorm centres and scales each vector. RMSNorm drops the centring, which is cheaper and in practice works as well for LLMs. Both work per token, across its features." },
-    { id: "residual-grad", level: "hard", kind: "concept",
-      q: "Why do residual connections help a 50-block model train?",
-      answer: "The gradient has a direct path through the additions, so it reaches early blocks without shrinking through every layer",
-      wrong: ["They halve the number of parameters", "They remove the need for a learning rate", "They make every block compute the same function"],
-      why: "The derivative of x + f(x) with respect to x is 1 plus that of f. Even if f's gradient is small, the 1 carries the signal back, so deep stacks do not suffer vanishing gradients." },
     { id: "swiglu-width", level: "hard", kind: "concept",
       q: "SwiGLU uses three matrices where the ReLU FFN uses two. How do models keep the weight count about the same?",
       answer: "They shrink the hidden width from 4d to about 8d/3",
       wrong: ["They drop the down projection", "They share one matrix between gate and up", "They halve the model width d"],
       why: "2 x d x 4d = 8d squared. With three d by h matrices, 3 x d x h = 8d squared gives h = 8d/3." },
+    { id: "ffn-share", level: "easy", kind: "concept",
+      q: "With a 4d FFN, which part of a block holds most of its weights?",
+      answer: "The FFN, about two thirds", wrong: ["Attention, about two thirds", "They hold the same number", "The norms, since there are two of them"],
+      why: `The FFN has 8d² weights and attention 4d², so the FFN holds 8 / 12 of the block. The norms add only 2d, ${n0(cNorm)} at d = ${CD}.` },
+    { id: "swiglu-gate", level: "medium", kind: "concept",
+      q: "In a SwiGLU FFN, what does the gate branch do?",
+      answer: "Passed through SiLU, it multiplies the up branch unit by unit, deciding how much of each hidden unit goes on",
+      wrong: ["It decides which tokens attend to which", "It replaces the down projection", "It normalises the hidden vector to length 1"],
+      why: "Two projections of the same token, gate and up, are multiplied elementwise after SiLU on the gate, then projected down. The FFN still works on one token alone; only attention mixes tokens." },
+    { id: "long-n", level: "hard", kind: "concept",
+      q: "A model's context doubles. Per token, which part of a block's compute doubles?",
+      answer: "The attention scores and value mix; the weight multiplies stay the same",
+      wrong: ["The FFN, because it is the largest part", "Everything doubles together", "Nothing: per-token cost does not depend on length"],
+      why: "Each token's query meets n keys and mixes n values, about 4nd FLOPs, which doubles with n. The projections and the FFN touch only the token itself, about 24d², whatever the length." },
     { id: "ffn-params", level: "medium", kind: "numeric",
       q: `d = ${DF}, and the FFN widens to 4d and back, with no biases. How many weights does it have?`,
       answer: n0(ffn), wrong: [n0(ffn / 2), n0(DF * DF), n0(ffn * 2)],
@@ -145,38 +135,29 @@ assert np.allclose(block(x, zero), x)           # zero sublayers: the residual p
       q: `d = ${DA}. How many weights are in a block's attention projections W_Q, W_K, W_V and W_O, without biases?`,
       answer: n0(4 * DA * DA), wrong: [n0(DA * DA), n0(3 * DA * DA), n0(4 * DA)],
       why: `Four ${DA} by ${DA} matrices: 4 x ${n0(DA * DA)} = ${n0(4 * DA * DA)}. Forgetting W_O gives 3d squared.` },
-    { id: "rms-out", level: "medium", kind: "output",
-      q: "What does this RMSNorm (scale 1) print?",
-      code: `import numpy as np\nx = np.array([${RX.map((v) => v.toFixed(1)).join(", ")}])\nprint(np.round(x / np.sqrt(np.mean(x ** 2)), 2))`,
-      answer: `[${rn.join(" ")}]`, wrong: [`[${RX.map((v) => String(+(v / 5).toFixed(2))).join(" ")}]`, `[${RX.map((v) => String(+(v / 7).toFixed(2))).join(" ")}]`, "[-1. 1.]"],
-      why: `The mean of the squares is (9 + 16) / 2 = 12.5, whose root is ${r2(rms)}. Dividing gives ${rn.join(" and ")}. Dividing by its Euclidean length, 5, is a different operation; LayerNorm would first subtract the mean and give -1 and 1.` },
+    { id: "cross-block", level: "hard", kind: "numeric",
+      q: `Per token and block, the weights cost about 24d² FLOPs and attention about 4nd. At d = ${n0(DX)}, from what context length n does attention cost more?`,
+      answer: n0(crossN(DX)), wrong: [n0(2 * DX), n0(DX), n0(4 * DX)],
+      why: `4nd = 24d² gives n = 6d = ${n0(crossN(DX))}. ${n0(2 * DX)} is the crossover for the attention layer alone, from [[self-attention]], before the FFN's 16d² is counted.` },
     { id: "explain-block", level: "medium", kind: "explain",
       q: "Walk through one pre-norm decoder block.",
       answer: `1. Take the residual stream x.\n2. h = RMSNorm(x); run masked multi-head attention on h; x = x + result.\n3. h = RMSNorm(x); run the FFN on h, each token alone; x = x + result.\n4. Pass x to the next block. The shape never changes, so blocks stack.\n\nIn the walk-through above the token went from [${pass.x.join(", ")}] to [${pass.x2.map(r2).join(", ")}]: two additions, never a replacement.` },
-    { id: "explain-prenorm", level: "hard", kind: "explain",
-      q: "Why do most recent LLMs use pre-norm rather than post-norm?",
-      answer: "In post-norm, every residual path passes through a norm, and the gradients near the output are large at initialisation. Training is unstable unless the learning rate warms up slowly.\n\nPre-norm normalises only what each sublayer reads, so the stream is a clean sum from input to output. Gradients are well behaved from the start, deep stacks train reliably, and warm-up matters less. The cost is one extra norm at the end, since the stream itself is never normalised." },
     { id: "explain-roles", level: "medium", kind: "explain",
       q: "Attention and the FFN both transform vectors. What is the difference in their roles?",
       answer: "- Attention is communication: a token's output is a weighted mix of other tokens' values, so information moves between positions. It is the only place this happens.\n- The FFN is computation: it looks at one token's vector alone and transforms it, with the same weights everywhere. It holds most of the block's weights, and much factual knowledge appears to be stored there.\n\nA block alternates the two: gather context, then process it." },
+    { id: "explain-count", level: "hard", kind: "explain",
+      q: "Count the weights of a decoder-only model with vocabulary V, width d, L blocks and a 4d FFN.",
+      answer: `- Embedding table: V x d. With tied output it is counted once.\n- Each block: attention 4d² (W_Q, W_K, W_V, W_O) plus FFN 8d², so 12d², plus 2d for two norm scales.\n- Total: about V d + 12 L d².\n\nAt V = ${n0(CV)}, d = ${CD}, L = ${CL}: ${n0(cEmb)} + ${n0(cStack)} = ${n0(cTotal)}, about ${(cTotal / 1e6).toFixed(0)}M. Each weight costs about 2 FLOPs per token in the forward pass.` },
     { id: "trap-ffn-shared", level: "easy", kind: "trap",
       claim: "The FFN in a block applies the same weights to every token position.",
       truth: true,
       why: "It is one MLP run on each position independently. That is why it cannot move information between tokens; only attention can." },
-    { id: "trap-batchnorm", level: "medium", kind: "trap",
-      claim: "LayerNorm and RMSNorm normalise across the batch, like batch norm.",
-      truth: false,
-      why: "Both normalise each token's own vector across its features, so a token's result does not depend on the rest of the batch. That makes them work the same in training and in one-token generation." },
     { id: "trap-no-residual", level: "hard", kind: "trap",
       claim: "Without residual connections, a 100-block transformer trains just as well, only more slowly.",
       truth: false,
       why: "Without the additive path, the gradient must pass through every sublayer's derivative in turn and tends to vanish or explode. Deep transformers rely on residuals to train at all." },
   ],
   real: [
-    { who: "Ruibin Xiong and co-authors", when: "2020",
-      what: "The paper \"On Layer Normalization in the Transformer Architecture\" argued that with the norm after the residual (post-norm), gradients near the output are large at initialisation, which is why a learning-rate warm-up is needed. With the norm inside the residual block (pre-norm), gradients are well behaved.",
-      takeaway: "The authors removed the warm-up for pre-norm transformers and report comparable results with significantly less training time and tuning.",
-      url: "https://arxiv.org/abs/2002.04745" },
     { who: "Noam Shazeer", when: "2020",
       what: "The paper \"GLU Variants Improve Transformer\" tested gated linear units, an elementwise product of two linear projections with one passed through a nonlinearity, in the transformer's feed-forward sublayer.",
       takeaway: "Some variants gave quality improvements over the standard ReLU or GELU activations.",

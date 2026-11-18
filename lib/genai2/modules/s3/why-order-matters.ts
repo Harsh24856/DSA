@@ -31,17 +31,17 @@ export const WHY_ORDER_MATTERS: GModule = {
   id: "why-order-matters",
   stage: 3,
   title: "Why order matters",
-  hook: "\"Dog bites man\" and \"man bites dog\" use the same three words. Only the order tells you who is in trouble, so a model for language must read order.",
+  hook: "\"Dog bites man\" and \"man bites dog\" use the same three words. Only the order tells you who is in trouble, so a model for language must read order. Builds on the bag of words and cosine from [[text-as-numbers]] and the MLP from [[mlp-forward]].",
   blocks: [
     { kind: "figure", id: "s3-bag", caption: "Counted as a bag, the two sentences are identical. Counted as neighbouring pairs, they share nothing. The order holds the meaning." },
-    { kind: "text", md: `**Order is information.** A bag of words throws it away: both sentences above give the vector dog 1, bites 1, man 1, so their cosine similarity is ${r2(bowSim)}. Counting word pairs (bigrams) brings some order back, and there the similarity is ${r2(biSim)}.\n\nBut every fix that stores order as extra input slots runs into size limits. The walk-through shows where.` },
-    { kind: "flow", id: "s3-order" },
     {
       kind: "predict",
       q: `A bag-of-words model reads "${A.join(" ")}" and "${B.join(" ")}". What is the cosine similarity of their count vectors?`,
       answer: r2(bowSim), wrong: [r2(0), r2(1 / 3), r2(-1)],
       why: `Both vectors are [1, 1, 1] over the words dog, bites and man. Identical vectors have cosine ${r2(bowSim)}, so the model cannot tell the sentences apart, whatever it is trained on.`,
     },
+    { kind: "text", md: `**Order is information.** A bag of words throws it away: both sentences above give the vector dog 1, bites 1, man 1, so their cosine similarity is ${r2(bowSim)}. Counting word pairs (bigrams) brings some order back, and there the similarity is ${r2(biSim)}.\n\nBut every fix that stores order as extra input slots runs into size limits. The walk-through shows where.` },
+    { kind: "flow", id: "s3-order" },
     { kind: "play", id: "s3-window" },
     {
       kind: "mermaid",

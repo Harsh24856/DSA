@@ -1,6 +1,7 @@
 // Stage 4: decoding strategies. Every number below is computed here or in stages/s4.flows.ts.
 import type { GModule } from "../../types.ts";
 import { NEXT, SAMPLE, sampleStages, softmax, TREE } from "../../stages/s4.flows.ts";
+import { KV_SHAPE, kvGB } from "../../stages/s4.play.ts";
 
 const r2 = (x: number) => x.toFixed(2);
 
@@ -22,12 +23,16 @@ const K2 = 2, topK = [...PP].sort((a, b) => b - a).slice(0, K2), kSum = topK.red
 const OP = [0.4, 0.3, 0.2, 0.1], OPP = 0.8, okept = keptCount(OP, OPP);
 // min-p
 const MINP = 0.1;
+// KV cache: bytes per token and for one sequence, with the same example shape as the GQA walk-through
+const n0 = (x: number) => x.toLocaleString("en-US");
+const KVH = 8, CTX = 4096, perTok = 2 * KV_SHAPE.layers * KVH * KV_SHAPE.headDim * KV_SHAPE.bytes, seqGB = kvGB(KVH, CTX);
+if (Math.abs(perTok * CTX / 1e9 - seqGB) > 1e-12) throw new Error("kv size");
 
 export const DECODING: GModule = {
   id: "decoding",
   stage: 4,
   title: "Decoding (greedy, temperature, top-k, top-p, beam)",
-  hook: "The model only gives probabilities for the next token. Which one you actually pick, every single step, decides whether the text is dull, creative, or nonsense.",
+  hook: "The model only gives probabilities for the next token. Which one you actually pick, every single step, decides whether the text is dull, creative, or nonsense. Builds on the decoder from [[encoder-decoder]] and the one-word-at-a-time loop from [[seq2seq-bottleneck]].",
   blocks: [
     { kind: "figure", id: "s4-decode-tree", caption: `Greedy takes the best word at each step: "${g1[0]}", then "${g2[0]}", ${r2(greedyP)} in all. The most likely sentence starts with the second-best word: "${best.a} ${best.b}", ${r2(best.p)}. Choosing locally is not choosing globally.` },
     { kind: "text", md: "**Every step ends in a choice.** The last layer gives one logit per vocabulary token. Softmax turns them into probabilities, and a decoding strategy picks one token. It is appended, and the model runs again.\n\n**Two families.** Search (greedy, beam) looks for likely text and is deterministic. Sampling (temperature, top-k, top-p) draws at random from a reshaped distribution, so the same prompt can give different answers." },
@@ -84,6 +89,8 @@ assert all(d in words[:${st.final.filter((x) => x > 0).length}] for d in draws) 
 `,
     },
     { kind: "text", md: "**Pick by task.** Extraction, classification and code want low temperature or greedy, so answers are repeatable. Brainstorming and stories want temperature near 1 with top-p around 0.9, so text varies without wandering into the tail. Beam search suits translation, where one faithful output is wanted; in open-ended writing it tends to give bland, repetitive text." },
+    { kind: "flow", id: "g-kv" },
+    { kind: "text", md: `**The KV cache.** A new token's query meets the keys and values of every earlier token, in every layer. They never change, so they are stored, not recomputed. Per token: 2 (K and V) × layers × K, V heads × head size × bytes: ${n0(perTok)} bytes at ${KV_SHAPE.layers} layers and ${KVH} heads of ${KV_SHAPE.headDim} in ${KV_SHAPE.bytes}-byte numbers. Each step reads the whole cache, so memory reads, not math, set the pace. [[kv-cache-paged]] later scales it.` },
   ],
   keyPoints: [
     "Greedy takes the top token each step: deterministic, but it can loop and can miss the most likely sentence.",
@@ -91,6 +98,7 @@ assert all(d in words[:${st.final.filter((x) => x > 0).length}] for d in draws) 
     "Top-k keeps a fixed number of tokens; top-p keeps the smallest set whose probabilities reach p, so it adapts to the model's confidence.",
     "Beam search keeps the b most likely partial texts; good for translation, often bland for open-ended text.",
     "Cut tokens are removed and the rest renormalised before sampling.",
+    "The KV cache keeps every past token's keys and values, so each step computes only the new token; it grows with every token and is read in full each step.",
   ],
   questions: [
     { id: "greedy", level: "easy", kind: "concept",
@@ -140,6 +148,10 @@ assert all(d in words[:${st.final.filter((x) => x > 0).length}] for d in draws) 
       q: `In the tree above, greedy's sentence has probability ${r2(greedyP)}. How much more likely is the best two-word sentence?`,
       answer: `${(best.p / greedyP).toFixed(1)} times`, wrong: ["1.0 times: greedy is optimal", `${(best.p / greedyP + 1).toFixed(1)} times`, `${(TREE.first[0][1] / TREE.first[1][1]).toFixed(1)} times`],
       why: `Best: ${r2(TREE.first.find((x) => x[0] === best.a)![1])} x ${r2(TREE.second[best.a].find((x) => x[0] === best.b)![1])} = ${r2(best.p)}. Greedy: ${r2(g1[1])} x ${r2(g2[1])} = ${r2(greedyP)}. Ratio ${(best.p / greedyP).toFixed(1)}. A beam of width 2 would keep "${best.a}" and find it.` },
+    { id: "kv-size", level: "hard", kind: "numeric",
+      q: `${KV_SHAPE.layers} layers, ${KVH} K, V heads of size ${KV_SHAPE.headDim}, ${KV_SHAPE.bytes} bytes a number, ${n0(CTX)} tokens. How big is the KV cache for one sequence?`,
+      answer: `${r2(seqGB)} GB`, wrong: [`${r2(seqGB / 2)} GB`, `${r2(seqGB * 4)} GB`, `${r2(seqGB * KV_SHAPE.layers)} GB`],
+      why: `2 (K and V) x ${KV_SHAPE.layers} x ${KVH} x ${KV_SHAPE.headDim} x ${KV_SHAPE.bytes} = ${n0(perTok)} bytes per token, times ${n0(CTX)} tokens = ${n0(perTok * CTX)} bytes, about ${r2(seqGB)} GB. Forgetting the 2 for K and V halves it; with ${4 * KVH} query heads, giving each its own K, V head would make it 4 times larger, which is why [[multi-head-masks]] shares them.` },
     { id: "topp-out", level: "medium", kind: "output",
       q: "How many tokens survive this top-p cut? What does it print?",
       code: `import numpy as np\np = np.array([${OP.join(", ")}])\norder = np.argsort(-p)\nbefore = np.cumsum(p[order]) - p[order]\nprint(int((before < ${OPP}).sum()))`,

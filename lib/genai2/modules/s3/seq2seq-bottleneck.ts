@@ -7,24 +7,20 @@ const n0 = (x: number) => x.toLocaleString("en-US");
 const CTX = 512, [L1, L2] = [10, 100];
 // numeric: numbers per word
 const [BD, BN] = [512, 64];
-// numeric: beam search
-const [BEAM, VOCAB] = [4, 10_000];
 // numeric: the 2014 model's sentence vector (4 layers, 1000 cells, a hidden and a cell state each)
 const [LAYERS, CELLS] = [4, 1000], sentVec = LAYERS * CELLS * 2;
 // output: encoder loop
 const [OD, OH] = [8, 16];
-// greedy vs beam example: two-step probabilities, computed
-const first = { a: 0.6, b: 0.4 }, second = { a: 0.3, b: 0.9 }, greedy = first.a * second.a, beamBest = first.b * second.b;
 
 export const SEQ2SEQ_BOTTLENECK: GModule = {
   id: "seq2seq-bottleneck",
   stage: 3,
   title: "Seq2seq and the bottleneck",
-  hook: "One RNN reads the whole sentence, another writes the translation. Everything the writer knows has to pass through a single fixed-size vector, and long sentences do not fit.",
+  hook: "One RNN reads the whole sentence, another writes the translation. Everything the writer knows has to pass through a single fixed-size vector, and long sentences do not fit. Builds on [[lstm-gru]].",
   blocks: [
     { kind: "figure", id: "s3-seq2seq", caption: "The encoder reads the source; only its final state, the context vector, reaches the decoder. The decoder feeds each word it writes back in as its next input." },
     { kind: "flow", id: "s3-seq2seq" },
-    { kind: "text", md: "**Two RNNs, one handoff.** The encoder reads the input and keeps only its final state. The decoder starts from that state, gets a start token, and writes one word at a time, each fed back in as the next input, until it writes an end token. Input and output lengths are free to differ.\n\nThe catch: the context has the same size for 5 words or 50." },
+    { kind: "text", md: "**The catch:** the context has the same size for 5 words or 50.\n\nThis decoder picks the single best word at each step. [[decoding]] in the next stage compares that with beam search and sampling." },
     {
       kind: "predict",
       q: `An encoder has hidden size ${CTX}. How large is the context vector for a ${L1} word sentence, and for a ${L2} word one?`,
@@ -47,15 +43,6 @@ export const SEQ2SEQ_BOTTLENECK: GModule = {
     I2 --> I3["a mistake feeds the next step"]:::warn
   end
   TR ~~~ INF`,
-    },
-    {
-      kind: "compare",
-      head: ["", "Greedy", `Beam search, width ${BEAM}`],
-      rows: [
-        ["Keeps", "The single best word at each step", `The ${BEAM} best partial outputs`],
-        ["Cost per step", "One pass", `${BEAM} passes, ${n0(BEAM * VOCAB)} candidates scored at vocabulary ${n0(VOCAB)}`],
-        ["Example", `Takes a (${first.a}), ends at ${greedy.toFixed(2)}`, `Keeps b (${first.b}), ends at ${beamBest.toFixed(2)}`],
-      ],
     },
     {
       kind: "code",
@@ -99,7 +86,6 @@ assert c1.shape == c2.shape == (h,)
     "The decoder writes one token at a time, feeding each back in, from a start token until it emits an end token, so lengths can differ.",
     "Training uses teacher forcing (true previous token); inference feeds the model's own guesses, a mismatch called exposure bias.",
     "The context has a fixed size whatever the input length, so long inputs lose detail: quality drops as sentences grow.",
-    "Beam search keeps the k best partial outputs instead of only the single best word, and often finds a more probable whole output.",
   ],
   questions: [
     { id: "decoder-start", level: "easy", kind: "concept",
@@ -126,24 +112,15 @@ assert c1.shape == c2.shape == (h,)
       answer: "In training it only ever sees true previous words, so at inference its own mistakes put it in states it never learned from",
       wrong: ["The encoder sees more data than the decoder", "The model is biased towards frequent words in the training set", "The context vector leaks the target sentence into training"],
       why: "Teacher forcing makes training fast and stable, but inference feeds back guesses. One wrong word changes the next input, and errors can compound. Scheduled sampling, which sometimes feeds the model's own guesses in training, is one fix." },
-    { id: "reverse", level: "hard", kind: "concept",
-      q: "A 2014 seq2seq model reversed the word order of the source sentence (not the target). Why did that help?",
-      answer: "The first source words end up close to the first target words, creating short dependencies that are easier to learn",
-      wrong: ["Reversed sentences are shorter, so they fit the context", "It doubled the training data", "It lets the decoder read the source in both directions"],
-      why: "Without reversal, source word 1 is read first and is the furthest from target word 1. Reversed, it is read last, right before decoding starts. The average distance is unchanged, but the start of the output gets an easy, short path to learn from." },
-    { id: "greedy-beam", level: "medium", kind: "concept",
-      q: `Greedy decoding picks word a (${first.a}) over b (${first.b}). The best next word after a has ${second.a}; after b it has ${second.b}. What does beam search with width 2 return?`,
-      answer: `b then its best word: ${beamBest.toFixed(2)} against ${greedy.toFixed(2)}`,
-      wrong: [`a then its best word, because ${first.a} is larger`, "Both are equal, so it returns the first one found", `It returns a, because beam search only changes the last step`],
-      why: `Beam search keeps both starts and compares whole outputs: ${first.a} × ${second.a} = ${greedy.toFixed(2)} against ${first.b} × ${second.b} = ${beamBest.toFixed(2)}. Greedy commits early and cannot undo it.` },
+    { id: "bidir-still", level: "hard", kind: "concept",
+      q: "You make the seq2seq encoder bidirectional, as in [[lstm-gru]]. What still limits the decoder on long sentences?",
+      answer: "It still receives one fixed-size vector, so the bottleneck stays",
+      wrong: ["Nothing: every word is now read twice, so nothing is lost", "The decoder can now read each source word directly", "Teacher forcing no longer works with a bidirectional encoder"],
+      why: "Reading both ways gives every position a richer state, but the basic decoder only gets the final summary. The fix is to let the decoder read every encoder state, which is attention, and the first attention model did pair it with a bidirectional encoder." },
     { id: "per-word", level: "easy", kind: "numeric",
       q: `A context vector has ${BD} numbers and the source has ${BN} words. On average, how many numbers per word can it spend?`,
       answer: String(BD / BN), wrong: [String(BD), n0(BD * BN), String(BN / BD)],
       why: `${BD} / ${BN} = ${BD / BN}. Double the sentence and the budget halves. Attention removes this limit by keeping every encoder state (${n0(BD * BN)} numbers here).` },
-    { id: "beam-cost", level: "medium", kind: "numeric",
-      q: `Beam search with width ${BEAM} over a vocabulary of ${n0(VOCAB)}: how many candidate extensions are scored at each step?`,
-      answer: n0(BEAM * VOCAB), wrong: [n0(VOCAB), n0(BEAM), n0(VOCAB ** BEAM)],
-      why: `Each of the ${BEAM} kept outputs can be extended by any of ${n0(VOCAB)} words: ${n0(BEAM * VOCAB)} scores, of which the best ${BEAM} are kept. The cost grows linearly with the beam, not exponentially.` },
     { id: "deep-state", level: "hard", kind: "numeric",
       q: `An encoder is an LSTM with ${LAYERS} layers of ${n0(CELLS)} cells, and its whole final state (every layer's hidden and cell state) is passed to the decoder. How many numbers represent the sentence?`,
       answer: n0(sentVec), wrong: [n0(LAYERS * CELLS), n0(CELLS), n0(CELLS * 2)],
@@ -173,8 +150,8 @@ assert c1.shape == c2.shape == (h,)
   ],
   real: [
     { who: "Ilya Sutskever, Oriol Vinyals and Quoc Le", when: "2014",
-      what: "\"Sequence to Sequence Learning with Neural Networks\" encoded a sentence into a fixed vector with a deep LSTM and decoded it with another. On WMT'14 English to French it reached 34.8 BLEU against 33.3 for a phrase-based system. Reversing the source sentences raised its test BLEU from 25.9 to 30.6.",
-      takeaway: "A plain encoder-decoder could compete with years of engineered systems, and a data trick that shortened dependencies made a large difference.",
+      what: "\"Sequence to Sequence Learning with Neural Networks\" encoded a sentence into a fixed vector with a deep LSTM and decoded it with another. On WMT'14 English to French it reached 34.8 BLEU against 33.3 for a phrase-based system.",
+      takeaway: "A plain encoder-decoder could compete with years of engineered systems.",
       url: "https://arxiv.org/abs/1409.3215" },
     { who: "Kyunghyun Cho and co-authors", when: "2014",
       what: "\"On the Properties of Neural Machine Translation: Encoder-Decoder Approaches\" found that translation was relatively good for short sentences without unknown words, but that performance degraded rapidly as sentences got longer.",

@@ -19,7 +19,7 @@ export const ATTENTION_FIX: GModule = {
   id: "attention-fix",
   stage: 3,
   title: "Attention as the fix",
-  hook: "Stop squeezing the sentence into one vector. Keep every encoder state, and at each output word let the decoder look back and choose which ones to read.",
+  hook: "Stop squeezing the sentence into one vector. Keep every encoder state, and at each output word let the decoder look back and choose which ones to read. Builds on [[seq2seq-bottleneck]] and the dot product from [[text-as-numbers]].",
   blocks: [
     { kind: "figure", id: "s3-align", caption: "Attention weights for \"the black cat\" to \"le chat noir\". Each row is one output word and sums to 1. The adjective moves, so the strong cells leave the diagonal." },
     { kind: "flow", id: "s3-bahdanau" },
@@ -69,7 +69,7 @@ assert np.isclose(w.sum(), 1) and np.all(w > 0)
 assert np.all(c <= H.max(axis=0) + 1e-9) and np.all(c >= H.min(axis=0) - 1e-9)
 `,
     },
-    { kind: "text", md: "**From here to the transformer.** Attention made the recurrence optional. If every word can look at every other word directly, the encoder can do the same inside the source (self-attention), and the decoder inside what it has written so far. Remove the RNNs, run all positions at once, and you have the transformer of the next stage." },
+    { kind: "text", md: "**From here to the transformer.** Attention made the recurrence optional. If every word can look at every other word directly, the encoder can do the same inside the source (self-attention), and the decoder inside what it has written so far. Remove the RNNs, run all positions at once, and you have the transformer. [[self-attention]] in the next stage builds it and sets its cost against an RNN's." },
   ],
   keyPoints: [
     "Attention keeps every encoder state instead of only the last one, removing the fixed-size bottleneck.",
@@ -134,9 +134,6 @@ assert np.all(c <= H.max(axis=0) + 1e-9) and np.all(c >= H.min(axis=0) - 1e-9)
     { id: "explain-bahdanau", level: "hard", kind: "explain",
       q: "Explain how Bahdanau attention works at one decoder step.",
       answer: "1. The encoder, a bidirectional RNN, has produced a state h_j for every source word.\n2. Take the decoder's previous state s_(i-1).\n3. Score each source word: e_j = v · tanh(W s_(i-1) + U h_j).\n4. Softmax the scores over the source: weights α_j that sum to 1.\n5. Context c_i = Σ α_j h_j.\n6. The decoder uses c_i, the previous word and s_(i-1) to compute its new state s_i and predict the next word.\n\nEverything is differentiable, so the scorer learns where to look from the translation loss alone, with no alignment labels." },
-    { id: "vs-self", level: "medium", kind: "explain",
-      q: "How does Bahdanau attention differ from the self-attention in transformers?",
-      answer: "- **Between or within:** Bahdanau attention goes from decoder to encoder (cross-attention). Self-attention lets each token attend to tokens of its own sequence.\n- **Score:** additive, a small network, against scaled dot products of learned queries and keys.\n- **Around it:** Bahdanau's model is still built on RNNs, so steps run in order. The transformer drops recurrence and runs all positions at once, adding position information instead.\n- **Shared idea:** soft weights from a softmax, and a weighted sum of vectors." },
     { id: "cost", level: "medium", kind: "explain",
       q: "Attention fixed the bottleneck. What did it cost, and what problems remained?",
       answer: `- **Cost:** one weight per (output, source) pair, ${n0(PN * PM)} for ${PN} source and ${PM} target words, plus storing every encoder state.\n- **Still sequential:** encoder and decoder are RNNs, so training steps through each sentence in order and cannot use all positions at once.\n- **Inside each sequence**, words still reach each other only through the recurrence.\n\nSelf-attention in the transformer removed both remaining limits.` },

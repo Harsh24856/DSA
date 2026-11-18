@@ -18,6 +18,10 @@ const [MAXPOS, DM] = [4096, 4096];
 const STRETCH = 16 / 4;
 // output: lookup shape
 const [V, D, IDS] = [1000, 64, [5, 7, 7, 2]];
+// text and numeric: the embedding table's share of a small tied model (vocab, width, blocks of 12d^2 weights)
+const [EV, ED, EL] = [50_000, 768, 12], embW = EV * ED, blockW = EL * 12 * ED * ED, pct = (x: number) => `${Math.round(100 * x)}%`;
+const share = embW / (embW + blockW), untied = (2 * embW) / (2 * embW + blockW), overBlocks = embW / blockW;
+const mil = (x: number) => `${(x / 1e6).toFixed(1)}M`;
 // trap: same word, two positions
 const [P1, P2] = [2, 9], pe1 = sinusoid(P1, 4), pe2 = sinusoid(P2, 4);
 
@@ -25,10 +29,11 @@ export const EMBEDDINGS_POSITIONS: GModule = {
   id: "embeddings-positions",
   stage: 4,
   title: "Embeddings and positions (sinusoidal, RoPE)",
-  hook: "A token id is just a row number. The embedding table turns it into a vector of meaning, and a position scheme tells attention where in the sentence it sits.",
+  hook: "A token id is just a row number. The embedding table turns it into a vector of meaning, and a position scheme tells attention where in the sentence it sits. Builds on word vectors from [[text-as-numbers]] and the token ids from [[tokenisation-bpe]].",
   blocks: [
     { kind: "flow", id: "s4-embed-lookup" },
-    { kind: "text", md: "**An embedding is a lookup.** The table has one learned row of d numbers per token in the vocabulary. Training moves the rows so tokens used in similar ways end up close together.\n\n**Attention is blind to order.** It compares every pair of tokens the same way wherever they sit, so \"dog bites man\" and \"man bites dog\" look alike. Position must be added, either to the input vectors or inside attention." },
+    { kind: "text", md: `**An embedding is a lookup.** The table has one learned row of d numbers per vocabulary token. Training moves the rows so tokens used in similar ways end up close together.\n\n**The same table can score the output.** The last layer gives each token a logit, the dot product of the final vector with that token's row. Tied models reuse the table there. With ${n0(EV)} tokens at d = ${ED} it holds ${mil(embW)} weights, ${pct(share)} of a ${EL}-block model.` },
+    { kind: "text", md: "**Attention is blind to order.** It compares every pair of tokens the same way wherever they sit, so \"dog bites man\" and \"man bites dog\" look alike. Position must be added, to the input vectors or inside attention.\n\nAttention ([[self-attention]], next module) scores a query vector of one token against a key vector of another. RoPE turns both before that comparison." },
     { kind: "figure", id: "s4-rope-dial", caption: "RoPE in one picture. Each pair of numbers in q and k is an arrow, turned by an angle that grows with position. Moving both tokens later turns both arrows further, but the angle between them, and so their dot product, stays the same." },
     {
       kind: "predict",
@@ -96,10 +101,10 @@ assert np.isclose(s[0], s[1])                                      # only the di
 assert np.isclose(np.linalg.norm(rope(q, 7)), np.linalg.norm(q))   # a rotation keeps length
 `,
     },
-    { kind: "text", md: "**Why RoPE won.** It costs no parameters, it leaves the values untouched (only who attends to whom changes), and the same pattern works at any offset in the text, because a score sees only the distance. Context can later be stretched by slowing the rotations, then fine-tuning briefly on long documents." },
+    { kind: "text", md: "**Stretching RoPE.** A model trained on short text can read longer text by slowing the rotations, then fine-tuning briefly on long documents." },
   ],
   keyPoints: [
-    "The embedding layer is a vocab by d table of learned numbers; a token id selects one row.",
+    "The embedding layer is a vocab by d table of learned numbers; a token id selects one row, and tied models reuse the table to score every token at the output.",
     "Self-attention ignores order, so position information must be added.",
     "Sinusoidal encodings add sine and cosine waves of different speeds to the input; fast waves separate nearby positions, slow ones far positions.",
     "RoPE rotates each pair of numbers in q and k by an angle proportional to position, in every layer, so a score depends only on the distance between tokens.",
@@ -141,6 +146,10 @@ assert np.isclose(np.linalg.norm(rope(q, 7)), np.linalg.norm(q))   # a rotation 
       answer: "There is no trained vector for that position",
       wrong: ["The model reuses position 0, which works as well", "It interpolates smoothly with no loss of quality", "The position is computed by sine and cosine instead"],
       why: "A learned table has exactly as many rows as the longest training length. Formula-based schemes (sinusoidal, RoPE) at least give every position a value, though quality still needs work past the training length." },
+    { id: "emb-share", level: "medium", kind: "numeric",
+      q: `A model has a vocabulary of ${n0(EV)}, width ${ED} and ${EL} blocks holding ${mil(blockW)} weights in all. Its output layer is tied to the embedding table. Ignoring norms, what share of the weights is the table?`,
+      answer: pct(share), wrong: [pct(overBlocks), pct(untied), pct(1 - share)],
+      why: `The table is ${n0(EV)} x ${ED} = ${n0(embW)} weights, and tying means it is counted once: ${mil(embW)} / (${mil(embW)} + ${mil(blockW)}) = ${pct(share)}. Dividing by the blocks alone gives ${pct(overBlocks)}; an untied output layer would add a second table and make it ${pct(untied)}. In large models the blocks grow with d squared and the share falls.` },
     { id: "pe-zero", level: "easy", kind: "numeric",
       q: "What is the sinusoidal position vector for position 0, with d = 4?",
       answer: `[${pe0.join(", ")}]`, wrong: ["[0, 0, 0, 0]", "[1, 1, 1, 1]", "[1, 0, 1, 0]"],

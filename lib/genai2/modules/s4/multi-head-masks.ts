@@ -1,7 +1,7 @@
 // Stage 4: multi-head attention and masks. Every number below is computed here.
 import type { GModule } from "../../types.ts";
 import { MHA } from "../../stages/s4.flows.ts";
-import { KV_SHAPE, kvGB } from "../../stages/s4.play.ts";
+import { kvGB } from "../../stages/s4.play.ts";
 
 const n0 = (x: number) => x.toLocaleString("en-US");
 const r2 = (x: number) => x.toFixed(2);
@@ -24,7 +24,7 @@ export const MULTI_HEAD_MASKS: GModule = {
   id: "multi-head-masks",
   stage: 4,
   title: "Multi-head and masks",
-  hook: "One attention pattern per token is not enough: a word needs its subject, its neighbour and the topic all at once. Many small heads look for different things in parallel, and masks decide what each is allowed to see.",
+  hook: "One attention pattern per token is not enough: a word needs its subject, its neighbour and the topic all at once. Many small heads look for different things in parallel, and masks decide what each is allowed to see. Builds on [[self-attention]].",
   blocks: [
     { kind: "figure", id: "s4-heads", caption: `One token's 8 numbers cut into 4 head slices. Each head runs its own causal attention with its own pattern, then the slices are joined and mixed by W_O. The patterns are illustrations of the kinds real heads learn; nobody assigns them.` },
     { kind: "text", md: "**Why several heads.** One softmax gives one weighting per token, so one head would have to average every relation into a single pattern. Cutting the width into h slices gives h independent patterns for the same cost: each head attends over the full sequence with its own d / h numbers, and W_O mixes what they found." },
@@ -36,6 +36,7 @@ export const MULTI_HEAD_MASKS: GModule = {
       wrong: [`${n0(PH * PD * PD)} with ${PH} heads, ${n0(PD * PD)} with 1`, `${n0(PD * (PD / PH))} with ${PH} heads, ${n0(PD * PD)} with 1`, `${n0(PD * PD)} with ${PH} heads, ${n0(PD)} with 1`],
       why: `Heads are slices of one ${PD} by ${PD} matrix: ${PH} slices of ${PD} by ${PD / PH} make ${n0(PD * PD)} weights, the same as one big head. More heads change how the width is split, not how many weights there are.`,
     },
+    { kind: "flow", id: "g-mask" },
     { kind: "flow", id: "s4-pad-mask" },
     {
       kind: "compare",
@@ -47,6 +48,7 @@ export const MULTI_HEAD_MASKS: GModule = {
         ["Document", "Keys from another document", "Training on several documents packed into one sequence"],
       ],
     },
+    { kind: "text", md: "**Why share K and V.** When a model generates, each new token's query meets the keys and values of every earlier token. Those never change, so they are kept instead of recomputed: the KV cache, built in [[decoding]] later in this stage. Its size grows with the number of K, V heads, and that number is what grouped-query attention cuts." },
     { kind: "play", id: "s4-gqa-cache" },
     {
       kind: "compare",
@@ -118,7 +120,7 @@ assert np.all(np.triu(w[0], k=1) == 0)    # nobody reads the future
       q: "Why does grouped-query attention make text generation faster?",
       answer: "Decoding is limited by memory reads, and a smaller KV cache means fewer bytes to read per token",
       wrong: ["It reduces the number of query heads, so less math", "It removes the softmax from attention", "It makes attention cost linear in length"],
-      why: "Each new token reads every cached key and value. Sharing K, V heads cuts that cache, and so the reads, by the group size; the query heads and the math per head stay." },
+      why: "Each new token reads every cached key and value. Sharing K, V heads cuts that cache, and so the reads, by the group size; the query heads and the math per head stay. [[decoding]] (later) shows why reads, not math, set the pace." },
     { id: "head-roles", level: "medium", kind: "concept",
       q: "How does a head end up tracking, say, the previous token?",
       answer: "It is learned in training; nothing assigns roles to heads",
@@ -137,10 +139,6 @@ assert np.all(np.triu(w[0], k=1) == 0)    # nobody reads the future
       q: `A model has ${QH} query heads and ${KVH} K, V heads. How many query heads share each K, V head?`,
       answer: String(QH / KVH), wrong: [String(KVH), String(QH), String(QH - KVH)],
       why: `${QH} / ${KVH} = ${QH / KVH}. The KV cache is ${QH / KVH} times smaller than with one K, V head per query head.` },
-    { id: "kv-size", level: "hard", kind: "numeric",
-      q: `${KV_SHAPE.layers} layers, ${KVH} K, V heads of size ${KV_SHAPE.headDim}, ${KV_SHAPE.bytes} bytes a number, ${n0(CTX)} tokens. How big is the KV cache for one sequence?`,
-      answer: `${r2(gqaGB)} GB`, wrong: [`${r2(gqaGB / 2)} GB`, `${r2(mhaGB)} GB`, `${r2(gqaGB * KV_SHAPE.layers)} GB`],
-      why: `2 (K and V) x ${KV_SHAPE.layers} x ${KVH} x ${KV_SHAPE.headDim} x ${n0(CTX)} x ${KV_SHAPE.bytes} = ${n0(2 * KV_SHAPE.layers * KVH * KV_SHAPE.headDim * CTX * KV_SHAPE.bytes)} bytes, about ${r2(gqaGB)} GB. Forgetting the factor 2 for K and V is the usual slip.` },
     { id: "split-shape", level: "medium", kind: "output",
       q: "What shape does this print?",
       code: `import numpy as np\nx = np.zeros((${T}, ${d}))\nprint(x.reshape(${T}, ${h}, ${d / h}).transpose(1, 0, 2).shape)`,

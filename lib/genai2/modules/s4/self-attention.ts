@@ -17,15 +17,20 @@ const SHIFT = 10, shifted = softmax(S.map((x) => x + SHIFT));
 const N = 1024;
 // cost text and trap: growth when the context grows
 const growth = (4096 / 1024) ** 2, [T1, T2] = [512, 1024];
-// output: masked entries for n tokens; shapes
-const M = 4, [SN, DK, DV] = [5, 8, 16];
+// output: shapes
+const [SN, DK, DV] = [5, 8, 16];
+// cost text and numeric: per token, the projections cost 8d^2 FLOPs, scores and the value mix 4nd, so they cross at n = 2d
+const projF = (d: number) => 8 * d * d, attnF = (n: number, d: number) => 4 * n * d;
+const cross = (d: number) => projF(d) / (4 * d);
+const [DT, DQ] = [4096, 1024];
+if (attnF(cross(DT), DT) !== projF(DT)) throw new Error("crossover");
 
 export const SELF_ATTENTION: GModule = {
   id: "self-attention",
   stage: 4,
   title: "Self-attention",
   lab: "transformer",
-  hook: "Every word looks at every other word and decides how much each one matters right now. That one idea is the engine of the transformer.",
+  hook: "Every word looks at every other word and decides how much each one matters right now. That one idea is the engine of the transformer. Builds on [[attention-fix]] and the softmax from [[mlp-forward]].",
   blocks: [
     { kind: "figure", id: "s4-qkv", caption: "Each word's whole vector is projected three ways, by three learned matrices. The query of \"sat\" is compared with the key of every word, itself included." },
     { kind: "text", md: "**What attention answers:** for this word, which other words matter? In \"the animal did not cross the road because it was tired\", the word \"it\" should look hard at \"animal\".\n\nEach token makes a **query** (what am I looking for), a **key** (what do I offer) and a **value** (what do I pass on). Its query is scored against every key. The best matches get the most weight, and their values are mixed into its new vector." },
@@ -39,7 +44,6 @@ export const SELF_ATTENTION: GModule = {
       why: `Softmax only cares about differences between scores. Equal scores give equal weights, 1/n = 1/${EQ} = ${uniform}, so the output is a plain average of the values.`,
     },
     { kind: "lab", id: "attention" },
-    { kind: "flow", id: "g-mask" },
     {
       kind: "compare",
       head: ["Property", "RNN", "Self-attention"],
@@ -79,14 +83,58 @@ assert np.allclose(w.sum(axis=1), 1)        # rows sum to 1
 assert np.all(np.triu(w, k=1) == 0)         # no weight on the future
 `,
     },
-    { kind: "text", md: `**The price is n squared.** Every query meets every key, so n tokens make n × n scores per head, in every layer. Go from ${n0(1024)} to ${n0(4096)} tokens and there are ${growth} times as many scores, not 4. That is why long context is slow and memory hungry.\n\nFlashAttention (Stage 9, Production) computes the same answer in tiles so the full matrix is never stored at once. The work stays quadratic.` },
+    { kind: "text", md: `**The price is n squared.** Every query meets every key: n × n scores per head and layer. From ${n0(1024)} to ${n0(4096)} tokens there are ${growth} times as many.\n\nPer token, the four projections cost about 8d² FLOPs, and the scores plus the value mix about 4nd. The n d² part leads until n = 2d, ${n0(cross(DT))} tokens at d = ${n0(DT)}; then n² d takes over. [[transformer-block]] (next) adds the FFN to this count.` },
+    { kind: "text", md: "**Two fixes.** FlashAttention gives the exact same answer. It works in tiles that fit the GPU's fast on-chip memory, keeping a running max and sum for the softmax, so the n × n matrix never reaches main memory. Extra memory grows with n; the work stays quadratic.\n\nA sliding window lets each token read only its last W keys: n × W work, and stacked layers still reach further back. Its mask is in [[multi-head-masks]], next." },
+    {
+      kind: "code",
+      torch: true,
+      src: `import torch
+import torch.nn.functional as F
+
+torch.manual_seed(0)
+B, n, d = 2, 6, 16                                  # batch, tokens, width
+q, k, v = (torch.randn(B, n, d) for _ in range(3))
+
+def attention(q, k, v):
+    s = q @ k.transpose(-2, -1) / d ** 0.5          # (B, n, n)
+    future = torch.triu(torch.ones(n, n, dtype=torch.bool), diagonal=1)
+    s = s.masked_fill(future, float("-inf"))        # causal
+    return torch.softmax(s, dim=-1) @ v             # (B, n, d)
+
+mine = attention(q, k, v)
+# the built-in: on a GPU it can pick a FlashAttention kernel; on a CPU it runs the plain one
+fast = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+print(mine.shape, "max difference:", f"{(mine - fast).abs().max().item():.1e}")
+assert torch.allclose(mine, fast, atol=1e-5)
+
+class SelfAttention(torch.nn.Module):               # one head, with learned W_Q, W_K, W_V and W_O
+    def __init__(self, d):
+        super().__init__()
+        self.qkv = torch.nn.Linear(d, 3 * d, bias=False)
+        self.out = torch.nn.Linear(d, d, bias=False)
+
+    def forward(self, x):                           # x: (B, n, d)
+        q, k, v = self.qkv(x).chunk(3, dim=-1)
+        return self.out(F.scaled_dot_product_attention(q, k, v, is_causal=True))
+
+layer = SelfAttention(d)
+x = torch.randn(B, n, d)
+y = layer(x)
+print("weights:", sum(p.numel() for p in layer.parameters()))   # 4 d squared
+assert y.shape == x.shape and sum(p.numel() for p in layer.parameters()) == 4 * d * d
+x2 = x.clone()
+x2[:, -1] += 1.0                                    # change only the last token
+assert torch.allclose(layer(x2)[:, :-1], y[:, :-1], atol=1e-6)   # causal: earlier outputs do not move
+`,
+    },
   ],
   keyPoints: [
     "Each token makes a query (what it looks for), a key (what it offers) and a value (what it passes on), each a learned projection of its vector.",
     "The score between two tokens is the dot product of one's query with the other's key.",
     "Scores are divided by sqrt(d), the square root of the head size, so softmax does not saturate as d grows.",
     "Softmax runs along each row, so one token's weights over all keys sum to 1, and its output is the weighted sum of the values.",
-    "Decoders add a causal mask: future positions get minus infinity before softmax, so each token sees only itself and the past.",
+    "Decoders give future positions minus infinity before softmax, so each token sees only itself and the past; [[multi-head-masks]] (next) covers every mask.",
+    "Per token, the projections cost about 8d² FLOPs and the scores 4nd, so attention's n² d part dominates past n = 2d. FlashAttention keeps the answer exact and never stores the n × n matrix.",
   ],
   questions: [
     { id: "query-role", level: "easy", kind: "concept",
@@ -129,11 +177,6 @@ assert np.all(np.triu(w, k=1) == 0)         # no weight on the future
       q: `A sequence has ${n0(N)} tokens. How many entries does one head's attention weight matrix have?`,
       answer: n0(N * N), wrong: [n0(N), n0(2 * N), n0((N * (N + 1)) / 2)],
       why: `One score for every query and key pair: ${n0(N)} × ${n0(N)} = ${n0(N * N)}. A causal mask zeroes the upper part, but the matrix is still n by n.` },
-    { id: "mask-count", level: "easy", kind: "output",
-      q: "How many positions does a causal mask hide for these tokens? What does this print?",
-      code: `import numpy as np\nn = ${M}\nmask = np.triu(np.ones((n, n)), k=1)\nprint(int(mask.sum()))`,
-      answer: String((M * (M - 1)) / 2), wrong: [String((M * (M + 1)) / 2), String(M * M), String(M)],
-      why: `k=1 starts one above the diagonal, so only strict future pairs count: n(n - 1) / 2 = ${(M * (M - 1)) / 2} for n = ${M}. The diagonal stays visible because each token may look at itself.` },
     { id: "out-shape", level: "medium", kind: "output",
       q: `Keys are ${DK} wide but values are ${DV} wide. What shape does this print?`,
       code: `import numpy as np\nQ = np.ones((${SN}, ${DK}))\nK = np.ones((${SN}, ${DK}))\nV = np.ones((${SN}, ${DV}))\ns = Q @ K.T / np.sqrt(${DK})\nw = np.exp(s) / np.exp(s).sum(axis=1, keepdims=True)\nprint((w @ V).shape)`,
@@ -145,9 +188,22 @@ assert np.all(np.triu(w, k=1) == 0)         # no weight on the future
     { id: "why-not-rnn", level: "medium", kind: "explain",
       q: "Why did attention replace RNNs in language models?",
       answer: `- Short paths: any word reaches any other in 1 step. In an RNN, word 1 reaches word ${n0(N1)} through ${n0(N1 - 1)} hops, and the signal fades on the way.\n- Parallel training: an RNN must go one step at a time, but attention handles every position at once, which suits GPUs.\n- No bottleneck: an RNN squeezes all the past into one state vector; attention can look back at every token directly.\n\nThe cost is n squared memory and time in the length, which is why long context is expensive.` },
-    { id: "mask-train-gen", level: "hard", kind: "explain",
-      q: "What does the causal mask do during training, and what changes during generation?",
-      answer: "**Training:** the whole sentence goes in at once and every position predicts its next token in parallel. The mask stops position i from seeing any j > i, otherwise it could copy the answer.\n\n**Generation:** tokens come one at a time. The new token's single query row has no future to hide, since later tokens do not exist yet, so the mask matters only when the prompt is processed in one pass (prefill). The keys and values of earlier tokens are cached and reused." },
+    { id: "vs-self", level: "medium", kind: "explain",
+      q: "How does Bahdanau attention differ from the self-attention in transformers?",
+      answer: "- **Between or within:** Bahdanau attention goes from decoder to encoder (cross-attention). Self-attention lets each token attend to tokens of its own sequence.\n- **Score:** additive, a small network, against scaled dot products of learned queries and keys.\n- **Around it:** Bahdanau's model is still built on RNNs, so steps run in order. The transformer drops recurrence and runs all positions at once, adding position information instead.\n- **Shared idea:** soft weights from a softmax, and a weighted sum of vectors." },
+    { id: "crossover", level: "medium", kind: "numeric",
+      q: `Per token, the attention projections cost about 8d² FLOPs, and the scores plus the value mix about 4nd. At d = ${n0(DQ)}, at what length n are the two equal?`,
+      answer: n0(cross(DQ)), wrong: [n0(DQ), n0(6 * DQ), n0(DQ * DQ)],
+      why: `4nd = 8d² gives n = 2d = ${n0(cross(DQ))}. Below that the projections cost more, so total work grows like n d²; above it the n² d part leads. ${n0(6 * DQ)} is where the whole block crosses once the FFN is counted, in [[transformer-block]] (next).` },
+    { id: "flash-saves", level: "hard", kind: "concept",
+      q: "FlashAttention makes attention much faster on a GPU. What does it cut?",
+      answer: "Reads and writes to GPU main memory: the n × n score matrix is never stored there",
+      wrong: ["The FLOPs, from n squared down to n", "Accuracy: it skips small weights to save time", "The number of keys each query meets"],
+      why: "It computes attention tile by tile in fast on-chip memory, keeping a running max and sum so the softmax comes out exact. The arithmetic is still quadratic, and the backward pass recomputes tiles, so FLOPs even rise a little. Memory traffic, not arithmetic, was the bottleneck." },
+    { id: "trap-flash-approx", level: "medium", kind: "trap",
+      claim: "FlashAttention is faster because it computes an approximation of attention.",
+      truth: false,
+      why: "It returns the exact softmax(QKᵀ / sqrt(d)) V. The speed comes from never moving the n × n matrix through GPU main memory. Sliding windows and other sparse patterns change the answer; FlashAttention does not." },
     { id: "trap-shift", level: "medium", kind: "trap",
       claim: "Adding the same number to every score in a row leaves that row's attention weights unchanged.",
       truth: true,
@@ -162,5 +218,9 @@ assert np.all(np.triu(w, k=1) == 0)         # no weight on the future
       what: "The paper \"Attention Is All You Need\" proposed the Transformer, a model built only on attention, with no recurrence and no convolutions. It defined the scaled dot-product attention taught here, including the division by the square root of the key size.",
       takeaway: "Removing recurrence let every position be computed in parallel, which the paper reports made training faster.",
       url: "https://arxiv.org/abs/1706.03762" },
+    { who: "Tri Dao and co-authors", when: "2022",
+      what: "The paper \"FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness\" computes exact attention in tiles, cutting reads and writes between the GPU's high-bandwidth memory and its on-chip SRAM. Its memory use is linear in sequence length, even though recomputation in the backward pass adds FLOPs.",
+      takeaway: "The paper reports a 3x speedup on GPT-2 at sequence length 1K: moving data, not arithmetic, set the speed.",
+      url: "https://arxiv.org/abs/2205.14135" },
   ],
 };

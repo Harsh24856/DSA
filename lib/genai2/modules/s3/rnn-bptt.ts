@@ -23,7 +23,7 @@ export const RNN_BPTT: GModule = {
   id: "rnn-bptt",
   stage: 3,
   title: "RNN and BPTT",
-  hook: "A recurrent net reads one token at a time and carries a memory forward. Training it means sending the error back through every step, and that is where it struggles.",
+  hook: "A recurrent net reads one token at a time and carries a memory forward. Training it means sending the error back through every step, and that is where it struggles. Builds on [[backprop-graph]], gradient clipping from [[optimisers]] and the order problem in [[why-order-matters]].",
   blocks: [
     { kind: "figure", id: "s3-unroll", caption: "One cell with a loop is the same as a chain of copies that share W and U. Training sends the gradient back along the chain (dashed), through U at every step." },
     { kind: "text", md: "**The recurrence:** h_t = tanh(W x_t + U h_{t-1} + b). The new state mixes the current input with the previous state, through the same W and U at every step. An output, if the task needs one, is read from h_t.\n\nThe walk-through runs a one-number RNN forward on a single pulse of input, then sends the gradient back." },
@@ -95,7 +95,7 @@ assert np.isclose(dU[0, 1], numeric, atol=1e-6)
     "An RNN updates h_t = tanh(W x_t + U h_{t-1} + b) with the same W and U at every step, so its size does not depend on the length.",
     "Backprop through time unrolls the loop into a chain and runs ordinary backprop; the gradient for a shared weight is the sum over all steps.",
     "Going back k steps multiplies k factors of U and the tanh slope, so the gradient shrinks (vanishes) or grows (explodes) roughly exponentially in k.",
-    "Clipping the gradient norm stops explosions; vanishing needs a different design, such as the gated cells of the next module.",
+    "Clipping the gradient norm stops explosions; vanishing needs a different design, such as the gated cells of [[lstm-gru]], the next module.",
     "Each step needs the previous state, so an RNN cannot process the positions of a sequence in parallel.",
   ],
   questions: [
@@ -133,10 +133,6 @@ assert np.isclose(dU[0, 1], numeric, atol=1e-6)
       answer: "It shrinks at least as fast as that singular value to the power k",
       wrong: ["It grows, because U is applied k times", "It is unchanged, because U is the same at every step", "It depends only on the inputs, not on U"],
       why: "The gradient back k steps is multiplied by U transposed k times. The largest singular value is the most any vector can be stretched, so below 1 every direction shrinks geometrically. Above 1 some direction can grow, which is when explosions become possible." },
-    { id: "teacher-forcing", level: "medium", kind: "concept",
-      q: "When training an RNN language model, the input at step t is the true token from the data, not the model's own previous guess. What is this called?",
-      answer: "Teacher forcing", wrong: ["Beam search", "Gradient clipping", "Truncated BPTT"],
-      why: "Teacher forcing feeds the ground truth, so every step can be trained from correct context. At generation time the model must feed itself, which can cause a train and test mismatch (exposure bias)." },
     { id: "param-count", level: "medium", kind: "numeric",
       q: `An RNN has input size ${D} and hidden size ${H}, with one bias vector. How many parameters are in W, U and b together?`,
       answer: n0(params), wrong: [n0(H * D + H), n0(H * D + H * H), n0(H * D + D * D + H)],
