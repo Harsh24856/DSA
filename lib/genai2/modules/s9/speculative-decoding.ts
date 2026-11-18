@@ -7,7 +7,7 @@ const f2 = (x: number) => x.toFixed(2);
 // predict and the classic example
 const [A, K, C] = [0.8, 4, 0.05], E = specTokens(A, K), S = specSpeedup(A, K, C);
 // numeric: low acceptance
-const [LA, LK, LC] = [0.4, 6, 0.1], lowS = specSpeedup(LA, LK, LC);
+const [LA, LK, LC] = [0.4, 6, 0.15], lowS = specSpeedup(LA, LK, LC);
 // numeric: best k
 const [BA, BC] = [0.7, 0.1], bk = bestK(BA, BC), bS = specSpeedup(BA, bk, BC);
 // flow totals
