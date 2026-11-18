@@ -88,7 +88,14 @@ export function polyErrors(deg: number) {
   const err = (xs: number[], ys: number[]) => mean(xs.map((x, i) => (polyval(c, x) - ys[i]) ** 2));
   return { deg, c, train: err(tx, ty), val: err(vx, vy), size: Math.max(...c.map(Math.abs)) };
 }
-export const DEGREES = Array.from({ length: 12 }, (_, d) => polyErrors(d));
+/** The same experiment with n training points instead of 12, scored on the same validation points. */
+export function polyErrorsN(deg: number, n: number) {
+  const r = seededRng(`s1-poly-${n}`), tx = Array.from({ length: n }, (_, i) => -1 + (2 * i) / (n - 1));
+  const ty = tx.map((x) => truth(x) + POLY.noise * gauss(r)), c = polyfit(tx, ty, deg);
+  const err = (xs: number[], ys: number[]) => mean(xs.map((x, i) => (polyval(c, x) - ys[i]) ** 2));
+  return { deg, n, train: err(tx, ty), val: err(POLY.vx, POLY.vy) };
+}
+export const DEGREES =Array.from({ length: 12 }, (_, d) => polyErrors(d));
 export const BEST_DEG = DEGREES.slice(0, 10).reduce((m, d) => (d.val < m.val ? d : m)).deg;
 
 // ---------- precision, recall and F1: a spam filter's scores on 20 emails ----------

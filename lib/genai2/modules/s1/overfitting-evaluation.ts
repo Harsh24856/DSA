@@ -9,8 +9,9 @@ const [NALL, NPOS] = [1000, 10], accNo = (NALL - NPOS) / NALL;
 // numeric: metrics from counts
 const [TP, FP, FN] = [30, 10, 20], P = TP / (TP + FP), R = TP / (TP + FN), F1 = (2 * P * R) / (P + R), meanPR = (P + R) / 2;
 // numeric: the walk-through at its default threshold
-const c50 = confusion(0.5), c90 = confusion(0.9), c30 = confusion(0.3);
-// compare: under, good, over
+const c50 = confusion(0.5), c90 = confusion(0.9), c30 = confusion(0.3), c80 = confusion(0.8), c85 = confusion(0.85);
+if (!(c85.precision < c80.precision)) throw new Error("precision no longer falls from 0.8 to 0.85: fix the trap below");
+// explain: under, good, over
 const [U, G, O] = [DEGREES[1], DEGREES[BEST_DEG], DEGREES[10]];
 // trap: training error never rises with degree
 const trainFalls = DEGREES.every((d, i) => i === 0 || d.train <= DEGREES[i - 1].train + 1e-12);
@@ -25,7 +26,7 @@ export const OVERFITTING_EVALUATION: GModule = {
   hook: "A model that aces its training data can still fail on everything new. The only honest score comes from data it never saw, and the right score depends on which mistakes hurt.",
   blocks: [
     { kind: "figure", id: "s1-curves", caption: `Polynomials of rising degree fitted to the same ${POLY.tx.length} noisy points. Training error (dashed) keeps falling. Validation error, on ${POLY.vx.length} new points, bottoms out at degree ${BEST_DEG} and then climbs.` },
-    { kind: "play", id: "s1-degree" },
+    { kind: "play", id: "s1-data" },
     { kind: "text", md: "**Overfitting** is fitting the noise. A flexible model can bend through every training point, including the random wobble in each label, and then predicts new points badly. **Underfitting** is the opposite: the model is too stiff to follow the real pattern, so it is wrong on both sets.\n\nYou cannot see either from training error alone. You need data the model did not train on." },
     { kind: "flow", id: "s1-split" },
     {
@@ -35,23 +36,13 @@ export const OVERFITTING_EVALUATION: GModule = {
     A1["yes"] --> A2["underfit: bigger model, better features, train longer"]:::warn
   end
   subgraph B["Training low, validation much higher?"]
-    B1["yes"] --> B2["overfit: more data, simpler model, regularise, stop early"]:::bad
+    B1["yes"] --> B2["overfit: more data, simpler model, regularise (stage 2)"]:::bad
   end
   subgraph C["Both low and close?"]
     C1["yes"] --> C2["score once on test"]:::ok
   end
   A --> B --> C`,
       caption: "Reading the two errors. Compare training error with validation error first; the test set waits until the end.",
-    },
-    {
-      kind: "compare",
-      head: ["", "Underfit", "Good fit", "Overfit"],
-      rows: [
-        ["Degree", String(U.deg), String(G.deg), String(O.deg)],
-        ["Train MSE", fmt(U.train), fmt(G.train), fmt(O.train)],
-        ["Validation MSE", fmt(U.val), fmt(G.val), fmt(O.val)],
-        ["Largest coefficient", fmt(U.size), fmt(G.size), fmt(O.size)],
-      ],
     },
     {
       kind: "predict",
@@ -65,24 +56,30 @@ export const OVERFITTING_EVALUATION: GModule = {
       kind: "code",
       run: true,
       src: `import numpy as np
+P = np.polynomial.polynomial
 
+# only 30 labelled points: too few to give up a third of them to one validation split
 rng = np.random.default_rng(0)
-f = lambda x: np.sin(np.pi * x)                  # the pattern to learn
-x_tr = np.linspace(-1, 1, 12)
-y_tr = f(x_tr) + 0.25 * rng.standard_normal(12)  # 12 noisy training points
-x_va = rng.uniform(-1, 1, 200)
-y_va = f(x_va) + 0.25 * rng.standard_normal(200) # fresh points for validation
+x = rng.uniform(-1, 1, 30)
+y = np.sin(np.pi * x) + 0.25 * rng.standard_normal(30)
 
-err = {}
-for deg in (1, 4, 11):
-    c = np.polynomial.polynomial.polyfit(x_tr, y_tr, deg)
-    mse = lambda x, y: np.mean((np.polynomial.polynomial.polyval(x, c) - y) ** 2)
-    err[deg] = (mse(x_tr, y_tr), mse(x_va, y_va))
-    print(f"degree {deg:2d}: train {err[deg][0]:.3f}  validation {err[deg][1]:.3f}")
+def cv_error(deg, k=5):
+    folds = np.array_split(rng.permutation(30), k)     # 5 folds of 6 points
+    errs = []
+    for f in folds:
+        train = np.setdiff1d(np.arange(30), f)          # fit on the other 24
+        c = P.polyfit(x[train], y[train], deg)
+        errs.append(np.mean((P.polyval(x[f], c) - y[f]) ** 2))
+    return np.mean(errs)                                # every point is validated once
 
-assert err[1][0] > err[4][0] > err[11][0]   # training error keeps falling
-assert err[4][1] < err[1][1]                # degree 1 underfits
-assert err[11][1] > err[4][1]               # degree 11 passes through every point and overfits
+scores = {deg: cv_error(deg) for deg in range(1, 10)}
+for deg, s in scores.items():
+    print(f"degree {deg}: 5-fold error {s:.3f}")
+best = min(scores, key=scores.get)
+print("chosen degree:", best)
+
+assert 3 <= best <= 6                                   # neither the straight line nor the wiggliest curve
+assert scores[1] > scores[best] and scores[9] > scores[best]
 `,
     },
   ],
@@ -152,10 +149,10 @@ assert err[11][1] > err[4][1]               # degree 11 passes through every poi
       claim: "On a fixed training set, raising the degree of a least squares polynomial never increases its training error.",
       truth: true,
       why: `A degree d + 1 polynomial can copy any degree d one by setting its top coefficient to 0, so its best fit is at least as good. On the module's data training error falls from ${fmt(DEGREES[0].train)} at degree 0 to ${fmt(DEGREES[10].train)} at degree 10. Validation error is another story.` },
-    { id: "trap-accuracy", level: "easy", kind: "trap",
-      claim: "A classifier with 99% accuracy is always a good classifier.",
+    { id: "trap-precision-up", level: "hard", kind: "trap",
+      claim: "Raising the decision threshold can never lower precision.",
       truth: false,
-      why: `If only ${pct(NPOS / NALL)} of examples are positive, a model that always says "negative" scores ${pct(accNo)} accuracy and finds nothing. Check precision and recall on the class you care about.` },
+      why: `It usually raises it, but not always. In the walk-through, going from 0.8 to 0.85 drops one more spam email from the flagged set and keeps a good one, so precision falls from ${fmt(c80.precision)} to ${fmt(c85.precision)}. Recall, in contrast, can only fall or stay as the threshold rises.` },
   ],
   real: [
     { who: "Benjamin Recht, Rebecca Roelofs, Ludwig Schmidt and Vaishaal Shankar", when: "2019",

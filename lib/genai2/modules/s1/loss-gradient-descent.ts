@@ -32,14 +32,13 @@ export const LOSS_GRADIENT_DESCENT: GModule = {
       why: `The gradient is 2(w - ${PC}) = ${fmt(pg)} at w = ${PW}. The step is ${PLR} × ${fmt(pg)} = ${fmt(PLR * pg)}, so w = ${PW} - ${fmt(PLR * pg)} = ${fmt(pw1)}. Jumping straight to ${PC} would need the exact lr = 0.5 for this bowl. Adding the step climbs uphill.`,
     },
     { kind: "play", id: "s1-lr" },
-    { kind: "text", md: `**How big a step?** Too small and training crawls. Too big and each step overshoots the bottom by more than it started with, so the loss grows. For this bowl the limit is ${fmt(LIMIT.max)}, set by its steepest direction. In the walk-through, lr ${GD.lr} reaches MSE ${fmt(end.loss)} in 100 steps, against ${fmt(BEST.loss)} from the formula.` },
     { kind: "flow", id: "s1-outlier" },
     {
       kind: "compare",
       head: ["Loss", "Formula, per example", "Used for", "Behaviour"],
       rows: [
-        ["Mean squared error (MSE)", "(prediction - y)²", "Predicting numbers", "Smooth; big misses dominate"],
-        ["Mean absolute error (MAE)", "|prediction - y|", "Numbers with outliers", "Robust; kink at 0, gradient is only the sign"],
+        ["Mean squared error (MSE)", "(prediction - y)²", "Predicting numbers", "Gradient 2 × error: a big miss pulls hard"],
+        ["Mean absolute error (MAE)", "|prediction - y|", "Numbers with outliers", "Gradient is only the sign: every example pulls equally"],
         ["Cross-entropy (log loss)", "-ln(probability given to the right answer)", "Classes, and every next token in an LLM", `Near 0 when confident and right, ${fmt(-Math.log(PWR))} at p = ${PWR}, unbounded as p goes to 0`],
       ],
     },
@@ -49,27 +48,24 @@ export const LOSS_GRADIENT_DESCENT: GModule = {
       run: true,
       src: `import numpy as np
 
-x = np.array([0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4])
-y = np.array([2.3, 2.9, 3.2, 4.1, 4.4, 5.3, 5.5, 6.4])
+# 10,000 noisy points on y = 1.15 x + 1.68; mini-batches of 100, so one epoch is 100 steps
+rng = np.random.default_rng(0)
+x = rng.uniform(0.5, 4, 10_000)
+y = 1.15 * x + 1.68 + 0.2 * rng.standard_normal(10_000)
 
-def loss_and_grad(w, b):
-    e = w * x + b - y                     # error per example
-    return np.mean(e ** 2), 2 * np.mean(e * x), 2 * np.mean(e)
-
-w, b, lr = 0.0, 0.0, ${GD.lr}
-for step in range(500):
-    L, dw, db = loss_and_grad(w, b)
-    w, b = w - lr * dw, b - lr * db       # step downhill
-    if step in (0, 10, 100, 499):
-        print(f"step {step:3d}  loss {L:.4f}  w {w:.3f}  b {b:.3f}")
+w, b, lr, batch = 0.0, 0.0, 0.1, 100
+for epoch in range(3):
+    order = rng.permutation(len(x))              # new shuffle every epoch
+    for start in range(0, len(x), batch):
+        i = order[start:start + batch]
+        e = w * x[i] + b - y[i]                  # errors on this batch only
+        w -= lr * 2 * np.mean(e * x[i])
+        b -= lr * 2 * np.mean(e)
+    print(f"epoch {epoch + 1}: w {w:.3f}  b {b:.3f}  loss on all data {np.mean((w * x + b - y) ** 2):.4f}")
 
 w_best, b_best = np.polyfit(x, y, 1)
-assert abs(w - w_best) < 1e-3 and abs(b - b_best) < 1e-3   # same line as the formula
-
-# check the gradient by nudging w a tiny amount
-h = 1e-6
-num = (loss_and_grad(w + h, b)[0] - loss_and_grad(w - h, b)[0]) / (2 * h)
-assert abs(num - loss_and_grad(w, b)[1]) < 1e-6
+# 300 cheap, noisy steps land close to the exact answer, but not on it: the last batches still jitter
+assert abs(w - w_best) < 0.05 and abs(b - b_best) < 0.1
 `,
     },
   ],
@@ -92,7 +88,7 @@ assert abs(num - loss_and_grad(w, b)[1]) < 1e-6
     { id: "lr-big", level: "medium", kind: "concept",
       q: "The training loss gets larger every step and soon prints as inf. What is the most likely cause?",
       answer: "The learning rate is too large, so each step overshoots the minimum", wrong: ["The learning rate is too small", "The model has too few parameters", "The data set is too large"],
-      why: `Beyond a limit each step lands further from the bottom than it started, so the error grows geometrically. For the practice line the limit is ${fmt(LIMIT.max)}. Too small a rate makes the loss fall slowly, never rise.` },
+      why: `Beyond a limit each step lands further from the bottom than it started, so the error grows geometrically. For the practice line that happens above lr ${fmt(LIMIT.max)}; stage 2, Optimisers, shows where such a limit comes from. Too small a rate makes the loss fall slowly, never rise.` },
     { id: "lr-small", level: "easy", kind: "concept",
       q: "What goes wrong if the learning rate is far too small?",
       answer: "The loss falls, but so slowly that training takes far too many steps", wrong: ["The loss rises every step", "The model overfits after one step", "The gradient becomes zero"],
@@ -117,10 +113,10 @@ assert abs(num - loss_and_grad(w, b)[1]) < 1e-6
       q: `${NEX.toLocaleString("en-US")} training examples, batches of ${BATCH}, ${EPOCHS} epochs. How many gradient steps is that?`,
       answer: String((NEX / BATCH) * EPOCHS), wrong: [String(NEX / BATCH), String(NEX * EPOCHS), String(NEX / EPOCHS)],
       why: `One epoch is ${NEX.toLocaleString("en-US")} / ${BATCH} = ${NEX / BATCH} steps, one per batch. ${EPOCHS} epochs make ${(NEX / BATCH) * EPOCHS}.` },
-    { id: "mse-mae", level: "medium", kind: "numeric",
-      q: `The errors are ${OUTLIER.join(", ")}. What is the MSE?`,
-      answer: fmt(mseO), wrong: [fmt(maeO), fmt(mean(OUTLIER)), fmt(mseO * OUTLIER.length)],
-      why: `Square and average: ${fmt(OUTLIER.reduce((s, e) => s + e * e, 0))} / ${OUTLIER.length} = ${fmt(mseO)}. The MAE is ${fmt(maeO)}. The single ${OUTLIER[OUTLIER.length - 1]} supplies most of the MSE.` },
+    { id: "mae-calc", level: "medium", kind: "numeric",
+      q: `The errors are ${OUTLIER.join(", ")}. What is the mean absolute error?`,
+      answer: fmt(maeO), wrong: [fmt(mseO), fmt(mean(OUTLIER)), fmt(maeO * OUTLIER.length)],
+      why: `Drop the signs and average: ${fmt(OUTLIER.reduce((s, e) => s + Math.abs(e), 0))} / ${OUTLIER.length} = ${fmt(maeO)}. Keeping the signs gives ${fmt(mean(OUTLIER))}, and squaring gives the MSE, ${fmt(mseO)}.` },
     { id: "grad-out", level: "hard", kind: "output",
       q: "What does this print?",
       code: `import numpy as np\nx = np.array([${OX.join(", ")}])\ny = np.array([${OY.join(", ")}])\nw, b = 0.0, 0.0\ne = w * x + b - y\nprint(round(2 * np.mean(e * x), 2))`,
@@ -139,7 +135,7 @@ assert abs(num - loss_and_grad(w, b)[1]) < 1e-6
     { id: "trap-convex", level: "hard", kind: "trap",
       claim: "For a straight line fitted by mean squared error, gradient descent with a small enough learning rate reaches the same line as the least squares formula.",
       truth: true,
-      why: `The MSE of a line is a single bowl with one bottom, so there is nowhere else to get stuck. Here ${run.length - 1} steps at lr ${GD.lr} give w = ${fmt(end.w)}, b = ${fmt(end.b)}, against ${fmt(BEST.w)} and ${fmt(BEST.b)}; the code above shows 500 steps agree to 3 decimals. Deep networks have no such guarantee.` },
+      why: `The MSE of a line is a single bowl with one bottom, so there is nowhere else to get stuck. Here ${run.length - 1} steps at lr ${GD.lr} give w = ${fmt(end.w)}, b = ${fmt(end.b)}, against ${fmt(BEST.w)} and ${fmt(BEST.b)}; more steps close the rest of the gap. Deep networks have no such guarantee.` },
   ],
   real: [
     { who: "Augustin-Louis Cauchy", when: "1847",

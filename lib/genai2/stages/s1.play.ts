@@ -1,7 +1,7 @@
 // Stage 1 (ML basics for LLMs): slider walk-throughs, placed in modules by a `play` block. Spread by stages/play.ts into PLAY_FLOWS.
 import type { Flow } from "../../other/flows.ts";
 import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
-import { BEST, BEST_DEG, confusion, DEGREES, fmt, gdLine, LIMIT, LINE, mse, POLY, predict, SPAM } from "./s1.calc.ts";
+import { BEST, confusion, fmt, gdLine, LIMIT, LINE, mse, POLY, polyErrorsN, predict, SPAM } from "./s1.calc.ts";
 
 // Learning as fitting: fit the line by hand, then compare with least squares.
 function line(v: Record<string, number>): Flow {
@@ -23,7 +23,7 @@ function line(v: Record<string, number>): Flow {
 
 // Loss and gradient descent: the learning rate decides between crawling, converging and blowing up.
 function lrRun(v: Record<string, number>): Flow {
-  const { lr, steps } = v, hist = gdLine(lr, steps), { max, big } = LIMIT;
+  const { lr, steps } = v, hist = gdLine(lr, steps), { max } = LIMIT;
   const at = [0, 1, 2, 5, 10, 20, 50, 100, 200].filter((t) => t <= steps);
   if (at[at.length - 1] !== steps) at.push(steps);
   const end = hist[steps], L0 = hist[0].loss, gap = end.loss - BEST.loss;
@@ -31,7 +31,7 @@ function lrRun(v: Record<string, number>): Flow {
   const table = { head: ["step", "w", "b", "MSE"], rows: at.map((t) => [t, fmt(hist[t].w), fmt(hist[t].b), fmt(hist[t].loss)]),
     tones: Object.fromEntries(at.flatMap((t, i) => (hist[t].loss > L0 ? [[String(i), "bad" as const]] : []))) };
   return { kind: "grid", title: `lr ${lr}, ${steps} steps`, steps: [
-    { note: `The bowl's steepest direction has curvature ${fmt(big)}. Gradient descent shrinks the error along it only while lr × ${fmt(big)} < 2, so lr must stay under ${fmt(max)}. Here lr × ${fmt(big)} = ${fmt(lr * big)}.`, tone: lr >= max ? "bad" : "ok",
+    { note: `On this data, steps start to overshoot by more than they gain once lr passes ${fmt(max)}. Your lr, ${fmt(lr)}, is ${lr >= max ? "above" : "below"} that line. Stage 2, Optimisers, shows how the steepest direction sets it.`, tone: lr >= max ? "bad" : "ok",
       tables: [{ head: ["", "value"], rows: [["your lr", fmt(lr)], ["limit", fmt(max)]], tones: { "0:1": lr >= max ? "bad" : "ok" } }] },
     { note: lr >= max ? `Too big: every step overshoots the bottom by more than it started, so the loss grows. After ${steps} steps the MSE is ${fmt(end.loss)}.`
       : gap < 0.01 ? `Converged: after ${steps} steps the MSE is ${fmt(end.loss)}, within 0.01 of the best possible ${fmt(BEST.loss)}.`
@@ -40,19 +40,23 @@ function lrRun(v: Record<string, number>): Flow {
   ] };
 }
 
-// Overfitting and evaluation: polynomial degree against training and validation error.
-function degree(v: Record<string, number>): Flow {
-  const d = DEGREES[v.d], best = DEGREES[BEST_DEG], n = POLY.tx.length;
-  const state = d.deg < BEST_DEG - 1 && d.val > 1.5 * best.val ? "under" : d.val > 1.5 * best.val ? "over" : "fine";
-  const tone = state === "fine" ? "ok" as const : state === "over" ? "bad" as const : "warn" as const;
-  const row = (x: typeof d, label: string) => [label, x.deg, fmt(x.train), fmt(x.val)];
-  return { kind: "grid", title: `Degree ${d.deg}: ${d.deg + 1} parameters, ${n} points`, steps: [
-    { note: `A degree ${d.deg} polynomial has ${d.deg + 1} coefficients. Fitted by least squares to ${n} noisy samples of a smooth curve, its training MSE is ${fmt(d.train)}.${d.deg + 1 >= n ? " With as many coefficients as points it can pass through every one." : ""}`, tone: "hot",
-      tables: [{ head: ["", "degree", "train MSE", "val MSE"], rows: [row(d, "yours")], tones: { "0:2": "hot" } }] },
-    { note: state === "under" ? `Underfitting: too stiff to follow the curve. Both errors are high; validation ${fmt(d.val)} against the best ${fmt(best.val)} at degree ${BEST_DEG}.`
-      : state === "over" ? `Overfitting: training error ${fmt(d.train)} looks great, but on ${POLY.vx.length} new points the error is ${fmt(d.val)}, ${fmt(d.val / best.val)} times the best. Its largest coefficient is ${fmt(d.size)}: it bends hard to hit the noise.`
-      : `A good fit: validation error ${fmt(d.val)} is close to the lowest, ${fmt(best.val)} at degree ${BEST_DEG}. The noise itself has variance ${fmt(POLY.noise ** 2)}, so no model can do much better.`,
-      tone, tables: [{ head: ["", "degree", "train MSE", "val MSE"], rows: [row(d, "yours"), row(best, "best on val")], tones: { [`0:3`]: tone, "1:3": "ok" } }] },
+// Overfitting and evaluation: the same flexible model on more and more data. The figure shows degree; this shows data size.
+function moreData(v: Record<string, number>): Flow {
+  const { d, n } = v;
+  if (d + 1 > n) throw new PlayError(`A degree ${d} polynomial needs at least ${d + 1} points. Add points or lower the degree.`);
+  const small = polyErrorsN(d, d + 1), mine = polyErrorsN(d, n), noise = POLY.noise ** 2;
+  const z = (x: number) => fmt(x < 1e-9 ? 0 : x), gap = mine.val - mine.train;
+  const tone = mine.val < 1.5 * noise ? "ok" as const : mine.val < 2.5 * noise ? "warn" as const : "bad" as const;
+  const stiff = gap < 0.5 * noise && mine.val >= 2.5 * noise;
+  const head = ["points", "train MSE", "val MSE"];
+  return { kind: "grid", title: `Degree ${d}, ${n} training points`, steps: [
+    { note: `With only ${d + 1} points, a degree ${d} polynomial (${d + 1} coefficients) passes through every one: training error ${z(small.train)}, validation error ${z(small.val)}. It has fitted the noise.`, tone: "bad",
+      tables: [{ head, rows: [[d + 1, z(small.train), z(small.val)]], tones: { "0:2": "bad" } }] },
+    { note: n <= d + 1 ? `${n} points is still just enough to pass through every one, so nothing changes. Slide the points up.`
+      : stiff ? `On ${n} points training and validation agree (gap ${fmt(gap)}), but both are high, validation ${z(mine.val)} against the noise floor ${fmt(noise)}. A degree ${d} curve is too stiff for this pattern: underfitting, which more data cannot fix.`
+      : `On ${n} points the curve can no longer weave through each point's noise without missing the others, so it is pulled toward the real pattern. Validation error ${z(mine.val)}, gap to training ${fmt(gap)}. The noise alone costs ${fmt(noise)}.`,
+      tone: n <= d + 1 ? "bad" : stiff ? "warn" : tone,
+      tables: [{ head, rows: [[d + 1, z(small.train), z(small.val)], [n, z(mine.train), z(mine.val)]], tones: { "0:2": "bad", "1:2": stiff ? "warn" : tone } }] },
   ] };
 }
 
@@ -74,10 +78,13 @@ function threshold(v: Record<string, number>): Flow {
 }
 
 export const PLAY_1: Record<string, PlayFlow> = {
-  "s1-degree": {
-    title: "Turn up the degree",
-    knobs: [{ key: "d", label: "Polynomial degree", min: 0, max: 11, step: 1, value: 1 }],
-    make: degree,
+  "s1-data": {
+    title: "Give the model more data",
+    knobs: [
+      { key: "d", label: "Polynomial degree", min: 1, max: 9, step: 1, value: 9 },
+      { key: "n", label: "Training points", min: 10, max: 200, step: 10, value: 20 },
+    ],
+    make: moreData,
   },
   "s1-threshold": {
     title: "Move the threshold",

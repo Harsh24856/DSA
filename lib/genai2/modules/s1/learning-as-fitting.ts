@@ -1,6 +1,6 @@
 // Stage 1: what "learning" means. A model is a function with knobs, and training picks the knobs that fit the examples. Every number below is computed here or in stages/s1.calc.ts.
 import type { GModule } from "../../types.ts";
-import { BEST, fitLine, fmt, LINE, mean, mse, predict } from "../../stages/s1.calc.ts";
+import { BEST, fitLine, fmt, LINE, mean, predict } from "../../stages/s1.calc.ts";
 
 // predict: the best line at the mean input
 const atMean = predict(BEST.w, BEST.b, BEST.mx);
@@ -46,24 +46,22 @@ export const LEARNING_AS_FITTING: GModule = {
       run: true,
       src: `import numpy as np
 
-x = np.array([${LINE.xs.join(", ")}])     # hours practised
-y = np.array([${LINE.ys.join(", ")}])     # test score
+# many features at once: one column per feature, plus a column of 1s for the intercept
+rng = np.random.default_rng(1)
+n, d = 200, 3
+X = rng.normal(size=(n, d))                     # e.g. hours practised, hours slept, past score
+true_w, true_b = np.array([1.5, -0.5, 2.0]), 4.0
+y = X @ true_w + true_b + 0.1 * rng.normal(size=n)
 
-# closed form: slope = cov(x, y) / var(x), and the line passes through the means
-w = np.mean((x - x.mean()) * (y - y.mean())) / np.mean((x - x.mean()) ** 2)
-b = y.mean() - w * x.mean()
-mse = np.mean((w * x + b - y) ** 2)
-print(f"w = {w:.3f}, b = {b:.3f}, MSE = {mse:.4f}")
+A = np.column_stack([X, np.ones(n)])            # n x (d + 1) design matrix
+params, *_ = np.linalg.lstsq(A, y, rcond=None)  # least squares for all d + 1 parameters
+print("weights", np.round(params[:d], 2), "intercept", round(params[d], 2))
 
-# numpy's own least squares fit agrees
-w2, b2 = np.polyfit(x, y, 1)
-assert np.isclose(w, w2) and np.isclose(b, b2)
-# and any nudge makes the error worse
-for dw, db in [(0.1, 0), (-0.1, 0), (0, 0.1), (0, -0.1)]:
-    assert np.mean(((w + dw) * x + b + db - y) ** 2) > mse
+assert params.shape == (d + 1,)                 # one weight per feature, plus b
+assert np.allclose(params[:d], true_w, atol=0.05) and abs(params[d] - true_b) < 0.05
+assert abs(np.mean(A @ params - y)) < 1e-9      # with an intercept, the errors average to 0
 `,
     },
-    { kind: "text", md: "**An LLM is the same idea, scaled up.** The function is a transformer instead of a line, and the parameters number in the billions. The examples are every position in a huge pile of text: the input is the words so far, the label is the word that came next. Training turns the knobs so the right next word gets a high probability." },
   ],
   keyPoints: [
     "A model is a function with parameters; training chooses the parameters that make its outputs match the labels on the examples.",
@@ -89,10 +87,10 @@ for dw, db in [(0.1, 0), (-0.1, 0), (0, 0.1), (0, -0.1)]:
       q: "Which of these is a hyperparameter rather than a parameter?",
       answer: "The degree of the polynomial you choose to fit", wrong: ["The slope of a fitted line", "A weight inside a neural network", "The intercept of a fitted line"],
       why: "Hyperparameters set up the model or the training and are picked by you, usually by checking validation scores. The slope, intercept and weights are found by training itself." },
-    { id: "mean-point", level: "medium", kind: "concept",
-      q: "Which point does every least squares line with an intercept pass through?",
-      answer: "(mean of x, mean of y)", wrong: ["(0, 0)", "The first and last data points", "The point with the largest y"],
-      why: "Setting the derivative of the MSE with respect to b to zero gives b = ȳ - w x̄, so at x = x̄ the line gives ȳ. It goes through the origin only if you leave out b." },
+    { id: "slope-means", level: "medium", kind: "concept",
+      q: `The fitted line is y = ${fmt(BEST.w)} x + ${fmt(BEST.b)}, with x in hours and y in points. What does the slope ${fmt(BEST.w)} say?`,
+      answer: `On average, each extra hour goes with about ${fmt(BEST.w)} more points`, wrong: [`A student who practises 1 hour scores ${fmt(BEST.w)}`, `${fmt(BEST.w)} hours of practice are needed per point`, `The line is wrong by ${fmt(BEST.w)} points on average`],
+      why: `The slope is the change in prediction per unit of input. At 1 hour the line predicts ${fmt(BEST.w + BEST.b)}, not ${fmt(BEST.w)}, because the intercept is added. It describes the data, not a cause: the line cannot tell you that practice is what raised the scores.` },
     { id: "llm-task", level: "medium", kind: "concept",
       q: "Seen as a supervised task, what is LLM pretraining?",
       answer: "Classification: for each position, pick the next token out of the whole vocabulary", wrong: ["Regression: predict one number for each sentence", "Clustering: group similar documents without labels", "Ranking: sort documents by relevance to a query"],
@@ -108,7 +106,7 @@ for dw, db in [(0.1, 0), (-0.1, 0), (0, 0.1), (0, -0.1)]:
     { id: "mse-small", level: "easy", kind: "numeric",
       q: `A model's errors on three examples are ${E.join(", ")}. What is the mean squared error?`,
       answer: fmt(mseE), wrong: [fmt(mean(E)), fmt(maeE), fmt(mseE * E.length)],
-      why: `Square, then average: (${E.map((e) => e * e).join(" + ")}) / ${E.length} = ${fmt(mseE)}. The plain mean of the errors is ${fmt(mean(E))} because signs cancel, and the mean absolute error is ${fmt(maeE)}.` },
+      why: `Square, then average: (${E.map((e) => e * e).join(" + ")}) / ${E.length} = ${fmt(mseE)}. The plain mean of the errors, ${fmt(mean(E))}, and the mean absolute error, ${fmt(maeE)}, are different measures.` },
     { id: "param-count", level: "medium", kind: "numeric",
       q: `A linear model predicts a price from ${D} input features: y = w1 x1 + ... + w${D} x${D} + b. How many parameters does it have?`,
       answer: String(D + 1), wrong: [String(D), String(2 * D), String(D * D)],
@@ -123,18 +121,18 @@ for dw, db in [(0.1, 0), (-0.1, 0), (0, 0.1), (0, -0.1)]:
       answer: "- Pick a family of functions with adjustable numbers, the parameters: a line, or a transformer.\n- Define a loss that scores how far the predictions are from the labels on the training examples.\n- Search for the parameters with the lowest loss: in closed form for a line, by gradient descent for a network.\n- Check on held-out examples. Learning worked only if the error stays low on data the model never saw." },
     { id: "why-square", level: "medium", kind: "explain",
       q: "Why is the error squared in mean squared error, instead of just summing the errors?",
-      answer: `- Signs would cancel. A flat line at the mean score has errors that add up to ${fmt(Math.round(signed * 1e9) / 1e9)} on this data, yet it ignores the trend completely.\n- Squaring makes every miss count positively and punishes big misses more than small ones.\n- It is smooth, so its derivative is simple (2 × error), which makes it easy to minimise in closed form or by gradient descent.\n- The trade-off: one big outlier can dominate. Mean absolute error is more robust but has a kink at zero.` },
+      answer: `- Signs would cancel. A flat line at the mean score has errors that add up to ${fmt(Math.round(signed * 1e9) / 1e9)} on this data, yet it ignores the trend completely.\n- Squaring makes every miss count positively and punishes big misses more than small ones.\n- It is smooth, so its derivative is simple (2 × error), which makes it easy to minimise in closed form or by gradient descent.` },
     { id: "llm-explain", level: "hard", kind: "explain",
       q: "How is training an LLM like fitting a line, and how is it different?",
-      answer: "**Alike:** both are a parameterised function, a loss over examples and a search for the parameters with the lowest loss. Both are judged on data they did not train on.\n\n**Different:**\n- The function is a deep transformer with billions of parameters, not two.\n- The output is a probability over the whole vocabulary, so the loss is cross-entropy rather than squared error.\n- There is no closed form: parameters are found by gradient descent over many steps.\n- Labels come from the text itself: the next token is the answer, so no one has to label anything." },
-    { id: "trap-zero", level: "medium", kind: "trap",
-      claim: "A model with zero error on its training data has learned the task.",
+      answer: "The recipe is the same: a function with parameters, a loss, and a search for the lowest loss. What changes:\n\n- The function is a deep transformer with billions of parameters, not two.\n- The output is a probability over the whole vocabulary, so the loss is cross-entropy rather than squared error.\n- There is no closed form: parameters are found by gradient descent over many steps.\n- Every position in a document is its own example, so one page of text gives hundreds of training pairs." },
+    { id: "trap-exact", level: "medium", kind: "trap",
+      claim: "Least squares only works when the points lie exactly on a line.",
       truth: false,
-      why: "A table that stores every training pair has zero training error and cannot answer anything new. Only error on held-out data shows whether the pattern was learned. The overfitting module shows a polynomial doing exactly this." },
-    { id: "trap-cov", level: "hard", kind: "trap",
-      claim: "For a straight line fitted by least squares, the slope equals cov(x, y) divided by var(x).",
+      why: `It finds the line with the smallest squared error for any points. The practice data is noisy, and the best line still leaves an MSE of ${fmt(BEST.loss)}. Points exactly on a line are the special case where that error is 0.` },
+    { id: "trap-errsum", level: "hard", kind: "trap",
+      claim: "For a least squares line with an intercept, the errors on the training points always add up to zero.",
       truth: true,
-      why: `Setting both derivatives of the MSE to zero gives w = cov(x, y) / var(x) and b = ȳ - w x̄. On the practice data: ${fmt(BEST.cov)} / ${fmt(BEST.vx)} = ${fmt(BEST.w)}, and the MSE is ${fmt(mse(BEST.w, BEST.b))}.` },
+      why: `Setting the derivative of the MSE with respect to b to zero says 2 × mean(error) = 0. Any line with a different mean error could lower its loss by shifting b. On the practice data the errors sum to ${fmt(Math.round(LINE.xs.reduce((a, x, i) => a + predict(BEST.w, BEST.b, x) - LINE.ys[i], 0) * 1e9) / 1e9)}.` },
   ],
   real: [
     { who: "Adrien-Marie Legendre and Carl Friedrich Gauss", when: "1805 and 1809",
