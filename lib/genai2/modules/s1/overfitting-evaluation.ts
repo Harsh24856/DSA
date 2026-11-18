@@ -37,6 +37,7 @@ export const OVERFITTING_EVALUATION: GModule = {
   hook: "A model that aces its training data can still fail on everything new. The only honest score comes from data it never saw, and the right score depends on which mistakes hurt. Builds on [[learning-as-fitting]] and [[loss-gradient-descent]].",
   blocks: [
     { kind: "figure", id: "s1-curves", caption: `Polynomials of rising degree fitted to the same ${POLY.tx.length} noisy points. Training error (dashed) keeps falling. Validation error, on ${POLY.vx.length} new points, bottoms out at degree ${BEST_DEG} and then climbs.` },
+    { kind: "play", id: "s1-degree" },
     { kind: "play", id: "s1-data" },
     { kind: "text", md: "**Overfitting** is fitting the noise. A flexible model can bend through every training point, including the random wobble in each label, and then predicts new points badly. **Underfitting** is the opposite: the model is too stiff to follow the real pattern, so it is wrong on both sets.\n\nYou cannot see either from training error alone. You need data the model did not train on." },
     { kind: "flow", id: "s1-split" },
