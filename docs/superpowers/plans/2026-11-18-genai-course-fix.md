@@ -56,7 +56,7 @@ The 2026-11-18 audit found 106 issues: 31 prerequisite gaps, 30 repeats, 10 fill
 - [x] A, links and moves: 834a76b
 - [x] Stages 0 to 2: 1406405. Adds the `torch: true` flag for PyTorch code blocks, KL, ROC-AUC, bytes per parameter and PyTorch autograd.
 - [x] Stages 3 and 4: 9f9fc0a. Adds the KV cache in decoding, cost of attention, FlashAttention and PyTorch attention, and drops the transformer-block repeats.
-- [ ] V1: stage 1 visualizers, plus `decision-trees` and `classic-models`
+- [x] V1: stage 1 visualizers, plus `decision-trees` and `classic-models`: 7bc21d7 to the "Text as numbers" commit (six commits). Adds the `scene` flow kind (`components/other/FlowShapes.tsx`, typed in `lib/other/flows.ts`) for trees, scatter plots, regions and curves; shapes keep their id between steps and glide.
 - [ ] V2: stage 2 visualizers, plus `cnn`
 - [ ] V3: stage 3 visualizers
 - [ ] Stages 5 and 6. Known: `evals-judge` must not need RAG knowledge.

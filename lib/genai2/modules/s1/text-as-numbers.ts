@@ -23,9 +23,10 @@ export const TEXT_AS_NUMBERS: GModule = {
   id: "text-as-numbers",
   stage: 1,
   title: "Text as numbers (one-hot, TF-IDF, word2vec)",
-  hook: "A model only does arithmetic, so every word must become a list of numbers. How you choose those numbers decides whether \"cat\" and \"dog\" look related or like strangers. Builds on [[arrays-broadcasting]] and [[loss-gradient-descent]].",
+  hook: "A model only does arithmetic, so every word must become a list of numbers. How you choose those numbers decides whether \"cat\" and \"dog\" look related or like strangers. Builds on [[arrays-broadcasting]], [[loss-gradient-descent]] and the PCA view from [[classic-models]].",
   blocks: [
     { kind: "figure", id: "s1-cos", caption: `Cosine similarity between four words. One-hot vectors make every pair a stranger. Word2vec vectors, trained here on ${CORPUS.length} toy sentences, put cat near dog and milk near water, because they appear among the same neighbours.` },
+    { kind: "play", id: "s1-embed" },
     { kind: "text", md: "**One-hot:** give every word in the vocabulary a slot. A word is a vector of zeros with a single 1 in its slot. It is exact but carries no meaning: every pair of different words is equally far apart.\n\n**Bag of words:** add up the one-hot vectors of a document's words, so a document becomes a vector of counts." },
     {
       kind: "predict",
