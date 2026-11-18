@@ -21,6 +21,7 @@ export const BACKPROP_GRAPH: GModule = {
   blocks: [
     { kind: "figure", id: "s2-graph", caption: `Values flow down; gradients flow back up. Each gradient is the one above it times a local derivative: ∂L/∂w = ∂L/∂z × x = ${fmt(g.dz)} × ${BP.x}, and ∂L/∂b = ∂L/∂z × 1.` },
     { kind: "text", md: "**Backprop is the chain rule, run backwards.** The forward pass computes each node's value and keeps it. The backward pass starts at the loss with ∂L/∂L = 1 and visits nodes in reverse order. Each node multiplies the gradient arriving from above by its own local derivative and hands the result to its inputs. A negative gradient means increasing that weight lowers the loss." },
+    { kind: "play", id: "s2-net-backward" },
     { kind: "flow", id: "g-backprop" },
     {
       kind: "predict",

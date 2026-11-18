@@ -12,7 +12,7 @@ const DEFS: Def[] = [
     ["overfitting-evaluation", "Overfitting and evaluation"],
     ["decision-trees", "Decision trees and ensembles"], ["classic-models", "Classic models (logistic regression, k-NN, SVM, k-means, PCA)"], ["text-as-numbers", "Text as numbers (one-hot, TF-IDF, word2vec)"]] },
   { title: "Neural networks", blurb: "Build a neuron, stack them, and learn how backprop and good training habits make deep nets work.", builds: [1], old: "m0", rows: [
-    ["neuron-activations", "Neuron and activations"], ["mlp-forward", "MLP and the forward pass"], ["backprop-graph", "Backprop on a graph"],
+    ["neuron-activations", "Neuron and activations"], ["mlp-forward", "MLP and the forward pass"], ["cnn", "Convolutional networks (convolution, pooling, feature maps)"], ["backprop-graph", "Backprop on a graph"],
     ["optimisers", "Optimisers (SGD, Adam, AdamW, schedules)"], ["deep-nets-train", "Making deep nets train (init, normalisation, residuals, dropout)"]] },
   { title: "Sequences", blurb: "Why order matters, how recurrent nets read it, and how attention fixed their limits.", builds: [2], old: "m1", rows: [
     ["why-order-matters", "Why order matters"], ["rnn-bptt", "RNN and BPTT"], ["lstm-gru", "LSTM and GRU"],

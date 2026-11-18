@@ -2,6 +2,7 @@
 // figures and modules. Client-safe: imports only flow types. Every number shown is computed here.
 import type { Flow, GridTable } from "../../other/flows.ts";
 import { seededRng } from "../rng.ts";
+import { cnnStack } from "./s2.calc.ts";
 
 /** Short number: 3 decimals, trailing zeros dropped; scientific outside 0.001 to 10,000. */
 export const fmt = (x: number) => {
@@ -196,7 +197,22 @@ function vanish(): Flow {
   })) };
 }
 
+// Convolutional networks: the shape of the data after every layer of a small digit classifier.
+function cnnShapes(): Flow {
+  const rows = cnnStack(), n0 = (x: number) => x.toLocaleString("en-US");
+  const head = ["layer", "output", "params"], cell = (r: (typeof rows)[number]) => [r[0], r[1] === 1 && r[2] === 1 ? String(r[3]) : `${r[1]}×${r[2]}×${r[3]}`, n0(r[4])];
+  const conv = rows.reduce((s, r) => s + (r[0].startsWith("conv") ? r[4] : 0), 0), dense = rows[rows.length - 1][4];
+  const upto = (k: number, note: string, tone?: "ok" | "hot" | "warn") => ({ note, tone, tables: [{ head, rows: rows.slice(0, k).map(cell), tones: { [String(k - 1)]: "hot" as const } }] });
+  return { kind: "grid", title: "A small CNN for 28×28 digits", steps: [
+    upto(2, `A 3×3 convolution with ${rows[1][3]} filters: each filter makes one map, and no padding trims a pixel from every edge (28 to ${rows[1][1]}). Only ${n0(rows[1][4])} parameters.`),
+    upto(3, `Max pooling halves height and width and has no weights: ${rows[2][1]}×${rows[2][2]}.`),
+    upto(5, `A second conv reads all ${rows[2][3]} maps at once, so each filter has 3×3×${rows[2][3]} + 1 weights. Pool again: ${rows[4][1]}×${rows[4][2]}×${rows[4][3]}.`),
+    upto(7, `Flatten to ${n0(rows[5][3])} numbers and finish with a dense layer. The two convs hold ${n0(conv)} parameters; the one dense layer holds ${n0(dense)}.`, "ok"),
+  ] };
+}
+
 export const FLOWS_2: Record<string, Flow> = {
+  "s2-cnn-stack": cnnShapes(),
   "s2-neuron": neuron(),
   "s2-xor": xor(),
   "s2-matgrad": matGrad(),

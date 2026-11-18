@@ -3,6 +3,8 @@ import type { Flow, FlowTone, GridTable } from "../../other/flows.ts";
 import type { PlayFlow } from "../../other/flows-play-types.ts";
 import { ACTS, BP, bpLoss, fmt, gauss, sigmoid } from "./s2.flows.ts";
 import { seededRng } from "../rng.ts";
+import type { SceneTone, Shape } from "../../other/flows.ts";
+import { conv2d, IMG, KERNELS, maxPool, NET, netBackward, netForward, type Img } from "./s2.calc.ts";
 
 // Neuron and activations: output and slope of each activation at z, then the slope multiplied through n layers sitting at the same z.
 function actSlope(v: Record<string, number>): Flow {
@@ -108,7 +110,158 @@ function dropout(v: Record<string, number>): Flow {
   ] };
 }
 
+// ---- The XOR network, drawn: values flow forward, gradients flow back ----
+const NX = [70, 240, 410], NY = [[110, 290], [110, 290], [200]];
+const sgnTone = (v: number): SceneTone => (v > 0 ? "ok" : v < 0 ? "bad" : "muted");
+function netShapes(nodes: [string, string, SceneTone?][], edgeLab: (kind: "w1" | "w2", i: number, j: number) => string, w2: number[]): Shape[] {
+  const out: Shape[] = [];
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) {
+    const w = NET.W1[i][j];
+    out.push({ t: "line", id: `e1-${i}${j}`, x1: NX[0] + 46, y1: NY[0][i], x2: NX[1] - 46, y2: NY[1][j], tone: sgnTone(w), w: 1 + 2 * Math.abs(w) });
+    // label 30% along the edge, nearer its input, so the two crossing edges' labels do not meet
+    const ax = NX[0] + 46, bx = NX[1] - 46, mx = ax + 0.3 * (bx - ax), my = NY[0][i] + 0.3 * (NY[1][j] - NY[0][i]) - 14;
+    out.push({ t: "text", id: `l1-${i}${j}`, x: mx, y: my, text: edgeLab("w1", i, j), size: 17, anchor: "middle", tone: "muted" });
+  }
+  for (let j = 0; j < 2; j++) {
+    out.push({ t: "line", id: `e2-${j}`, x1: NX[1] + 46, y1: NY[1][j], x2: NX[2] - 46, y2: NY[2][0], tone: sgnTone(w2[j]), w: 1 + 2 * Math.abs(w2[j]) });
+    out.push({ t: "text", id: `l2-${j}`, x: (NX[1] + NX[2]) / 2, y: (NY[1][j] + NY[2][0]) / 2 - 14, text: edgeLab("w2", 0, j), size: 17, anchor: "middle", tone: "muted" });
+  }
+  const at = [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0]];
+  nodes.forEach(([id, text, tone], k) => out.push({ t: "node", id, x: NX[at[k][0]], y: NY[at[k][0]][at[k][1]], w: 92, text, tone }));
+  out.push({ t: "text", id: "h-in", x: NX[0], y: 30, text: "inputs", size: 15, anchor: "middle", tone: "muted" },
+    { t: "text", id: "h-hid", x: NX[1], y: 30, text: "hidden (ReLU)", size: 15, anchor: "middle", tone: "muted" },
+    { t: "text", id: "h-out", x: NX[2], y: 30, text: "output", size: 15, anchor: "middle", tone: "muted" });
+  return out;
+}
+
+function netFlow(v: Record<string, number>): Flow {
+  const x = [v.x1, v.x2], { z, h, y } = netForward(x), w2 = NET.W2;
+  const wl = (k: "w1" | "w2", i: number, j: number) => fmt(k === "w1" ? NET.W1[i][j] : w2[j]);
+  const pf = (n: number) => (n < 0 ? `(${fmt(n)})` : fmt(n));
+  const ins: [string, string, SceneTone?][] = [["x0", `x1\n${fmt(x[0])}`, "hot"], ["x1", `x2\n${fmt(x[1])}`, "hot"]];
+  const binary = x.every((xi) => xi === 0 || xi === 1), t = binary ? (x[0] !== x[1] ? 1 : 0) : null;
+  const zs = z.map((zj, j) => `${fmt(x[0])}×${pf(NET.W1[0][j])} + ${fmt(x[1])}×${pf(NET.W1[1][j])} ${NET.b1[j] < 0 ? "-" : "+"} ${Math.abs(NET.b1[j])} = ${fmt(zj)}`);
+  return { kind: "scene", title: `The XOR network on x = (${fmt(x[0])}, ${fmt(x[1])})`, height: 380, steps: [
+    { note: `Two inputs enter on the left. Green lines carry positive weights, red ones negative; thicker means bigger. Try: set both inputs to 1 and watch the second hidden unit switch on.`,
+      shapes: netShapes([...ins, ["h0", "h1\n?"], ["h1", "h2\n?"], ["y", "y\n?"]], wl, w2) },
+    { note: `Each hidden unit adds its weighted inputs and its bias. h1: ${zs[0]}. h2: ${zs[1]}.`,
+      shapes: netShapes([...ins, ["h0", `z1\n${fmt(z[0])}`, "warn"], ["h1", `z2\n${fmt(z[1])}`, "warn"], ["y", "y\n?"]], wl, w2) },
+    { note: `ReLU keeps a positive sum and turns a negative one into 0. ${h.map((hj, j) => (z[j] > 0 ? `h${j + 1} fires with ${fmt(hj)}` : `h${j + 1} is off`)).join("; ")}.`,
+      tone: h.every((hj) => hj === 0) ? "warn" : undefined,
+      shapes: netShapes([...ins, ["h0", `h1\n${fmt(h[0])}`, h[0] > 0 ? "ok" : "muted"], ["h1", `h2\n${fmt(h[1])}`, h[1] > 0 ? "ok" : "muted"], ["y", "y\n?"]], wl, w2) },
+    { note: `The output adds the hidden values times their weights: y = ${fmt(h[0])}×${pf(w2[0])} + ${fmt(h[1])}×${pf(w2[1])} = ${fmt(y)}.${t === null ? " Between 0 and 1 the network gives a smooth blend; XOR itself is only defined at the corners." : ` XOR(${x[0]}, ${x[1]}) = ${t}, ${y === t ? "a match" : "a miss"}.`}`,
+      tone: t === null ? undefined : y === t ? "ok" : "bad",
+      shapes: netShapes([...ins, ["h0", `h1\n${fmt(h[0])}`, h[0] > 0 ? "ok" : "muted"], ["h1", `h2\n${fmt(h[1])}`, h[1] > 0 ? "ok" : "muted"], ["y", `y\n${fmt(y)}`, "hot"]], wl, w2) },
+  ] };
+}
+
+function backFlow(v: Record<string, number>): Flow {
+  const x = [v.x1, v.x2], w2 = [NET.W2[0], v.w], t = x[0] !== x[1] ? 1 : 0;
+  const g = netBackward(x, t, w2);
+  const ins: [string, string, SceneTone?][] = [["x0", `x1\n${fmt(x[0])}`], ["x1", `x2\n${fmt(x[1])}`]];
+  const hid = (lab: (j: number) => string, tone: (j: number) => SceneTone | undefined): [string, string, SceneTone?][] => [0, 1].map((j) => [`h${j}`, lab(j), tone(j)]);
+  const wl = (k: "w1" | "w2", i: number, j: number) => fmt(k === "w1" ? NET.W1[i][j] : w2[j]);
+  const gl2 = (k: "w1" | "w2", i: number, j: number) => (k === "w2" ? `∂ ${fmt(g.dW2[j])}` : fmt(NET.W1[i][j]));
+  const gl1 = (k: "w1" | "w2", i: number, j: number) => `∂ ${fmt(k === "w1" ? g.dW1[i][j] : g.dW2[j])}`;
+  const dead = [0, 1].filter((j) => g.z[j] <= 0).map((j) => `h${j + 1}`);
+  if (g.loss === 0) return { kind: "scene", title: "Nothing to learn", height: 380, steps: [
+    { note: `With this weight the network already gives ${fmt(g.y)} for XOR(${x[0]}, ${x[1]}) = ${t}. The loss is 0, so every gradient is 0. Try: move the weight away from -2.`, tone: "ok",
+      shapes: netShapes([...ins, ...hid((j) => `h${j + 1}\n${fmt(g.h[j])}`, () => undefined), ["y", `y\n${fmt(g.y)}`, "ok"]], wl, w2) },
+    { note: "∂L/∂y = 2(y - t) = 0, and every gradient further back is that 0 times something. A training step leaves all the weights where they are.",
+      shapes: netShapes([...ins, ...hid((j) => `∂z${j + 1}\n0`, () => "muted"), ["y", "∂y\n0", "ok"]], () => "∂ 0", w2) }] };
+  return { kind: "scene", title: `Backprop for x = (${x[0]}, ${x[1]}), target ${t}`, height: 380, steps: [
+    { note: `Forward first: the output is ${fmt(g.y)} but XOR(${x[0]}, ${x[1]}) is ${t}. Squared loss (y - t)² = ${fmt(g.loss)}. Try: change the h2 weight and see which gradients grow.`, tone: "bad",
+      shapes: netShapes([...ins, ...hid((j) => `h${j + 1}\n${fmt(g.h[j])}`, (j) => (g.h[j] > 0 ? "ok" : "muted")), ["y", `y ${fmt(g.y)}\nt ${t}`, "bad"]], wl, w2) },
+    { note: `The error signal starts at the output: ∂L/∂y = 2(y - t) = ${fmt(g.dy)}. ${g.dy > 0 ? "Positive: y should go down." : "Negative: y should go up."}`, tone: "hot",
+      shapes: netShapes([...ins, ...hid((j) => `h${j + 1}\n${fmt(g.h[j])}`, () => undefined), ["y", `∂y\n${fmt(g.dy)}`, "hot"]], wl, w2) },
+    { note: `Each output weight's gradient is the error times the value that flowed through it: ∂L/∂w = ${fmt(g.dy)} × h. ${g.h.some((hj) => hj === 0) ? "A hidden unit that sent 0 gets a zero gradient on its weight." : "Both hidden units sent a value, so both weights move."}`,
+      shapes: netShapes([...ins, ...hid((j) => `h${j + 1}\n${fmt(g.h[j])}`, () => undefined), ["y", `∂y\n${fmt(g.dy)}`, "hot"]], gl2, w2) },
+    { note: `The error flows back into each hidden unit through its weight, then through ReLU. ${dead.length ? `${dead.join(" and ")} had a sum of 0 or less, so ReLU's slope is 0 and no gradient gets past.` : "Both units fired, so ReLU passes the gradient unchanged."}`,
+      tone: dead.length ? "warn" : undefined,
+      shapes: netShapes([...ins, ...hid((j) => `∂z${j + 1}\n${fmt(g.dz[j])}`, (j) => (g.z[j] <= 0 ? "muted" : "hot")), ["y", `∂y\n${fmt(g.dy)}`, "hot"]], gl2, w2) },
+    { note: `Last, every first-layer weight gets ∂z × its input.${x.includes(0) ? " An input of 0 gives a zero gradient, so its weights do not move on this example." : " Both inputs are 1, so each weight's gradient equals the ∂z of the unit it feeds."} A step of gradient descent subtracts each ∂ times the learning rate.`, tone: "ok",
+      shapes: netShapes([...ins.map(([id, txt]): [string, string, SceneTone?] => [id, txt, "hot"]), ...hid((j) => `∂z${j + 1}\n${fmt(g.dz[j])}`, (j) => (g.z[j] <= 0 ? "muted" : "hot")), ["y", `∂y\n${fmt(g.dy)}`, "hot"]], gl1, w2) },
+  ] };
+}
+
+// ---- Convolution: a 3×3 kernel slides over the picture ----
+const CELL = 34, IX = 12, KX = 350, GY = 44;
+const cellNum = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+function gridShapes(id: string, a: Img, x0: number, y0: number, tone: (v: number) => SceneTone, strength: (v: number) => number, show: (r: number, c: number) => boolean = () => true): Shape[] {
+  return a.flatMap((row, r) => row.flatMap((v, c): Shape[] => !show(r, c) ? [] : [
+    { t: "rect", id: `${id}${r}-${c}`, x: x0 + c * CELL, y: y0 + r * CELL, w: CELL - 2, h: CELL - 2, tone: tone(v), fill: strength(v), edge: false },
+    { t: "text", id: `${id}t${r}-${c}`, x: x0 + c * CELL + CELL / 2 - 1, y: y0 + r * CELL + CELL / 2 - 1, text: cellNum(v), size: 15, anchor: "middle" },
+  ]));
+}
+function convFlow(v: Record<string, number>): Flow {
+  const K = KERNELS[v.k], s = v.s, p = v.p, { padded, out } = conv2d(IMG, K.k, s, p), m = out.length;
+  const max = Math.max(...out.flat().map(Math.abs)) || 1;
+  const outTone = (x: number): SceneTone => (x > 0 ? "ok" : x < 0 ? "bad" : "muted");
+  const outFill = (x: number) => (x === 0 ? 4 : 12 + Math.round((Math.abs(x) / max) * 50));
+  const img = gridShapes("i", padded, IX, GY, (x) => (x ? "hot" : "muted"), (x) => (x ? 45 : 6));
+  const win = (r: number, c: number): Shape => ({ t: "rect", id: "win", x: IX + c * s * CELL - 2, y: GY + r * s * CELL - 2, w: 3 * CELL + 2, h: 3 * CELL + 2, tone: "warn", fill: 0, edge: true });
+  const OY = GY + padded.length * CELL + 44, OX = IX;
+  const kern = gridShapes("k", K.k, KX, GY, (x) => (x > 0 ? "ok" : x < 0 ? "bad" : "muted"), (x) => (x ? 30 : 6));
+  const lab = [
+    { t: "text", id: "li", x: IX, y: 22, text: `picture ${padded.length}×${padded.length}${p ? " (padded)" : ""}`, size: 17, tone: "muted" },
+    { t: "text", id: "lk", x: KX, y: 22, text: "kernel", size: 17, tone: "muted" },
+    { t: "text", id: "lo", x: OX, y: OY - 20, text: `feature map ${m}×${m}`, size: 17, tone: "muted" },
+    ...kern,
+  ] as Shape[];
+  const order: [number, number][] = [[0, 0], [0, 1], [1, 1]].filter(([r, c]) => r < m && c < m) as [number, number][];
+  const terms = (r: number, c: number) => {
+    const t: string[] = [];
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) { const a = padded[r * s + i][c * s + j], w = K.k[i][j]; if (a && w) t.push(cellNum(a * w)); }
+    return t.length ? `${t.map((x, i) => (i ? (x.startsWith("-") ? `- ${x.slice(1)}` : `+ ${x}`) : x)).join(" ")} = ${cellNum(out[r][c])}` : "no lit pixel meets a non-zero weight, so 0";
+  };
+  const seen = (k: number) => (r: number, c: number) => order.slice(0, k + 1).some(([a, b]) => a === r && b === c);
+  const relu = out.map((row) => row.map((x) => Math.max(0, x))), pooled = maxPool(relu);
+  const best = out.flat().indexOf(Math.max(...out.flat())), br = Math.floor(best / m), bc = best % m;
+  const steps = order.map(([r, c], k) => ({
+    note: k === 0
+      ? `The ${K.name} kernel sits on the top-left 3×3 patch. Multiply each pixel by the weight under it and add: ${terms(r, c)}. Try: switch the kernel, or set stride 2.`
+      : `Slide ${s} pixel${s > 1 ? "s" : ""} and repeat with the same 9 weights: ${terms(r, c)}.`,
+    shapes: [...lab, ...img, win(r, c), ...gridShapes("o", out, OX, OY, outTone, outFill, seen(k))],
+  }));
+  steps.push({
+    note: `Every position done: (${IMG.length} + 2×${p} - 3) / ${s} + 1 = ${m} per side. The brightest response is ${cellNum(out[br][bc])} at row ${br + 1}, column ${bc + 1}: the pattern the kernel looks for is strongest there.`,
+    shapes: [...lab, ...img, ...gridShapes("o", out, OX, OY, outTone, outFill)],
+  });
+  if (pooled.length) steps.push({
+    note: `ReLU zeroes the negatives, then 2×2 max pooling keeps the largest value in each block: ${m}×${m} becomes ${pooled.length}×${pooled.length}. The map gets smaller but keeps where the strong responses were.`,
+    shapes: [...lab.filter((x) => x.id !== "lo"), { t: "text", id: "lo", x: OX, y: OY - 20, text: `after ReLU and pooling ${pooled.length}×${pooled.length}`, size: 17, tone: "muted" }, ...img,
+      ...gridShapes("o", pooled, OX, OY, outTone, outFill)],
+  } as (typeof steps)[number]);
+  return { kind: "scene", title: `${K.name} kernel, stride ${s}, padding ${p}`, height: OY + m * CELL + 12, steps };
+}
+
 export const PLAY_2: Record<string, PlayFlow> = {
+  "s2-net-forward": {
+    title: "Push numbers through a network",
+    knobs: [
+      { key: "x1", label: "Input x1", min: 0, max: 1, step: 0.5, value: 1 },
+      { key: "x2", label: "Input x2", min: 0, max: 1, step: 0.5, value: 0 },
+    ],
+    make: netFlow,
+  },
+  "s2-net-backward": {
+    title: "Send the error back",
+    knobs: [
+      { key: "x1", label: "Input x1", min: 0, max: 1, step: 1, value: 1 },
+      { key: "x2", label: "Input x2", min: 0, max: 1, step: 1, value: 1 },
+      { key: "w", label: "Weight from h2 to y", min: -3, max: 1, step: 0.5, value: -1 },
+    ],
+    make: backFlow,
+  },
+  "s2-conv": {
+    title: "Slide a kernel over a picture",
+    knobs: [
+      { key: "k", label: "Kernel (0 vertical, 1 horizontal, 2 blur)", min: 0, max: 2, step: 1, value: 0 },
+      { key: "s", label: "Stride", min: 1, max: 2, step: 1, value: 1 },
+      { key: "p", label: "Padding", min: 0, max: 1, step: 1, value: 0 },
+    ],
+    make: convFlow,
+  },
   "s2-act-slope": {
     title: "Where activations pass the gradient",
     knobs: [

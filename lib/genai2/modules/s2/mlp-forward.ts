@@ -21,6 +21,7 @@ export const MLP_FORWARD: GModule = {
   title: "MLP and the forward pass",
   hook: "Put many neurons side by side and you have a layer, which is one matrix multiply. Stack layers with a bend between them and you have a network that can learn XOR. Builds on [[neuron-activations]] and the `@` shape rule from [[arrays-broadcasting]].",
   blocks: [
+    { kind: "play", id: "s2-net-forward" },
     { kind: "figure", id: "s2-shapes", caption: "Read every forward pass as shapes. The highlighted inner sizes must match; the outer ones give the result. Batch size rides along untouched." },
     { kind: "text", md: `**A layer is one matrix multiply.** Each neuron is one column of W. A batch of B examples is a matrix X of shape (B, d_in), and the layer computes H = f(X W + b) with W of shape (d_in, d_out).\n\nThe bias b has d_out numbers and is added to every row. One big multiply instead of B small ones is what makes GPUs fast.` },
     { kind: "flow", id: "s2-xor" },
