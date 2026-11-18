@@ -1,6 +1,6 @@
 // Stage 9 (Production) animated walk-throughs. Every number is computed here or in s9.calc.ts.
-import type { Flow, GridStep, LaneStep } from "../../other/flows.ts";
-import { BF16, blocksFor, BlockPool, decodeStep, kvPerToken, latency, MODEL, n0, prefillS, weightsGB } from "./s9.calc.ts";
+import type { ChainStep, Flow, GridStep, LaneStep } from "../../other/flows.ts";
+import { BF16, blocksFor, BlockPool, decodeStep, expected, kvPerToken, ROLL, latency, MODEL, n0, prefillS, weightsGB } from "./s9.calc.ts";
 
 const ms = (s: number) => `${(s * 1000).toFixed(s < 0.01 ? 1 : 0)} ms`;
 const sec = (s: number) => (s >= 1 ? `${s.toFixed(2)} s` : ms(s));
@@ -85,7 +85,27 @@ function specRounds(): Flow {
   return { kind: "lanes", title: "Draft, verify, repeat", lanes: ["Draft model", "Large model"], steps };
 }
 
+// observability-rollouts: a staged rollout of a new prompt, with a gate at each stage
+export const CANARY = { stages: [0.01, 0.1, 0.5, 1], minutes: 30, baseBad: 0.02, newBad: 0.03 };
+function canary(): Flow {
+  const { stages, minutes, baseBad, newBad } = CANARY, per = ROLL.perMin;
+  const seen = (share: number) => per * share * minutes;
+  const steps: ChainStep[] = [
+    { node: "shadow: 0% of users see it", note: `The new prompt runs on copies of real requests, and its answers are thrown away. You see its cost, latency and judge scores on real inputs with no user risk.` },
+    ...stages.slice(0, 2).map((s, i): ChainStep => {
+      const n = seen(s), exp = expected(n, baseBad), got = expected(n, newBad), z = (got - exp) / Math.sqrt(exp);
+      return { node: `canary: ${Math.round(s * 100)}% of traffic`, tone: i === 1 ? "bad" : "hot", note: i === 0
+        ? `${Math.round(s * 100)}% of ${n0(per)} requests a minute for ${minutes} min is ${n0(n)} requests. The old prompt's bad-answer rate is ${baseBad * 100}%, so about ${n0(exp)} flagged answers are normal. The canary shows ${n0(got)}, ${z.toFixed(1)} standard deviations above: suspicious, but small counts are noisy. The gate passes with a warning.`
+        : `At ${Math.round(s * 100)}%, ${n0(n)} requests: about ${n0(exp)} expected, ${n0(got)} seen. Now the gap is ${z.toFixed(1)} standard deviations: not noise. The gate fails.` };
+    }),
+    { node: "roll back to the old prompt", tone: "ok", note: `Rolling back is one config change, because prompts are versioned like code. ${n0(seen(stages[0]) * newBad + seen(stages[1]) * newBad - (seen(stages[0]) + seen(stages[1])) * baseBad)} extra bad answers reached users, against ${n0(per * minutes * (newBad - baseBad))} in the same ${minutes} min had it gone to everyone at once.` },
+    { node: "bad cases join the eval set", note: "Pull the flagged answers, find why, and add them to the offline set so CI catches this class of failure next time." },
+  ];
+  return { title: "Rolling out a new prompt", steps };
+}
+
 export const FLOWS_9: Record<string, Flow> = {
+  "s9-canary": canary(),
   "s9-spec-rounds": specRounds(),
   "s9-long-prompt": longPrompt(),
   "s9-request": request(),

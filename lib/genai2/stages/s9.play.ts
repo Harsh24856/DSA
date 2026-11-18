@@ -1,7 +1,7 @@
 // Stage 9 (Production) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s9.calc.ts.
 import type { Flow } from "../../other/flows.ts";
 import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
-import { bestK, pairwise, continuous, decodeCeiling, decodeStep, effBits, GPU, kvGB, mean, MODEL, n0, pct, quantGB, relErr, specCost, specSpeedup, specTokens, staticSpans, weightsGB, WEIGHTS } from "./s9.calc.ts";
+import { bestK, pairwise, ROLL, continuous, decodeCeiling, decodeStep, effBits, GPU, kvGB, mean, MODEL, n0, pct, quantGB, relErr, specCost, specSpeedup, specTokens, staticSpans, weightsGB, WEIGHTS } from "./s9.calc.ts";
 
 const ms = (s: number) => `${(s * 1000).toFixed(s < 0.001 ? 2 : 1)} ms`;
 
@@ -81,7 +81,35 @@ function position(v: Record<string, number>): Flow {
   ] };
 }
 
+// observability-rollouts: canary size against how fast a bad change shows, and how many users it hurts
+export const BASE_BAD = 0.02;
+// minutes until the extra bad answers reach 3 standard deviations of the normal count
+export const detectMin = (perMin: number, share: number, extra: number, base = BASE_BAD) => (9 * base) / (extra * extra * perMin * share);
+function rollout(v: Record<string, number>): Flow {
+  const share = v.share / 100, extra = v.extra / 100, per = ROLL.perMin, win = v.win;
+  const stat = detectMin(per, share, extra), statFull = detectMin(per, 1, extra);
+  const m = Math.max(win, stat), mFull = Math.max(win, statFull);
+  if (m > 24 * 60) throw new PlayError(`At ${v.share}%, it would take ${n0(m / 60)} hours to see a change this small. Raise the canary share.`);
+  const hurt = per * share * m * extra, hurtFull = per * mFull * extra;
+  const t = (x: number) => (x >= 60 ? `${(x / 60).toFixed(1)} h` : `${x.toFixed(x < 10 ? 1 : 0)} min`);
+  const bars = (a: number, b: number) => [{ label: "everyone at once", value: a, tone: "bad" as const }, { label: `${v.share}% canary`, value: b, tone: "ok" as const }];
+  return { kind: "bars", title: `${v.share}% canary, +${v.extra} points bad, ${win} min alert window`, format: (x) => n0(x), steps: [
+    { note: `${n0(per)} requests a minute; normally ${BASE_BAD * 100}% of answers get flagged and the new version adds ${v.extra} points. Your alerts look at ${win} minute windows, and a gap must reach about 3 standard deviations to count.`, bars: bars(0, 0) },
+    { note: `On ${v.share}% of traffic the gap becomes clear after ${t(stat)} of data, so you know after ${t(m)}. On all traffic: ${t(statFull)} of data, known after ${t(mFull)}.`, tone: "warn", bars: bars(0, 0) },
+    { note: `Extra bad answers before rollback: about ${n0(hurtFull)} sent to everyone, ${n0(hurt)} with the canary. ${stat >= win ? "The canary is so small that waiting for enough data sets the pace; any canary this small hurts about the same number of users, just more slowly." : "The alert window sets the pace, so a smaller canary means fewer users hurt."}`, tone: "ok", bars: bars(hurtFull, hurt) },
+  ] };
+}
+
 export const PLAY_9: Record<string, PlayFlow> = {
+  "s9-rollout": {
+    title: "How big should a canary be?",
+    knobs: [
+      { key: "share", label: "Canary share of traffic (%)", min: 1, max: 50, step: 1, value: 5 },
+      { key: "extra", label: "Extra bad answers (points)", min: 0.5, max: 10, step: 0.5, value: 2 },
+      { key: "win", label: "Alert window (minutes)", min: 5, max: 60, step: 5, value: 15 },
+    ],
+    make: rollout,
+  },
   "s9-position": {
     title: "Position bias in a pairwise judge",
     knobs: [

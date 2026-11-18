@@ -125,6 +125,17 @@ export const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 export const LAT_MS = [820, 760, 910, 700, 880, 790, 850, 1020, 740, 960, 810, 870, 930, 780, 3900, 720, 890, 840, 4600, 800];
 // Bad requests served before a rollback: traffic per minute, share exposed, minutes to detect, bad rate of the change.
 export const badServed = (perMin: number, share: number, minutes: number, badRate: number) => perMin * share * minutes * badRate;
+// One traced RAG request with a tool call: spans in order, ms and tokens. Children run one after another inside the request span.
+export type Span = { name: string; ms: number; inTok?: number; outTok?: number };
+export const TRACE: Span[] = [
+  { name: "retrieve", ms: 120 },
+  { name: "model call 1", ms: 640, inTok: 3200, outTok: 40 },
+  { name: "tool: get_order", ms: 310 },
+  { name: "model call 2", ms: 1450, inTok: 3400, outTok: 260 },
+];
+export const PRICE = { inPerM: 3, outPerM: 15 };   // example prices, dollars per million tokens
+export const spanCost = (s: Span) => ((s.inTok ?? 0) * PRICE.inPerM + (s.outTok ?? 0) * PRICE.outPerM) / 1e6;
+export const ROLL = { perMin: 2000 };
 // A canary is judged on its own sample: how many errors do we expect in `n` canary requests at a given error rate?
 export const expected = (n: number, rate: number) => n * rate;
 
