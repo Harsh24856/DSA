@@ -1,6 +1,6 @@
 // The same two scores, 78% and 82%, with 95% intervals on 200 items and on 2,000. Small sets cannot tell them apart. Intervals computed.
 import { useId } from "react";
-import { CI_EX, diffCI, se } from "@/lib/genai2/stages/s9.calc";
+import { CI_EX, diffCI, se } from "@/lib/genai2/stages/s6.calc";
 
 const { p1, p2, ns } = CI_EX;
 const W = 340, L = 64, R = 12, LO = 0.7, HI = 0.9, x = (p: number) => L + ((p - LO) / (HI - LO)) * (W - L - R);

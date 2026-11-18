@@ -1,6 +1,7 @@
 // Stage 6 (Using LLMs) slider walk-throughs, placed in modules by a `play` block. Every number is computed here.
 import type { Flow } from "../../other/flows.ts";
 import type { PlayFlow } from "../../other/flows-play-types.ts";
+import { pairwise, pct } from "./s6.calc.ts";
 
 const r1 = (x: number) => x.toFixed(1);
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
@@ -77,6 +78,17 @@ function fitModel(v: Record<string, number>): Flow {
   return { kind: "bars", title: `A ${params}B model, ${mem} GB, ${bw} GB/s`, max: Math.max(mem, gbOf(16) * OVERHEAD), format: (x) => `${r1(x)} GB`, steps };
 }
 
+// evals-judge: a pairwise judge that favours the first answer it sees, and the order-swap fix
+function position(v: Record<string, number>): Flow {
+  const pA = v.pA / 100, bias = v.bias / 100, r = pairwise(pA, bias);
+  const bars = (x: number, y: number, z: number) => [{ label: "A always first", value: x, tone: "bad" as const }, { label: "random order", value: y, tone: "warn" as const }, { label: "both orders agree", value: z, tone: "ok" as const }];
+  return { kind: "bars", title: `A is truly better ${v.pA}% of the time; judge bias ${v.bias}%`, max: 1, format: (x) => pct(x), steps: [
+    { note: `The judge compares answer A (new prompt) with B (old). ${v.bias}% of the time it just picks whichever it saw first. Always showing A first, A wins ${pct(r.aFirst)}, not ${pct(pA)}.`, tone: "bad", bars: bars(r.aFirst, 0, 0) },
+    { note: `Randomising the order cancels the bias on average: ${pct(r.mixed)}. ${bias > 0 ? "But the bias still adds noise, and pulls the result towards 50%." : "With no bias, order does not matter."}`, tone: "warn", bars: bars(r.aFirst, r.mixed, 0) },
+    { note: `Better: run every pair in both orders and count a win only when both runs agree. ${pct(r.tie)} of pairs disagree and count as ties. Among the rest, A wins ${pct(r.swapWin)}. ${Math.abs(r.swapWin - pA) < 0.05 ? "Close to the truth." : `Still off from ${pct(pA)}: a strong bias also hides real preferences, so fix the judge prompt too.`}`, tone: "ok", bars: bars(r.aFirst, r.mixed, r.swapWin) },
+  ] };
+}
+
 export const PLAY_6: Record<string, PlayFlow> = {
   "s6-fit": {
     title: "Will it run on my machine?",
@@ -122,5 +134,12 @@ export const PLAY_6: Record<string, PlayFlow> = {
     ],
     make: stream,
   },
+  "s6-position": {
+    title: "Position bias in a pairwise judge",
+    knobs: [
+      { key: "pA", label: "A is truly better (%)", min: 10, max: 90, step: 5, value: 50 },
+      { key: "bias", label: "Judge picks the first answer (%)", min: 0, max: 60, step: 5, value: 30 },
+    ],
+    make: position,
+  },
 };
-

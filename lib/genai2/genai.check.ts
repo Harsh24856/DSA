@@ -153,6 +153,25 @@ for (const [id, m] of Object.entries(MODULES)) {
   }
 }
 } finally { rmSync(tmp, { recursive: true, force: true }); }
+
+// [[module-id]] and [[module-id|label]] links: only in the fields that render them, to a known module, and a link forward says "later" or "next" nearby.
+// Same pattern as components/other/Rich.tsx.
+const LINK = /\[\[([a-z][a-z0-9-]*)(?:\|[^\]]+)?\]\]/g;
+const linkErrors = (id: string, texts: string[]) => texts.flatMap(t => [...t.matchAll(LINK)].flatMap(l => {
+  const j = ids.indexOf(l[1]);
+  if (j < 0) return [`${id}: link to unknown module ${l[1]}`];
+  const near = t.slice(Math.max(0, l.index - 80), l.index + l[0].length + 80);
+  return j > ids.indexOf(id) && !/\b(later|next)\b/i.test(near) ? [`${id}: forward link to ${l[1]} needs "later" or "next" nearby`] : [];
+}));
+assert.deepEqual(linkErrors("self-attention", ["See [[nope]].", "Builds on [[tokenisation-bpe]] and [[decoding|this]] (next).", "Uses [[decoding]]."]),
+  ["self-attention: link to unknown module nope", "self-attention: forward link to decoding needs \"later\" or \"next\" nearby"], "link check catches unknown and unmarked forward links");
+for (const [id, m] of Object.entries(MODULES)) {
+  const shown = [m.hook, ...m.keyPoints, ...m.blocks.flatMap(b => (b.kind === "text" ? [b.md] : b.kind === "predict" ? [b.why] : [])),
+    ...m.questions.flatMap(x => (x.kind === "trap" ? [x.claim, x.why] : x.kind === "explain" ? [x.q, x.answer] : [x.q, x.why]))];
+  assert.deepEqual(linkErrors(id, shown), [], `${id}: module links`);
+  const total = (JSON.stringify(m).match(LINK) ?? []).filter(l => ids.includes(l.slice(2).split(/[|\]]/)[0])).length;
+  assert.equal(total, shown.join("\n").match(LINK)?.length ?? 0, `${id}: a module link sits in a field that does not render links (caption, table, option, code)`);
+}
 // every block kind is plain data, and every figure id is registered
 const fixture: Block[] = [
   { kind: "flow", id: "a" }, { kind: "play", id: "b" }, { kind: "lab", id: "attention" as never }, { kind: "figure", id: "f", caption: "c" },

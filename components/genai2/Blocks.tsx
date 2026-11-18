@@ -5,9 +5,8 @@ import { useMemo, useRef, useState } from "react";
 import type { Block } from "@/lib/genai2/core";
 import { mcqOptions, seededRng } from "@/lib/genai2/core";
 import { RunPanel } from "../RunPanel";
-import { Rich } from "../other/Rich";
 import { useMermaid } from "../useMermaid";
-import { Choices } from "./Questions";
+import { Choices, GRich } from "./Questions";
 
 const FlowPlayer = dynamic(() => import("../other/FlowPlayer"), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
 const FlowLab = dynamic(() => import("../other/FlowLab"), { ssr: false, loading: () => <div className="gx-diagram h-[560px]" aria-hidden /> });
@@ -50,7 +49,7 @@ function Predict({ b, seed }: { b: Extract<Block, { kind: "predict" }>; seed: st
       <Choices className="grid gap-2" opts={opts} answer={b.answer} pick={choice} onPick={setChoice} />
       <div className="text-sm leading-relaxed" role="status">{choice !== null && <>
           <strong className={choice === b.answer ? "text-easy" : "text-hard"}>{choice === b.answer ? "Right. " : `Not quite, it is ${b.answer}. `}</strong>
-          <Rich text={b.why} />
+          <GRich text={b.why} />
         </>}</div>
     </div>
   );
@@ -66,7 +65,7 @@ export function BlockView({ b, seed }: { b: Block; seed: string }) {
       return F ? <figure className="gx-diagram"><F id={b.id} /><figcaption>{b.caption}</figcaption></figure> : null;
     }
     case "mermaid": return <Mermaid src={b.src} caption={b.caption} />;
-    case "text": return <div className="max-w-[72ch] text-sm leading-relaxed"><Rich text={b.md} /></div>;
+    case "text": return <div className="max-w-[72ch] text-sm leading-relaxed"><GRich text={b.md} /></div>;
     case "compare":
       return (
         <div className="tile overflow-x-auto" tabIndex={0} role="region" aria-label={`Table: ${b.head.join(", ")}`}>

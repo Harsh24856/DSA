@@ -5,7 +5,7 @@ type Row = [string, string, string?];
 type Def = { title: string; blurb: string; builds: number[]; old?: string; rows: Row[] };
 
 const DEFS: Def[] = [
-  { title: "Python for AI", blurb: "Just the Python and array habits that LLM work leans on every day.", builds: [], rows: [
+  { title: "Python for AI", blurb: "NumPy arrays, broadcasting and pandas tables, and how to replace slow Python loops with array operations.", builds: [], rows: [
     ["arrays-broadcasting", "Arrays and broadcasting"], ["data-pandas", "Data with pandas"], ["vectorising-loops", "Vectorising loops"]] },
   { title: "ML basics for LLMs", blurb: "How a model learns from examples, how we know it works, and how text becomes numbers.", builds: [0], rows: [
     ["learning-as-fitting", "Learning as fitting"], ["loss-gradient-descent", "Loss and gradient descent"],
@@ -24,19 +24,20 @@ const DEFS: Def[] = [
     ["pretraining-scaling", "Pretraining and scaling laws"], ["data-pipelines", "Data pipelines"], ["sft-chat-templates", "SFT and chat templates"],
     ["preference-tuning", "Preference tuning (RLHF, DPO)"], ["rl-verifiable", "RL with verifiable rewards (GRPO)"],
     ["lora-qlora", "LoRA and QLoRA"], ["distillation-small", "Distillation and small models"]] },
-  { title: "Using LLMs", blurb: "Call models well: prompts, structured output, context and running them locally.", builds: [4], old: "m3", rows: [
+  { title: "Using LLMs", blurb: "Call models well: prompts, structured output, context and running them locally.", builds: [4, 5], old: "m3", rows: [
     ["api-roles-streaming", "API calls, roles and streaming"], ["prompting-patterns", "Prompting patterns"], ["structured-output", "Structured output"],
-    ["context-caching", "Context engineering and caching"], ["local-models", "Local models"]] },
+    ["context-caching", "Context engineering and caching"], ["local-models", "Local models"],
+    ["evals-judge", "Evals and LLM as judge", "m10"]] },
   { title: "RAG", blurb: "Give a model your own documents: ingest, search, rerank, and measure the result.", builds: [6], old: "m4", rows: [
-    ["rag-ingest", "Ingest (parse, chunk, embed)"], ["vector-search", "Vector search (cosine, ANN, HNSW)"], ["hybrid-rerank", "Hybrid search and reranking"],
+    ["rag-ingest", "Ingest (parse, chunk, embed)"], ["embedding-models", "Embedding models"], ["vector-search", "Vector search (cosine, ANN, HNSW)"], ["hybrid-rerank", "Hybrid search and reranking"],
     ["advanced-rag", "Advanced RAG (query rewrite, GraphRAG, agentic RAG)"], ["rag-evals", "RAG evals"]] },
   { title: "Agents", blurb: "Let a model use tools, plan, remember and work with other agents.", builds: [7], old: "m5", rows: [
-    ["tool-calling", "Tool calling"], ["agent-loop-react", "The agent loop and ReAct"], ["state-graphs", "State graphs (LangGraph)"], ["mcp-a2a", "MCP and A2A"],
+    ["tool-calling", "Tool calling"], ["security-guardrails", "Security (prompt injection, guardrails)", "m7"], ["agent-loop-react", "The agent loop and ReAct"], ["state-graphs", "State graphs (LangGraph)"], ["mcp-a2a", "MCP and A2A"],
     ["agent-memory", "Memory"], ["computer-use", "Computer and browser use"], ["multi-agent", "Multi-agent patterns"]] },
-  { title: "Production", blurb: "Make it fast, cheap, measured and safe once real users arrive.", builds: [8], rows: [
+  { title: "Production", blurb: "Make it fast and cheap once real users arrive, and watch how it behaves.", builds: [8], rows: [
     ["time-memory", "Where time and memory go", "m12"], ["kv-cache-paged", "KV cache and paged attention", "m7"], ["batching-engines", "Batching and serving engines", "m7"],
-    ["quantisation", "Quantisation", "m12"], ["speculative-decoding", "Speculative decoding", "m12"], ["evals-judge", "Evals and LLM as judge", "m10"],
-    ["observability-rollouts", "Observability and rollouts", "m7"], ["security-guardrails", "Security (prompt injection, guardrails)", "m7"]] },
+    ["quantisation", "Quantisation", "m12"], ["speculative-decoding", "Speculative decoding", "m12"],
+    ["observability-rollouts", "Observability and rollouts", "m7"]] },
   { title: "Frontier (2026)", blurb: "The newest ideas: reasoning, sparse and hybrid models, multimodal systems and coding agents.", builds: [5, 9], rows: [
     ["reasoning-models", "Reasoning models and test-time compute", "m11"], ["mixture-of-experts", "Mixture of experts", "m1"],
     ["state-space-hybrids", "State space models and hybrids", "m1"], ["long-context", "Long context", "m1"], ["vision-language", "Vision language models", "m8"],

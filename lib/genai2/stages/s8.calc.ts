@@ -1,7 +1,7 @@
 // Stage 8 (Agents): the small calculations shared by the flows, the walk-throughs, the figures and the module text. Client-safe: no module text here.
 
 export const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
-export const pct = (x: number) => `${Math.round(x * 100)}%`;
+export const pct = (x: number, d = 0) => `${(x * 100).toFixed(d)}%`;
 
 // A rough rule for English text: about 4 characters per token. Used only to size examples, never as a real count.
 export const roughTokens = (s: string) => Math.ceil(s.length / 4);
@@ -51,3 +51,8 @@ export const shotInput = (steps: number, perShot: number, keep: number, prompt: 
 
 // Multi-agent fan-out: plan, then workers in parallel (the slowest sets the time), then merge.
 export const fanTime = (plan: number, tasks: number[], merge: number, parallel: boolean) => plan + (parallel ? Math.max(...tasks) : tasks.reduce((a, b) => a + b, 0)) + merge;
+
+// Security: an attack that works with chance p per try, tried n times, succeeds at least once with 1 - (1 - p)^n.
+export const atLeastOnce = (p: number, n: number) => 1 - (1 - p) ** n;
+export type Caps = { secrets: boolean; untrusted: boolean; outbound: boolean };
+export const trifecta = (c: Caps) => c.secrets && c.untrusted && c.outbound;

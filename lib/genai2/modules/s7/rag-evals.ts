@@ -29,7 +29,7 @@ export const RAG_EVALS: GModule = {
   id: "rag-evals",
   stage: 7,
   title: "RAG evals",
-  hook: "\"It looks right\" does not survive the next change to chunking, embeddings or prompts. A small labelled set of questions, scored separately for retrieval and for the answer, tells you what broke and where.",
+  hook: "\"It looks right\" does not survive the next change to chunking, embeddings or prompts. A small labelled set of questions, scored separately for retrieval and for the answer, tells you what broke and where. It builds on [[evals-judge]], adding retrieval metrics.",
   blocks: [
     { kind: "figure", id: "s7-diagnose", caption: "Two checks per question sort every failure into one box. Each box points to a different part of the pipeline to fix." },
     { kind: "text", md: "**Score the two halves apart.** Retrieval metrics ask whether the right chunks reached the prompt; they need questions labelled with the chunks that answer them. Generation metrics ask whether the answer is supported by those chunks (faithfulness), answers what was asked (relevance), and matches a reference answer (correctness)." },

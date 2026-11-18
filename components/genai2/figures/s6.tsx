@@ -1,5 +1,6 @@
 import type { FIGURE_IDS_6 } from "@/lib/genai2/stages/s6.built";
 import { ApiCall } from "./s6/ApiCall";
+import { CiBars } from "./s6/CiBars";
 import { ContextWindow } from "./s6/ContextWindow";
 import { JsonMask } from "./s6/JsonMask";
 import { LocalMemory } from "./s6/LocalMemory";
@@ -12,4 +13,5 @@ export const FIGURES_6 = {
   "s6-json-mask": JsonMask,
   "s6-context-window": ContextWindow,
   "s6-local-memory": LocalMemory,
+  "s6-ci-bars": CiBars,
 } satisfies Record<(typeof FIGURE_IDS_6)[number], () => React.JSX.Element>;

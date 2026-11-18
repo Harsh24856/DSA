@@ -1,10 +1,19 @@
 "use client";
 // The question bank at the bottom of a module: filter by level, answer, see why. The score is for this visit only.
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Check, X } from "@phosphor-icons/react";
-import { mcqOptions, questionKey, seededRng, type GQuestion, type Level } from "@/lib/genai2/core";
+import { entry, mcqOptions, questionKey, seededRng, type GQuestion, type Level } from "@/lib/genai2/core";
 import { usePatterns } from "@/lib/patternStore";
-import { Rich } from "../other/Rich";
+import { inline, Rich, type LinkFn } from "../other/Rich";
+
+// [[module-id]] and [[module-id|label]] in module text: a link to that module, titled from the client-safe roadmap.
+const moduleLink: LinkFn = (id, label, key) => {
+  const e = entry(id);
+  return e ? <Link key={key} href={`/genai/${id}`} className="font-medium text-ink underline underline-offset-2 hover:text-accent">{label ?? e.title}</Link> : <span key={key}>{label ?? id}</span>;
+};
+export const GRich = (p: { text: string; className?: string }) => <Rich {...p} link={moduleLink} />;
+export const ginline = (s: string) => inline(s, moduleLink);
 
 const LEVELS: ("all" | Level)[] = ["all", "easy", "medium", "hard"];
 type Picks = Record<string, string | boolean>;
@@ -14,7 +23,7 @@ function Mcq({ q, moduleId, pick, onPick }: { q: Extract<GQuestion, { answer: st
   const opts = useMemo(() => mcqOptions(q, seededRng(`${moduleId}:${q.id}`)), [q, moduleId]);
   return (
     <>
-      <Rich className="font-medium" text={q.q} />
+      <GRich className="font-medium" text={q.q} />
       {q.code && <pre className="code"><code>{q.code}</code></pre>}
       <Choices className="grid gap-2" opts={opts} answer={q.answer} pick={pick} onPick={(o) => onPick(q.id, o)} />
       <Verdict pick={pick !== undefined} ok={pick === q.answer} answer={q.answer} why={q.why} />
@@ -44,14 +53,14 @@ export function Choices<T extends string | boolean>({ opts, answer, pick, onPick
 
 const Verdict = ({ pick, ok, answer, why }: { pick: boolean; ok: boolean; answer: string; why: string }) => (
   <div className="text-sm leading-relaxed" role="status">
-    {pick && <><strong className={ok ? "text-easy" : "text-hard"}>{ok ? "Right. " : `Not quite, it is ${answer}. `}</strong><Rich text={why} /></>}
+    {pick && <><strong className={ok ? "text-easy" : "text-hard"}>{ok ? "Right. " : `Not quite, it is ${answer}. `}</strong><GRich text={why} /></>}
   </div>
 );
 
 function Trap({ q, pick, onPick }: { q: Extract<GQuestion, { kind: "trap" }>; pick?: string | boolean; onPick: Pick }) {
   return (
     <>
-      <Rich className="font-medium" text={q.claim} />
+      <GRich className="font-medium" text={q.claim} />
       <Choices className="flex flex-wrap gap-2" opts={[true, false]} answer={q.truth} pick={pick} onPick={(v) => onPick(q.id, v)} />
       <Verdict pick={pick !== undefined} ok={pick === q.truth} answer={q.truth ? "true" : "false"} why={q.why} />
     </>
@@ -64,14 +73,14 @@ function Explain({ q, moduleId }: { q: Extract<GQuestion, { kind: "explain" }>; 
   const key = questionKey(moduleId, q.id), on = !!done[key];
   return (
     <>
-      <Rich className="font-medium" text={q.q} />
+      <GRich className="font-medium" text={q.q} />
       <div className="flex flex-wrap gap-2">
         <button type="button" className="btn btn-sm" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Hide answer" : "Show answer"}</button>
         <button type="button" className="btn btn-sm" aria-pressed={on} onClick={() => toggle(key, !on)}>
           <span className="tick pointer-events-none size-5" data-on={on || undefined} aria-hidden>{on && <Check size={12} weight="bold" />}</span>I can answer
         </button>
       </div>
-      {open && <div className="callout text-sm leading-relaxed"><Rich text={q.answer} /></div>}
+      {open && <div className="callout text-sm leading-relaxed"><GRich text={q.answer} /></div>}
     </>
   );
 }

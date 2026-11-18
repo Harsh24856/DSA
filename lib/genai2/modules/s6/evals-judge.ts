@@ -1,6 +1,6 @@
-// Stage 9: evals, and how to trust an LLM judge. Every number below is computed here or in the stage files.
+// Stage 6: evals, and how to trust an LLM judge. Every number below is computed here or in the stage files.
 import type { GModule } from "../../types.ts";
-import { CI_EX, diffCI, kappa, nNeeded, pairwise, se } from "../../stages/s9.calc.ts";
+import { CI_EX, diffCI, kappa, nNeeded, pairwise, se } from "../../stages/s6.calc.ts";
 
 const p1 = CI_EX.p1, p2 = CI_EX.p2, [n1, n2] = CI_EX.ns;
 const [lo1, hi1] = diffCI(p1, p2, n1), [lo2, hi2] = diffCI(p1, p2, n2), need = nNeeded(p1, p2);
@@ -19,11 +19,11 @@ const r2 = (x: number) => x.toFixed(2);
 
 export const EVALS_JUDGE: GModule = {
   id: "evals-judge",
-  stage: 9,
+  stage: 6,
   title: "Evals and LLM as judge",
   hook: "You changed the prompt and the answers look better. Are they? An eval set tells you, if it is real, big enough and graded by something you have checked. An LLM judge scales the grading, but it must earn your trust first.",
   blocks: [
-    { kind: "figure", id: "s9-ci-bars", caption: `The same two scores, ${Math.round(p1 * 100)}% and ${Math.round(p2 * 100)}%. On ${n1} items the intervals overlap and the gain could be zero. On ${n2.toLocaleString("en-US")} items it is clear.` },
+    { kind: "figure", id: "s6-ci-bars", caption: `The same two scores, ${Math.round(p1 * 100)}% and ${Math.round(p2 * 100)}%. On ${n1} items the intervals overlap and the gain could be zero. On ${n2.toLocaleString("en-US")} items it is clear.` },
     { kind: "flow", id: "g-evalloop" },
     { kind: "text", md: "**Start small and real.** 30 to 100 real inputs, including the ones users complained about. For each, write what good means: a reference answer, facts that must appear, or a yes or no rubric. Tag items (easy, hard, adversarial, by feature) and freeze a version.\n\n**Grade cheapest first.** Code checks (valid JSON, test passes), then reference match, then an LLM judge, then people on a sample." },
     {
@@ -35,7 +35,7 @@ export const EVALS_JUDGE: GModule = {
     },
     { kind: "lab", id: "significance" },
     { kind: "flow", id: "g-kappa" },
-    { kind: "play", id: "s9-position" },
+    { kind: "play", id: "s6-position" },
     {
       kind: "compare",
       head: ["Grader", "Good for", "Watch out"],

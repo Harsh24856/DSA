@@ -1,7 +1,7 @@
 // Stage 9 (Production) slider walk-throughs, placed in modules by a `play` block. Every number is computed here or in s9.calc.ts.
 import type { Flow } from "../../other/flows.ts";
 import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
-import { atLeastOnce, bestK, pairwise, ROLL, continuous, decodeCeiling, decodeStep, effBits, GPU, kvGB, mean, MODEL, n0, pct, quantGB, relErr, specCost, specSpeedup, specTokens, staticSpans, weightsGB, WEIGHTS } from "./s9.calc.ts";
+import { bestK, ROLL, continuous, decodeCeiling, decodeStep, effBits, GPU, kvGB, mean, MODEL, n0, pct, quantGB, relErr, specCost, specSpeedup, specTokens, staticSpans, weightsGB, WEIGHTS } from "./s9.calc.ts";
 
 const ms = (s: number) => `${(s * 1000).toFixed(s < 0.001 ? 2 : 1)} ms`;
 
@@ -70,17 +70,6 @@ function spec(v: Record<string, number>): Flow {
   ] };
 }
 
-// evals-judge: a pairwise judge that favours the first answer it sees, and the order-swap fix
-function position(v: Record<string, number>): Flow {
-  const pA = v.pA / 100, bias = v.bias / 100, r = pairwise(pA, bias);
-  const bars = (x: number, y: number, z: number) => [{ label: "A always first", value: x, tone: "bad" as const }, { label: "random order", value: y, tone: "warn" as const }, { label: "both orders agree", value: z, tone: "ok" as const }];
-  return { kind: "bars", title: `A is truly better ${v.pA}% of the time; judge bias ${v.bias}%`, max: 1, format: (x) => pct(x), steps: [
-    { note: `The judge compares answer A (new prompt) with B (old). ${v.bias}% of the time it just picks whichever it saw first. Always showing A first, A wins ${pct(r.aFirst)}, not ${pct(pA)}.`, tone: "bad", bars: bars(r.aFirst, 0, 0) },
-    { note: `Randomising the order cancels the bias on average: ${pct(r.mixed)}. ${bias > 0 ? "But the bias still adds noise, and pulls the result towards 50%." : "With no bias, order does not matter."}`, tone: "warn", bars: bars(r.aFirst, r.mixed, 0) },
-    { note: `Better: run every pair in both orders and count a win only when both runs agree. ${pct(r.tie)} of pairs disagree and count as ties. Among the rest, A wins ${pct(r.swapWin)}. ${Math.abs(r.swapWin - pA) < 0.05 ? "Close to the truth." : `Still off from ${pct(pA)}: a strong bias also hides real preferences, so fix the judge prompt too.`}`, tone: "ok", bars: bars(r.aFirst, r.mixed, r.swapWin) },
-  ] };
-}
-
 // observability-rollouts: canary size against how fast a bad change shows, and how many users it hurts
 export const BASE_BAD = 0.02;
 // minutes until the extra bad answers reach 3 standard deviations of the normal count
@@ -100,28 +89,7 @@ function rollout(v: Record<string, number>): Flow {
   ] };
 }
 
-// security-guardrails: a filter that catches most attacks, against an attacker who keeps trying
-function attack(v: Record<string, number>): Flow {
-  const miss = 1 - v.catch / 100, { tries } = v, any = atLeastOnce(miss, tries), approve = v.approve / 100, harm = atLeastOnce(miss * approve, tries);
-  const f = (x: number) => pct(x, x < 0.1 ? 1 : 0);
-  const bars = (a: number, b: number, c: number) => [{ label: "one try passes", value: a, tone: "warn" as const }, { label: `any of ${tries} passes`, value: b, tone: "bad" as const }, { label: "harm done", value: c, tone: "ok" as const }];
-  return { kind: "bars", title: `Filter catches ${v.catch}%, ${tries} tries, ${v.approve}% approved`, max: 1, format: f, steps: [
-    { note: `A guardrail model flags ${v.catch}% of injection attempts. One attempt gets past it ${f(miss)} of the time. That sounds safe.`, tone: "warn", bars: bars(miss, 0, 0) },
-    { note: `Attackers retry for free. Over ${tries} tries, at least one passes with chance 1 - ${v.catch / 100}^${tries} = ${f(any)}. A filter lowers the rate; it does not make the system safe.`, tone: "bad", bars: bars(miss, any, 0) },
-    { note: `Now limit what a passing attack can do: the risky action needs a person to approve it, and a person approves a malicious request ${v.approve}% of the time. Harm needs both: ${f(harm)} over ${tries} tries. ${v.approve === 0 ? "With no risky action possible, the attack has nowhere to go." : "Cutting the capability works better than a better filter."}`, tone: "ok", bars: bars(miss, any, harm) },
-  ] };
-}
-
 export const PLAY_9: Record<string, PlayFlow> = {
-  "s9-attack": {
-    title: "Filters against a patient attacker",
-    knobs: [
-      { key: "catch", label: "Filter catches (%)", min: 50, max: 99.5, step: 0.5, value: 95 },
-      { key: "tries", label: "Attacker's tries", min: 1, max: 200, step: 1, value: 50 },
-      { key: "approve", label: "Malicious action approved (%)", min: 0, max: 50, step: 1, value: 2 },
-    ],
-    make: attack,
-  },
   "s9-rollout": {
     title: "How big should a canary be?",
     knobs: [
@@ -130,14 +98,6 @@ export const PLAY_9: Record<string, PlayFlow> = {
       { key: "win", label: "Alert window (minutes)", min: 5, max: 60, step: 5, value: 15 },
     ],
     make: rollout,
-  },
-  "s9-position": {
-    title: "Position bias in a pairwise judge",
-    knobs: [
-      { key: "pA", label: "A is truly better (%)", min: 10, max: 90, step: 5, value: 50 },
-      { key: "bias", label: "Judge picks the first answer (%)", min: 0, max: 60, step: 5, value: 30 },
-    ],
-    make: position,
   },
   "s9-spec": {
     title: "When does speculative decoding pay?",

@@ -6,10 +6,12 @@ import { Glue } from "./s8/Glue";
 import { MemoryTiers } from "./s8/MemoryTiers";
 import { ScreenScale } from "./s8/ScreenScale";
 import { FanOut } from "./s8/FanOut";
+import { Trifecta } from "./s8/Trifecta";
 
 // Exactly the ids in FIGURE_IDS_8: satisfies rejects a missing or an extra key.
 export const FIGURES_8 = {
   "s8-tool-call": ToolCall,
+  "s8-trifecta": Trifecta,
   "s8-react-trace": ReactTrace,
   "s8-state-graph": StateGraph,
   "s8-glue": Glue,

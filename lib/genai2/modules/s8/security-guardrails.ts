@@ -1,7 +1,7 @@
-// Stage 9: prompt injection and the defences that hold. Every number below is computed here or in the stage files.
+// Stage 8: prompt injection and the defences that hold. Every number below is computed here or in the stage files.
 import type { GModule } from "../../types.ts";
-import { atLeastOnce, pct } from "../../stages/s9.calc.ts";
-import { allowedUrl, EXFIL } from "../../stages/s9.flows.ts";
+import { atLeastOnce, pct } from "../../stages/s8.calc.ts";
+import { allowedUrl, EXFIL } from "../../stages/s8.flows.ts";
 
 // predict: a filter against retries
 const [PC, PT] = [0.95, 50], pAny = atLeastOnce(1 - PC, PT);
@@ -13,11 +13,11 @@ const kept = URLS.filter((u) => allowedUrl(u)).length;
 
 export const SECURITY_GUARDRAILS: GModule = {
   id: "security-guardrails",
-  stage: 9,
+  stage: 8,
   title: "Security (prompt injection, guardrails)",
   hook: "To a language model, instructions and data arrive as one stream of text. Anyone who can put text in front of it can try to give it orders. You cannot fully stop that in the prompt, so security comes from limiting what the system can do.",
   blocks: [
-    { kind: "figure", id: "s9-trifecta", caption: "Private data, untrusted text and a way to send data out: an agent with all three in one run can be turned against its user. Remove one and that path closes." },
+    { kind: "figure", id: "s8-trifecta", caption: "Private data, untrusted text and a way to send data out: an agent with all three in one run can be turned against its user. Remove one and that path closes." },
     { kind: "flow", id: "g-injection" },
     { kind: "text", md: "**Direct injection:** the user types \"ignore your rules\". **Indirect injection:** the attacker never talks to your app. They plant text in a web page, email, PDF or tool result that the model will read later.\n\nIndirect is the dangerous one. The user is innocent, the attack hides in data, and it acts with the user's permissions." },
     {
@@ -26,8 +26,8 @@ export const SECURITY_GUARDRAILS: GModule = {
       answer: `About ${pct(pAny)}`, wrong: [`About ${pct(1 - PC)}`, `About ${pct((1 - PC) * 2)}`, "0%: the filter blocks them"],
       why: `Each try slips past with chance ${pct(1 - PC)}. All ${PT} fail only with chance ${PC}^${PT} = ${pct(1 - pAny)}, so at least one passes with chance ${pct(pAny)}. Attackers retry for free.`,
     },
-    { kind: "play", id: "s9-attack" },
-    { kind: "flow", id: "s9-exfil" },
+    { kind: "play", id: "s8-attack" },
+    { kind: "flow", id: "s8-exfil" },
     {
       kind: "compare",
       head: ["Risk", "Example", "Defence"],

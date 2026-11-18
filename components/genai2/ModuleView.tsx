@@ -6,7 +6,7 @@ import { moduleKey, STAGES } from "@/lib/genai2/core";
 import type { GModule } from "@/lib/genai2/core";
 import { usePatterns } from "@/lib/patternStore";
 import { BlockView } from "./Blocks";
-import { Questions } from "./Questions";
+import { ginline, Questions } from "./Questions";
 
 type Nav = { id: string; title: string } | null;
 export type LabLink = { id: string; title: string; steps: number } | null;
@@ -27,7 +27,7 @@ export function ModuleView({ module: m, prev, next, lab = null }: { module: GMod
           </button>
         </div>
         <h2 id="gx-title" className="t-title">{m.title}</h2>
-        <p className="max-w-[72ch] text-sm leading-relaxed text-muted">{m.hook}</p>
+        <p className="max-w-[72ch] text-sm leading-relaxed text-muted">{ginline(m.hook)}</p>
       </section>
 
       {m.blocks.map((b, k) => <BlockView key={k} b={b} seed={`${id}:predict:${k}`} />)}
@@ -35,7 +35,7 @@ export function ModuleView({ module: m, prev, next, lab = null }: { module: GMod
       {m.keyPoints.length > 0 && (
         <section className="card flex flex-col gap-3 p-6" aria-labelledby="gk-title">
           <h2 id="gk-title" className="t-h2">Key points</h2>
-          <ul className="grid gap-2 text-sm leading-relaxed">{m.keyPoints.map((p) => <li key={p} className="flex gap-2"><Check size={16} className="mt-1 shrink-0 text-accent" aria-hidden />{p}</li>)}</ul>
+          <ul className="grid gap-2 text-sm leading-relaxed">{m.keyPoints.map((p) => <li key={p} className="flex gap-2"><Check size={16} className="mt-1 shrink-0 text-accent" aria-hidden /><span>{ginline(p)}</span></li>)}</ul>
         </section>
       )}
 
