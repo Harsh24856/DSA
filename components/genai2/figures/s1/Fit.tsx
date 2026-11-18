@@ -12,7 +12,7 @@ export function Fit() {
   const titleId = useId();
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="mx-auto w-full max-w-[520px]" role="img" aria-labelledby={titleId}>
-      <title id={titleId}>{`Scatter of ${xs.length} students: hours practised from ${xs[0]} to ${xs[xs.length - 1]} against test score. The least squares line y = ${fmt(BEST.w)} x + ${fmt(BEST.b)} runs through them, passing the mean point (${fmt(BEST.mx)}, ${fmt(BEST.my)}). Each point has a short vertical stick to the line: its error. Mean squared error ${fmt(BEST.loss)}.`}</title>
+      <title id={titleId}>{`Scatter of ${xs.length} students: hours practised from ${xs[0]} to ${xs[xs.length - 1]} against test score. The least squares line y = ${fmt(BEST.w)} x + ${fmt(BEST.b)} runs through them. Each point has a short vertical stick to the line: its error. Mean squared error ${fmt(BEST.loss)}.`}</title>
       <line x1={L} y1={T} x2={L} y2={H - B} stroke="var(--line-strong)" />
       <line x1={L} y1={H - B} x2={W - R} y2={H - B} stroke="var(--line-strong)" />
       {[0, 1, 2, 3, 4].map((x) => <text key={x} x={sx(x)} y={H - B + 16} textAnchor="middle" fontSize={11} fill="var(--muted)">{x}</text>)}
@@ -25,10 +25,8 @@ export function Fit() {
           <circle cx={sx(x)} cy={sy(ys[i])} r={4} fill="var(--ink)" />
         </g>
       ))}
-      <circle cx={sx(BEST.mx)} cy={sy(BEST.my)} r={5} fill="none" stroke="var(--accent)" strokeWidth={2} />
-      <text x={sx(BEST.mx) + 8} y={sy(BEST.my) + 16} fontSize={12} fill="var(--ink)">mean point</text>
       <text x={L + 8} y={T + 12} fontSize={12} fill="var(--ink)">{`y = ${fmt(BEST.w)} x + ${fmt(BEST.b)}`}</text>
-      <text x={L + 8} y={T + 30} fontSize={12} fill="var(--muted)">{`MSE ${fmt(BEST.loss)}; sticks are errors`}</text>
+      <text x={L + 8} y={T + 30} fontSize={12} fill="var(--muted)">{`MSE ${fmt(BEST.loss)}: every point sits close`}</text>
     </svg>
   );
 }

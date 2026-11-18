@@ -35,7 +35,7 @@ export function Bowl() {
       ))}
       {path.map((w, i) => <circle key={w} cx={sx(w)} cy={sy(Lw(w))} r={i === 0 ? 5 : 4} fill={i === 0 ? "var(--medium)" : "var(--accent)"} />)}
       <line x1={sx(BEST.w)} y1={sy(0)} x2={sx(BEST.w)} y2={sy(Lw(BEST.w)) + 6} stroke="var(--easy)" strokeDasharray="3 3" />
-      <text x={sx(BEST.w)} y={sy(0) - 6} textAnchor="middle" fontSize={12} fill="var(--ink)">{`best w = ${fmt(BEST.w)}`}</text>
+      <text x={sx(BEST.w) + 8} y={sy(0) - 34} fontSize={12} fill="var(--ink)">{`best w = ${fmt(BEST.w)}`}</text>
       <text x={sx(START) + 10} y={sy(Lw(START)) + 4} fontSize={12} fill="var(--ink)">{`start: slope ${fmt(g0)}`}</text>
       <text x={W - R} y={T + 12} textAnchor="end" fontSize={12} fill="var(--muted)">{`steps of lr ${LR} × slope`}</text>
     </svg>
