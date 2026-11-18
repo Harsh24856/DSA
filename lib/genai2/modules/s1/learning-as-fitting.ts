@@ -22,8 +22,8 @@ export const LEARNING_AS_FITTING: GModule = {
   hook: "A model is a function with knobs. Learning means turning the knobs until its outputs match the examples. An LLM does exactly this, with billions of knobs and trillions of words. Builds on [[arrays-broadcasting]].",
   blocks: [
     { kind: "figure", id: "s1-fit", caption: `Eight students: hours practised and the score they got. The line y = ${fmt(BEST.w)} x + ${fmt(BEST.b)} is the line with the smallest mean squared error on them. Training means finding that line.` },
-    { kind: "text", md: "**Supervised learning** starts from examples: an input (hours practised) and the right answer, the **label** (the score). The **model** is a function with adjustable numbers, its **parameters**. Here the function is a line, y = w x + b, so it has two.\n\nTraining picks the parameters that make the model's outputs closest to the labels. Then you use it on inputs it has never seen." },
     { kind: "play", id: "s1-line" },
+    { kind: "text", md: "**Supervised learning** starts from examples: an input (hours practised) and the right answer, the **label** (the score). The **model** is a function with adjustable numbers, its **parameters**. Here the function is a line, y = w x + b, so it has two.\n\nTraining picks the parameters that make the model's outputs closest to the labels. Then you use it on inputs it has never seen." },
     {
       kind: "predict",
       q: `The best line has w = ${fmt(BEST.w)} and b = ${fmt(BEST.b)}. The students practised ${fmt(BEST.mx)} hours on average and scored ${fmt(BEST.my)} on average. What does the line predict for ${fmt(BEST.mx)} hours?`,
