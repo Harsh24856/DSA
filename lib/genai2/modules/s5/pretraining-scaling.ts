@@ -1,6 +1,6 @@
 // Stage 5: Pretraining and scaling laws. Every number below is computed here.
 import type { GModule } from "../../types.ts";
-import { big, sci } from "../../stages/s5.play.ts";
+import { big, sci, trainMem } from "../../stages/s5.play.ts";
 
 const r2 = (x: number) => x.toFixed(2);
 const n0 = (x: number) => Math.round(x).toLocaleString("en-US");
@@ -20,6 +20,9 @@ const EXP = 0.05, drop = 1 - 10 ** -EXP;
 const TOK = [5, 9, 2, 7];
 // trap: doubling N at fixed D doubles 6ND
 const twice = flops(2 * N7, D2) / flops(N7, D2);
+// numeric: mixed-precision Adam memory per GPU, plain data parallel and ZeRO stage 3
+const gb = (m: { w: number; g: number; o: number }) => (m.w + m.g + m.o) / 1e9;
+const MEM7 = gb(trainMem(N7, 8, 0)), [ZB, ZN] = [70e9, 64], MEMZ3 = gb(trainMem(ZB, ZN, 3));
 
 export const PRETRAINING_SCALING: GModule = {
   id: "pretraining-scaling",
@@ -38,6 +41,19 @@ export const PRETRAINING_SCALING: GModule = {
       why: `Compute is C = 6ND, and the Chinchilla result is to scale N and D equally. If both grow by k, C grows by k², so k = sqrt(2) = ${r2(grow)}. Doubling both would need 4 times the compute.`,
     },
     { kind: "play", id: "s5-compute-budget" },
+    { kind: "text", md: "**Fitting training into memory.** Weights and gradients are kept in a 2-byte format. **bf16** keeps fp32's 8 exponent bits, so it covers the same range with fewer digits; **fp16** has more digits but overflows sooner and needs loss scaling. Newer GPUs also train parts in 1-byte **fp8**. Adam adds an fp32 copy of the weights plus two moments: 16 bytes per parameter in all, before activations." },
+    { kind: "play", id: "s5-train-memory" },
+    {
+      kind: "compare",
+      head: ["Split", "Each GPU holds", "Talks", "Use when"],
+      rows: [
+        ["Data parallel", "the whole model, its own slice of the batch", "gradients once a step", "the model fits on one GPU"],
+        ["ZeRO / FSDP", "a shard of weights, gradients and Adam state", "gathers weights layer by layer", "the model state does not fit"],
+        ["Tensor parallel", "a slice of every big matrix", "inside every layer, so fast links", "one layer is too big or too slow"],
+        ["Pipeline parallel", "a block of whole layers", "activations between stages", "many layers, many machines"],
+      ],
+    },
+    { kind: "text", md: "**Activation checkpointing** keeps only some layer outputs in the forward pass and recomputes the rest during the backward pass: about a third more compute for much less memory. Big runs combine all of these." },
     {
       kind: "compare",
       head: ["Params", "Tokens at 20 / param", "Compute, 6ND"],
@@ -77,6 +93,7 @@ assert abs(-slope - 0.05) < 0.01
     { kind: "text", md: `**Why labs care:** scaling laws let a team fit small, cheap runs and extrapolate the loss of a run ${n0(1000)} times bigger before paying for it.\n\nCompute-optimal is not the whole story. A model is trained once but served billions of times, and serving cost grows with N. So many small open models are trained on far more than 20 tokens per parameter.` },
   ],
   keyPoints: [
+    "Mixed-precision Adam needs 16 bytes per parameter (2 weights, 2 gradients, 12 optimizer state); ZeRO or FSDP shard it across GPUs, and tensor or pipeline parallelism split the model itself.",
     "Pretraining minimises next-token cross-entropy on raw text: every position predicts the following token, and the text is its own label.",
     "Training compute is about C = 6ND FLOPs: 6 per parameter per token (2 forward, 4 backward).",
     "Loss falls as a power law in parameters, data and compute: a straight line on log-log axes, until it nears an irreducible floor.",
@@ -145,6 +162,18 @@ assert abs(-slope - 0.05) < 0.01
     { id: "gpu-days", level: "hard", kind: "explain",
       q: `Estimate the GPU time to train a ${big(N7)} model on ${big(D2)} tokens. Assume each GPU sustains ${sci(GPU)} FLOP/s.`,
       answer: `- Compute: C = 6ND = ${sci(C7)} FLOPs.\n- One GPU: ${sci(C7)} / ${sci(GPU)} = ${sci(C7 / GPU)} seconds, about ${n0(gpuDays)} GPU-days.\n- On ${CLUSTER} GPUs: about ${Math.round(gpuDays / CLUSTER)} days, if utilisation holds.\n\nSay your assumptions out loud: peak FLOP/s times a realistic utilisation (often 30 to 50%), and that restarts and failed runs add more.` },
+    { id: "adam-memory", level: "medium", kind: "numeric",
+      q: "With mixed-precision Adam and plain data parallelism, how much GPU memory do a 7B model's weights, gradients and optimizer state need on each GPU?",
+      answer: `${MEM7.toFixed(0)} GB`, wrong: [`${(N7 * 2 / 1e9).toFixed(0)} GB`, `${(N7 * 4 / 1e9).toFixed(0)} GB`, `${(N7 * 8 / 1e9).toFixed(0)} GB`],
+      why: `16 bytes per parameter: 2 for bf16 weights, 2 for gradients, 4 + 4 + 4 for the fp32 copy and Adam's two moments. 7B × 16 = ${MEM7.toFixed(0)} GB, more than an 80 GB card, before any activations. Data parallelism alone does not help, because every GPU holds a full copy.` },
+    { id: "zero3", level: "hard", kind: "numeric",
+      q: `With ZeRO stage 3 (or FSDP) a ${ZB / 1e9}B model trains on ${ZN} GPUs. How much model state does each GPU hold?`,
+      answer: `${MEMZ3.toFixed(1)} GB`, wrong: [`${gb(trainMem(ZB, ZN, 0)).toFixed(0)} GB`, `${gb(trainMem(ZB, ZN, 1)).toFixed(1)} GB`, `${(ZB * 2 / 1e9 / ZN).toFixed(1)} GB`],
+      why: `Stage 3 shards weights, gradients and optimizer state, so each GPU keeps 1/${ZN} of 16 × ${ZB / 1e9}B bytes = ${MEMZ3.toFixed(1)} GB. Stage 1 would leave ${gb(trainMem(ZB, ZN, 1)).toFixed(1)} GB, because the 2-byte weights and gradients stay whole on every GPU.` },
+    { id: "trap-bf16", level: "medium", kind: "trap",
+      claim: "bf16 covers about the same range of numbers as fp32, but with fewer digits of precision.",
+      truth: true,
+      why: "bf16 keeps fp32's 8 exponent bits and cuts the mantissa to 7 bits. Range survives, so large and tiny values rarely overflow, which is why it trains without the loss scaling fp16 often needs." },
     { id: "trap-optimal-serve", level: "medium", kind: "trap",
       claim: "A compute-optimal model is the cheapest choice to run in production.",
       truth: false,

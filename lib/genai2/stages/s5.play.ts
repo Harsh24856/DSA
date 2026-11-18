@@ -135,7 +135,43 @@ function temperature(v: Record<string, number>): Flow {
   ] };
 }
 
+// pretraining-scaling: memory per GPU for mixed-precision Adam (ZeRO paper, arXiv 1910.02054: 2Ψ fp16 weights, 2Ψ fp16
+// gradients, 12Ψ for the fp32 copy, momentum and variance). ZeRO stage 1 splits the optimizer states over the GPUs,
+// stage 2 also the gradients, stage 3 also the weights. Activations are left out.
+export function trainMem(params: number, gpus: number, stage: number) {
+  const w = 2 * params, g = 2 * params, o = 12 * params;
+  return { w: stage >= 3 ? w / gpus : w, g: stage >= 2 ? g / gpus : g, o: stage >= 1 ? o / gpus : o };
+}
+function trainMemory(v: Record<string, number>): Flow {
+  const { b, n, z } = v, P = b * 1e9, GB = 1e9, CARD = 80;
+  const base = trainMem(P, n, 0), m = trainMem(P, n, z);
+  const tot = (x: { w: number; g: number; o: number }) => (x.w + x.g + x.o) / GB;
+  const bars = (x: { w: number; g: number; o: number }) => [
+    { label: "fp16 weights", value: x.w / GB }, { label: "fp16 gradients", value: x.g / GB },
+    { label: "fp32 copy + Adam m, v", value: x.o / GB, tone: "warn" as const },
+    { label: "total per GPU", value: tot(x), tone: tot(x) <= CARD ? "ok" as const : "bad" as const },
+    { label: "one 80 GB GPU", value: CARD },
+  ];
+  const fits = tot(m) <= CARD;
+  return { kind: "bars", title: `${b}B parameters on ${n} GPU${n > 1 ? "s" : ""}, ZeRO stage ${z}`, max: Math.max(tot(base), CARD), format: (x) => `${x.toFixed(x < 10 ? 1 : 0)} GB`, steps: [
+    { note: `Plain data parallel: every GPU holds everything. 2 bytes of weights, 2 of gradients and 12 of optimizer state per parameter make 16 bytes: ${tot(base).toFixed(0)} GB before a single activation. Try: raise the ZeRO stage.`,
+      tone: tot(base) <= CARD ? "ok" : "bad", bars: bars(base) },
+    { note: z === 0 ? `Stage 0 changes nothing: the ${n} GPUs only split the batch. ${fits ? "It fits." : "It does not fit on one card."}`
+      : `ZeRO stage ${z} splits the ${["", "optimizer state", "optimizer state and gradients", "optimizer state, gradients and weights"][z]} across the ${n} GPUs: ${tot(m).toFixed(1)} GB each. ${fits ? "Now it fits, with room left for activations." : "Still too big: add GPUs, a higher stage, or split the model itself."}`,
+      tone: fits ? "ok" : "bad", bars: bars(m) },
+  ] };
+}
+
 export const PLAY_5: Record<string, PlayFlow> = {
+  "s5-train-memory": {
+    title: "Fit training on your GPUs",
+    knobs: [
+      { key: "b", label: "Parameters (billions)", min: 1, max: 70, step: 1, value: 7 },
+      { key: "n", label: "GPUs", min: 1, max: 64, step: 1, value: 8 },
+      { key: "z", label: "ZeRO stage", min: 0, max: 3, step: 1, value: 0 },
+    ],
+    make: trainMemory,
+  },
   "s5-temperature": {
     title: "Softening the teacher",
     knobs: [{ key: "T", label: "Temperature T", min: 0.5, max: 8, step: 0.5, value: 2 }],

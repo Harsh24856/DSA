@@ -11,6 +11,8 @@ const bt = sigmoid(2);
 // numeric: DPO loss when the policy equals the reference
 const start = Math.log(2);
 // output: one DPO loss
+// numeric: PPO's clipped objective for one token
+const [RATIO, EPS, ADV] = [1.5, 0.2, 2], clipped = Math.min(RATIO * ADV, Math.min(Math.max(RATIO, 1 - EPS), 1 + EPS) * ADV);
 const [OB, PIC, REFC, PIR, REFR] = [0.5, -10, -12, -14, -13], om = (PIC - REFC) - (PIR - REFR), oLoss = -Math.log(sigmoid(OB * om));
 
 export const PREFERENCE_TUNING: GModule = {
@@ -38,6 +40,7 @@ export const PREFERENCE_TUNING: GModule = {
       wrong: [r2(PC / (PC + PR)), r2(PC - PR), r2(0.5)],
       why: `Reward models use the Bradley-Terry form: P = σ(r_chosen - r_rejected) = σ(${PC - PR}) = ${r2(pWin)}. Only the difference matters, so adding a constant to every reward changes nothing.`,
     },
+    { kind: "text", md: "**Policy gradient in one line.** Sample an answer, score it, then push up the log-probability of every token in it by (reward - baseline). Better than average gets more likely; worse gets less likely.\n\n**PPO** adds a brake: the ratio of new to old probability is clipped to 1 ± ε, so one batch cannot swing the policy far. The KL penalty to the reference is a second brake." },
     { kind: "flow", id: "s5-dpo-step" },
     { kind: "play", id: "s5-dpo-beta" },
     {
@@ -91,6 +94,10 @@ assert np.isclose(dpo_loss(ref_c, ref_r, ref_c, ref_r), np.log(2))
       answer: "The separate reward model and the loop that samples new answers during training",
       wrong: ["The frozen reference model", "The preference pairs", "The SFT step before it"],
       why: "DPO shows the RLHF goal can be met by a simple loss on preference pairs, measured against a frozen reference. It still needs the pairs and the reference, and usually starts from an SFT model." },
+    { id: "ppo-clip", level: "hard", kind: "numeric",
+      q: `PPO, one token: the new policy makes it ${RATIO} times as likely as the old one, ε = ${EPS}, advantage ${ADV}. What does the clipped objective min(r × A, clip(r, 1 - ε, 1 + ε) × A) give?`,
+      answer: r2(clipped), wrong: [r2(RATIO * ADV), r2(ADV), r2((1 - EPS) * ADV)],
+      why: `Unclipped it would be ${RATIO} × ${ADV} = ${r2(RATIO * ADV)}. The clip caps the ratio at ${1 + EPS}, giving ${r2(clipped)}, and the min takes the smaller. Past that cap the gradient is 0, so this token stops pushing the policy further this batch.` },
     { id: "kl", level: "medium", kind: "concept",
       q: "Why does RLHF add a KL penalty between the policy and a reference model?",
       answer: "To stop the policy drifting into odd text that scores high with the reward model but is not actually good",

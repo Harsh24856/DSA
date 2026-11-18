@@ -16,6 +16,21 @@ const PB = pairwise(0.5, 0.3);
 // output: kappa code
 const OK_ = [14, 3, 1, 2], ok = kappa(...(OK_ as [number, number, number, number]));
 const r2 = (x: number) => x.toFixed(2);
+// generation metrics: token F1 for short answers, and the unbiased pass@k estimate for code
+const toks = (t: string) => t.toLowerCase().split(/\s+/).filter(Boolean);
+function tokenF1(pred: string, gold: string) {
+  const p = toks(pred), g = toks(gold), left = [...g];
+  let hit = 0;
+  for (const w of p) { const i = left.indexOf(w); if (i >= 0) { hit++; left.splice(i, 1); } }
+  if (!hit) return 0;
+  const pr = hit / p.length, rc = hit / g.length;
+  return (2 * pr * rc) / (pr + rc);
+}
+const choose = (n: number, k: number) => { let r = 1; for (let i = 0; i < k; i++) r = (r * (n - i)) / (i + 1); return r; };
+const passAtK = (n: number, c: number, k: number) => (n - c < k ? 1 : 1 - choose(n - c, k) / choose(n, k));
+const [GOLD, PRED] = ["the eiffel tower in paris", "eiffel tower paris"], F1 = tokenF1(PRED, GOLD);
+const [PN, PC, PK] = [10, 3, 5], PASS = passAtK(PN, PC, PK);
+if (Math.abs(F1 - 0.75) > 1e-9) throw new Error("F1 example drifted");
 
 export const EVALS_JUDGE: GModule = {
   id: "evals-judge",
@@ -47,6 +62,18 @@ export const EVALS_JUDGE: GModule = {
         ["People", "Ground truth, checking the judge", "Slow and costly; use samples"],
       ],
     },
+    {
+      kind: "compare",
+      head: ["Metric", "Measures", "Use it for", "Trap"],
+      rows: [
+        ["Exact match", "answer equals the reference", "short facts, labels, maths", "zero credit for a correct paraphrase"],
+        ["Token F1", "word overlap with the reference", "short answers", `"${PRED}" scores ${r2(F1)} against "${GOLD}"`],
+        ["BLEU, ROUGE", "n-gram overlap with references", "translation, summaries", "rewards copying words, not being right"],
+        ["pass@k", "chance one of k samples passes the tests", "code", "needs real tests; flaky tests inflate it"],
+        ["Perplexity", "how surprised the model is by held-out text", "comparing base models", "says nothing about answers to tasks"],
+      ],
+    },
+    { kind: "text", md: "**Contamination.** A public benchmark may have leaked into the training data, and then a high score shows memory, not skill. Prefer a private set built from your own inputs, and watch for scores that jump on old benchmarks but not on fresh ones. Perplexity was defined in [[pretraining-scaling]]." },
     { kind: "text", md: "**A judge you can trust.** Give it the question, the context, the answer and a reference if you have one. Ask for a short reason, then a score per criterion (yes or no beats 1 to 10). Grade 50 to 100 items yourself and measure agreement with kappa, not raw agreement. Fix the rubric until they agree." },
     {
       kind: "code",
@@ -76,6 +103,7 @@ assert p2 - p1 - half < 0 < kappa
     "Small sets are noisy: put a confidence interval on every difference, and compare versions item by item on the same items.",
     "An LLM judge has biases (position, length, its own model family, leniency); calibrate it against human labels with kappa before trusting it.",
     "Pairwise judges must see each pair in both orders; count a win only when both agree.",
+    "Match the metric to the task: exact match or F1 for short facts, pass@k with tests for code, overlap scores only as a rough guide; watch for contaminated benchmarks.",
   ],
   questions: [
     { id: "first-set", level: "easy", kind: "concept",
@@ -128,14 +156,26 @@ assert p2 - p1 - half < 0 < kappa
       answer: String(Math.round(ok.k * 100) / 100), wrong: [String(Math.round(ok.po * 100) / 100), String(Math.round(ok.pe * 100) / 100), "1.0"],
       why: `Raw agreement is ${r2(ok.po)}, but most answers are good, so chance agreement is already ${r2(ok.pe)}. Kappa is only ${r2(ok.k)}: weak. Fix the rubric before trusting this judge.` },
     { id: "explain-build", level: "medium", kind: "explain",
-      q: "How would you build an eval set for a new RAG feature?",
-      answer: "- Collect 50 to 100 real questions; include past failures and hard cases.\n- For each, write a reference answer or the facts that must appear, and the source passages.\n- Tag items by topic and difficulty, and keep some adversarial ones (no answer in the documents).\n- Grade retrieval (did the right passage come back) separately from the answer (faithful, complete).\n- Freeze a version, run it on every change in CI, and add every production failure to it." },
+      q: "How would you build an eval set for a new feature that answers questions from your help-centre articles?",
+      answer: "- Collect 50 to 100 real questions; include past failures and hard cases.\n- For each, write a reference answer or the facts that must appear, and the article it should come from.\n- Tag items by topic and difficulty, and keep some questions no article answers, where the right reply is to say so.\n- Grade with yes or no criteria: correct, supported by the article, complete. Check an LLM judge against your own labels first.\n- Freeze a version, run it on every change in CI, and add every production failure to it." },
     { id: "explain-calibrate", level: "hard", kind: "explain",
       q: "How do you make an LLM judge trustworthy?",
       answer: "- Write a rubric a person could apply: narrow yes or no criteria.\n- Give the judge the question, context, answer and a reference; ask for a reason, then the score.\n- Label 50 to 100 items yourself, compare, and report kappa and the judge's recall on bad answers.\n- Read the disagreements and fix the rubric until agreement is substantial.\n- For pairwise, run both orders and count only agreeing verdicts.\n- Recheck after any change to the judge model or the rubric." },
     { id: "explain-ci", level: "medium", kind: "explain",
       q: "Your team wants to ship because the new prompt scored 2 points higher. What do you ask?",
       answer: "How many items, and is the gain outside the noise? Put a 95% interval around the difference; if it includes 0, the gain is not shown.\n\nCompare item by item: which items did it fix and which did it break? A higher total can hide regressions on important cases. Also check cost and latency, which may have moved too." },
+    { id: "token-f1", level: "medium", kind: "numeric",
+      q: `The reference is "${GOLD}" and the model answers "${PRED}". What is the token F1 (lowercased, split on spaces)?`,
+      answer: r2(F1), wrong: ["0", r2(3 / 5), "1.00"],
+      why: `3 words overlap. Precision is 3 of ${toks(PRED).length} = 1, recall is 3 of ${toks(GOLD).length} = 0.6, and F1 = 2 × 1 × 0.6 / 1.6 = ${r2(F1)}. Exact match would give 0 for the same answer.` },
+    { id: "pass-at-k", level: "hard", kind: "numeric",
+      q: `You sample ${PN} programs for a task and ${PC} pass the tests. Using the unbiased estimate 1 - C(n - c, k) / C(n, k), what is pass@${PK}?`,
+      answer: r2(PASS), wrong: [r2(PC / PN), r2(1 - (1 - PC / PN) ** PK), "1.00"],
+      why: `C(${PN - PC}, ${PK}) / C(${PN}, ${PK}) = ${choose(PN - PC, PK)} / ${choose(PN, PK)} is the chance that all ${PK} picks fail, so pass@${PK} = ${r2(PASS)}. Plain accuracy, ${r2(PC / PN)}, is pass@1.` },
+    { id: "trap-contamination", level: "medium", kind: "trap",
+      claim: "A model that scores much higher on an old public benchmark than on a fresh set of similar questions may have seen the benchmark in training.",
+      truth: true,
+      why: "That gap is a classic sign of contamination: the old questions were memorised. Fresh or private sets measure skill on inputs the model cannot have seen." },
     { id: "trap-length", level: "easy", kind: "trap",
       claim: "An LLM judge that agrees with people over 80% of the time needs no further checking on your task.",
       truth: false,
