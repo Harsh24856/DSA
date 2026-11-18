@@ -7,6 +7,7 @@ import { VISION_LANGUAGE } from "../modules/s10/vision-language.ts";
 import { VOICE_REALTIME } from "../modules/s10/voice-realtime.ts";
 import { DIFFUSION_FLOW } from "../modules/s10/diffusion-flow.ts";
 import { VIDEO_WORLD } from "../modules/s10/video-world.ts";
+import { CODING_AGENTS } from "../modules/s10/coding-agents.ts";
 
 export const MODULES_10: Record<string, GModule> = {
   "reasoning-models": REASONING_MODELS,
@@ -17,4 +18,5 @@ export const MODULES_10: Record<string, GModule> = {
   "voice-realtime": VOICE_REALTIME,
   "diffusion-flow": DIFFUSION_FLOW,
   "video-world": VIDEO_WORLD,
+  "coding-agents": CODING_AGENTS,
 };
