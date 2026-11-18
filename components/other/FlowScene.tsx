@@ -1,9 +1,11 @@
-// Remotion compositions for the animated walk-throughs in lib/other/flows.ts. Four kinds: a chain a packet travels down,
-// message lanes between participants, grids of real values that change step by step, and bars that grow and shrink.
+// Remotion compositions for the animated walk-throughs in lib/other/flows.ts. Five kinds: a chain a packet travels down,
+// message lanes between participants, grids of real values that change step by step, bars that grow and shrink, and
+// scenes of shapes (FlowShapes.tsx) for trees, plots and regions.
 // Only the picture lives here: the title, caption and controls are normal page text in FlowPlayer. Frame-driven, coloured
 // with the page's tokens so every theme works, and sized phone-first.
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import type { Bar, BarFlow, ChainFlow, Flow, FlowTone, GridFlow, GridTable, LaneFlow } from "@/lib/other/flows";
+import { Shapes } from "./FlowShapes";
 
 export const FPS = 30, STEP = 100, W = 480;   // narrow canvas: on a phone it scales to about 55%, so text stays readable
 const PAD = 20;
@@ -15,6 +17,7 @@ export function flowHeight(f: Flow): number {
     case "lanes": return PAD + LANE_HEAD + 16 + f.steps.length * LANE_ROW + 8;
     case "grid": return Math.max(...f.steps.map((s) => s.tables.reduce((h, t) => h + tableHeight(t) + TABLE_GAP, 0))) - TABLE_GAP + PAD * 2;
     case "bars": return PAD * 2 + f.steps[0].bars.length * BAR_ROW;
+    case "scene": return f.height;
     default: return PAD * 2 + f.steps.length * (CHAIN_BOX + CHAIN_GAP) - CHAIN_GAP;
   }
 }
@@ -141,7 +144,7 @@ function Bars({ flow }: { flow: BarFlow }) {
 export function FlowScene({ flow }: { flow: Flow }) {
   return (
     <AbsoluteFill style={{ background: "var(--bg)", fontFamily: "var(--body)", color: "var(--ink)" }}>
-      {flow.kind === "lanes" ? <Lanes flow={flow} /> : flow.kind === "grid" ? <Grid flow={flow} /> : flow.kind === "bars" ? <Bars flow={flow} /> : <Chain flow={flow} />}
+      {flow.kind === "scene" ? <Shapes flow={flow} width={W} stepLen={STEP} /> : flow.kind === "lanes" ? <Lanes flow={flow} /> : flow.kind === "grid" ? <Grid flow={flow} /> : flow.kind === "bars" ? <Bars flow={flow} /> : <Chain flow={flow} />}
     </AbsoluteFill>
   );
 }

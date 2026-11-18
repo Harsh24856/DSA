@@ -1,10 +1,11 @@
 // Animated walk-throughs: one request, one algorithm or one idea, a step at a time. Played by
 // components/other/FlowPlayer.tsx (Remotion Player). A CS chapter opts in with `anim: "<id>"`; a Gen AI slide is listed in
-// FLOW_SLOTS (lib/genai/labs.ts). Numbers in grids and bars are computed from real code wherever an algorithm is shown.
+// `flow` block in a Gen AI module (lib/genai2). Numbers in grids and bars are computed from real code wherever an algorithm is shown.
 import { CS_FLOWS } from "./flows-cs.ts";
 import { GENAI_FLOWS } from "./flows-genai.ts";
 import { DESIGN_FLOWS } from "./flows-design.ts";
 import { CORE_FLOWS } from "./flows-core.ts";
+import { GENAI2_FLOWS } from "../genai2/stages/flows.ts";
 import { DSA_FLOWS } from "./flows-dsa.ts";
 
 export type FlowTone = "ok" | "bad" | "warn" | "hot";
@@ -20,7 +21,19 @@ export type ChainFlow = { kind?: "chain"; title: string; steps: ChainStep[] };
 export type LaneFlow = { kind: "lanes"; title: string; lanes: string[]; steps: LaneStep[] };
 export type GridFlow = { kind: "grid"; title: string; steps: GridStep[] };
 export type BarFlow = { kind: "bars"; title: string; max?: number; format?: (v: number) => string; steps: BarStep[] };
-export type Flow = ChainFlow | LaneFlow | GridFlow | BarFlow;
+/** A scene draws shapes in canvas pixels (480 wide, `height` tall) for pictures the other kinds cannot draw: trees, scatter plots, regions.
+ *  A shape that keeps its id from one step to the next glides to its new place; a new id fades in and a dropped one fades out. */
+export type SceneTone = FlowTone | "ink" | "muted";
+export type Shape =
+  | { t: "dot"; id: string; x: number; y: number; r?: number; tone?: SceneTone; ring?: boolean }
+  | { t: "line"; id: string; x1: number; y1: number; x2: number; y2: number; tone?: SceneTone; w?: number; dash?: boolean }
+  | { t: "rect"; id: string; x: number; y: number; w: number; h: number; tone?: SceneTone; fill?: number; edge?: boolean }
+  | { t: "path"; id: string; pts: number[]; tone?: SceneTone; w?: number; dash?: boolean }   // pts: x0, y0, x1, y1, ...
+  | { t: "text"; id: string; x: number; y: number; text: string; tone?: SceneTone; size?: number; anchor?: "start" | "middle" | "end"; bold?: boolean }
+  | { t: "node"; id: string; x: number; y: number; w: number; text: string; tone?: SceneTone };   // a box centred on x, y; "\n" breaks lines
+export type SceneStep = { note: string; tone?: FlowTone; shapes: Shape[] };
+export type SceneFlow = { kind: "scene"; title: string; height: number; steps: SceneStep[] };
+export type Flow = ChainFlow | LaneFlow | GridFlow | BarFlow | SceneFlow;
 
 /** The plain-text caption of one step. */
 export const stepNote = (f: Flow, i: number) => f.steps[i].note;
@@ -28,6 +41,7 @@ export const stepNote = (f: Flow, i: number) => f.steps[i].note;
 export const FLOWS: Record<string, Flow> = {
   ...CS_FLOWS,
   ...GENAI_FLOWS,
+  ...GENAI2_FLOWS,
   ...DESIGN_FLOWS,
   ...CORE_FLOWS,
   ...DSA_FLOWS,

@@ -7,3 +7,5 @@ test-results/
 playwright-report/
 .other-check/
 .other-check-*/
+.superpowers/
+__pycache__/

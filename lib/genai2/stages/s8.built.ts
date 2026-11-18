@@ -1,0 +1,2 @@
+export const BUILT_8 = ["tool-calling", "security-guardrails", "agent-loop-react", "state-graphs", "mcp-a2a", "agent-memory", "computer-use", "multi-agent"] as const;
+export const FIGURE_IDS_8 = ["s8-tool-call", "s8-trifecta", "s8-react-trace", "s8-state-graph", "s8-glue", "s8-memory-tiers", "s8-screen-scale", "s8-fan-out"] as const;

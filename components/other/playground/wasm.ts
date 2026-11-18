@@ -45,18 +45,18 @@ export type WasmMsg =
 const LIMIT = { python: 6000, sql: 3000 };
 
 /** One hidden sandbox per playground. `run` starts a program; if it outlives its limit the sandbox is thrown away. */
-export function wasmHost(kind: "python" | "sql", on: (m: WasmMsg) => void, onStopped: (seconds: number) => void) {
+export function wasmHost(kind: "python" | "sql", on: (m: WasmMsg) => void, onStopped: (seconds: number) => void, limitMs = LIMIT[kind]) {
   let frame: HTMLIFrameElement | null = null, timer = 0, runId = 0, queued: Record<string, unknown> | null = null, loaded = false;
 
   const listener = (e: MessageEvent) => {
     if (!frame || e.source !== frame.contentWindow || !e.data?.pg) return;
     const m = e.data.msg as WasmMsg;
     if (m.type === "loaded") { loaded = true; if (queued) { frame.contentWindow!.postMessage(queued, "*"); queued = null; } }
-    if (m.type === "started" && m.id === runId) { clearTimeout(timer); timer = window.setTimeout(stop, LIMIT[kind]); }
+    if (m.type === "started" && m.id === runId) { clearTimeout(timer); timer = window.setTimeout(stop, limitMs); }
     if (m.type === "done" && m.id === runId) clearTimeout(timer);
     on(m);
   };
-  const stop = () => { dispose(); onStopped(LIMIT[kind] / 1000); };
+  const stop = () => { dispose(); onStopped(limitMs / 1000); };
   const start = () => {
     frame = document.createElement("iframe");
     frame.setAttribute("sandbox", "allow-scripts");

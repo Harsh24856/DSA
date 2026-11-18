@@ -156,6 +156,8 @@
   .btn:active{transform:scale(.98)}
   .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+  .btn[aria-disabled="true"],.btn[aria-disabled="true"]:hover{background:var(--surface);transform:none;cursor:default}
+  .btn-primary[aria-disabled="true"],.btn-primary[aria-disabled="true"]:hover{background:var(--accent)}
   .btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
   .btn-primary:hover{background:color-mix(in oklab,var(--accent) 88%,var(--ink))}
   .btn-ghost{border-color:transparent;background:transparent;color:var(--muted)}
@@ -195,7 +197,7 @@
   .lv-CF{color:var(--accent);background:var(--accent-soft)}
   .num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 
-  /* Gen AI playbook pages (components/GenaiDoc.tsx): the playbook HTML in lib/genai/content.ts uses gx- classes */
+  /* gx- classes: diagrams (useMermaid), flow players and the interactive labs (components/labs) */
   .gx{display:flex;flex-direction:column;gap:24px;font-size:16px;line-height:24px}
   .gx-slide{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;padding:24px;min-width:0;scroll-margin-top:96px}
   .gx-slide-tag{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
