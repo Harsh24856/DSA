@@ -31,6 +31,7 @@ export const LOSS_GRADIENT_DESCENT: GModule = {
   hook: "A line has a formula for its best fit. A network with billions of knobs does not. Gradient descent finds good knobs anyway: measure which way is downhill, take a small step, repeat. Builds on [[learning-as-fitting]].",
   blocks: [
     { kind: "figure", id: "s1-bowl", caption: "The loss of the practice line as you vary its slope: a bowl. The dashed tangent is the gradient at the start. Each step moves against it, and the steps shrink as the bowl flattens." },
+    { kind: "play", id: "s1-roll" },
     { kind: "text", md: "**The loss is a landscape.** Every setting of the parameters has a height: its loss. Training wants the lowest point.\n\nThe **gradient** is the slope of that landscape, one number per parameter. It points uphill, so gradient descent steps the other way:\n\nw = w - lr × dL/dw\n\nThe **learning rate** lr sets the step size. The formula needs only the slope where you stand, so it works for any model you can differentiate." },
     { kind: "flow", id: "s1-gd" },
     {
