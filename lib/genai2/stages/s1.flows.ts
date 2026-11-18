@@ -1,6 +1,6 @@
 // Stage 1 (ML basics for LLMs): animated walk-throughs. Client-safe: imports only flow types and s1.calc.ts. Every number shown is computed there.
 import type { Flow, GridTable } from "../../other/flows.ts";
-import { BEST, fmt, GD, gdLine, gradLine, LINE, mse, OUTLIER, predict } from "./s1.calc.ts";
+import { BEST, CORPUS, COUNTS, DF, DOCS, dot, EMB, fmt, GD, gdLine, gradLine, IDF, LINE, mse, OUTLIER, pairCos, predict, SENT, sgnsStep, skipPairs, TFIDF, VOCAB, W2V, W2V_CFG } from "./s1.calc.ts";
 
 // Learning as fitting: the loop every supervised model runs, from a tiny line to an LLM.
 const loop: Flow = { title: "The learning loop", steps: [
@@ -67,7 +67,42 @@ const split: Flow = { title: "Train, validation, test", steps: [
   { node: "tune on test and it stops being a test", note: "Pick the best of many runs by their test score and the score is now optimistic. You need fresh data to know the truth.", tone: "bad" },
 ] };
 
+// Text as numbers: bag of words, then TF-IDF, on three short documents.
+function tfidfFlow(): Flow {
+  const D = DOCS.map((_, i) => `d${i + 1}`), cc = pairCos(COUNTS), tc = pairCos(TFIDF);
+  const theIdx = VOCAB.indexOf("the");
+  return { kind: "grid", title: "From documents to TF-IDF", steps: [
+    { note: `Three documents: ${DOCS.map((d, i) => `d${i + 1} "${d}"`).join(", ")}. Bag of words: one row per vocabulary word, one count per document. Word order is thrown away.`,
+      tables: [{ head: ["word", ...D], rows: VOCAB.map((w, j) => [w, ...COUNTS.map((c) => c[j])]), tones: { [`${theIdx}`]: "warn" } }] },
+    { note: `Document frequency (df): how many documents contain the word. idf = ln(N / df) with N = ${DOCS.length}. "the" is everywhere, so its idf is ln(1) = 0. A word in one document gets ln(${DOCS.length}) = ${fmt(Math.log(DOCS.length))}.`, tone: "hot",
+      tables: [{ head: ["word", "df", "idf"], rows: VOCAB.map((w, j) => [w, DF[j], fmt(IDF[j])]), tones: { [`${theIdx}:2`]: "bad", ":2": "hot" } }] },
+    { note: "TF-IDF = count × idf. Words that are frequent here but rare elsewhere get the weight. \"the\" now counts for nothing, and \"mat\", \"log\" and \"chased\" stand out.", tone: "ok",
+      tables: [{ head: ["word", ...D], rows: VOCAB.map((w, j) => [w, ...TFIDF.map((t) => fmt(t[j]))]), tones: { [`${theIdx}`]: "bad" } }] },
+    { note: `Cosine similarity between documents. On raw counts every pair looks alike, ${cc.map((p) => fmt(p.cos)).join(", ")}, because "the" dominates. With TF-IDF the scores drop to ${tc.map((p) => fmt(p.cos)).join(", ")}, and d1 and d2, which share "sat on", stay the closest pair.`, tone: "ok",
+      tables: [{ head: ["pair", "counts", "TF-IDF"], rows: cc.map((p, k) => [`d${p.i + 1}, d${p.j + 1}`, fmt(p.cos), fmt(tc[k].cos)]), tones: { "0:2": "ok" } }] },
+  ] };
+}
+
+// Text as numbers: where word2vec's training pairs come from, and one negative-sampling step.
+function w2vFlow(): Flow {
+  const c = 2, win = 2;
+  const ctx = SENT.flatMap((w, j) => (j !== c && Math.abs(j - c) <= win ? [w] : []));
+  const { v, u, n, lr } = W2V, s = sgnsStep(v, u, n, lr);
+  return { kind: "grid", title: "word2vec: skip-gram with negative sampling", steps: [
+    { note: `Slide a window of ${win} words each side over "${SENT.join(" ")}". The centre word "${SENT[c]}" makes one training pair with each neighbour. The whole sentence gives ${skipPairs(SENT, win).length} pairs; a window of 1 would give ${skipPairs(SENT, 1).length}.`, tone: "hot",
+      tables: [{ head: ["centre", "context"], rows: ctx.map((w) => [SENT[c], w]) }] },
+    { note: `Each word has two learned vectors: one as a centre word (v) and one as a context word (u). Take the real pair (cat, sat) and one random "negative" word, log. The model wants σ(v · u) near 1 for the real pair and σ(v · u') near 0 for the negative.`,
+      tables: [{ head: ["pair", "v · u", "σ", "want"], rows: [["cat, sat", fmt(dot(v, u)), fmt(s.sp), 1], ["cat, log", fmt(dot(v, n)), fmt(s.sn), 0]], tones: { "0:2": "warn", "1:2": "warn" } }] },
+    { note: `Loss = -ln σ(v · u) - ln(1 - σ(v · u')) = ${fmt(s.loss)}. One gradient step with lr ${lr} pulls cat's vector toward sat's and pushes it from log's. The loss falls to ${fmt(s.loss2)}.`, tone: "ok",
+      tables: [{ head: ["pair", "σ before", "σ after"], rows: [["cat, sat", fmt(s.sp), fmt(s.sp2)], ["cat, log", fmt(s.sn), fmt(s.sn2)]], tones: { "0:2": "ok", "1:2": "ok" } }] },
+    { note: `Repeat over every pair in a big corpus. Words that appear next to the same neighbours get pulled toward the same vectors, so they end up close. Negative sampling scores ${W2V_CFG.negatives} random words per pair instead of the whole vocabulary, which keeps each step cheap.`, tone: "ok",
+      tables: [{ head: ["toy run", "value"], rows: [["sentences", CORPUS.length], ["pairs per pass", EMB.pairs], ["passes", W2V_CFG.epochs], ["vector size", W2V_CFG.dim]] }] },
+  ] };
+}
+
 export const FLOWS_1: Record<string, Flow> = {
+  "s1-tfidf": tfidfFlow(),
+  "s1-w2v": w2vFlow(),
   "s1-split": split,
   "s1-loop": loop,
   "s1-lsq": lsq(),

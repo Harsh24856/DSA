@@ -142,3 +142,31 @@ export function sgnsStep(v: number[], u: number[], n: number[], lr: number) {
   return { sp, sn, loss, v2, u2, n2, sp2: sigmoid(dot(v2, u2)), sn2: sigmoid(dot(v2, n2)), loss2: -Math.log(sigmoid(dot(v2, u2))) - Math.log(1 - sigmoid(dot(v2, n2))) };
 }
 export const W2V = { v: [0.2, -0.1, 0.4], u: [0.1, 0.3, -0.2], n: [0.3, -0.2, 0.5], lr: 0.5 };
+
+/** A real, tiny skip-gram with negative sampling, trained at load on a toy corpus where cat and dog, and milk and water, share contexts. */
+export const CORPUS = [
+  "the cat drinks milk", "the dog drinks water", "the cat drinks water", "the dog drinks milk",
+  "a cat sleeps on the mat", "a dog sleeps on the mat", "the cat eats fish", "the dog eats meat",
+  "she pours milk in a cup", "she pours water in a cup", "cold milk is good", "cold water is good",
+];
+export const W2V_CFG = { dim: 8, window: 2, negatives: 3, epochs: 300, lr: 0.05 };
+export const trainW2V = () => {
+  const { dim, window, negatives, epochs, lr } = W2V_CFG, r = seededRng("s1-w2v");
+  const sents = CORPUS.map(tokens), vocab = [...new Set(sents.flat())].sort(), id = new Map(vocab.map((w, i) => [w, i]));
+  const init = () => vocab.map(() => Array.from({ length: dim }, () => (r() - 0.5) / dim));
+  const V = init(), U = vocab.map(() => Array(dim).fill(0));
+  const pairs = sents.flatMap((s) => skipPairs(s, window)).map(([c, o]) => [id.get(c)!, id.get(o)!]);
+  const update = (c: number, o: number, label: number) => {
+    const g = sigmoid(dot(V[c], U[o])) - label, vc = [...V[c]];
+    for (let k = 0; k < dim; k++) { V[c][k] -= lr * g * U[o][k]; U[o][k] -= lr * g * vc[k]; }
+  };
+  for (let e = 0; e < epochs; e++) for (const [c, o] of pairs) {
+    update(c, o, 1);
+    for (let k = 0; k < negatives; k++) { const n = Math.floor(r() * vocab.length); if (n !== o) update(c, n, 0); }
+  }
+  return { vocab, vec: (w: string) => V[id.get(w)!], pairs: pairs.length };
+};
+export const EMB = trainW2V();
+export const SHOW = ["cat", "dog", "milk", "water"];
+export const EMB_COS = SHOW.map((a) => SHOW.map((b) => cosine(EMB.vec(a), EMB.vec(b))));
+if (!(EMB_COS[0][1] > EMB_COS[0][2] && EMB_COS[2][3] > EMB_COS[1][3])) throw new Error("the toy word2vec no longer puts cat near dog and milk near water");

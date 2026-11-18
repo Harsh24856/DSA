@@ -1,7 +1,7 @@
 // Stage 1 (ML basics for LLMs): slider walk-throughs, placed in modules by a `play` block. Spread by stages/play.ts into PLAY_FLOWS.
 import type { Flow } from "../../other/flows.ts";
 import { PlayError, type PlayFlow } from "../../other/flows-play-types.ts";
-import { BEST, confusion, fmt, gdLine, LIMIT, LINE, mse, POLY, polyErrorsN, predict, SPAM } from "./s1.calc.ts";
+import { BEST, confusion, fmt, gdLine, idf, LIMIT, LINE, mse, POLY, polyErrorsN, predict, SPAM } from "./s1.calc.ts";
 
 // Learning as fitting: fit the line by hand, then compare with least squares.
 function line(v: Record<string, number>): Flow {
@@ -77,7 +77,29 @@ function threshold(v: Record<string, number>): Flow {
   ] };
 }
 
+// Text as numbers: how rarity and repetition set a TF-IDF weight in a large collection.
+function idfPlay(v: Record<string, number>): Flow {
+  const { N, p, tf } = v, df = Math.max(1, Math.round((N * p) / 100)), w = idf(N, df);
+  const rows = [["in every document", N, fmt(idf(N, N)), fmt(tf * idf(N, N))], ["your word", df, fmt(w), fmt(tf * w)], ["in one document", 1, fmt(idf(N, 1)), fmt(tf * idf(N, 1))]];
+  const doubled = Math.max(1, Math.round(df / 2));
+  return { kind: "grid", title: `${N.toLocaleString("en-US")} documents, word in ${df}`, steps: [
+    { note: `idf = ln(N / df) = ln(${N.toLocaleString("en-US")} / ${df}) = ${fmt(w)}. The log keeps it gentle: halving the documents that contain the word (${df} to ${doubled}) adds only ${fmt(idf(N, doubled) - w)}, whatever N is.`, tone: "hot",
+      tables: [{ head: ["word", "df", "idf"], rows: rows.map((r) => r.slice(0, 3)), tones: { "1:2": "hot" } }] },
+    { note: `The word appears ${tf} times in this document, so its weight is ${tf} × ${fmt(w)} = ${fmt(tf * w)}. A word in every document scores 0 however often it repeats; one found in a single document scores ${fmt(tf * idf(N, 1))}.`, tone: w > 0 ? "ok" : "warn",
+      tables: [{ head: ["word", "df", "idf", "tf × idf"], rows, tones: { "1:3": w > 0 ? "ok" : "warn" } }] },
+  ] };
+}
+
 export const PLAY_1: Record<string, PlayFlow> = {
+  "s1-idf": {
+    title: "What makes a word count",
+    knobs: [
+      { key: "N", label: "Documents", min: 10, max: 10000, step: 10, value: 1000 },
+      { key: "p", label: "Share containing the word", min: 1, max: 100, step: 1, value: 2, unit: "%" },
+      { key: "tf", label: "Times in this document", min: 1, max: 10, step: 1, value: 3 },
+    ],
+    make: idfPlay,
+  },
   "s1-data": {
     title: "Give the model more data",
     knobs: [
