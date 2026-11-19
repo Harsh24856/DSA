@@ -9,20 +9,19 @@ const REFS: [string, Icon, string, string][] = [["interview", ChatsCircle, "Inte
 export default function GenAI() {
   return (
     <div className="flex flex-col gap-6">
-      <RoadmapHub labs={Object.values(LABS).map((l) => ({ id: l.id, title: l.title, blurb: l.blurb, steps: l.steps.length }))} />
-      <section aria-labelledby="gx-ref" className="flex flex-col gap-3">
-        <h2 id="gx-ref" className="t-h3">Prepare and look things up</h2>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          {REFS.map(([id, I, nav, blurb]) => {
-            return (
+      <RoadmapHub labs={Object.values(LABS).map((l) => ({ id: l.id, title: l.title, blurb: l.blurb, steps: l.steps.length }))}>
+        <nav aria-labelledby="gx-ref" className="flex flex-col gap-3">
+          <h2 id="gx-ref" className="t-h3">Prepare and look things up</h2>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+            {REFS.map(([id, I, nav, blurb]) => (
               <Link key={id} href={`/genai/${id}`} className="card flex items-start gap-3 p-4 transition hover:border-line-strong hover:bg-surface-2 active:scale-[0.99]">
                 <span className="badge-icon"><I size={16} aria-hidden /></span>
-                <span className="min-w-0"><span className="block text-sm font-semibold">{nav}</span><span className="block text-xs text-muted">{blurb}</span></span>
+                <span className="min-w-0"><span className="block text-sm font-semibold">{nav}</span><span className="hidden text-xs text-muted sm:block">{blurb}</span></span>
               </Link>
-            );
-          })}
-        </div>
-      </section>
+            ))}
+          </div>
+        </nav>
+      </RoadmapHub>
     </div>
   );
 }

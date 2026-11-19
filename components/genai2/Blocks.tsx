@@ -8,7 +8,7 @@ import { RunPanel } from "../RunPanel";
 import { useMermaid } from "../useMermaid";
 import { Choices, ginline, GRich } from "./Questions";
 
-const FlowPlayer = dynamic(() => import("../other/FlowPlayer"), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
+const FlowBlock = dynamic(() => import("./FlowBlock"), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
 const FlowLab = dynamic(() => import("../other/FlowLab"), { ssr: false, loading: () => <div className="gx-diagram h-[560px]" aria-hidden /> });
 const GenaiLab = dynamic(() => import("../labs").then((m) => m.GenaiLab), { ssr: false, loading: () => <div className="gx-diagram h-[420px]" aria-hidden /> });
 
@@ -57,7 +57,7 @@ function Predict({ b, seed }: { b: Extract<Block, { kind: "predict" }>; seed: st
 
 export function BlockView({ b, seed }: { b: Block; seed: string }) {
   switch (b.kind) {
-    case "flow": return <FlowPlayer id={b.id} />;
+    case "flow": return <FlowBlock id={b.id} />;
     case "play": return <FlowLab id={b.id} />;
     case "lab": return <GenaiLab kind={b.id} />;
     case "figure": {
