@@ -69,11 +69,21 @@ for (const topic of Object.keys(TOPIC_FLOWS)) test(`flows on /patterns/${topic}`
   expect([...new Set(problems)]).toEqual([]);
 });
 
+// Gen AI modules draw a chain as a still flowchart (every step visible) and play the other kinds
 for (const path of GENAI) test(`flows on ${path}`, async ({ page }) => {
   const problems: string[] = [];
   await page.goto(path);
-  await walkAll(page, problems);
+  await expect(page.locator(".gx-flow, figure.gx-diagram ol").first()).toBeVisible({ timeout: 30_000 });
+  if (await page.locator(".gx-flow").count()) await walkAll(page, problems);
   expect([...new Set(problems)]).toEqual([]);
+});
+
+test("a Gen AI chain is a flowchart with every step and note shown", async ({ page }) => {
+  await page.goto("/genai/learning-as-fitting");
+  const chart = page.locator("figure.gx-diagram", { has: page.locator("ol") }).filter({ hasText: "The learning loop" });
+  await expect(chart).toBeVisible({ timeout: 30_000 });
+  expect(await chart.locator("ol > li").count()).toBeGreaterThanOrEqual(4);
+  await expect(chart.getByText("Training data is pairs", { exact: false })).toBeVisible();
 });
 
 /** Drags every slider of the interactive walk-through on the page; each must change it or explain why not. */
